@@ -59,6 +59,18 @@ enum ExportQuality {
   final double bitrateMbps;
 }
 
+enum AspectRatioPreset {
+  nineSixteen('9:16', 9 / 16),
+  sixteenNine('16:9', 16 / 9),
+  oneOne('1:1', 1 / 1),
+  fourFive('4:5', 4 / 5),
+  original('Original', 0.0);
+
+  const AspectRatioPreset(this.label, this.ratio);
+  final String label;
+  final double ratio;
+}
+
 class DrawingPoint {
   DrawingPoint({
     required this.offset,
@@ -347,20 +359,48 @@ class TimelineClip {
   }
 }
 
-class VideoProject {
-  VideoProject({
+class Project {
+  Project({
+    required this.id,
+    required String name,
+    String? projectName,
+    this.aspectRatio = AspectRatioPreset.nineSixteen,
+    this.resolution = ExportResolution.res1080p,
     List<TimelineClip>? clips,
     List<CaptionCue>? captions,
     List<String>? customFonts,
-    this.projectName = 'Untitled Motion Project',
-  })  : clips = clips ?? <TimelineClip>[],
+    String? thumbnail,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : name = projectName ?? name,
+        clips = clips ?? <TimelineClip>[],
         captions = captions ?? <CaptionCue>[],
-        customFonts = customFonts ?? <String>['Roboto', 'Montserrat', 'Poppins', 'Playfair Display', 'Bebas Neue', 'Caveat'];
+        customFonts = customFonts ??
+            <String>[
+              'Roboto',
+              'Montserrat',
+              'Poppins',
+              'Playfair Display',
+              'Bebas Neue',
+              'Caveat'
+            ],
+        thumbnail = thumbnail ?? 'assets/placeholder.png',
+        createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
 
-  final String projectName;
+  final String id;
+  final String name;
+  String get projectName => name;
+  final AspectRatioPreset aspectRatio;
+  final ExportResolution resolution;
   final List<TimelineClip> clips;
   final List<CaptionCue> captions;
   final List<String> customFonts;
+  final String thumbnail;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  Duration get duration => totalDuration;
 
   Duration get totalDuration {
     if (clips.isEmpty && captions.isEmpty) return Duration.zero;
@@ -382,7 +422,35 @@ class VideoProject {
   void removeClip(String id) {
     clips.removeWhere((TimelineClip clip) => clip.id == id);
   }
+
+  Project copyWith({
+    String? id,
+    String? name,
+    AspectRatioPreset? aspectRatio,
+    ExportResolution? resolution,
+    List<TimelineClip>? clips,
+    List<CaptionCue>? captions,
+    List<String>? customFonts,
+    String? thumbnail,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Project(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      aspectRatio: aspectRatio ?? this.aspectRatio,
+      resolution: resolution ?? this.resolution,
+      clips: clips != null ? List<TimelineClip>.from(clips) : List<TimelineClip>.from(this.clips),
+      captions: captions != null ? List<CaptionCue>.from(captions) : List<CaptionCue>.from(this.captions),
+      customFonts: customFonts != null ? List<String>.from(customFonts) : List<String>.from(this.customFonts),
+      thumbnail: thumbnail ?? this.thumbnail,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? DateTime.now(),
+    );
+  }
 }
+
+typedef VideoProject = Project;
 
 class EditorStats {
   EditorStats({

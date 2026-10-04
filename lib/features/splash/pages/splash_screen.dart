@@ -18,7 +18,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2500),
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
 
@@ -38,9 +38,9 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    Future.delayed(const Duration(milliseconds: 3000), () {
+    Future.delayed(const Duration(milliseconds: 2200), () {
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/editor');
+        Navigator.of(context).pushReplacementNamed('/home');
       }
     });
   }
@@ -54,7 +54,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1020),
+      backgroundColor: const Color(0xFF0E0E10),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -64,93 +64,59 @@ class _SplashScreenState extends State<SplashScreen>
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: Container(
-                  width: 120,
-                  height: 120,
+                  width: 100,
+                  height: 100,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: <Color>[
-                        Color(0xFF8B5CF6),
-                        Color(0xFF6366F1),
+                        Color(0xFF00E5FF),
+                        Color(0xFF00838F),
                       ],
                     ),
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: <BoxShadow>[
                       BoxShadow(
-                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.5),
-                        blurRadius: 30,
-                        spreadRadius: 5,
+                        color: const Color(0xFF00E5FF).withAlpha(120),
+                        blurRadius: 24,
+                        spreadRadius: 4,
                       ),
                     ],
                   ),
                   child: const Center(
                     child: Icon(
                       Icons.play_arrow_rounded,
-                      size: 60,
-                      color: Colors.white,
+                      size: 56,
+                      color: Colors.black,
                     ),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 32),
             FadeTransition(
               opacity: _fadeAnimation,
               child: const Text(
                 'motionGr',
                 style: TextStyle(
-                  fontSize: 48,
+                  fontSize: 40,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
                   letterSpacing: 1.5,
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             FadeTransition(
               opacity: _fadeAnimation,
               child: const Text(
-                'Professional Video Editing at Your Fingertips',
+                'Mobile Video Editing Suite',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w400,
-                  color: Color(0xFF9CA3AF),
+                  color: Color(0x99FFFFFF),
                   letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(height: 60),
-            FadeTransition(
-              opacity: Tween<double>(begin: 0.0, end: 1.0).animate(
-                CurvedAnimation(
-                  parent: _animationController,
-                  curve: const Interval(0.6, 1.0, curve: Curves.easeInOut),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  3,
-                  (int index) => AnimatedBuilder(
-                    animation: _animationController,
-                    builder: (BuildContext context, Widget? child) {
-                      final progress = _animationController.value * 3 - index;
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color.lerp(
-                            const Color(0xFF1F2937),
-                            const Color(0xFF8B5CF6),
-                            progress.clamp(0.0, 1.0),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
                 ),
               ),
             ),

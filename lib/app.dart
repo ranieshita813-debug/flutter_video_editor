@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/theme/app_theme.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/pages/editor_page.dart';
+import 'package:flutter_video_editor/features/media_picker/pages/media_picker_page.dart';
+import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
+import 'package:flutter_video_editor/features/projects/pages/home_page.dart';
 import 'package:flutter_video_editor/features/splash/pages/splash_screen.dart';
 
 class VideoEditorApp extends StatelessWidget {
@@ -11,14 +14,19 @@ class VideoEditorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => EditorController(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ProjectsController()),
+        ChangeNotifierProvider(create: (_) => EditorController()),
+      ],
       child: MaterialApp(
         title: 'motionGr',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
+        theme: AppTheme.darkTheme,
         home: const SplashScreen(),
         routes: <String, WidgetBuilder>{
+          '/home': (_) => const HomePage(),
+          '/media_picker': (_) => const MediaPickerPage(),
           '/editor': (_) => const EditorPage(),
         },
       ),
