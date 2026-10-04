@@ -12,16 +12,25 @@ import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart'
 import 'package:flutter_video_editor/features/editor/widgets/text_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/vector_drawing_sheet.dart';
 
-// Premiere Pro style palette
-const Color _bg = Color(0xFF1A1A1A);
-const Color _panel = Color(0xFF232323);
-const Color _panelDark = Color(0xFF1E1E1E);
-const Color _line = Color(0xFF111111);
-const Color _border = Color(0xFF3A3A3A);
-const Color _text = Color(0xFFC8C8C8);
-const Color _muted = Color(0xFF8A8A8A);
-const Color _blue = Color(0xFF2D8CFF);
-const Color _timecodeBlue = Color(0xFF4DA3FF);
+// -----------------------------------------------------------------------------
+// Design tokens
+// -----------------------------------------------------------------------------
+
+const Color _bg = Color(0xFF0B0D12);
+const Color _panel = Color(0xFF12151C);
+const Color _elevated = Color(0xFF181C25);
+const Color _border = Color(0xFF232836);
+const Color _text = Color(0xFFE8EAF0);
+const Color _muted = Color(0xFF8B93A7);
+const Color _violet = Color(0xFF7C5CFF);
+const Color _cyan = Color(0xFF22D3EE);
+const Color _pink = Color(0xFFD4457E);
+
+const LinearGradient _accentGradient = LinearGradient(
+  colors: <Color>[_violet, _cyan],
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+);
 
 const double _fps = 30;
 
@@ -31,9 +40,8 @@ const double _fps = 30;
 
 double _seconds(Duration value) => value.inMilliseconds / 1000.0;
 
-double _totalSeconds(EditorController editor) {
-  return math.max(_seconds(editor.project.totalDuration), 1.0);
-}
+double _totalSeconds(EditorController editor) =>
+    math.max(_seconds(editor.project.totalDuration), 1.0);
 
 String _two(int n) => n.toString().padLeft(2, '0');
 
@@ -98,63 +106,107 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: const BoxDecoration(
-        color: _panelDark,
-        border: Border(bottom: BorderSide(color: _line)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.close_rounded, color: _text, size: 22),
+            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _text, size: 28),
             tooltip: 'Close',
             onPressed: () => Navigator.of(context).maybePop(),
           ),
           Expanded(
-            child: Text(
-              editor.project.projectName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: _text,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  editor.project.projectName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _text,
+                  ),
+                ),
+                const Text(
+                  '1080p · 30 fps',
+                  style: TextStyle(fontSize: 10.5, color: _muted),
+                ),
+              ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.undo_rounded, size: 20),
+            icon: const Icon(Icons.undo_rounded, size: 22),
             color: _text,
             disabledColor: Colors.white24,
             tooltip: 'Undo',
             onPressed: editor.canUndo ? editor.undo : null,
           ),
           IconButton(
-            icon: const Icon(Icons.redo_rounded, size: 20),
+            icon: const Icon(Icons.redo_rounded, size: 22),
             color: _text,
             disabledColor: Colors.white24,
             tooltip: 'Redo',
             onPressed: editor.canRedo ? editor.redo : null,
           ),
           const SizedBox(width: 4),
-          SizedBox(
-            height: 30,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: _blue,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              ),
-              onPressed: () => ExportModal.show(context),
-              child: const Text('Export'),
+          _GradientPill(
+            label: 'Export',
+            icon: Icons.ios_share_rounded,
+            onTap: () => ExportModal.show(context),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GradientPill extends StatelessWidget {
+  const _GradientPill({required this.label, required this.icon, required this.onTap});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: _accentGradient,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: _violet.withAlpha(90),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(icon, size: 15, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-        ],
+        ),
       ),
     );
   }
@@ -174,117 +226,130 @@ class _ProgramMonitor extends StatelessWidget {
     final double total = _totalSeconds(editor);
     final double t = _seconds(editor.playhead);
 
-    return Container(
-      color: _panel,
-      child: Column(
-        children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.fromLTRB(12, 6, 12, 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Program', style: TextStyle(color: _muted, fontSize: 11)),
-            ),
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: editor.togglePlayback,
+                  child: _MonitorScreen(editor: editor, time: t, total: total),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _MonitorScrubber(editor: editor, total: total),
+              ),
+            ],
           ),
-          Expanded(child: _MonitorScreen(editor: editor)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: Row(
-              children: <Widget>[
-                Text(_timecode(t), style: _timecodeStyle(_timecodeBlue, size: 12)),
-                const SizedBox(width: 10),
-                Expanded(child: _MonitorScrubber(editor: editor, total: total)),
-                const SizedBox(width: 10),
-                Text(_timecode(total), style: _timecodeStyle(_muted, size: 12)),
-              ],
-            ),
-          ),
-          _Transport(editor: editor, total: total),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class _MonitorScreen extends StatelessWidget {
-  const _MonitorScreen({required this.editor});
+  const _MonitorScreen({
+    required this.editor,
+    required this.time,
+    required this.total,
+  });
 
   final EditorController editor;
+  final double time;
+  final double total;
+
+  Widget _chip(String text, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+        decoration: BoxDecoration(
+          color: Colors.black.withAlpha(150),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(text, style: _timecodeStyle(color, size: 11)),
+      );
 
   @override
   Widget build(BuildContext context) {
     final clip = editor.selectedClip;
     final tracking = clip?.trackingData;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Center(
-        child: AspectRatio(
-          aspectRatio: 9 / 16,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.black,
-              border: Border.all(color: _border),
+    return ColoredBox(
+      color: Colors.black,
+      child: Stack(
+        children: <Widget>[
+          if (editor.isCameraActive)
+            const Positioned.fill(
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.camera_alt_rounded, size: 36, color: _cyan),
+                    SizedBox(height: 8),
+                    Text('Camera on', style: TextStyle(color: _text, fontSize: 12)),
+                  ],
+                ),
+              ),
+            )
+          else
+            Center(
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 160),
+                opacity: editor.isPlaying ? 0 : 1,
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withAlpha(110),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.play_arrow_rounded, size: 40, color: Colors.white),
+                ),
+              ),
             ),
-            child: Stack(
-              children: <Widget>[
-                if (editor.isCameraActive)
-                  const Positioned.fill(
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(Icons.camera_alt_outlined, size: 36, color: _blue),
-                          SizedBox(height: 8),
-                          Text('Camera on', style: TextStyle(color: _text, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  const Center(
-                    child: Icon(Icons.videocam_outlined, size: 40, color: Colors.white24),
-                  ),
-                if (editor.activeDrawingStrokes.isNotEmpty)
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _PreviewCanvasDrawingPainter(
-                        strokes: editor.activeDrawingStrokes,
-                      ),
-                    ),
-                  ),
-                if (tracking != null && tracking.isEnabled)
-                  Positioned(
-                    left: 24,
-                    top: 60,
-                    width: 100,
-                    height: 100,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: _timecodeBlue, width: 1.5),
-                      ),
-                      child: Align(
-                        alignment: Alignment.topLeft,
-                        child: Container(
-                          color: _timecodeBlue,
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                          child: Text(
-                            tracking.targetName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Colors.black,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+          if (editor.activeDrawingStrokes.isNotEmpty)
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _PreviewCanvasDrawingPainter(
+                  strokes: editor.activeDrawingStrokes,
+                ),
+              ),
             ),
-          ),
-        ),
+          if (tracking != null && tracking.isEnabled)
+            Positioned(
+              left: 24,
+              top: 60,
+              width: 100,
+              height: 100,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: _cyan, width: 1.5),
+                ),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Container(
+                    color: _cyan,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    child: Text(
+                      tracking.targetName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF04202B),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Positioned(left: 10, top: 10, child: _chip(_timecode(time), _cyan)),
+          Positioned(right: 10, top: 10, child: _chip(_timecode(total), _muted)),
+        ],
       ),
     );
   }
@@ -332,95 +397,35 @@ class _MonitorScrubber extends StatelessWidget {
         final double w = c.maxWidth;
         final double x = (t / total).clamp(0.0, 1.0) * w;
 
-        void seekTo(double dx) =>
-            _seek(editor, (dx / w).clamp(0.0, 1.0) * total);
+        void seekTo(double dx) => _seek(editor, (dx / w).clamp(0.0, 1.0) * total);
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapDown: (d) => seekTo(d.localPosition.dx),
           onHorizontalDragUpdate: (d) => seekTo(d.localPosition.dx),
           child: SizedBox(
-            height: 24,
+            height: 20,
             child: Stack(
               children: <Widget>[
-                Positioned(
+                const Positioned(
                   left: 0,
                   right: 0,
-                  top: 10.5,
-                  height: 3,
-                  child: Container(color: _border),
+                  bottom: 0,
+                  height: 2.5,
+                  child: ColoredBox(color: Colors.white24),
                 ),
                 Positioned(
                   left: 0,
-                  top: 10.5,
-                  height: 3,
+                  bottom: 0,
+                  height: 2.5,
                   width: x,
-                  child: Container(color: _blue),
-                ),
-                Positioned(
-                  left: x - 5,
-                  top: 7,
-                  child: Container(
-                    width: 10,
-                    height: 10,
-                    decoration: const BoxDecoration(
-                      color: _blue,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                  child: const ColoredBox(color: Colors.white),
                 ),
               ],
             ),
           ),
         );
       },
-    );
-  }
-}
-
-class _Transport extends StatelessWidget {
-  const _Transport({required this.editor, required this.total});
-
-  final EditorController editor;
-  final double total;
-
-  Widget _button(IconData icon, VoidCallback onTap, {double size = 24}) {
-    return IconButton(
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 44, height: 40),
-      icon: Icon(icon, size: size),
-      color: _text,
-      onPressed: onTap,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final double t = _seconds(editor.playhead);
-    const double frame = 1 / _fps;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          _button(Icons.skip_previous_rounded, () => _seek(editor, 0)),
-          _button(Icons.chevron_left_rounded, () => _seek(editor, t - frame), size: 28),
-          IconButton(
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints.tightFor(width: 52, height: 40),
-            icon: Icon(
-              editor.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              size: 34,
-            ),
-            color: Colors.white,
-            tooltip: editor.isPlaying ? 'Pause' : 'Play',
-            onPressed: editor.togglePlayback,
-          ),
-          _button(Icons.chevron_right_rounded, () => _seek(editor, t + frame), size: 28),
-          _button(Icons.skip_next_rounded, () => _seek(editor, total)),
-        ],
-      ),
     );
   }
 }
@@ -441,51 +446,55 @@ class _TrackRow {
   final bool isAudio;
 }
 
-class _TimelinePanel extends StatelessWidget {
+class _TimelinePanel extends StatefulWidget {
   const _TimelinePanel({required this.editor});
 
   final EditorController editor;
 
-  static const double _height = 250;
-  static const double _headerWidth = 84;
-  static const double _rulerHeight = 24;
-  static const double _trackHeight = 44;
-  static const double _leftPad = 8;
+  @override
+  State<_TimelinePanel> createState() => _TimelinePanelState();
+}
+
+class _TimelinePanelState extends State<_TimelinePanel> {
+  static const double _rulerHeight = 30;
+  static const double _laneHeight = 76;
+  static const double _leftPad = 14;
+  static const double _maxTracksHeight = 250;
+
+  bool _open = true;
+  bool _loop = false;
+
+  EditorController get editor => widget.editor;
+
+  String _clock(double seconds) {
+    final int whole = math.max(seconds, 0).floor();
+    return '${whole ~/ 60}:${_two(whole % 60)}';
+  }
 
   Color _colorFor(ClipType type) {
     return switch (type) {
-      ClipType.video => const Color(0xFF6B5BD2),
-      ClipType.image => const Color(0xFF2E8B9A),
-      ClipType.audio => const Color(0xFF2F9E6B),
-      ClipType.text => const Color(0xFFB33F7E),
-      ClipType.caption => const Color(0xFFB33F7E),
-      ClipType.drawing => const Color(0xFFB33F7E),
-      ClipType.sticker => const Color(0xFFB33F7E),
+      ClipType.video => const Color(0xFF5B43D6),
+      ClipType.image => const Color(0xFF3B6FE0),
+      ClipType.audio => const Color(0xFF14A38B),
+      ClipType.text => _pink,
+      ClipType.caption => _pink,
+      ClipType.drawing => const Color(0xFFE08A2E),
+      ClipType.sticker => const Color(0xFF2BA3C7),
     };
   }
 
-  List<_TrackRow> _buildRows(List<TimelineClip> clips) {
-    final List<int> videoLayers = clips
-        .where((c) => c.clipType != ClipType.audio)
+  /// Audio lanes first (top), then video/overlay lanes with the top layer first.
+  List<_TrackRow> _rows(List<TimelineClip> clips, {required bool audio}) {
+    final List<int> layers = clips
+        .where((c) => (c.clipType == ClipType.audio) == audio)
         .map<int>((c) => c.layerIndex)
         .toSet()
         .toList()
       ..sort();
-    final List<int> audioLayers = clips
-        .where((c) => c.clipType == ClipType.audio)
-        .map<int>((c) => c.layerIndex)
-        .toSet()
-        .toList()
-      ..sort();
-
-    if (videoLayers.isEmpty) videoLayers.add(0);
-    if (audioLayers.isEmpty) audioLayers.add(0);
-
+    if (layers.isEmpty) layers.add(0);
+    final Iterable<int> ordered = audio ? layers : layers.reversed;
     return <_TrackRow>[
-      for (int i = videoLayers.length - 1; i >= 0; i--)
-        _TrackRow(label: 'V${i + 1}', layer: videoLayers[i], isAudio: false),
-      for (int i = 0; i < audioLayers.length; i++)
-        _TrackRow(label: 'A${i + 1}', layer: audioLayers[i], isAudio: true),
+      for (final int l in ordered) _TrackRow(label: '', layer: l, isAudio: audio),
     ];
   }
 
@@ -496,238 +505,154 @@ class _TimelinePanel extends StatelessWidget {
         .toList();
   }
 
-  void _toggleVisibility(List<TimelineClip> trackClips) {
-    final bool allVisible = trackClips.every((c) => c.isVisible);
-    for (final c in trackClips) {
-      if (allVisible || !(c.isVisible)) {
-        editor.toggleClipVisibility(c.id);
-      }
-    }
-  }
-
-  void _toggleLock(List<TimelineClip> trackClips) {
-    final bool allLocked = trackClips.every((c) => c.isLocked);
-    for (final c in trackClips) {
-      if (allLocked || !(c.isLocked)) {
-        editor.toggleClipLock(c.id);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final List<TimelineClip> clips = editor.project.clips;
-    final double pps = 24.0 * editor.zoom; // pixels per second
     final double total = _totalSeconds(editor);
-    final List<_TrackRow> rows = _buildRows(clips);
-    final double playheadX = _leftPad + _seconds(editor.playhead) * pps;
+    final double t = _seconds(editor.playhead);
 
     return Container(
-      height: _height,
       decoration: const BoxDecoration(
-        color: _panel,
-        border: Border(top: BorderSide(color: _line, width: 2)),
+        color: Colors.transparent,
+        border: Border(top: BorderSide(color: _border)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          _buildHeader(context),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints c) {
-                final double viewport = c.maxWidth - _headerWidth;
-                final double contentWidth = math.max(total * pps + 160, viewport);
+          _header(t, total),
+          _TimelineToolbar(editor: editor),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: _open
+                ? _tracks(clips, total)
+                : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
+  }
 
-                return SingleChildScrollView(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      // Track headers
-                      SizedBox(
-                        width: _headerWidth,
-                        child: Column(
-                          children: <Widget>[
-                            Container(
-                              height: _rulerHeight,
-                              decoration: const BoxDecoration(
-                                color: _panelDark,
-                                border: Border(
-                                  bottom: BorderSide(color: _line),
-                                  right: BorderSide(color: _line),
-                                ),
-                              ),
-                            ),
-                            for (final row in rows) _headerFor(clips, row),
-                          ],
-                        ),
-                      ),
+  Widget _header(double t, double total) {
+    return SizedBox(
+      height: 52,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Row(
+          children: <Widget>[
+            Text(
+              '${_clock(t)} / ${_clock(total)}',
+              style: _timecodeStyle(_text, size: 15),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: editor.togglePlayback,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(28),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  editor.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  size: 28,
+                  color: _text,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            IconButton(
+              icon: const Icon(Icons.repeat_rounded, size: 24),
+              color: _loop ? _violet : _text,
+              tooltip: 'Loop',
+              onPressed: () => setState(() => _loop = !_loop),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: AnimatedRotation(
+                turns: _open ? 0 : 0.5,
+                duration: const Duration(milliseconds: 220),
+                child: const Icon(Icons.keyboard_arrow_down_rounded, size: 30),
+              ),
+              color: _text,
+              tooltip: _open ? 'Collapse timeline' : 'Expand timeline',
+              onPressed: () => setState(() => _open = !_open),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                      // Ruler + tracks
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: SizedBox(
-                            width: contentWidth,
-                            child: Stack(
-                              children: <Widget>[
-                                Column(
-                                  children: <Widget>[
-                                    _buildRuler(pps, total, contentWidth),
-                                    for (final row in rows)
-                                      _buildTrack(clips, row, pps, contentWidth),
-                                  ],
-                                ),
-                                Positioned(
-                                  left: playheadX - 0.75,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: IgnorePointer(
-                                    child: Container(width: 1.5, color: _blue),
-                                  ),
-                                ),
-                                Positioned(
-                                  left: playheadX - 7,
-                                  top: 0,
-                                  child: const IgnorePointer(
-                                    child: Icon(
-                                      Icons.arrow_drop_down_rounded,
-                                      size: 14,
-                                      color: _blue,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+  Widget _tracks(List<TimelineClip> clips, double total) {
+    final double pps = 24.0 * editor.zoom;
+    final List<_TrackRow> audio = _rows(clips, audio: true);
+    final List<_TrackRow> visual = _rows(clips, audio: false);
+    final double playheadX = _leftPad + _seconds(editor.playhead) * pps;
+    final double contentHeight =
+        _rulerHeight + (audio.length + visual.length) * _laneHeight + 1;
+
+    // "+" tile sits after the end of the clips on the lowest video lane.
+    double visualEnd = 0;
+    for (final c in clips.where((c) => c.clipType != ClipType.audio)) {
+      visualEnd = math.max(visualEnd, _seconds(c.end));
+    }
+
+    return SizedBox(
+      height: math.min(contentHeight, _maxTracksHeight),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints c) {
+          final double contentWidth = math.max(total * pps + 160, c.maxWidth);
+
+          return SingleChildScrollView(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: SizedBox(
+                width: contentWidth,
+                height: contentHeight,
+                child: Stack(
+                  children: <Widget>[
+                    Column(
+                      children: <Widget>[
+                        _buildRuler(pps, total, contentWidth),
+                        for (final row in audio)
+                          _lane(clips, row, pps, contentWidth, null),
+                        Container(height: 1, color: _border),
+                        for (int i = 0; i < visual.length; i++)
+                          _lane(
+                            clips,
+                            visual[i],
+                            pps,
+                            contentWidth,
+                            i == visual.length - 1 ? visualEnd : null,
+                          ),
+                      ],
+                    ),
+                    Positioned(
+                      left: playheadX - 1,
+                      top: 0,
+                      bottom: 0,
+                      child: IgnorePointer(
+                        child: Container(
+                          width: 2,
+                          decoration: BoxDecoration(
+                            color: _violet,
+                            boxShadow: <BoxShadow>[
+                              BoxShadow(color: _violet.withAlpha(150), blurRadius: 6),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    final double t = _seconds(editor.playhead);
-    final TimelineClip? selected = editor.selectedClip;
-    final bool hasClip = selected != null;
-    final bool canSplit = selected != null &&
-        editor.playhead > selected.start &&
-        editor.playhead < selected.end;
-
-    Widget tool(IconData icon, String tip, VoidCallback? onTap, {bool active = false}) {
-      return IconButton(
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-        icon: Icon(icon, size: 18),
-        tooltip: tip,
-        color: active ? _blue : _text,
-        disabledColor: Colors.white24,
-        onPressed: onTap,
-      );
-    }
-
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: const BoxDecoration(
-        color: _panelDark,
-        border: Border(bottom: BorderSide(color: _line)),
-      ),
-      child: Row(
-        children: <Widget>[
-          Text(_timecode(t), style: _timecodeStyle(_timecodeBlue, size: 14)),
-          const SizedBox(width: 8),
-          tool(Icons.near_me_outlined, 'Selection', () {}, active: true),
-          tool(
-            Icons.content_cut_rounded,
-            'Razor (split)',
-            canSplit ? editor.splitSelectedClip : null,
-          ),
-          tool(
-            Icons.delete_outline_rounded,
-            'Delete',
-            hasClip ? editor.deleteSelectedClip : null,
-          ),
-          const Spacer(),
-          const Icon(Icons.zoom_out_rounded, size: 16, color: _muted),
-          SizedBox(
-            width: 96,
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 2,
-                activeTrackColor: _text,
-                inactiveTrackColor: _border,
-                thumbColor: Colors.white,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                overlayShape: SliderComponentShape.noOverlay,
-              ),
-              child: Slider(
-                value: editor.zoom.clamp(0.5, 3.0).toDouble(),
-                min: 0.5,
-                max: 3.0,
-                onChanged: (double v) => editor.setZoom(v),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          const Icon(Icons.zoom_in_rounded, size: 16, color: _muted),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerFor(List<TimelineClip> clips, _TrackRow row) {
-    final List<TimelineClip> trackClips = _clipsOf(clips, row);
-    final bool allVisible = trackClips.every((c) => c.isVisible);
-    final bool anyLocked = trackClips.any((c) => c.isLocked);
-
-    return Container(
-      height: _trackHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: const BoxDecoration(
-        color: Color(0xFF2B2B2B),
-        border: Border(
-          bottom: BorderSide(color: Color(0xFF151515)),
-          right: BorderSide(color: _line),
-        ),
-      ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3C3C3C),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(
-              row.label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          const Spacer(),
-          _MiniToggle(
-            icon: row.isAudio
-                ? (allVisible ? Icons.volume_up_rounded : Icons.volume_off_rounded)
-                : (allVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded),
-            color: allVisible ? _text : Colors.white24,
-            onTap: trackClips.isEmpty ? null : () => _toggleVisibility(trackClips),
-          ),
-          _MiniToggle(
-            icon: anyLocked ? Icons.lock_rounded : Icons.lock_open_rounded,
-            color: anyLocked ? _blue : Colors.white24,
-            onTap: trackClips.isEmpty ? null : () => _toggleLock(trackClips),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -739,43 +664,36 @@ class _TimelinePanel extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTapDown: (d) => seekFrom(d.localPosition.dx),
       onHorizontalDragUpdate: (d) => seekFrom(d.localPosition.dx),
-      child: Container(
+      child: SizedBox(
         height: _rulerHeight,
-        decoration: const BoxDecoration(
-          color: _panelDark,
-          border: Border(bottom: BorderSide(color: _line)),
-        ),
+        width: contentWidth,
         child: CustomPaint(
-          size: Size(contentWidth, _rulerHeight),
           painter: _RulerPainter(pps: pps, seconds: total + 20, leftPad: _leftPad),
         ),
       ),
     );
   }
 
-  Widget _buildTrack(
+  Widget _lane(
     List<TimelineClip> clips,
     _TrackRow row,
     double pps,
     double contentWidth,
+    double? addTileAfter,
   ) {
     final List<TimelineClip> trackClips = _clipsOf(clips, row);
 
-    return Container(
-      height: _trackHeight,
+    return SizedBox(
+      height: _laneHeight,
       width: contentWidth,
-      decoration: const BoxDecoration(
-        color: Color(0xFF1F1F1F),
-        border: Border(bottom: BorderSide(color: Color(0xFF151515))),
-      ),
       child: Stack(
         children: <Widget>[
           for (final clip in trackClips)
             Positioned(
               left: _leftPad + _seconds(clip.start) * pps,
-              top: 3,
-              bottom: 3,
-              width: math.max(40.0, _seconds(clip.duration) * pps - 1),
+              top: 8,
+              bottom: 8,
+              width: math.max(40.0, _seconds(clip.duration) * pps - 2),
               child: _ClipBlock(
                 editor: editor,
                 clip: clip,
@@ -783,7 +701,166 @@ class _TimelinePanel extends StatelessWidget {
                 isAudio: row.isAudio,
               ),
             ),
+          if (addTileAfter != null)
+            Positioned(
+              left: _leftPad + addTileAfter * pps + 8,
+              top: 8,
+              bottom: 8,
+              width: 72,
+              child: Material(
+                color: Colors.white.withAlpha(14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: _border),
+                ),
+                child: InkWell(
+                  customBorder: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  onTap: () => ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      const SnackBar(
+                        content: Text('Add media is coming soon'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    ),
+                  child: const Center(
+                    child: Icon(Icons.add_rounded, size: 28, color: _text),
+                  ),
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+class _TimelineToolbar extends StatefulWidget {
+  const _TimelineToolbar({required this.editor});
+
+  final EditorController editor;
+
+  @override
+  State<_TimelineToolbar> createState() => _TimelineToolbarState();
+}
+
+class _TimelineToolbarState extends State<_TimelineToolbar> {
+  // Local UI state for editing modes (hook these to the controller when ready).
+  bool _snap = true;
+  bool _ripple = false;
+  bool _link = true;
+
+  Widget _btn(
+    IconData icon,
+    String tip,
+    VoidCallback? onTap, {
+    bool active = false,
+  }) {
+    final bool enabled = onTap != null;
+    return Tooltip(
+      message: tip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 40,
+          height: 36,
+          margin: const EdgeInsets.symmetric(horizontal: 1.5),
+          decoration: BoxDecoration(
+            color: active ? _violet.withAlpha(80) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            size: 21,
+            color: !enabled ? Colors.white24 : (active ? Colors.white : _text),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _divider() => Container(
+        width: 1,
+        height: 18,
+        margin: const EdgeInsets.symmetric(horizontal: 6),
+        color: _border,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final EditorController ed = widget.editor;
+    final TimelineClip? selected = ed.selectedClip;
+    final bool canSplit = selected != null &&
+        ed.playhead > selected.start &&
+        ed.playhead < selected.end;
+    final double zoom = ed.zoom.clamp(0.5, 3.0).toDouble();
+
+    return SizedBox(
+      height: 44,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          children: <Widget>[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _elevated,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                _timecode(_seconds(ed.playhead)),
+                style: _timecodeStyle(_cyan, size: 12),
+              ),
+            ),
+            _divider(),
+            _btn(Icons.near_me_rounded, 'Select', () {}, active: true),
+            _btn(Icons.content_cut_rounded, 'Split at playhead',
+                canSplit ? ed.splitSelectedClip : null),
+            _btn(Icons.delete_rounded, 'Delete',
+                selected != null ? ed.deleteSelectedClip : null),
+            _divider(),
+            _btn(Icons.vertical_align_center_rounded, 'Snapping',
+                () => setState(() => _snap = !_snap),
+                active: _snap),
+            _btn(Icons.compare_arrows_rounded, 'Ripple edit',
+                () => setState(() => _ripple = !_ripple),
+                active: _ripple),
+            _btn(Icons.link_rounded, 'Link audio and video',
+                () => setState(() => _link = !_link),
+                active: _link),
+            _divider(),
+            _btn(Icons.zoom_out_rounded, 'Zoom out',
+                () => ed.setZoom((zoom - 0.25).clamp(0.5, 3.0).toDouble())),
+            SizedBox(
+              width: 110,
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 3,
+                  activeTrackColor: _violet,
+                  inactiveTrackColor: _border,
+                  thumbColor: Colors.white,
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                  overlayShape: SliderComponentShape.noOverlay,
+                ),
+                child: Slider(
+                  value: zoom,
+                  min: 0.5,
+                  max: 3.0,
+                  onChanged: (double v) => ed.setZoom(v),
+                ),
+              ),
+            ),
+            _btn(Icons.zoom_in_rounded, 'Zoom in',
+                () => ed.setZoom((zoom + 0.25).clamp(0.5, 3.0).toDouble())),
+            _btn(Icons.fit_screen_rounded, 'Reset zoom', () => ed.setZoom(1.0)),
+          ],
+        ),
       ),
     );
   }
@@ -802,9 +879,9 @@ class _MiniToggle extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: SizedBox(
-        width: 22,
+        width: 20,
         height: 40,
-        child: Icon(icon, size: 16, color: color),
+        child: Icon(icon, size: 15, color: color),
       ),
     );
   }
@@ -838,19 +915,26 @@ class _ClipBlock extends StatelessWidget {
 
     return GestureDetector(
       onTap: () => editor.selectClip(clip.id),
-      child: Opacity(
+      onLongPress: () => editor.toggleClipLock(clip.id),
+      onDoubleTap: () => editor.toggleClipVisibility(clip.id),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
         opacity: isVisible ? 1.0 : 0.35,
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? Colors.white : Colors.black26,
+              color: isSelected ? Colors.white : Colors.white12,
               width: isSelected ? 1.5 : 0.5,
             ),
+            boxShadow: isSelected
+                ? <BoxShadow>[BoxShadow(color: color.withAlpha(140), blurRadius: 10)]
+                : null,
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(2),
+            borderRadius: BorderRadius.circular(11),
             child: Stack(
               children: <Widget>[
                 Positioned.fill(
@@ -858,16 +942,22 @@ class _ClipBlock extends StatelessWidget {
                     painter: _ClipBodyPainter(
                       kind: kind,
                       seed: clip.id.hashCode % 97,
+                      peaks: kind == _BodyKind.waveform ? _peaksFor(clip) : null,
                     ),
                   ),
                 ),
                 Positioned(
-                  left: 4,
-                  right: 4,
+                  left: 6,
+                  right: 6,
                   top: 0,
-                  height: 14,
+                  height: 18,
                   child: Row(
                     children: <Widget>[
+                      if (isAudio)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 3),
+                          child: Icon(Icons.music_note_rounded, size: 13, color: Colors.white),
+                        ),
                       Expanded(
                         child: Text(
                           clip.label,
@@ -875,17 +965,21 @@ class _ClipBlock extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
-                            height: 1.4,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 11,
+                            height: 1.5,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                       if (isLocked)
-                        const Icon(Icons.lock_rounded, size: 10, color: Colors.white70),
+                        const Icon(Icons.lock_rounded, size: 12, color: Colors.white70),
                     ],
                   ),
                 ),
+                if (isSelected) ...<Widget>[
+                  Positioned(left: 0, top: 0, bottom: 0, child: _TrimHandle()),
+                  Positioned(right: 0, top: 0, bottom: 0, child: _TrimHandle()),
+                ],
               ],
             ),
           ),
@@ -895,19 +989,49 @@ class _ClipBlock extends StatelessWidget {
   }
 }
 
+class _TrimHandle extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 6,
+      color: Colors.white.withAlpha(200),
+      alignment: Alignment.center,
+      child: Container(width: 1.5, height: 12, color: Colors.black38),
+    );
+  }
+}
+
 enum _BodyKind { filmstrip, waveform, solid }
 
+/// Reads real waveform peaks from the clip if the model provides them
+/// (a `List<num> waveform` field on TimelineClip). Returns null otherwise.
+List<double>? _peaksFor(TimelineClip clip) {
+  try {
+    final dynamic raw = (clip as dynamic).waveform;
+    if (raw is List && raw.isNotEmpty) {
+      final List<double> out =
+          raw.map<double>((dynamic e) => (e as num).toDouble().abs()).toList();
+      final double peak = out.fold<double>(0.0, (double m, double v) => math.max(m, v));
+      if (peak == 0) return null;
+      return out.map<double>((double v) => v / peak).toList();
+    }
+  } catch (_) {}
+  return null;
+}
+
 class _ClipBodyPainter extends CustomPainter {
-  _ClipBodyPainter({required this.kind, required this.seed});
+  _ClipBodyPainter({required this.kind, required this.seed, this.peaks});
 
   final _BodyKind kind;
   final int seed;
 
+  /// Normalized (0..1) amplitude peaks of the real audio, or null if unavailable.
+  final List<double>? peaks;
+
   @override
   void paint(Canvas canvas, Size size) {
-    const double strip = 14;
+    const double strip = 18;
 
-    // Label strip
     canvas.drawRect(
       Rect.fromLTWH(0, 0, size.width, strip),
       Paint()..color = Colors.black.withAlpha(60),
@@ -921,17 +1045,34 @@ class _ClipBodyPainter extends CustomPainter {
         final Paint frame = Paint()..color = Colors.white.withAlpha(30);
         final double frameWidth = math.max(bodyHeight * 1.2, 16);
         for (double x = 0; x < size.width; x += frameWidth + 2) {
-          canvas.drawRect(Rect.fromLTWH(x, strip + 1, frameWidth, bodyHeight - 2), frame);
+          canvas.drawRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(x, strip + 1, frameWidth, bodyHeight - 2),
+              const Radius.circular(3),
+            ),
+            frame,
+          );
         }
       case _BodyKind.waveform:
         final Paint wave = Paint()
-          ..color = Colors.white.withAlpha(160)
-          ..strokeWidth = 1.5;
+          ..color = Colors.white.withAlpha(190)
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round;
         final double midY = strip + bodyHeight / 2;
-        for (double x = 2; x < size.width; x += 3) {
-          final double a = (math.sin(x * 0.35 + seed) * 0.5 + 0.5) *
-              (0.35 + 0.65 * (((x.toInt() * 7 + seed) % 11) / 11));
-          final double h = a * (bodyHeight - 4);
+        const double gap = 3.5;
+        final int bars = ((size.width - 6) / gap).floor();
+        final List<double>? p = peaks;
+        for (int i = 0; i < bars; i++) {
+          final double x = 3 + i * gap;
+          double a;
+          if (p != null && p.isNotEmpty) {
+            final int idx = (i / math.max(bars - 1, 1) * (p.length - 1)).round();
+            a = p[idx].clamp(0.0, 1.0).toDouble();
+          } else {
+            a = (math.sin(x * 0.35 + seed) * 0.5 + 0.5) *
+                (0.35 + 0.65 * (((x.toInt() * 7 + seed) % 11) / 11));
+          }
+          final double h = math.max(2.0, a * (bodyHeight - 8));
           canvas.drawLine(Offset(x, midY - h / 2), Offset(x, midY + h / 2), wave);
         }
       case _BodyKind.solid:
@@ -941,7 +1082,7 @@ class _ClipBodyPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ClipBodyPainter old) =>
-      old.kind != kind || old.seed != seed;
+      old.kind != kind || old.seed != seed || !identical(old.peaks, peaks);
 }
 
 class _RulerPainter extends CustomPainter {
@@ -976,22 +1117,22 @@ class _RulerPainter extends CustomPainter {
       final double x = leftPad + t * pps;
       if (x > size.width) break;
 
-      canvas.drawLine(Offset(x, size.height - 10), Offset(x, size.height), major);
+      canvas.drawLine(Offset(x, size.height - 9), Offset(x, size.height), major);
 
       for (int j = 1; j < 5; j++) {
         final double mx = x + j * step * pps / 5;
-        canvas.drawLine(Offset(mx, size.height - 5), Offset(mx, size.height), minor);
+        canvas.drawLine(Offset(mx, size.height - 4), Offset(mx, size.height), minor);
       }
 
       final int whole = t.round();
       final TextPainter label = TextPainter(
         text: TextSpan(
           text: '${whole ~/ 60}:${_two(whole % 60)}',
-          style: const TextStyle(color: _muted, fontSize: 10),
+          style: const TextStyle(color: _muted, fontSize: 11),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      label.paint(canvas, Offset(x + 3, 2));
+      label.paint(canvas, Offset(x + 4, 4));
     }
   }
 
@@ -1001,8 +1142,16 @@ class _RulerPainter extends CustomPainter {
 }
 
 // -----------------------------------------------------------------------------
-// Tool dock
+// Tool dock (full-width, scrollable)
 // -----------------------------------------------------------------------------
+
+class _DockItem {
+  const _DockItem(this.icon, this.label, this.onTap);
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+}
 
 class _ToolDock extends StatelessWidget {
   const _ToolDock({required this.editor});
@@ -1011,73 +1160,79 @@ class _ToolDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void soon(String name) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('$name is coming soon'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+    }
+
+    final TimelineClip? sel = editor.selectedClip;
+    final bool canSplit =
+        sel != null && editor.playhead > sel.start && editor.playhead < sel.end;
+
+    final List<_DockItem> items = <_DockItem>[
+      _DockItem(Icons.content_cut_rounded, 'Split',
+          canSplit ? editor.splitSelectedClip : null),
+      _DockItem(Icons.delete_rounded, 'Delete',
+          sel != null ? editor.deleteSelectedClip : null),
+      _DockItem(Icons.brush_rounded, 'Draw', () => VectorDrawingSheet.show(context)),
+      _DockItem(Icons.title_rounded, 'Text', () => TextAnimationSheet.show(context)),
+      _DockItem(Icons.tune_rounded, 'Color', () => ColorGradingSheet.show(context)),
+      _DockItem(Icons.graphic_eq_rounded, 'Audio', () => AudioToolsSheet.show(context)),
+      _DockItem(Icons.center_focus_strong_rounded, 'Track',
+          () => CameraTrackingPanel.show(context)),
+      _DockItem(Icons.subtitles_rounded, 'Captions', editor.generateAutoCaptions),
+      _DockItem(Icons.speed_rounded, 'Speed', () => soon('Speed')),
+      _DockItem(Icons.crop_rounded, 'Crop', () => soon('Crop')),
+      _DockItem(Icons.auto_awesome_rounded, 'Filters', () => soon('Filters')),
+      _DockItem(Icons.emoji_emotions_rounded, 'Stickers', () => soon('Stickers')),
+    ];
+
     return Container(
-      height: 58,
+      height: 62,
       decoration: const BoxDecoration(
-        color: _panelDark,
-        border: Border(top: BorderSide(color: _line, width: 2)),
+        color: _panel,
+        border: Border(top: BorderSide(color: _border)),
       ),
-      child: Row(
-        children: <Widget>[
-          _ToolButton(
-            icon: Icons.brush_rounded,
-            label: 'Draw',
-            onTap: () => VectorDrawingSheet.show(context),
-          ),
-          _ToolButton(
-            icon: Icons.title_rounded,
-            label: 'Text',
-            onTap: () => TextAnimationSheet.show(context),
-          ),
-          _ToolButton(
-            icon: Icons.tune_rounded,
-            label: 'Color',
-            onTap: () => ColorGradingSheet.show(context),
-          ),
-          _ToolButton(
-            icon: Icons.graphic_eq_rounded,
-            label: 'Audio',
-            onTap: () => AudioToolsSheet.show(context),
-          ),
-          _ToolButton(
-            icon: Icons.center_focus_strong_rounded,
-            label: 'Track',
-            onTap: () => CameraTrackingPanel.show(context),
-          ),
-          _ToolButton(
-            icon: Icons.subtitles_outlined,
-            label: 'Captions',
-            onTap: editor.generateAutoCaptions,
-          ),
-        ],
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        itemCount: items.length,
+        itemBuilder: (BuildContext context, int i) => _ToolButton(item: items[i]),
       ),
     );
   }
 }
 
 class _ToolButton extends StatelessWidget {
-  const _ToolButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _ToolButton({required this.item});
 
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+  final _DockItem item;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
+    final Color color = item.onTap == null ? Colors.white24 : _text;
+
+    return SizedBox(
+      width: 68,
+      child: InkWell(
+        onTap: item.onTap,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Icon(icon, size: 22, color: _text),
+            Icon(item.icon, size: 23, color: color),
             const SizedBox(height: 3),
-            Text(label, style: const TextStyle(color: _text, fontSize: 10)),
+            Text(
+              item.label,
+              maxLines: 1,
+              style: TextStyle(color: color == _text ? _muted : color, fontSize: 10, fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),
