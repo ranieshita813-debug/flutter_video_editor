@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:flutter_video_editor/core/models/project_model.dart' show TimelineClip, VideoProject, VideoEffect;
+import 'package:flutter_video_editor/core/models/project_model.dart'
+    show ClipType, TimelineClip, VideoEffect, VideoProject;
 
 class EditorController extends ChangeNotifier {
   EditorController() {
@@ -36,6 +37,7 @@ class EditorController extends ChangeNotifier {
   }
 
   late VideoProject _project;
+
   Duration _playhead = Duration.zero;
   bool _isPlaying = false;
   double _zoom = 1.0;
@@ -46,7 +48,6 @@ class EditorController extends ChangeNotifier {
   bool get isPlaying => _isPlaying;
   double get zoom => _zoom;
   String? get selectedClipId => _selectedClipId;
-
   List<TimelineClip> get clips => _project.clips;
 
   void addClip(TimelineClip clip) {
@@ -78,13 +79,11 @@ class EditorController extends ChangeNotifier {
     if (_selectedClipId == null) return;
 
     final existing = _project.clips.firstWhere(
-      (clip) => clip.id == _selectedClipId,
-      orElse: () => clips.first,
+      (TimelineClip clip) => clip.id == _selectedClipId,
+      orElse: () => _project.clips.first,
     );
 
-    if (_playhead <= existing.start || _playhead >= existing.end) {
-      return;
-    }
+    if (_playhead <= existing.start || _playhead >= existing.end) return;
 
     final left = existing.copyWith(
       id: '${existing.id}_left',
@@ -110,16 +109,15 @@ class EditorController extends ChangeNotifier {
   void trimSelectedClip(Duration trimStart, Duration trimEnd) {
     if (_selectedClipId == null) return;
 
-    final index = _project.clips.indexWhere((clip) => clip.id == _selectedClipId);
+    final index = _project.clips.indexWhere(
+      (TimelineClip clip) => clip.id == _selectedClipId,
+    );
     if (index == -1) return;
 
-    final clip = _project.clips[index];
-    final updated = clip.copyWith(
+    _project.clips[index] = _project.clips[index].copyWith(
       start: trimStart,
       end: trimEnd,
     );
-
-    _project.clips[index] = updated;
     notifyListeners();
   }
 
@@ -132,6 +130,7 @@ class EditorController extends ChangeNotifier {
       clipType: ClipType.text,
       effect: VideoEffect.vibrant,
     );
+
     _project.addClip(clip);
     _selectedClipId = clip.id;
     notifyListeners();
@@ -140,11 +139,12 @@ class EditorController extends ChangeNotifier {
   void applyEffect(VideoEffect effect) {
     if (_selectedClipId == null) return;
 
-    final index = _project.clips.indexWhere((clip) => clip.id == _selectedClipId);
+    final index = _project.clips.indexWhere(
+      (TimelineClip clip) => clip.id == _selectedClipId,
+    );
     if (index == -1) return;
 
-    final clip = _project.clips[index];
-    _project.clips[index] = clip.copyWith(effect: effect);
+    _project.clips[index] = _project.clips[index].copyWith(effect: effect);
     notifyListeners();
   }
 

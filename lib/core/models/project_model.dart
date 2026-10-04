@@ -1,12 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
-
 enum ClipType {
   video,
   audio,
   image,
   text,
+  sticker,
 }
 
 enum VideoEffect {
@@ -15,6 +14,7 @@ enum VideoEffect {
   cinematic,
   noir,
   vibrant,
+  vintage,
 }
 
 class TimelineClip {
@@ -88,7 +88,7 @@ class VideoProject {
     if (clips.isEmpty) return Duration.zero;
 
     final maxEnd = clips
-        .map((clip) => clip.end)
+        .map((TimelineClip clip) => clip.end)
         .reduce((Duration current, Duration next) => current > next ? current : next);
     return maxEnd;
   }
@@ -98,11 +98,7 @@ class VideoProject {
   }
 
   void removeClip(String id) {
-    clips.removeWhere((clip) => clip.id == id);
-  }
-
-  List<TimelineClip> timelineByTrack() {
-    return List<TimelineClip>.from(clips);
+    clips.removeWhere((TimelineClip clip) => clip.id == id);
   }
 }
 
@@ -139,9 +135,9 @@ class EditorUtils {
     return math.min(math.max(value, min), max);
   }
 
-  static String formatDuration(Duration duration) {
-    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+  static String formatDuration(Duration value) {
+    final minutes = value.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = value.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
   }
 }

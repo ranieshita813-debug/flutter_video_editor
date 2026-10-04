@@ -1,37 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart'
+    show EditorController;
 
 class EditorPage extends StatelessWidget {
   const EditorPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B1020),
       body: SafeArea(
         child: Column(
           children: <Widget>[
-            _TopToolbar(),
+            _TopToolbar(editor: editor),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: <Widget>[
-                    const Expanded(
+                    Expanded(
                       flex: 3,
-                      child: _EditorWorkspace(),
+                      child: _EditorWorkspace(editor: editor),
                     ),
                     const SizedBox(width: 16),
                     SizedBox(
                       width: 300,
-                      child: _InspectorPanel(),
+                      child: _InspectorPanel(editor: editor),
                     ),
                   ],
                 ),
               ),
             ),
-            const _TimelineSection(),
+            _TimelineSection(editor: editor),
           ],
         ),
       ),
@@ -40,6 +45,10 @@ class EditorPage extends StatelessWidget {
 }
 
 class _TopToolbar extends StatelessWidget {
+  const _TopToolbar({required this.editor});
+
+  final EditorController editor;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -65,9 +74,11 @@ class _TopToolbar extends StatelessWidget {
           _ToolButton(icon: Icons.save_alt_rounded, label: 'Export'),
           const SizedBox(width: 8),
           FilledButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('Preview'),
+            onPressed: editor.togglePlayback,
+            icon: Icon(
+              editor.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            ),
+            label: Text(editor.isPlaying ? 'Pause' : 'Preview'),
           ),
         ],
       ),
@@ -95,7 +106,9 @@ class _ToolButton extends StatelessWidget {
 }
 
 class _EditorWorkspace extends StatelessWidget {
-  const _EditorWorkspace();
+  const _EditorWorkspace({required this.editor});
+
+  final EditorController editor;
 
   @override
   Widget build(BuildContext context) {
@@ -120,13 +133,13 @@ class _EditorWorkspace extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 color: const Color(0xFF1F2937),
               ),
-              child: const Center(
+              child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    Icon(Icons.videocam_outlined, size: 64, color: Colors.white70),
-                    SizedBox(height: 12),
-                    Text(
+                    const Icon(Icons.videocam_outlined, size: 64, color: Colors.white70),
+                    const SizedBox(height: 12),
+                    const Text(
                       'Preview Canvas',
                       style: TextStyle(
                         fontSize: 24,
@@ -134,10 +147,10 @@ class _EditorWorkspace extends StatelessWidget {
                         color: Colors.white,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
-                      'Timeline, effects, audio, and overlays will sync here.',
-                      style: TextStyle(color: Colors.white70),
+                      'Playhead: ${EditorUtils.formatDuration(editor.playhead)}',
+                      style: const TextStyle(color: Colors.white70),
                     ),
                   ],
                 ),
@@ -151,10 +164,26 @@ class _EditorWorkspace extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                _QuickAction(icon: Icons.cut_rounded, label: 'Cut'),
-                _QuickAction(icon: Icons.content_cut_rounded, label: 'Split'),
-                _QuickAction(icon: Icons.text_fields_rounded, label: 'Text'),
-                _QuickAction(icon: Icons.filter_alt_rounded, label: 'Filters'),
+                _QuickAction(
+                  icon: Icons.cut_rounded,
+                  label: 'Cut',
+                  onTap: () => editor.splitSelectedClip(),
+                ),
+                _QuickAction(
+                  icon: Icons.content_cut_rounded,
+                  label: 'Split',
+                  onTap: () => editor.splitSelectedClip(),
+                ),
+                _QuickAction(
+                  icon: Icons.text_fields_rounded,
+                  label: 'Text',
+                  onTap: () => editor.addTextOverlay('Title Text'),
+                ),
+                _QuickAction(
+                  icon: Icons.filter_alt_rounded,
+                  label: 'Filters',
+                  onTap: () => editor.applyEffect(VideoEffect.cinematic),
+                ),
               ],
             ),
           ),
@@ -165,42 +194,59 @@ class _EditorWorkspace extends StatelessWidget {
 }
 
 class _QuickAction extends StatelessWidget {
-  const _QuickAction({required this.icon, required this.label});
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111827),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF374151)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 18, color: const Color(0xFF8B5CF6)),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111827),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF374151)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 18, color: const Color(0xFF8B5CF6)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
 class _InspectorPanel extends StatelessWidget {
+  const _InspectorPanel({required this.editor});
+
+  final EditorController editor;
+
   @override
   Widget build(BuildContext context) {
+    final clip = editor.project.clips.firstWhere(
+      (TimelineClip item) => item.id == editor.selectedClipId,
+      orElse: () => editor.project.clips.first,
+    );
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -208,10 +254,10 @@ class _InspectorPanel extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFF1F2937)),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(
+          const Text(
             'Inspector',
             style: TextStyle(
               fontSize: 20,
@@ -219,14 +265,15 @@ class _InspectorPanel extends StatelessWidget {
               color: Colors.white,
             ),
           ),
-          SizedBox(height: 18),
-          _InspectorOption(title: 'Trim', value: '00:03-00:08'),
-          _InspectorOption(title: 'Speed', value: '1.0x'),
-          _InspectorOption(title: 'Volume', value: '80%'),
-          _InspectorOption(title: 'Filters', value: 'Cinematic'),
+          const SizedBox(height: 18),
+          _InspectorOption(title: 'Selected', value: clip.label),
+          _InspectorOption(title: 'Trim', value: '${EditorUtils.formatDuration(clip.start)}-${EditorUtils.formatDuration(clip.end)}'),
+          _InspectorOption(title: 'Speed', value: '${clip.speed.toStringAsFixed(1)}x'),
+          _InspectorOption(title: 'Volume', value: '${(clip.volume * 100).round()}%'),
+          _InspectorOption(title: 'Filters', value: clip.effect.name),
           _InspectorOption(title: 'Transitions', value: 'Fade'),
-          SizedBox(height: 18),
-          Text(
+          const SizedBox(height: 18),
+          const Text(
             'Advanced tools ready',
             style: TextStyle(
               color: Color(0xFF8B5CF6),
@@ -261,7 +308,9 @@ class _InspectorOption extends StatelessWidget {
 }
 
 class _TimelineSection extends StatelessWidget {
-  const _TimelineSection();
+  const _TimelineSection({required this.editor});
+
+  final EditorController editor;
 
   @override
   Widget build(BuildContext context) {
@@ -299,58 +348,60 @@ class _TimelineSection extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFF374151)),
               ),
-              child: ListView(
-                scrollDirection: Axis.vertical,
-                children: const <Widget>[
-                  _TimelineTrack(label: 'Video Track', color: Color(0xFF8B5CF6), width: 320),
-                  _TimelineTrack(label: 'Audio Track', color: Color(0xFF22C55E), width: 220),
-                  _TimelineTrack(label: 'Text Track', color: Color(0xFF38BDF8), width: 260),
-                ],
+              child: ListView.builder(
+                itemCount: editor.project.clips.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final clip = editor.project.clips[index];
+                  final color = switch (clip.clipType) {
+                    ClipType.video => const Color(0xFF8B5CF6),
+                    ClipType.audio => const Color(0xFF22C55E),
+                    ClipType.text => const Color(0xFF38BDF8),
+                    ClipType.image => const Color(0xFFF59E0B),
+                    ClipType.sticker => const Color(0xFFF472B6),
+                  };
+
+                  return GestureDetector(
+                    onTap: () => editor.selectClip(clip.id),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        color: const Color(0xFF0F172A),
+                        border: Border.all(
+                          color: editor.selectedClipId == clip.id
+                              ? const Color(0xFF8B5CF6)
+                              : const Color(0xFF0F172A),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            '${clip.label} • ${clip.clipType.name}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: <Widget>[
+                              _ClipBlock(
+                                color: color,
+                                label: clip.label,
+                                width: 180,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimelineTrack extends StatelessWidget {
-  const _TimelineTrack({
-    required this.label,
-    required this.color,
-    required this.width,
-  });
-
-  final String label;
-  final Color color;
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: const Color(0xFF0F172A),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: <Widget>[
-              _ClipBlock(color: color, label: 'Intro', width: width),
-              _ClipBlock(color: color.withOpacity(0.8), label: 'B-roll', width: width * 0.8),
-            ],
           ),
         ],
       ),
