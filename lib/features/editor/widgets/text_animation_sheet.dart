@@ -26,7 +26,7 @@ class TextAnimationSheet extends StatefulWidget {
 class _TextAnimationSheetState extends State<TextAnimationSheet> {
   late TextEditingController _textController;
   late TextEditingController _customFontController;
-  String selectedFont = 'Roboto';
+  String selectedFont = 'Poppins';
   TextAnimationStyle selectedAnimation = TextAnimationStyle.fadeIn;
 
   @override

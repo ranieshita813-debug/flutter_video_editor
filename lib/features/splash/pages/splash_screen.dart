@@ -50,7 +50,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle style = GoogleFonts.inter(
+    final TextStyle style = GoogleFonts.unbounded(
       fontSize: 44,
       fontWeight: FontWeight.w700,
       color: Colors.white,

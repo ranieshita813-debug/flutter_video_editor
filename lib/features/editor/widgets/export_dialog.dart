@@ -174,16 +174,21 @@ class _ExportModalState extends State<ExportModal> {
                     format: selectedFormat,
                   );
                   controller.updateExportSettings(newSettings);
-                  controller.startExport(onComplete: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Export Complete! Video saved in ${selectedFormat.name.toUpperCase()} format (${selectedResolution.label}).',
+                  controller.startExport(onComplete: ([String? filePath]) {
+                    if (mounted) {
+                      final pathInfo = (filePath != null && filePath.isNotEmpty)
+                          ? '\nFile: $filePath'
+                          : '';
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Export Complete! Video saved in ${selectedFormat.name.toUpperCase()} format (${selectedResolution.label}).$pathInfo',
+                          ),
+                          backgroundColor: const Color(0xFF22C55E),
                         ),
-                        backgroundColor: const Color(0xFF22C55E),
-                      ),
-                    );
-                    Navigator.of(context).pop();
+                      );
+                      Navigator.of(context).pop();
+                    }
                   });
                 },
               ),

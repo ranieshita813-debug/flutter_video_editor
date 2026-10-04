@@ -12,9 +12,9 @@ void main() {
       controller = EditorController();
     });
 
-    test('Initial controller state has sample project clips', () {
-      expect(controller.clips.isNotEmpty, isTrue);
-      expect(controller.selectedClipId, equals('clip_1'));
+    test('Initial controller state starts with empty project clips', () {
+      expect(controller.clips.isEmpty, isTrue);
+      expect(controller.selectedClipId, isNull);
       expect(controller.isPlaying, isFalse);
     });
 
@@ -35,6 +35,16 @@ void main() {
     });
 
     test('Clip splitting creates two clips', () {
+      controller.addClip(
+        TimelineClip(
+          id: 'c1',
+          label: 'Test Clip',
+          start: Duration.zero,
+          end: const Duration(seconds: 10),
+          clipType: ClipType.video,
+        ),
+      );
+
       final initialCount = controller.clips.length;
       controller.setPlayhead(const Duration(seconds: 3));
       controller.splitSelectedClip();
@@ -76,6 +86,16 @@ void main() {
     });
 
     test('Color grading update on selected clip', () {
+      controller.addClip(
+        TimelineClip(
+          id: 'c1',
+          label: 'Video Shot',
+          start: Duration.zero,
+          end: const Duration(seconds: 5),
+          clipType: ClipType.video,
+        ),
+      );
+
       const grading = ColorGradingSettings(
         brightness: 0.2,
         contrast: 1.3,
@@ -100,6 +120,16 @@ void main() {
     });
 
     test('Auto Captions generation adds caption clips', () {
+      controller.addClip(
+        TimelineClip(
+          id: 'c1',
+          label: 'Audio Scene',
+          start: Duration.zero,
+          end: const Duration(seconds: 8),
+          clipType: ClipType.audio,
+        ),
+      );
+
       controller.generateAutoCaptions();
       expect(controller.project.captions.isNotEmpty, isTrue);
       expect(controller.clips.any((c) => c.clipType == ClipType.caption), isTrue);

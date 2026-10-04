@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -225,10 +226,10 @@ class HomePage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 8, 4),
       child: Row(
         children: <Widget>[
-          const Expanded(
+          Expanded(
             child: Text(
               'motionGr',
-              style: TextStyle(
+              style: GoogleFonts.unbounded(
                 color: Colors.white,
                 fontSize: 26,
                 fontWeight: FontWeight.w800,
