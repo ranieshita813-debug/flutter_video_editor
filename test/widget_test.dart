@@ -5,14 +5,20 @@ import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/theme/app_theme.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/pages/editor_page.dart';
+import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
+import 'package:flutter_video_editor/features/projects/pages/home_page.dart';
 import 'package:flutter_video_editor/features/splash/pages/splash_screen.dart';
 
 Widget createTestWidget(Widget child) {
-  return ChangeNotifierProvider<EditorController>(
-    create: (_) => EditorController(),
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider(create: (_) => ProjectsController()),
+      ChangeNotifierProvider(create: (_) => EditorController()),
+    ],
     child: MaterialApp(
-      theme: AppTheme.lightTheme,
+      theme: AppTheme.darkTheme,
       routes: {
+        '/home': (_) => const HomePage(),
         '/editor': (_) => const EditorPage(),
       },
       home: child,
@@ -25,9 +31,17 @@ void main() {
     await tester.pumpWidget(createTestWidget(const SplashScreen()));
 
     expect(find.text('motionGr'), findsOneWidget);
-    expect(find.text('Professional Video Editing at Your Fingertips'), findsOneWidget);
+    expect(find.text('Mobile Video Editing Suite'), findsOneWidget);
 
     await tester.pumpAndSettle(const Duration(seconds: 4));
+  });
+
+  testWidgets('HomePage renders New Project button and project list', (WidgetTester tester) async {
+    await tester.pumpWidget(createTestWidget(const HomePage()));
+
+    expect(find.text('motionGr'), findsOneWidget);
+    expect(find.text('New Project'), findsOneWidget);
+    expect(find.textContaining('Recent Projects'), findsOneWidget);
   });
 
   testWidgets('EditorPage renders workspace, inspector and toolbar', (WidgetTester tester) async {

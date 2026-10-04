@@ -5,7 +5,8 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 class EditorController extends ChangeNotifier {
   EditorController() {
     _project = VideoProject(
-      projectName: 'motionGr Pro Studio',
+      id: 'default_proj',
+      name: 'motionGr Pro Studio',
       clips: <TimelineClip>[
         TimelineClip(
           id: 'clip_1',
@@ -77,6 +78,17 @@ class EditorController extends ChangeNotifier {
   final List<List<TimelineClip>> _redoStack = <List<TimelineClip>>[];
 
   VideoProject get project => _project;
+
+  void loadProject(VideoProject project) {
+    _project = project;
+    _selectedClipId = project.clips.isNotEmpty ? project.clips.first.id : null;
+    _playhead = Duration.zero;
+    _isPlaying = false;
+    _undoStack.clear();
+    _redoStack.clear();
+    notifyListeners();
+  }
+
   Duration get playhead => _playhead;
   bool get isPlaying => _isPlaying;
   double get zoom => _zoom;
