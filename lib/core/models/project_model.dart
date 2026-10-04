@@ -279,14 +279,22 @@ class TimelineClip {
     this.trimOut = Duration.zero,
     this.speed = 1.0,
     this.volume = 1.0,
+    this.opacity = 1.0,
+    this.scale = 1.0,
+    this.rotation = 0.0,
+    this.positionX = 0.0,
+    this.positionY = 0.0,
     this.effect = VideoEffect.none,
     this.sourcePath,
-    this.fontFamily = 'Roboto',
+    this.stickerAssetPath,
+    this.fontFamily = 'Poppins',
     this.textAnimationStyle = TextAnimationStyle.none,
     this.colorGrading = const ColorGradingSettings(),
     this.audioProperties = const AudioProperties(),
     this.strokes = const <DrawingStroke>[],
     this.trackingData = const TrackingData(),
+    this.waveform,
+    this.thumbnails,
   });
 
   final String id;
@@ -301,14 +309,22 @@ class TimelineClip {
   final Duration trimOut;
   final double speed;
   final double volume;
+  final double opacity;
+  final double scale;
+  final double rotation;
+  final double positionX;
+  final double positionY;
   final VideoEffect effect;
   final String? sourcePath;
+  final String? stickerAssetPath;
   final String fontFamily;
   final TextAnimationStyle textAnimationStyle;
   final ColorGradingSettings colorGrading;
   final AudioProperties audioProperties;
   final List<DrawingStroke> strokes;
   final TrackingData trackingData;
+  final List<double>? waveform;
+  final List<String>? thumbnails;
 
   Duration get duration => end - start;
 
@@ -325,14 +341,22 @@ class TimelineClip {
     Duration? trimOut,
     double? speed,
     double? volume,
+    double? opacity,
+    double? scale,
+    double? rotation,
+    double? positionX,
+    double? positionY,
     VideoEffect? effect,
     String? sourcePath,
+    String? stickerAssetPath,
     String? fontFamily,
     TextAnimationStyle? textAnimationStyle,
     ColorGradingSettings? colorGrading,
     AudioProperties? audioProperties,
     List<DrawingStroke>? strokes,
     TrackingData? trackingData,
+    List<double>? waveform,
+    List<String>? thumbnails,
   }) {
     return TimelineClip(
       id: id ?? this.id,
@@ -347,14 +371,22 @@ class TimelineClip {
       trimOut: trimOut ?? this.trimOut,
       speed: speed ?? this.speed,
       volume: volume ?? this.volume,
+      opacity: opacity ?? this.opacity,
+      scale: scale ?? this.scale,
+      rotation: rotation ?? this.rotation,
+      positionX: positionX ?? this.positionX,
+      positionY: positionY ?? this.positionY,
       effect: effect ?? this.effect,
       sourcePath: sourcePath ?? this.sourcePath,
+      stickerAssetPath: stickerAssetPath ?? this.stickerAssetPath,
       fontFamily: fontFamily ?? this.fontFamily,
       textAnimationStyle: textAnimationStyle ?? this.textAnimationStyle,
       colorGrading: colorGrading ?? this.colorGrading,
       audioProperties: audioProperties ?? this.audioProperties,
       strokes: strokes ?? this.strokes,
       trackingData: trackingData ?? this.trackingData,
+      waveform: waveform ?? this.waveform,
+      thumbnails: thumbnails ?? this.thumbnails,
     );
   }
 }

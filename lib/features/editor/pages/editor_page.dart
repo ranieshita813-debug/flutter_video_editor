@@ -866,27 +866,6 @@ class _TimelineToolbarState extends State<_TimelineToolbar> {
   }
 }
 
-class _MiniToggle extends StatelessWidget {
-  const _MiniToggle({required this.icon, required this.color, required this.onTap});
-
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: SizedBox(
-        width: 20,
-        height: 40,
-        child: Icon(icon, size: 15, color: color),
-      ),
-    );
-  }
-}
-
 class _ClipBlock extends StatelessWidget {
   const _ClipBlock({
     required this.editor,
