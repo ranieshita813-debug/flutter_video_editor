@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,13 +14,17 @@ class MediaAsset {
     required this.duration,
     required this.isVid,
     required this.category,
+    this.path,
+    this.isAudio = false,
   });
 
   final String id;
   final String name;
   final Duration duration;
   final bool isVid;
-  final String category; // 'Recent', 'Videos', 'Photos', 'Albums'
+  final bool isAudio;
+  final String category; // 'Recent', 'Videos', 'Photos', 'Audio'
+  final String? path;
 }
 
 class MediaPickerPage extends StatefulWidget {
@@ -32,66 +37,9 @@ class MediaPickerPage extends StatefulWidget {
 class _MediaPickerPageState extends State<MediaPickerPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final List<MediaAsset> _pickedAssets = <MediaAsset>[];
   final List<MediaAsset> _selectedAssets = <MediaAsset>[];
-
-  final List<MediaAsset> _sampleAssets = <MediaAsset>[
-    MediaAsset(
-      id: 'm1',
-      name: 'Sunset Beach',
-      duration: const Duration(seconds: 10),
-      isVid: true,
-      category: 'Videos',
-    ),
-    MediaAsset(
-      id: 'm2',
-      name: 'City Drone Shot',
-      duration: const Duration(seconds: 15),
-      isVid: true,
-      category: 'Videos',
-    ),
-    MediaAsset(
-      id: 'm3',
-      name: 'Coffee Cafe',
-      duration: const Duration(seconds: 8),
-      isVid: true,
-      category: 'Videos',
-    ),
-    MediaAsset(
-      id: 'm4',
-      name: 'Portrait Photo',
-      duration: Duration.zero,
-      isVid: false,
-      category: 'Photos',
-    ),
-    MediaAsset(
-      id: 'm5',
-      name: 'Mountain Peak',
-      duration: const Duration(seconds: 12),
-      isVid: true,
-      category: 'Videos',
-    ),
-    MediaAsset(
-      id: 'm6',
-      name: 'Neon Cyber City',
-      duration: const Duration(seconds: 20),
-      isVid: true,
-      category: 'Videos',
-    ),
-    MediaAsset(
-      id: 'm7',
-      name: 'Studio Setup',
-      duration: Duration.zero,
-      isVid: false,
-      category: 'Photos',
-    ),
-    MediaAsset(
-      id: 'm8',
-      name: 'Music Festival',
-      duration: const Duration(seconds: 18),
-      isVid: true,
-      category: 'Videos',
-    ),
-  ];
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -103,6 +51,56 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickFilesFromDevice({FileType type = FileType.any}) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final result = await FilePicker.pickFiles(
+        type: type,
+        allowedExtensions: type == FileType.custom
+            ? <String>['mp4', 'mov', 'avi', 'mkv', 'jpg', 'jpeg', 'png', 'mp3', 'wav', 'm4a']
+            : null,
+      );
+
+      if (result.isNotEmpty) {
+        for (final file in result) {
+          final ext = file.extension?.toLowerCase() ?? '';
+          final isVid = <String>['mp4', 'mov', 'avi', 'mkv', 'webm', '3gp'].contains(ext);
+          final isAud = <String>['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg'].contains(ext);
+
+          final asset = MediaAsset(
+            id: 'file_${DateTime.now().microsecondsSinceEpoch}_${file.name.hashCode}',
+            name: file.name,
+            duration: isVid ? const Duration(seconds: 10) : (isAud ? const Duration(seconds: 15) : Duration.zero),
+            isVid: isVid,
+            isAudio: isAud,
+            category: isVid ? 'Videos' : (isAud ? 'Audio' : 'Photos'),
+            path: file.path,
+          );
+
+          if (!_pickedAssets.any((a) => a.path == file.path && file.path != null)) {
+            _pickedAssets.add(asset);
+            _selectedAssets.add(asset);
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking file: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _toggleSelection(MediaAsset asset) {
@@ -123,9 +121,13 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
     for (int i = 0; i < _selectedAssets.length; i++) {
       final asset = _selectedAssets[i];
+      final ClipType clipType = asset.isAudio
+          ? ClipType.audio
+          : (asset.isVid ? ClipType.video : ClipType.image);
+
       final clipDuration = asset.isVid && asset.duration > Duration.zero
           ? asset.duration
-          : const Duration(seconds: 4);
+          : (asset.isAudio ? asset.duration : const Duration(seconds: 4));
 
       clips.add(
         TimelineClip(
@@ -133,12 +135,15 @@ class _MediaPickerPageState extends State<MediaPickerPage>
           label: asset.name,
           start: currentOffset,
           end: currentOffset + clipDuration,
-          clipType: asset.isVid ? ClipType.video : ClipType.image,
-          layerIndex: 0,
+          clipType: clipType,
+          layerIndex: asset.isAudio ? 1 : 0,
+          sourcePath: asset.path,
         ),
       );
 
-      currentOffset += clipDuration;
+      if (!asset.isAudio) {
+        currentOffset += clipDuration;
+      }
     }
 
     final projectsController =
@@ -147,7 +152,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         Provider.of<EditorController>(context, listen: false);
 
     final newProj = projectsController.createProject(
-      name: 'Project ${_selectedAssets.first.name}',
+      name: _selectedAssets.first.name,
       clips: clips,
     );
 
@@ -170,30 +175,39 @@ class _MediaPickerPageState extends State<MediaPickerPage>
           'Select Media',
           style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
         ),
+        actions: <Widget>[
+          TextButton.icon(
+            onPressed: () => _pickFilesFromDevice(),
+            icon: const Icon(Icons.add_a_photo_outlined, color: AppColors.accent, size: 20),
+            label: const Text('Browse Files', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.accent,
           labelColor: AppColors.accent,
           unselectedLabelColor: AppColors.textSecondary,
           tabs: const <Widget>[
-            Tab(text: 'Recent'),
+            Tab(text: 'All Items'),
             Tab(text: 'Videos'),
             Tab(text: 'Photos'),
-            Tab(text: 'Albums'),
+            Tab(text: 'Audio'),
           ],
         ),
       ),
       body: SafeArea(
         child: Column(
           children: <Widget>[
+            if (_isLoading)
+              const LinearProgressIndicator(color: AppColors.accent),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: <Widget>[
-                  _buildGrid(_sampleAssets),
-                  _buildGrid(_sampleAssets.where((a) => a.isVid).toList()),
-                  _buildGrid(_sampleAssets.where((a) => !a.isVid).toList()),
-                  _buildAlbumsView(),
+                  _buildGrid(_pickedAssets),
+                  _buildGrid(_pickedAssets.where((a) => a.isVid).toList()),
+                  _buildGrid(_pickedAssets.where((a) => !a.isVid && !a.isAudio).toList()),
+                  _buildGrid(_pickedAssets.where((a) => a.isAudio).toList()),
                 ],
               ),
             ),
@@ -209,7 +223,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 children: <Widget>[
                   Text(
                     _selectedAssets.isEmpty
-                        ? 'Tap items to select'
+                        ? 'Tap items or Browse Files to select'
                         : '${_selectedAssets.length} item(s) selected',
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
                   ),
@@ -244,10 +258,28 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
   Widget _buildGrid(List<MediaAsset> assets) {
     if (assets.isEmpty) {
-      return const Center(
-        child: Text(
-          'No media found',
-          style: TextStyle(color: AppColors.textSecondary),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            const Icon(Icons.perm_media_outlined, size: 64, color: AppColors.textDisabled),
+            const SizedBox(height: 16),
+            const Text(
+              'No media files selected',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _pickFilesFromDevice(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.folder_open_rounded),
+              label: const Text('Browse Files from Storage'),
+            ),
+          ],
         ),
       );
     }
@@ -283,7 +315,9 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
                     Icon(
-                      asset.isVid ? Icons.videocam : Icons.image,
+                      asset.isVid
+                          ? Icons.videocam
+                          : (asset.isAudio ? Icons.audiotrack : Icons.image),
                       color: AppColors.textSecondary,
                       size: 32,
                     ),
@@ -304,8 +338,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 ),
               ),
 
-              // Duration Badge for videos
-              if (asset.isVid)
+              // Duration Badge for videos & audio
+              if (asset.isVid || asset.isAudio)
                 Positioned(
                   bottom: 6,
                   right: 6,
@@ -359,45 +393,6 @@ class _MediaPickerPageState extends State<MediaPickerPage>
               ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAlbumsView() {
-    final albums = <Map<String, dynamic>>[
-      {'title': 'Camera Roll', 'count': 42},
-      {'title': 'Screen Recordings', 'count': 15},
-      {'title': 'Downloads', 'count': 8},
-      {'title': 'Favorites', 'count': 23},
-    ];
-
-    return ListView.builder(
-      itemCount: albums.length,
-      itemBuilder: (context, index) {
-        final album = albums[index];
-        return ListTile(
-          leading: Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.folder_outlined, color: AppColors.accent),
-          ),
-          title: Text(
-            album['title'] as String,
-            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            '${album['count']} items',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-          ),
-          trailing: const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-          onTap: () {
-            _tabController.animateTo(0);
-          },
         );
       },
     );

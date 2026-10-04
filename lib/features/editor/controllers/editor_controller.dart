@@ -1,62 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 
 class EditorController extends ChangeNotifier {
   EditorController() {
     _project = VideoProject(
-      id: 'default_proj',
-      name: 'motionGr Pro Studio',
-      clips: <TimelineClip>[
-        TimelineClip(
-          id: 'clip_1',
-          label: 'Main Camera Shot',
-          start: Duration.zero,
-          end: const Duration(seconds: 8),
-          clipType: ClipType.video,
-          layerIndex: 0,
-          effect: VideoEffect.cinematic,
-          colorGrading: const ColorGradingSettings(
-            brightness: 0.1,
-            contrast: 1.15,
-            saturation: 1.2,
-            temperature: 0.05,
-          ),
-        ),
-        TimelineClip(
-          id: 'clip_2',
-          label: 'B-Roll Cut',
-          start: const Duration(seconds: 8),
-          end: const Duration(seconds: 16),
-          clipType: ClipType.video,
-          layerIndex: 0,
-          effect: VideoEffect.warm,
-        ),
-        TimelineClip(
-          id: 'clip_3',
-          label: 'Background Music Track',
-          start: Duration.zero,
-          end: const Duration(seconds: 16),
-          clipType: ClipType.audio,
-          layerIndex: 1,
-          audioProperties: const AudioProperties(volume: 0.7, pitch: 1.0),
-        ),
-        TimelineClip(
-          id: 'clip_4',
-          label: 'Title Overlay',
-          start: const Duration(seconds: 1),
-          end: const Duration(seconds: 5),
-          clipType: ClipType.text,
-          layerIndex: 2,
-          fontFamily: 'Montserrat',
-          textAnimationStyle: TextAnimationStyle.typewriter,
-        ),
-      ],
+      id: 'proj_${DateTime.now().millisecondsSinceEpoch}',
+      name: 'New Project',
+      clips: <TimelineClip>[],
     );
-
-    _selectedClipId = 'clip_1';
+    _selectedClipId = null;
   }
 
   late VideoProject _project;
@@ -286,7 +243,7 @@ class EditorController extends ChangeNotifier {
   // Text & Fonts
   void addTextOverlay(
     String text, {
-    String fontFamily = 'Roboto',
+    String fontFamily = 'Poppins',
     TextAnimationStyle animationStyle = TextAnimationStyle.fadeIn,
   }) {
     _saveState();
@@ -461,38 +418,38 @@ class EditorController extends ChangeNotifier {
     // Remove caption clips from a previous run so they don't pile up.
     _project.clips.removeWhere((TimelineClip c) => c.clipType == ClipType.caption);
 
-    final sampleCaptions = <CaptionCue>[
-      CaptionCue(
-        id: 'cap_1',
-        start: const Duration(seconds: 0),
-        end: const Duration(seconds: 3),
-        text: 'Welcome to motionGr Video Editor Pro!',
-      ),
-      CaptionCue(
-        id: 'cap_2',
-        start: const Duration(seconds: 3),
-        end: const Duration(seconds: 7),
-        text: 'Create stunning cinematic videos easily.',
-      ),
-      CaptionCue(
-        id: 'cap_3',
-        start: const Duration(seconds: 7),
-        end: const Duration(seconds: 12),
-        text: 'Includes custom fonts, vector tools, and fast export.',
-      ),
-    ];
+    final mediaClips = _project.clips
+        .where((c) => c.clipType == ClipType.video || c.clipType == ClipType.audio)
+        .toList();
 
-    _project.captions.addAll(sampleCaptions);
+    if (mediaClips.isEmpty) {
+      notifyListeners();
+      return;
+    }
 
-    for (final cue in sampleCaptions) {
+    final newCaptions = <CaptionCue>[];
+    for (int i = 0; i < mediaClips.length; i++) {
+      final clip = mediaClips[i];
+      final cue = CaptionCue(
+        id: 'cap_${i + 1}_${DateTime.now().millisecondsSinceEpoch}',
+        start: clip.start,
+        end: clip.end,
+        text: 'Caption: ${clip.label}',
+      );
+      newCaptions.add(cue);
+    }
+
+    _project.captions.addAll(newCaptions);
+
+    for (final cue in newCaptions) {
       final clip = TimelineClip(
         id: 'caption_${cue.id}',
-        label: 'CC: ${cue.text}',
+        label: cue.text,
         start: cue.start,
         end: cue.end,
         clipType: ClipType.caption,
         layerIndex: 4,
-        fontFamily: 'Roboto',
+        fontFamily: 'Poppins',
       );
       _project.addClip(clip);
     }
@@ -506,7 +463,7 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> startExport({required VoidCallback onComplete}) async {
+  Future<String?> startExport({Function? onComplete}) async {
     _isExporting = true;
     _exportProgress = 0.0;
     notifyListeners();
@@ -517,9 +474,31 @@ class EditorController extends ChangeNotifier {
       notifyListeners();
     }
 
+    String? savedFilePath;
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final extension = _exportSettings.format.name;
+      final fileName = 'export_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final file = File('${dir.path}/$fileName');
+
+      final fileContent = 'Rendered Video Data (${_exportSettings.resolution.label}, ${_exportSettings.fps}fps, ${_exportSettings.quality.label})';
+      await file.writeAsString(fileContent);
+      savedFilePath = file.path;
+    } catch (_) {
+      savedFilePath = null;
+    }
+
     _isExporting = false;
     notifyListeners();
-    onComplete();
+
+    if (onComplete != null) {
+      if (onComplete is void Function(String)) {
+        onComplete(savedFilePath ?? '');
+      } else {
+        onComplete();
+      }
+    }
+    return savedFilePath;
   }
 
   void reset() {

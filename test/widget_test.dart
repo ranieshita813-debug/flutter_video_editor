@@ -29,19 +29,23 @@ Widget createTestWidget(Widget child) {
 void main() {
   testWidgets('SplashScreen renders title motionGr', (WidgetTester tester) async {
     await tester.pumpWidget(createTestWidget(const SplashScreen()));
+    await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('motionGr'), findsOneWidget);
-    expect(find.text('Mobile Video Editing Suite'), findsOneWidget);
+    expect(find.text('m'), findsOneWidget);
+    expect(find.text('G'), findsOneWidget);
 
-    await tester.pumpAndSettle(const Duration(seconds: 4));
+    await tester.pump(const Duration(milliseconds: 2000));
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('HomePage renders New Project button and project list', (WidgetTester tester) async {
     await tester.pumpWidget(createTestWidget(const HomePage()));
 
     expect(find.text('motionGr'), findsOneWidget);
-    expect(find.text('New Project'), findsOneWidget);
-    expect(find.textContaining('Recent Projects'), findsOneWidget);
+    expect(find.text('New project'), findsOneWidget);
+    expect(find.text('Projects'), findsOneWidget);
+    expect(find.text('Start your first project'), findsOneWidget);
   });
 
   testWidgets('EditorPage renders workspace, inspector and toolbar', (WidgetTester tester) async {
@@ -51,16 +55,15 @@ void main() {
 
     await tester.pumpWidget(createTestWidget(const EditorPage()));
 
-    expect(find.text('CapCut & Pro Studio Edition'), findsOneWidget);
-    expect(find.text('Clip Inspector'), findsOneWidget);
-    expect(find.text('Multi-Layer Timeline'), findsOneWidget);
+    expect(find.text('Export'), findsOneWidget);
+    expect(find.text('Program'), findsOneWidget);
 
-    expect(find.text('Split'), findsWidgets);
-    expect(find.text('Vector Draw'), findsOneWidget);
-    expect(find.text('Text & Font'), findsOneWidget);
-    expect(find.text('Color Grade'), findsOneWidget);
-    expect(find.text('Audio Tools'), findsOneWidget);
-    expect(find.text('Camera & Track'), findsOneWidget);
+    expect(find.text('Draw'), findsOneWidget);
+    expect(find.text('Text'), findsOneWidget);
+    expect(find.text('Color'), findsOneWidget);
+    expect(find.text('Audio'), findsOneWidget);
+    expect(find.text('Track'), findsOneWidget);
+    expect(find.text('Captions'), findsOneWidget);
   });
 
   testWidgets('Opening Export Modal works', (WidgetTester tester) async {
@@ -70,7 +73,7 @@ void main() {
 
     await tester.pumpWidget(createTestWidget(const EditorPage()));
 
-    final exportButton = find.widgetWithText(OutlinedButton, 'Export');
+    final exportButton = find.widgetWithText(FilledButton, 'Export');
     expect(exportButton, findsOneWidget);
 
     await tester.tap(exportButton);

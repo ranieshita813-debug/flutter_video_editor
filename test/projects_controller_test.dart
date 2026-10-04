@@ -10,35 +10,33 @@ void main() {
       controller = ProjectsController();
     });
 
-    test('Loads initial sample projects', () {
-      expect(controller.projects.isNotEmpty, isTrue);
-      expect(controller.projects.length, equals(3));
+    test('Initial projects list starts empty', () {
+      expect(controller.projects.isEmpty, isTrue);
     });
 
     test('Creates a new project and inserts at top', () {
-      final initialCount = controller.projects.length;
       final newProj = controller.createProject(
         name: 'Vlog Demo',
         aspectRatio: AspectRatioPreset.nineSixteen,
       );
 
-      expect(controller.projects.length, equals(initialCount + 1));
+      expect(controller.projects.length, equals(1));
       expect(controller.projects.first.id, equals(newProj.id));
       expect(controller.projects.first.name, equals('Vlog Demo'));
     });
 
     test('Renames an existing project', () {
-      final projectToRename = controller.projects.first;
-      controller.renameProject(projectToRename.id, 'Renamed Masterpiece');
+      final created = controller.createProject(name: 'Original Name');
+      controller.renameProject(created.id, 'Renamed Masterpiece');
 
-      final updated = controller.getProject(projectToRename.id);
+      final updated = controller.getProject(created.id);
       expect(updated, isNotNull);
       expect(updated!.name, equals('Renamed Masterpiece'));
     });
 
     test('Duplicates an existing project', () {
+      final original = controller.createProject(name: 'Travel Video');
       final initialCount = controller.projects.length;
-      final original = controller.projects.first;
       final duplicated = controller.duplicateProject(original.id);
 
       expect(duplicated, isNotNull);
@@ -47,12 +45,12 @@ void main() {
     });
 
     test('Deletes a project', () {
+      final created = controller.createProject(name: 'To Be Deleted');
       final initialCount = controller.projects.length;
-      final projectToDelete = controller.projects.first;
-      controller.deleteProject(projectToDelete.id);
+      controller.deleteProject(created.id);
 
       expect(controller.projects.length, equals(initialCount - 1));
-      expect(controller.getProject(projectToDelete.id), isNull);
+      expect(controller.getProject(created.id), isNull);
     });
   });
 }
