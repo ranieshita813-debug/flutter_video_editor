@@ -11,6 +11,7 @@ import androidx.media3.effect.BitmapOverlay
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.Presentation
 import androidx.media3.effect.ScaleAndRotateTransformation
+import androidx.media3.effect.TextureOverlay
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
@@ -56,16 +57,16 @@ object CompositionBuilder {
                     48f,
                     clip.fontFamily
                 )
-                val bitmapOverlay = BitmapOverlay.createStaticBitmapOverlay(bitmap)
-                effectsList.add(OverlayEffect(ImmutableList.of(bitmapOverlay)))
+                val bitmapOverlay = BitmapOverlay.createStaticBitmapOverlay(bitmap) as TextureOverlay
+                effectsList.add(OverlayEffect(listOf(bitmapOverlay)))
             } else if (clip.clipType == "drawing" && clip.strokes.isNotEmpty()) {
                 val bitmap = OverlayRenderer.renderDrawingOverlay(
                     clip.strokes,
                     timeline.settings.width,
                     timeline.settings.height
                 )
-                val bitmapOverlay = BitmapOverlay.createStaticBitmapOverlay(bitmap)
-                effectsList.add(OverlayEffect(ImmutableList.of(bitmapOverlay)))
+                val bitmapOverlay = BitmapOverlay.createStaticBitmapOverlay(bitmap) as TextureOverlay
+                effectsList.add(OverlayEffect(listOf(bitmapOverlay)))
             }
 
             val sourceUri = if (clip.sourcePath != null && File(clip.sourcePath).exists()) {

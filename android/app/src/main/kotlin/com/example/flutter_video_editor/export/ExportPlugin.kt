@@ -268,7 +268,7 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                 .build()
 
             val transformerListener = object : Transformer.Listener {
-                override fun _onCompleted(composition: Composition, exportResult: ExportResult) {
+                override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     if (isCancelled) {
                         tempFile.delete()
                         return
@@ -282,7 +282,7 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                     }
                 }
 
-                override fun _onError(
+                override fun onError(
                     composition: Composition,
                     exportResult: ExportResult,
                     exportException: ExportException
