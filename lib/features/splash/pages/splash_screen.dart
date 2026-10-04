@@ -78,7 +78,7 @@ class _SplashScreenState extends State<SplashScreen>
                     borderRadius: BorderRadius.circular(30),
                     boxShadow: <BoxShadow>[
                       BoxShadow(
-                        color: const Color(0xFF8B5CF6).withOpacity(0.5),
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.5),
                         blurRadius: 30,
                         spreadRadius: 5,
                       ),
@@ -145,7 +145,7 @@ class _SplashScreenState extends State<SplashScreen>
                           color: Color.lerp(
                             const Color(0xFF1F2937),
                             const Color(0xFF8B5CF6),
-                            (progress).clamp(0.0, 1.0) as double,
+                            progress.clamp(0.0, 1.0),
                           ),
                         ),
                       );
