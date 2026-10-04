@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/theme/app_theme.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
 import 'package:flutter_video_editor/features/editor/pages/editor_page.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 import 'package:flutter_video_editor/features/projects/pages/home_page.dart';
@@ -14,6 +15,7 @@ Widget createTestWidget(Widget child) {
     providers: [
       ChangeNotifierProvider(create: (_) => ProjectsController()),
       ChangeNotifierProvider(create: (_) => EditorController()),
+      ChangeNotifierProvider(create: (_) => ExportController()),
     ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
@@ -56,7 +58,7 @@ void main() {
     await tester.pumpWidget(createTestWidget(const EditorPage()));
 
     expect(find.text('Export'), findsOneWidget);
-    expect(find.text('Program'), findsOneWidget);
+    expect(find.text('1080p · 30 fps'), findsOneWidget);
 
     expect(find.text('Draw'), findsOneWidget);
     expect(find.text('Text'), findsOneWidget);
@@ -73,7 +75,7 @@ void main() {
 
     await tester.pumpWidget(createTestWidget(const EditorPage()));
 
-    final exportButton = find.widgetWithText(FilledButton, 'Export');
+    final exportButton = find.text('Export');
     expect(exportButton, findsOneWidget);
 
     await tester.tap(exportButton);
