@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -9,36 +12,30 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+  static const String _title = 'motionGr';
+  static const double _waveAmplitude = 14.0;
+  static const double _waveCycles = 2.0;
+  static const double _letterPhaseShift = 0.55;
+
+  late final AnimationController _controller;
+  late final Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
 
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 2400),
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeInOut),
-      ),
+    _fade = CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.0, 0.5, curve: Curves.easeInOut),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
-      ),
-    );
-
-    _animationController.forward();
-
-    Future.delayed(const Duration(milliseconds: 2200), () {
+    _controller.forward().then((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 200));
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
       }
@@ -47,80 +44,54 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final TextStyle style = GoogleFonts.inter(
+      fontSize: 44,
+      fontWeight: FontWeight.w700,
+      color: Colors.white,
+      letterSpacing: 1.0,
+    );
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0E10),
+      backgroundColor: Colors.black,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            ScaleTransition(
-              scale: _scaleAnimation,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: <Color>[
-                        Color(0xFF00E5FF),
-                        Color(0xFF00838F),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: const Color(0xFF00E5FF).withAlpha(120),
-                        blurRadius: 24,
-                        spreadRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.play_arrow_rounded,
-                      size: 56,
-                      color: Colors.black,
-                    ),
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (BuildContext context, Widget? child) {
+            final double t = _controller.value;
+            // The wave settles to zero as the animation ends.
+            final double damping = 1.0 - Curves.easeInOut.transform(t);
+
+            return Opacity(
+              opacity: _fade.value,
+              child: Semantics(
+                label: _title,
+                child: ExcludeSemantics(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List<Widget>.generate(_title.length, (int i) {
+                      final double offsetY = math.sin(
+                            t * 2 * math.pi * _waveCycles -
+                                i * _letterPhaseShift,
+                          ) *
+                          _waveAmplitude *
+                          damping;
+
+                      return Transform.translate(
+                        offset: Offset(0, offsetY),
+                        child: Text(_title[i], style: style),
+                      );
+                    }),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 32),
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: const Text(
-                'motionGr',
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            FadeTransition(
-              opacity: _fadeAnimation,
-              child: const Text(
-                'Mobile Video Editing Suite',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0x99FFFFFF),
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

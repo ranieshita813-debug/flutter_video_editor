@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -61,6 +63,7 @@ class EditorController extends ChangeNotifier {
 
   Duration _playhead = Duration.zero;
   bool _isPlaying = false;
+  Timer? _ticker;
   double _zoom = 1.0;
   String? _selectedClipId;
   ExportSettings _exportSettings = const ExportSettings();
@@ -80,6 +83,7 @@ class EditorController extends ChangeNotifier {
   VideoProject get project => _project;
 
   void loadProject(VideoProject project) {
+    _ticker?.cancel();
     _project = project;
     _selectedClipId = project.clips.isNotEmpty ? project.clips.first.id : null;
     _playhead = Duration.zero;
@@ -173,6 +177,31 @@ class EditorController extends ChangeNotifier {
 
   void togglePlayback() {
     _isPlaying = !_isPlaying;
+    _ticker?.cancel();
+
+    if (_isPlaying) {
+      // Restart from the beginning if playback starts at the very end.
+      final Duration total = _project.totalDuration;
+      if (total > Duration.zero && _playhead >= total) {
+        _playhead = Duration.zero;
+      }
+
+      const Duration tick = Duration(milliseconds: 33);
+      _ticker = Timer.periodic(tick, (Timer _) {
+        final Duration end = _project.totalDuration;
+        final Duration next = _playhead + tick;
+
+        if (end > Duration.zero && next >= end) {
+          _playhead = end;
+          _isPlaying = false;
+          _ticker?.cancel();
+        } else {
+          _playhead = next;
+        }
+        notifyListeners();
+      });
+    }
+
     notifyListeners();
   }
 
@@ -255,7 +284,11 @@ class EditorController extends ChangeNotifier {
   }
 
   // Text & Fonts
-  void addTextOverlay(String text, {String fontFamily = 'Roboto', TextAnimationStyle animationStyle = TextAnimationStyle.fadeIn}) {
+  void addTextOverlay(
+    String text, {
+    String fontFamily = 'Roboto',
+    TextAnimationStyle animationStyle = TextAnimationStyle.fadeIn,
+  }) {
     _saveState();
     final clip = TimelineClip(
       id: 'text_${DateTime.now().millisecondsSinceEpoch}',
@@ -274,7 +307,11 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateSelectedTextProperties({String? text, String? fontFamily, TextAnimationStyle? textAnimationStyle}) {
+  void updateSelectedTextProperties({
+    String? text,
+    String? fontFamily,
+    TextAnimationStyle? textAnimationStyle,
+  }) {
     final current = selectedClip;
     if (current == null || current.clipType != ClipType.text) return;
 
@@ -318,7 +355,8 @@ class EditorController extends ChangeNotifier {
     if (index == -1) return;
 
     _saveState();
-    _project.clips[index] = _project.clips[index].copyWith(colorGrading: colorGrading);
+    _project.clips[index] =
+        _project.clips[index].copyWith(colorGrading: colorGrading);
     notifyListeners();
   }
 
@@ -385,7 +423,8 @@ class EditorController extends ChangeNotifier {
 
     final clip = TimelineClip(
       id: 'drawing_${DateTime.now().millisecondsSinceEpoch}',
-      label: 'Vector Drawing ${_project.clips.where((c) => c.clipType == ClipType.drawing).length + 1}',
+      label:
+          'Vector Drawing ${_project.clips.where((c) => c.clipType == ClipType.drawing).length + 1}',
       start: _playhead,
       end: _playhead + const Duration(seconds: 5),
       clipType: ClipType.drawing,
@@ -409,7 +448,8 @@ class EditorController extends ChangeNotifier {
     if (index == -1) return;
 
     _saveState();
-    _project.clips[index] = _project.clips[index].copyWith(trackingData: trackingData);
+    _project.clips[index] =
+        _project.clips[index].copyWith(trackingData: trackingData);
     notifyListeners();
   }
 
@@ -417,6 +457,9 @@ class EditorController extends ChangeNotifier {
   void generateAutoCaptions() {
     _saveState();
     _project.captions.clear();
+
+    // Remove caption clips from a previous run so they don't pile up.
+    _project.clips.removeWhere((TimelineClip c) => c.clipType == ClipType.caption);
 
     final sampleCaptions = <CaptionCue>[
       CaptionCue(
@@ -480,11 +523,18 @@ class EditorController extends ChangeNotifier {
   }
 
   void reset() {
+    _ticker?.cancel();
     _playhead = Duration.zero;
     _isPlaying = false;
     _selectedClipId = null;
     _zoom = 1.0;
     _activeDrawingStrokes.clear();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 }

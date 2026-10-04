@@ -10,59 +10,13 @@ import 'package:flutter_video_editor/features/projects/controllers/projects_cont
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  void _openSettings(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const Text(
-                'Settings',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.hd_outlined, color: AppColors.accent),
-                title: const Text('Default Resolution', style: TextStyle(color: AppColors.textPrimary)),
-                subtitle: const Text('1080p (Full HD)', style: TextStyle(color: AppColors.textSecondary)),
-                onTap: () => Navigator.pop(ctx),
-              ),
-              ListTile(
-                leading: const Icon(Icons.speed, color: AppColors.accent),
-                title: const Text('Default Frame Rate', style: TextStyle(color: AppColors.textPrimary)),
-                subtitle: const Text('30 FPS', style: TextStyle(color: AppColors.textSecondary)),
-                onTap: () => Navigator.pop(ctx),
-              ),
-              ListTile(
-                leading: const Icon(Icons.info_outline, color: AppColors.accent),
-                title: const Text('About motionGr', style: TextStyle(color: AppColors.textPrimary)),
-                subtitle: const Text('Version 1.0.0', style: TextStyle(color: AppColors.textSecondary)),
-                onTap: () => Navigator.pop(ctx),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // Actions
+  // ---------------------------------------------------------------------------
 
   void _createNewProject(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const MediaPickerPage(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const MediaPickerPage()),
     );
   }
 
@@ -72,15 +26,116 @@ class HomePage extends StatelessWidget {
     Navigator.of(context).pushNamed('/editor');
   }
 
+  void _openSettings(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            _sheetTile(ctx, Icons.hd_outlined, 'Default resolution', '1080p (Full HD)'),
+            _sheetTile(ctx, Icons.speed, 'Default frame rate', '30 FPS'),
+            _sheetTile(ctx, Icons.info_outline, 'About motionGr', 'Version 1.0.0'),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetTile(
+    BuildContext ctx,
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.textPrimary),
+      title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
+      subtitle: Text(subtitle, style: const TextStyle(color: AppColors.textSecondary)),
+      onTap: () => Navigator.pop(ctx),
+    );
+  }
+
+  void _showProjectActions(
+    BuildContext context,
+    Project project,
+    ProjectsController controller,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  project.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined, color: AppColors.textPrimary),
+              title: const Text('Rename', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showRenameDialog(context, project);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy_outlined, color: AppColors.textPrimary),
+              title: const Text('Duplicate', style: TextStyle(color: AppColors.textPrimary)),
+              onTap: () {
+                Navigator.pop(ctx);
+                controller.duplicateProject(project.id);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: AppColors.error),
+              title: const Text('Delete', style: TextStyle(color: AppColors.error)),
+              onTap: () {
+                Navigator.pop(ctx);
+                controller.deleteProject(project.id);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showRenameDialog(BuildContext context, Project project) {
     final controller = TextEditingController(text: project.name);
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: const Text('Rename Project', style: TextStyle(color: AppColors.textPrimary)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Rename project', style: TextStyle(color: AppColors.textPrimary)),
         content: TextField(
           controller: controller,
+          autofocus: true,
           style: const TextStyle(color: AppColors.textPrimary),
           decoration: const InputDecoration(
             hintText: 'Enter project name',
@@ -92,18 +147,13 @@ class HomePage extends StatelessWidget {
               borderSide: BorderSide(color: AppColors.accent),
             ),
           ),
-          autofocus: true,
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: Colors.black,
-            ),
+          TextButton(
             onPressed: () {
               final newName = controller.text.trim();
               if (newName.isNotEmpty) {
@@ -112,12 +162,19 @@ class HomePage extends StatelessWidget {
               }
               Navigator.pop(ctx);
             },
-            child: const Text('Rename'),
+            child: const Text(
+              'Rename',
+              style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -125,209 +182,148 @@ class HomePage extends StatelessWidget {
     final projects = projectsController.projects;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        title: const Row(
-          children: <Widget>[
-            Icon(Icons.movie_creation_outlined, color: AppColors.accent, size: 28),
-            SizedBox(width: 10),
-            Text(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: <Widget>[
+            SliverToBoxAdapter(child: _buildHeader(context)),
+            SliverToBoxAdapter(child: _buildNewProjectButton(context)),
+            SliverToBoxAdapter(child: _buildSectionHeader(projects.length)),
+            if (projects.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _buildEmptyState(),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 0.5,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildProjectCard(
+                      context,
+                      projects[index],
+                      projectsController,
+                    ),
+                    childCount: projects.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 8, 4),
+      child: Row(
+        children: <Widget>[
+          const Expanded(
+            child: Text(
               'motionGr',
               style: TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
+                color: Colors.white,
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
                 letterSpacing: 0.5,
               ),
             ),
-          ],
-        ),
-        actions: <Widget>[
+          ),
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppColors.textPrimary, size: 24),
+            icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 24),
             tooltip: 'Settings',
             onPressed: () => _openSettings(context),
           ),
-          const SizedBox(width: 8),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            // New Project Banner / Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              child: InkWell(
-                onTap: () => _createNewProject(context),
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: double.infinity,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: <Color>[
-                        AppColors.accent.withAlpha(38),
-                        AppColors.surfaceVariant,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.accent.withAlpha(100),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: const BoxDecoration(
-                          color: AppColors.accent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.add, color: Colors.black, size: 28),
-                      ),
-                      const SizedBox(width: 16),
-                      const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            'New Project',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Start editing videos & photos',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+    );
+  }
 
-            // Projects Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Text(
-                    'Recent Projects (${projects.length})',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Grid or Empty State
-            Expanded(
-              child: projects.isEmpty
-                  ? _buildEmptyState(context)
-                  : _buildProjectGrid(context, projects, projectsController),
-            ),
-          ],
+  Widget _buildNewProjectButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton.icon(
+          onPressed: () => _createNewProject(context),
+          icon: const Icon(Icons.add_rounded, size: 26),
+          label: const Text('New project'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.accent,
+            foregroundColor: Colors.black,
+            elevation: 0,
+            shape: const StadiumBorder(),
+            textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.divider),
-              ),
-              child: Icon(
-                Icons.video_library_outlined,
-                size: 64,
-                color: AppColors.textSecondary.withAlpha(150),
-              ),
+  Widget _buildSectionHeader(int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      child: Row(
+        children: <Widget>[
+          const Text(
+            'Projects',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'No projects yet',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$count',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Tap "+ New Project" above to import media and start creating stunning videos!',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => _createNewProject(context),
-              icon: const Icon(Icons.add, size: 20),
-              label: const Text('Create First Project'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildProjectGrid(
-    BuildContext context,
-    List<Project> projects,
-    ProjectsController controller,
-  ) {
-    return GridView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.85,
+  Widget _buildEmptyState() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Icon(Icons.video_library_outlined, size: 56, color: AppColors.textDisabled),
+          SizedBox(height: 16),
+          Text(
+            'Start your first project',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Import videos and photos, then trim, add text, and export.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          SizedBox(height: 48),
+        ],
       ),
-      itemCount: projects.length,
-      itemBuilder: (context, index) {
-        final project = projects[index];
-        return _buildProjectCard(context, project, controller);
-      },
     );
   }
 
@@ -339,161 +335,85 @@ class HomePage extends StatelessWidget {
     final durationStr = EditorUtils.formatDuration(project.duration);
     final dateStr =
         '${project.updatedAt.month}/${project.updatedAt.day}/${project.updatedAt.year}';
+    final isPortrait = project.aspectRatio == AspectRatioPreset.nineSixteen;
 
-    return InkWell(
+    return GestureDetector(
       onTap: () => _openProject(context, project),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider, width: 1),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Thumbnail container
-            Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
                   Container(
-                    color: AppColors.surfaceVariant,
+                    color: AppColors.surface,
                     child: Center(
                       child: Icon(
-                        project.aspectRatio == AspectRatioPreset.nineSixteen
-                            ? Icons.stay_current_portrait
-                            : Icons.movie_outlined,
-                        size: 40,
-                        color: AppColors.textSecondary.withAlpha(120),
+                        isPortrait ? Icons.stay_current_portrait : Icons.movie_outlined,
+                        size: 32,
+                        color: AppColors.textDisabled,
                       ),
                     ),
                   ),
-                  // Aspect Ratio Badge
                   Positioned(
-                    top: 8,
-                    left: 8,
+                    left: 6,
+                    bottom: 6,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(180),
+                        color: Colors.black.withAlpha(170),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        project.aspectRatio.label,
+                        durationStr,
                         style: const TextStyle(
-                          color: AppColors.textPrimary,
+                          color: Colors.white,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                   ),
-                  // Duration Badge
                   Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(190),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        durationStr,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                    top: 4,
+                    right: 4,
+                    child: GestureDetector(
+                      onTap: () => _showProjectActions(context, project, controller),
+                      child: Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(140),
+                          shape: BoxShape.circle,
                         ),
+                        child: const Icon(Icons.more_horiz, size: 16, color: Colors.white),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            // Details bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text(
-                          project.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          dateStr,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: AppColors.textSecondary, size: 20),
-                    color: AppColors.surfaceVariant,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    onSelected: (value) {
-                      if (value == 'rename') {
-                        _showRenameDialog(context, project);
-                      } else if (value == 'duplicate') {
-                        controller.duplicateProject(project.id);
-                      } else if (value == 'delete') {
-                        controller.deleteProject(project.id);
-                      }
-                    },
-                    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                      const PopupMenuItem<String>(
-                        value: 'rename',
-                        child: Row(
-                          children: <Widget>[
-                            Icon(Icons.edit_outlined, size: 18, color: AppColors.textPrimary),
-                            SizedBox(width: 8),
-                            Text('Rename', style: TextStyle(color: AppColors.textPrimary)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem<String>(
-                        value: 'duplicate',
-                        child: Row(
-                          children: <Widget>[
-                            Icon(Icons.copy_outlined, size: 18, color: AppColors.textPrimary),
-                            SizedBox(width: 8),
-                            Text('Duplicate', style: TextStyle(color: AppColors.textPrimary)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem<String>(
-                        value: 'delete',
-                        child: Row(
-                          children: <Widget>[
-                            Icon(Icons.delete_outline, size: 18, color: AppColors.error),
-                            SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: AppColors.error)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            project.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            dateStr,
+            style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+          ),
+        ],
       ),
     );
   }
