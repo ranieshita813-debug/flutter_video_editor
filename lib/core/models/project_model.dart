@@ -9,6 +9,9 @@ enum ClipType {
   drawing,
   sticker,
   caption,
+  element,
+  camera,
+  overlay,
 }
 
 enum VideoEffect {
@@ -20,6 +23,10 @@ enum VideoEffect {
   vintage,
   glitch,
   blur,
+  glow,
+  retro,
+  matrix,
+  flame,
 }
 
 enum TextAnimationStyle {
@@ -29,6 +36,217 @@ enum TextAnimationStyle {
   slideUp,
   bounce,
   scaleUp,
+}
+
+enum ClipAnimation {
+  none,
+  fadeIn,
+  fadeOut,
+  slideLeft,
+  slideRight,
+  zoomIn,
+  zoomOut,
+  bounce,
+  spin,
+  glitch,
+}
+
+enum ElementShape {
+  rectangle,
+  circle,
+  star,
+  triangle,
+  arrow,
+  line,
+}
+
+enum MaskType {
+  none,
+  rectangle,
+  circle,
+  linear,
+  mirror,
+  star,
+}
+
+enum KeyframeProperty {
+  positionX,
+  positionY,
+  scale,
+  rotation,
+  opacity,
+  volume,
+}
+
+enum CurveType {
+  linear,
+  easeIn,
+  easeOut,
+  cubicBezier,
+}
+
+class Keyframe {
+  const Keyframe({
+    required this.id,
+    required this.time,
+    required this.property,
+    required this.value,
+    this.curveType = CurveType.linear,
+  });
+
+  final String id;
+  final Duration time;
+  final KeyframeProperty property;
+  final double value;
+  final CurveType curveType;
+
+  Keyframe copyWith({
+    String? id,
+    Duration? time,
+    KeyframeProperty? property,
+    double? value,
+    CurveType? curveType,
+  }) {
+    return Keyframe(
+      id: id ?? this.id,
+      time: time ?? this.time,
+      property: property ?? this.property,
+      value: value ?? this.value,
+      curveType: curveType ?? this.curveType,
+    );
+  }
+}
+
+class ElementProperties {
+  const ElementProperties({
+    this.shape = ElementShape.rectangle,
+    this.fillColor = Colors.white,
+    this.strokeColor = Colors.transparent,
+    this.strokeWidth = 2.0,
+    this.size = 100.0,
+  });
+
+  final ElementShape shape;
+  final Color fillColor;
+  final Color strokeColor;
+  final double strokeWidth;
+  final double size;
+
+  ElementProperties copyWith({
+    ElementShape? shape,
+    Color? fillColor,
+    Color? strokeColor,
+    double? strokeWidth,
+    double? size,
+  }) {
+    return ElementProperties(
+      shape: shape ?? this.shape,
+      fillColor: fillColor ?? this.fillColor,
+      strokeColor: strokeColor ?? this.strokeColor,
+      strokeWidth: strokeWidth ?? this.strokeWidth,
+      size: size ?? this.size,
+    );
+  }
+}
+
+class CameraProperties {
+  const CameraProperties({
+    this.fov = 60.0,
+    this.focalLength = 35.0,
+    this.iso = 400,
+    this.shutterSpeed = 0.02,
+    this.aperture = 2.8,
+    this.whiteBalance = 5600,
+    this.zoom = 1.0,
+    this.pan = 0.0,
+    this.tilt = 0.0,
+    this.roll = 0.0,
+    this.positionZ = 0.0,
+  });
+
+  final double fov;
+  final double focalLength;
+  final int iso;
+  final double shutterSpeed;
+  final double aperture;
+  final int whiteBalance;
+  final double zoom;
+  final double pan;
+  final double tilt;
+  final double roll;
+  final double positionZ;
+
+  CameraProperties copyWith({
+    double? fov,
+    double? focalLength,
+    int? iso,
+    double? shutterSpeed,
+    double? aperture,
+    int? whiteBalance,
+    double? zoom,
+    double? pan,
+    double? tilt,
+    double? roll,
+    double? positionZ,
+  }) {
+    return CameraProperties(
+      fov: fov ?? this.fov,
+      focalLength: focalLength ?? this.focalLength,
+      iso: iso ?? this.iso,
+      shutterSpeed: shutterSpeed ?? this.shutterSpeed,
+      aperture: aperture ?? this.aperture,
+      whiteBalance: whiteBalance ?? this.whiteBalance,
+      zoom: zoom ?? this.zoom,
+      pan: pan ?? this.pan,
+      tilt: tilt ?? this.tilt,
+      roll: roll ?? this.roll,
+      positionZ: positionZ ?? this.positionZ,
+    );
+  }
+}
+
+class MaskProperties {
+  const MaskProperties({
+    this.type = MaskType.none,
+    this.positionX = 0.0,
+    this.positionY = 0.0,
+    this.width = 100.0,
+    this.height = 100.0,
+    this.rotation = 0.0,
+    this.feather = 0.0,
+    this.isInverted = false,
+  });
+
+  final MaskType type;
+  final double positionX;
+  final double positionY;
+  final double width;
+  final double height;
+  final double rotation;
+  final double feather;
+  final bool isInverted;
+
+  MaskProperties copyWith({
+    MaskType? type,
+    double? positionX,
+    double? positionY,
+    double? width,
+    double? height,
+    double? rotation,
+    double? feather,
+    bool? isInverted,
+  }) {
+    return MaskProperties(
+      type: type ?? this.type,
+      positionX: positionX ?? this.positionX,
+      positionY: positionY ?? this.positionY,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      rotation: rotation ?? this.rotation,
+      feather: feather ?? this.feather,
+      isInverted: isInverted ?? this.isInverted,
+    );
+  }
 }
 
 enum ExportFormat {
@@ -147,6 +365,8 @@ class AudioProperties {
     this.fadeIn = Duration.zero,
     this.fadeOut = Duration.zero,
     this.equalizerPreset = 'Flat',
+    this.noiseReduction = 0.0,
+    this.voiceEffect = 'Normal',
   });
 
   final double volume;
@@ -155,6 +375,8 @@ class AudioProperties {
   final Duration fadeIn;
   final Duration fadeOut;
   final String equalizerPreset;
+  final double noiseReduction;
+  final String voiceEffect;
 
   AudioProperties copyWith({
     double? volume,
@@ -163,6 +385,8 @@ class AudioProperties {
     Duration? fadeIn,
     Duration? fadeOut,
     String? equalizerPreset,
+    double? noiseReduction,
+    String? voiceEffect,
   }) {
     return AudioProperties(
       volume: volume ?? this.volume,
@@ -171,6 +395,8 @@ class AudioProperties {
       fadeIn: fadeIn ?? this.fadeIn,
       fadeOut: fadeOut ?? this.fadeOut,
       equalizerPreset: equalizerPreset ?? this.equalizerPreset,
+      noiseReduction: noiseReduction ?? this.noiseReduction,
+      voiceEffect: voiceEffect ?? this.voiceEffect,
     );
   }
 }
@@ -284,6 +510,8 @@ class TimelineClip {
     this.rotation = 0.0,
     this.positionX = 0.0,
     this.positionY = 0.0,
+    this.anchorX = 0.5,
+    this.anchorY = 0.5,
     this.effect = VideoEffect.none,
     this.sourcePath,
     this.stickerAssetPath,
@@ -291,6 +519,13 @@ class TimelineClip {
     this.textAnimationStyle = TextAnimationStyle.none,
     this.colorGrading = const ColorGradingSettings(),
     this.audioProperties = const AudioProperties(),
+    this.elementProperties = const ElementProperties(),
+    this.cameraProperties = const CameraProperties(),
+    this.maskProperties = const MaskProperties(),
+    this.keyframes = const <Keyframe>[],
+    this.inAnimation = ClipAnimation.none,
+    this.outAnimation = ClipAnimation.none,
+    this.loopAnimation = ClipAnimation.none,
     this.strokes = const <DrawingStroke>[],
     this.trackingData = const TrackingData(),
     this.waveform,
@@ -314,6 +549,8 @@ class TimelineClip {
   final double rotation;
   final double positionX;
   final double positionY;
+  final double anchorX;
+  final double anchorY;
   final VideoEffect effect;
   final String? sourcePath;
   final String? stickerAssetPath;
@@ -321,6 +558,13 @@ class TimelineClip {
   final TextAnimationStyle textAnimationStyle;
   final ColorGradingSettings colorGrading;
   final AudioProperties audioProperties;
+  final ElementProperties elementProperties;
+  final CameraProperties cameraProperties;
+  final MaskProperties maskProperties;
+  final List<Keyframe> keyframes;
+  final ClipAnimation inAnimation;
+  final ClipAnimation outAnimation;
+  final ClipAnimation loopAnimation;
   final List<DrawingStroke> strokes;
   final TrackingData trackingData;
   final List<double>? waveform;
@@ -346,6 +590,8 @@ class TimelineClip {
     double? rotation,
     double? positionX,
     double? positionY,
+    double? anchorX,
+    double? anchorY,
     VideoEffect? effect,
     String? sourcePath,
     String? stickerAssetPath,
@@ -353,6 +599,13 @@ class TimelineClip {
     TextAnimationStyle? textAnimationStyle,
     ColorGradingSettings? colorGrading,
     AudioProperties? audioProperties,
+    ElementProperties? elementProperties,
+    CameraProperties? cameraProperties,
+    MaskProperties? maskProperties,
+    List<Keyframe>? keyframes,
+    ClipAnimation? inAnimation,
+    ClipAnimation? outAnimation,
+    ClipAnimation? loopAnimation,
     List<DrawingStroke>? strokes,
     TrackingData? trackingData,
     List<double>? waveform,
@@ -376,6 +629,8 @@ class TimelineClip {
       rotation: rotation ?? this.rotation,
       positionX: positionX ?? this.positionX,
       positionY: positionY ?? this.positionY,
+      anchorX: anchorX ?? this.anchorX,
+      anchorY: anchorY ?? this.anchorY,
       effect: effect ?? this.effect,
       sourcePath: sourcePath ?? this.sourcePath,
       stickerAssetPath: stickerAssetPath ?? this.stickerAssetPath,
@@ -383,6 +638,13 @@ class TimelineClip {
       textAnimationStyle: textAnimationStyle ?? this.textAnimationStyle,
       colorGrading: colorGrading ?? this.colorGrading,
       audioProperties: audioProperties ?? this.audioProperties,
+      elementProperties: elementProperties ?? this.elementProperties,
+      cameraProperties: cameraProperties ?? this.cameraProperties,
+      maskProperties: maskProperties ?? this.maskProperties,
+      keyframes: keyframes ?? this.keyframes,
+      inAnimation: inAnimation ?? this.inAnimation,
+      outAnimation: outAnimation ?? this.outAnimation,
+      loopAnimation: loopAnimation ?? this.loopAnimation,
       strokes: strokes ?? this.strokes,
       trackingData: trackingData ?? this.trackingData,
       waveform: waveform ?? this.waveform,

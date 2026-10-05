@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+
+const Color _sheet = Color(0xFF0E0E11);
+const Color _card = Color(0xFF1A1A1F);
+const Color _track = Color(0xFF2B2B31);
+const Color _text = Color(0xFFFFFFFF);
+const Color _muted = Color(0xFF9A9AA3);
 
 class TextAnimationSheet extends StatefulWidget {
   const TextAnimationSheet({super.key});
@@ -11,7 +18,7 @@ class TextAnimationSheet extends StatefulWidget {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF111827),
+      backgroundColor: _sheet,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -59,29 +66,40 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        padding: EdgeInsets.fromLTRB(
+          20,
+          10,
+          20,
+          16 + MediaQuery.of(context).viewInsets.bottom,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: _track,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 const Text(
                   'Text, Fonts & Animation',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    color: _text,
                   ),
                 ),
+                const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white70),
+                  icon: const Icon(Icons.close_rounded, color: _text),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -89,72 +107,101 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _textController,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: const TextStyle(color: _text, fontSize: 16),
               decoration: InputDecoration(
                 labelText: 'Text Content',
-                labelStyle: const TextStyle(color: Colors.white70),
+                labelStyle: const TextStyle(color: _muted),
                 filled: true,
-                fillColor: const Color(0xFF1F2937),
-                border: OutlineInputBorder(
+                fillColor: _card,
+                enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _track),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.white),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Text Animation Preset', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+            const Text('Text Animation Preset',
+                style: TextStyle(
+                    color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: TextAnimationStyle.values.map((anim) {
                 final isSelected = selectedAnimation == anim;
-                return ChoiceChip(
-                  label: Text(anim.name.toUpperCase()),
-                  selected: isSelected,
-                  selectedColor: const Color(0xFF8B5CF6),
-                  onSelected: (selected) {
-                    if (selected) {
-                      setState(() {
-                        selectedAnimation = anim;
-                      });
-                    }
+                return GestureDetector(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => selectedAnimation = anim);
                   },
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.white : _card,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _track),
+                    ),
+                    child: Text(
+                      anim.name.toUpperCase(),
+                      style: TextStyle(
+                        color: isSelected ? Colors.black : _text,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 );
               }).toList(),
             ),
             const SizedBox(height: 16),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
-                const Text('Typography & Custom Fonts', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+                const Text('Typography & Custom Fonts',
+                    style: TextStyle(
+                        color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                const Spacer(),
                 TextButton.icon(
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Font'),
+                  icon: const Icon(Icons.add_rounded, size: 16, color: _text),
+                  label: const Text('Add Font',
+                      style: TextStyle(color: _text, fontSize: 12)),
                   onPressed: () {
                     showDialog<void>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        backgroundColor: const Color(0xFF111827),
-                        title: const Text('Add Custom Font', style: TextStyle(color: Colors.white)),
+                        backgroundColor: _sheet,
+                        title: const Text('Add Custom Font',
+                            style: TextStyle(color: _text)),
                         content: TextField(
                           controller: _customFontController,
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: _text),
                           decoration: const InputDecoration(
                             hintText: 'Enter font name',
-                            hintStyle: TextStyle(color: Colors.white38),
+                            hintStyle: TextStyle(color: _muted),
                           ),
                         ),
                         actions: <Widget>[
                           TextButton(
                             onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('Cancel'),
+                            child: const Text('Cancel',
+                                style: TextStyle(color: _muted)),
                           ),
                           ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black,
+                            ),
                             onPressed: () {
                               if (_customFontController.text.trim().isNotEmpty) {
-                                controller.uploadCustomFont(_customFontController.text.trim());
+                                controller.uploadCustomFont(
+                                    _customFontController.text.trim());
                                 setState(() {
-                                  selectedFont = _customFontController.text.trim();
+                                  selectedFont =
+                                      _customFontController.text.trim();
                                 });
                               }
                               Navigator.of(ctx).pop();
@@ -170,7 +217,7 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
             ),
             const SizedBox(height: 8),
             SizedBox(
-              height: 40,
+              height: 36,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: fonts.length,
@@ -178,53 +225,61 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
                 itemBuilder: (context, index) {
                   final font = fonts[index];
                   final isSelected = selectedFont == font;
-                  return ChoiceChip(
-                    label: Text(font),
-                    selected: isSelected,
-                    selectedColor: const Color(0xFF8B5CF6),
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          selectedFont = font;
-                        });
-                      }
+                  return GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => selectedFont = font);
                     },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.white : _card,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _track),
+                      ),
+                      child: Text(
+                        font,
+                        style: TextStyle(
+                          color: isSelected ? Colors.black : _text,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8B5CF6),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Apply Text Layer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  final current = controller.selectedClip;
-                  if (current != null && current.clipType == ClipType.text) {
-                    controller.updateSelectedTextProperties(
-                      text: _textController.text.trim(),
-                      fontFamily: selectedFont,
-                      textAnimationStyle: selectedAnimation,
-                    );
-                  } else {
-                    controller.addTextOverlay(
-                      _textController.text.trim(),
-                      fontFamily: selectedFont,
-                      animationStyle: selectedAnimation,
-                    );
-                  }
-                  Navigator.of(context).pop();
-                },
               ),
+              onPressed: () {
+                final current = controller.selectedClip;
+                if (current != null && current.clipType == ClipType.text) {
+                  controller.updateSelectedTextProperties(
+                    text: _textController.text.trim(),
+                    fontFamily: selectedFont,
+                    textAnimationStyle: selectedAnimation,
+                  );
+                } else {
+                  controller.addTextOverlay(
+                    _textController.text.trim(),
+                    fontFamily: selectedFont,
+                    animationStyle: selectedAnimation,
+                  );
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text('Apply Text Layer',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ],
         ),

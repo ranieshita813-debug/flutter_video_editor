@@ -1,17 +1,24 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/widgets/audio_tools_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/camera_settings_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/camera_tracking_panel.dart';
 import 'package:flutter_video_editor/features/editor/widgets/color_grading_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/crop_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/effects_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/elements_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
+import 'package:flutter_video_editor/features/editor/widgets/keyframe_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/mask_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/plugins_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/stickers_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/text_animation_sheet.dart';
@@ -22,12 +29,10 @@ import 'package:flutter_video_editor/features/editor/widgets/vector_drawing_shee
 // ----------------------------------------------------------------------------
 const Color _bg = Color(0xFF000000);
 const Color _muted = Color(0xFF9A9AA3);
-const Color _purple = Color(0xFF8B6CFF);
-const Color _textTrack = Color(0xFF2A2740);
+const Color _textTrack = Color(0xFF1A1A1F);
 const Color _audioTrack = Color(0xFF2B2B31);
-const Color _doneBtn = Color(0xFF1F3A44);
 
-const double _playheadFrac = 0.42; // playhead sits left of centre, as in design
+const double _playheadFrac = 0.42;
 
 double _seconds(Duration v) => v.inMilliseconds / 1000.0;
 double _totalSeconds(EditorController e) =>
@@ -70,6 +75,91 @@ class EditorPage extends StatelessWidget {
 }
 
 // ----------------------------------------------------------------------------
+// Video Player Preview
+// ----------------------------------------------------------------------------
+class _VideoPlayerPreview extends StatefulWidget {
+  const _VideoPlayerPreview({required this.editor});
+  final EditorController editor;
+
+  @override
+  State<_VideoPlayerPreview> createState() => _VideoPlayerPreviewState();
+}
+
+class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
+  VideoPlayerController? _controller;
+  String? _currentPath;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkVideoSource();
+  }
+
+  void _checkVideoSource() {
+    final clip = widget.editor.activeVideoClip;
+    final path = clip?.sourcePath;
+
+    if (path != _currentPath) {
+      _currentPath = path;
+      _controller?.dispose();
+      _controller = null;
+
+      if (path != null && path.isNotEmpty && File(path).existsSync()) {
+        _controller = VideoPlayerController.file(File(path))
+          ..initialize().then((_) {
+            if (mounted) setState(() {});
+          });
+      }
+    }
+
+    if (_controller != null && _controller!.value.isInitialized) {
+      if (widget.editor.isPlaying && !_controller!.value.isPlaying) {
+        _controller!.play();
+      } else if (!widget.editor.isPlaying && _controller!.value.isPlaying) {
+        _controller!.pause();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _checkVideoSource();
+
+    if (_controller != null && _controller!.value.isInitialized) {
+      return Center(
+        child: AspectRatio(
+          aspectRatio: _controller!.value.aspectRatio,
+          child: VideoPlayer(_controller!),
+        ),
+      );
+    }
+
+    return Container(
+      color: const Color(0xFF07080B),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.movie_outlined, size: 48, color: Colors.white24),
+            const SizedBox(height: 8),
+            Text(
+              widget.editor.activeVideoClip?.label ?? 'Canvas Preview',
+              style: const TextStyle(color: Colors.white38, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
 // Preview (full-bleed) with overlaid controls
 // ----------------------------------------------------------------------------
 class _Preview extends StatelessWidget {
@@ -93,7 +183,7 @@ class _Preview extends StatelessWidget {
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: editor.togglePlayback,
-          child: const ColoredBox(color: Color(0xFF07080B)),
+          child: _VideoPlayerPreview(editor: editor),
         ),
         Consumer<EditorController>(
           builder: (ctx, e, _) {
@@ -115,18 +205,18 @@ class _Preview extends StatelessWidget {
                       height: 90,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
-                            border: Border.all(color: _purple, width: 1.5)),
+                            border: Border.all(color: Colors.white, width: 1.5)),
                         child: Align(
                           alignment: Alignment.topLeft,
                           child: Container(
-                            color: _purple,
+                            color: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                             child: Text(tracking.targetName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                     fontSize: 10,
-                                    color: Colors.white,
+                                    color: Colors.black,
                                     fontWeight: FontWeight.w700)),
                           ),
                         ),
@@ -147,17 +237,17 @@ class _Preview extends StatelessWidget {
                   GestureDetector(
                     onTap: () => ExportModal.show(context),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _purple,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(Icons.ios_share_rounded, color: Colors.white, size: 16),
+                          Icon(Icons.ios_share_rounded, color: Colors.black, size: 16),
                           SizedBox(width: 4),
-                          Text('Export', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text('Export', style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.w700)),
                         ],
                       ),
                     ),
@@ -186,7 +276,7 @@ class _Preview extends StatelessWidget {
                       width: 38,
                       height: 38,
                       decoration:
-                          const BoxDecoration(color: _doneBtn, shape: BoxShape.circle),
+                          const BoxDecoration(color: Color(0xFF1C1C20), shape: BoxShape.circle),
                       child: const Icon(Icons.check_rounded, color: Colors.white, size: 22),
                     ),
                   ),
@@ -265,6 +355,8 @@ class _Preview extends StatelessWidget {
       (Icons.brush_rounded, 'Draw', () => VectorDrawingSheet.show(context)),
       (Icons.center_focus_strong_rounded, 'Track',
           () => CameraTrackingPanel.show(context)),
+      (Icons.extension_outlined, 'Plug-ins',
+          () => PluginsSheet.show(context)),
       (Icons.emoji_emotions_rounded, 'Stickers',
           () => StickersSheet.show(context)),
       (Icons.filter_vintage_rounded, 'Filters',
@@ -578,10 +670,10 @@ class _TimelineState extends State<_Timeline> {
           width: 26,
           height: 20,
           decoration: BoxDecoration(
-            color: on ? _purple : Colors.white12,
+            color: on ? Colors.white : Colors.white12,
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Icon(icon, size: 14, color: Colors.white),
+          child: Icon(icon, size: 14, color: on ? Colors.black : Colors.white),
         ),
       );
 
@@ -592,7 +684,7 @@ class _TimelineState extends State<_Timeline> {
           onTap: f,
           child: Padding(
             padding: const EdgeInsets.all(2),
-            child: Icon(i, size: 13, color: active ? _purple : Colors.white54),
+            child: Icon(i, size: 13, color: active ? Colors.white : Colors.white54),
           ),
         );
     return Row(
@@ -653,8 +745,8 @@ class _TimelineState extends State<_Timeline> {
                     width: 22,
                     height: 22,
                     decoration:
-                        const BoxDecoration(color: _purple, shape: BoxShape.circle),
-                    child: const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                        const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: const Icon(Icons.add_rounded, size: 16, color: Colors.black),
                   ),
                 ),
               ),
@@ -685,21 +777,22 @@ class _ClipBlock extends StatelessWidget {
     switch (kind) {
       case _ClipKind.text:
         final bool fx = clip.clipType == ClipType.sticker ||
-            clip.clipType == ClipType.drawing;
+            clip.clipType == ClipType.drawing ||
+            clip.clipType == ClipType.element;
         body = Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: _textTrack,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-                color: selected ? _purple : Colors.transparent, width: 2),
+                color: selected ? Colors.white : Colors.transparent, width: 2),
           ),
           child: Row(children: <Widget>[
             if (fx)
               const Padding(
                 padding: EdgeInsets.only(right: 6),
                 child: Icon(Icons.auto_awesome_rounded,
-                    size: 16, color: _purple),
+                    size: 16, color: Colors.white),
               ),
             const Icon(Icons.title_rounded, size: 18, color: Colors.white70),
             const SizedBox(width: 6),
@@ -766,12 +859,12 @@ class _Handle extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: 12,
         decoration: BoxDecoration(
-            color: _purple, borderRadius: BorderRadius.circular(5)),
+            color: Colors.white, borderRadius: BorderRadius.circular(5)),
         child: const Center(
           child: SizedBox(
               width: 2,
               height: 10,
-              child: ColoredBox(color: Colors.white70)),
+              child: ColoredBox(color: Colors.black)),
         ),
       );
 }
@@ -779,7 +872,7 @@ class _Handle extends StatelessWidget {
 class _FilmPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF3A5A7A));
+    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF2A2A30));
     final double fw = size.height * 0.85;
     int i = 0;
     for (double x = 0; x < size.width; x += fw) {
@@ -787,8 +880,8 @@ class _FilmPainter extends CustomPainter {
         Rect.fromLTWH(x, 0, fw - 1, size.height),
         Paint()
           ..color = (i++ % 2 == 0)
-              ? const Color(0xFF4E7396)
-              : const Color(0xFF5C87AB),
+              ? const Color(0xFF383840)
+              : const Color(0xFF42424C),
       );
     }
   }
@@ -916,6 +1009,11 @@ class _Toolbar extends StatelessWidget {
           child: Row(
             children: <Widget>[
               toolItem(Icons.content_cut_rounded, 'Split', canSplit ? editor.splitSelectedClip : null),
+              toolItem(Icons.shape_line_outlined, 'Elements', () => ElementsSheet.show(context)),
+              toolItem(Icons.camera_outlined, 'Camera', () => CameraSettingsSheet.show(context)),
+              toolItem(Icons.masks_outlined, 'Mask', () => MaskSheet.show(context)),
+              toolItem(Icons.diamond_outlined, 'Keyframes', () => KeyframeSheet.show(context)),
+              toolItem(Icons.extension_outlined, 'Plug-ins', () => PluginsSheet.show(context)),
               toolItem(Icons.title_rounded, 'Text', () => TextAnimationSheet.show(context)),
               toolItem(Icons.subtitles_rounded, 'Captions', editor.generateAutoCaptions),
               toolItem(Icons.brush_rounded, 'Draw', () => VectorDrawingSheet.show(context)),
