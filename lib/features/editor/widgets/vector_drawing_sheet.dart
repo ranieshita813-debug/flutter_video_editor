@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+
+const Color _sheet = Color(0xFF0E0E11);
+const Color _card = Color(0xFF1A1A1F);
+const Color _track = Color(0xFF2B2B31);
+const Color _text = Color(0xFFFFFFFF);
+const Color _muted = Color(0xFF9A9AA3);
 
 class VectorDrawingSheet extends StatefulWidget {
   const VectorDrawingSheet({super.key});
@@ -11,7 +18,7 @@ class VectorDrawingSheet extends StatefulWidget {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF111827),
+      backgroundColor: _sheet,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -27,12 +34,10 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
   List<Offset> currentPoints = <Offset>[];
 
   final List<Color> palette = const <Color>[
-    Colors.purpleAccent,
-    Colors.lightBlueAccent,
-    Colors.greenAccent,
-    Colors.amberAccent,
-    Colors.redAccent,
     Colors.white,
+    Color(0xFFE0E0E0),
+    Color(0xFF9E9E9E),
+    Color(0xFF616161),
     Colors.black,
   ];
 
@@ -40,137 +45,159 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
   Widget build(BuildContext context) {
     final controller = context.watch<EditorController>();
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              const Text(
-                'Vector Drawing Canvas',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+    return SafeArea(
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+        child: Column(
+          children: <Widget>[
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: _track,
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              Row(
-                children: <Widget>[
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                    onPressed: () {
-                      controller.clearActiveDrawing();
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: <Widget>[
+                const Text(
+                  'Vector Drawing Canvas',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _text,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.white70),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    controller.clearActiveDrawing();
+                    setState(() {
+                      currentPoints.clear();
+                    });
+                  },
+                  tooltip: 'Clear Canvas',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.check_rounded, color: Colors.white),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    controller.saveVectorDrawingAsClip();
+                    Navigator.of(context).pop();
+                  },
+                  tooltip: 'Save Layer',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _track),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: GestureDetector(
+                    onPanStart: (DragStartDetails details) {
                       setState(() {
-                        currentPoints.clear();
+                        currentPoints = <Offset>[details.localPosition];
                       });
                     },
-                    tooltip: 'Clear Canvas',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.check, color: Colors.greenAccent),
-                    onPressed: () {
-                      controller.saveVectorDrawingAsClip();
-                      Navigator.of(context).pop();
+                    onPanUpdate: (DragUpdateDetails details) {
+                      setState(() {
+                        currentPoints.add(details.localPosition);
+                      });
                     },
-                    tooltip: 'Save Layer',
+                    onPanEnd: (DragEndDetails details) {
+                      if (currentPoints.isNotEmpty) {
+                        controller.addStrokeToActiveDrawing(
+                          DrawingStroke(
+                            id: 'stroke_${DateTime.now().millisecondsSinceEpoch}',
+                            points: List<Offset>.from(currentPoints),
+                            color: controller.drawingColor,
+                            strokeWidth: controller.strokeWidth,
+                          ),
+                        );
+                        setState(() {
+                          currentPoints.clear();
+                        });
+                      }
+                    },
+                    child: CustomPaint(
+                      painter: _DrawingCanvasPainter(
+                        strokes: controller.activeDrawingStrokes,
+                        currentPoints: currentPoints,
+                        currentColor: controller.drawingColor,
+                        currentWidth: controller.strokeWidth,
+                      ),
+                      size: Size.infinite,
+                    ),
                   ),
-                ],
+                ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F2937),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF374151)),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: GestureDetector(
-                  onPanStart: (DragStartDetails details) {
-                    setState(() {
-                      currentPoints = <Offset>[details.localPosition];
-                    });
-                  },
-                  onPanUpdate: (DragUpdateDetails details) {
-                    setState(() {
-                      currentPoints.add(details.localPosition);
-                    });
-                  },
-                  onPanEnd: (DragEndDetails details) {
-                    if (currentPoints.isNotEmpty) {
-                      controller.addStrokeToActiveDrawing(
-                        DrawingStroke(
-                          id: 'stroke_${DateTime.now().millisecondsSinceEpoch}',
-                          points: List<Offset>.from(currentPoints),
-                          color: controller.drawingColor,
-                          strokeWidth: controller.strokeWidth,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: <Widget>[
+                const Text('Width:', style: TextStyle(color: _muted, fontSize: 13)),
+                Expanded(
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      activeTrackColor: Colors.white,
+                      inactiveTrackColor: _track,
+                      thumbColor: Colors.white,
+                    ),
+                    child: Slider(
+                      value: controller.strokeWidth,
+                      min: 1.0,
+                      max: 20.0,
+                      onChanged: (val) => controller.setStrokeWidth(val),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: palette.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final color = palette[index];
+                  final isSelected = controller.drawingColor == color;
+                  return GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      controller.setDrawingColor(color);
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected ? Colors.white : _track,
+                          width: isSelected ? 3 : 1,
                         ),
-                      );
-                      setState(() {
-                        currentPoints.clear();
-                      });
-                    }
-                  },
-                  child: CustomPaint(
-                    painter: _DrawingCanvasPainter(
-                      strokes: controller.activeDrawingStrokes,
-                      currentPoints: currentPoints,
-                      currentColor: controller.drawingColor,
-                      currentWidth: controller.strokeWidth,
+                      ),
                     ),
-                    size: Size.infinite,
-                  ),
-                ),
+                  );
+                },
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: <Widget>[
-              const Text('Stroke Width:', style: TextStyle(color: Colors.white70)),
-              Expanded(
-                child: Slider(
-                  value: controller.strokeWidth,
-                  min: 1.0,
-                  max: 20.0,
-                  activeColor: controller.drawingColor,
-                  onChanged: (val) => controller.setStrokeWidth(val),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: palette.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final color = palette[index];
-                final isSelected = controller.drawingColor == color;
-                return GestureDetector(
-                  onTap: () => controller.setDrawingColor(color),
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: isSelected
-                          ? Border.all(color: Colors.white, width: 3)
-                          : null,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

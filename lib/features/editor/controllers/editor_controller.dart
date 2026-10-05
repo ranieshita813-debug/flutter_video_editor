@@ -75,6 +75,17 @@ class EditorController extends ChangeNotifier {
     }
   }
 
+  TimelineClip? get activeVideoClip {
+    for (final clip in _project.clips) {
+      if ((clip.clipType == ClipType.video || clip.clipType == ClipType.image) &&
+          _playhead >= clip.start &&
+          _playhead <= clip.end) {
+        return clip;
+      }
+    }
+    return selectedClip;
+  }
+
   void _saveState() {
     final snapshot = _project.clips.map((c) => c.copyWith()).toList();
     _undoStack.add(snapshot);
@@ -288,6 +299,159 @@ class EditorController extends ChangeNotifier {
       _project.customFonts.add(fontName);
       notifyListeners();
     }
+  }
+
+  // Elements & Objects
+  void addElementClip(
+    ElementShape shape, {
+    String label = 'Element',
+    Color color = Colors.white,
+  }) {
+    _saveState();
+    final clip = TimelineClip(
+      id: 'elem_${DateTime.now().millisecondsSinceEpoch}',
+      label: '$label (${shape.name})',
+      start: _playhead,
+      end: _playhead + const Duration(seconds: 5),
+      clipType: ClipType.element,
+      layerIndex: 3,
+      elementProperties: ElementProperties(
+        shape: shape,
+        fillColor: color,
+      ),
+    );
+
+    _project.addClip(clip);
+    _selectedClipId = clip.id;
+    notifyListeners();
+  }
+
+  void updateElementProperties(ElementProperties elementProperties) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] = _project.clips[index].copyWith(
+      elementProperties: elementProperties,
+    );
+    notifyListeners();
+  }
+
+  // Camera Settings
+  void updateCameraProperties(CameraProperties cameraProperties) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] = _project.clips[index].copyWith(
+      cameraProperties: cameraProperties,
+    );
+    notifyListeners();
+  }
+
+  // Masking
+  void updateMaskProperties(MaskProperties maskProperties) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] = _project.clips[index].copyWith(
+      maskProperties: maskProperties,
+    );
+    notifyListeners();
+  }
+
+  // Keyframes & Curves
+  void addKeyframe(Keyframe keyframe) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    final updatedKeyframes = List<Keyframe>.from(_project.clips[index].keyframes)
+      ..removeWhere((k) => k.property == keyframe.property && k.time == keyframe.time)
+      ..add(keyframe);
+
+    _project.clips[index] = _project.clips[index].copyWith(
+      keyframes: updatedKeyframes,
+    );
+    notifyListeners();
+  }
+
+  void removeKeyframe(String keyframeId) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    final updatedKeyframes = List<Keyframe>.from(_project.clips[index].keyframes)
+      ..removeWhere((k) => k.id == keyframeId);
+
+    _project.clips[index] = _project.clips[index].copyWith(
+      keyframes: updatedKeyframes,
+    );
+    notifyListeners();
+  }
+
+  // Translation & Transform
+  void updateTranslation({
+    double? positionX,
+    double? positionY,
+    double? scale,
+    double? rotation,
+    double? opacity,
+    double? anchorX,
+    double? anchorY,
+  }) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] = _project.clips[index].copyWith(
+      positionX: positionX ?? _project.clips[index].positionX,
+      positionY: positionY ?? _project.clips[index].positionY,
+      scale: scale ?? _project.clips[index].scale,
+      rotation: rotation ?? _project.clips[index].rotation,
+      opacity: opacity ?? _project.clips[index].opacity,
+      anchorX: anchorX ?? _project.clips[index].anchorX,
+      anchorY: anchorY ?? _project.clips[index].anchorY,
+    );
+    notifyListeners();
+  }
+
+  // Animations
+  void updateAnimations({
+    ClipAnimation? inAnimation,
+    ClipAnimation? outAnimation,
+    ClipAnimation? loopAnimation,
+  }) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] = _project.clips[index].copyWith(
+      inAnimation: inAnimation ?? _project.clips[index].inAnimation,
+      outAnimation: outAnimation ?? _project.clips[index].outAnimation,
+      loopAnimation: loopAnimation ?? _project.clips[index].loopAnimation,
+    );
+    notifyListeners();
+  }
+
+  // Multilayer & Reordering
+  void reorderClipLayer(String clipId, int newLayerIndex) {
+    final index = _project.clips.indexWhere((c) => c.id == clipId);
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] = _project.clips[index].copyWith(
+      layerIndex: newLayerIndex,
+    );
+    notifyListeners();
   }
 
   // Effects & Color Grading
