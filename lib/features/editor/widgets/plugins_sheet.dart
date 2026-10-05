@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -71,7 +72,7 @@ class _PluginsSheetState extends State<PluginsSheet> {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: _text),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -166,7 +167,7 @@ class _PluginCard extends StatelessWidget {
                   color: _track,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.extension_outlined, color: Colors.white),
+                child: const HugeIcon(icon: HugeIcons.strokeRoundedGrid, color: Colors.white),
               ),
               const SizedBox(width: 12),
               Expanded(

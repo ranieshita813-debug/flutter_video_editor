@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -80,7 +81,7 @@ class _MaskSheetState extends State<MaskSheet> {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: _text),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -134,13 +135,13 @@ class _MaskSheetState extends State<MaskSheet> {
   }
 
   Widget _maskTypeSelector(EditorController c) {
-    final types = <(MaskType, String, IconData)>[
-      (MaskType.none, 'None', Icons.block_rounded),
-      (MaskType.rectangle, 'Rectangle', Icons.crop_square_rounded),
-      (MaskType.circle, 'Circle', Icons.circle_outlined),
-      (MaskType.linear, 'Linear', Icons.splitscreen_rounded),
-      (MaskType.mirror, 'Mirror', Icons.flip_rounded),
-      (MaskType.star, 'Star', Icons.star_border_rounded),
+    final types = <(MaskType, String, List<List<dynamic>>)>[
+      (MaskType.none, 'None', HugeIcons.strokeRoundedCancelCircle),
+      (MaskType.rectangle, 'Rectangle', HugeIcons.strokeRoundedSquare),
+      (MaskType.circle, 'Circle', HugeIcons.strokeRoundedCircle),
+      (MaskType.linear, 'Linear', HugeIcons.strokeRoundedGrid),
+      (MaskType.mirror, 'Mirror', HugeIcons.strokeRoundedArrowLeftRight),
+      (MaskType.star, 'Star', HugeIcons.strokeRoundedStar),
     ];
 
     return Wrap(
@@ -162,7 +163,7 @@ class _MaskSheetState extends State<MaskSheet> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Icon(t.$3,
+                  HugeIcon(icon: t.$3,
                       size: 16,
                       color: mask.type == t.$1 ? Colors.black : _text),
                   const SizedBox(width: 6),

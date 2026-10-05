@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -74,7 +75,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, color: Colors.white70),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete01, color: Colors.white70),
                   onPressed: () {
                     HapticFeedback.selectionClick();
                     controller.clearActiveDrawing();
@@ -85,7 +86,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
                   tooltip: 'Clear Canvas',
                 ),
                 IconButton(
-                  icon: const Icon(Icons.check_rounded, color: Colors.white),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedTick01, color: Colors.white),
                   onPressed: () {
                     HapticFeedback.selectionClick();
                     controller.saveVectorDrawingAsClip();

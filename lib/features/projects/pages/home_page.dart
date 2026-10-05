@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -45,14 +46,14 @@ class HomePage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            _sheetTile(ctx, Icons.account_circle_outlined, 'Account', 'Sign in / Profile',
+            _sheetTile(ctx, HugeIcons.strokeRoundedUserCircle, 'Account', 'Sign in / Profile',
                 onTap: () {
               Navigator.pop(ctx);
               _openAccount(context);
             }),
-            _sheetTile(ctx, Icons.hd_outlined, 'Default resolution', '1080p (Full HD)'),
-            _sheetTile(ctx, Icons.speed, 'Default frame rate', '30 FPS'),
-            _sheetTile(ctx, Icons.info_outline, 'About motionGr', 'Version 1.0.0'),
+            _sheetTile(ctx, HugeIcons.strokeRoundedTv01, 'Default resolution', '1080p (Full HD)'),
+            _sheetTile(ctx, HugeIcons.strokeRoundedDashboardSpeed01, 'Default frame rate', '30 FPS'),
+            _sheetTile(ctx, HugeIcons.strokeRoundedInformationCircle, 'About motionGr', 'Version 1.0.0'),
             const SizedBox(height: 8),
           ],
         ),
@@ -62,13 +63,13 @@ class HomePage extends StatelessWidget {
 
   Widget _sheetTile(
     BuildContext ctx,
-    IconData icon,
+    List<List<dynamic>> icon,
     String title,
     String subtitle, {
     VoidCallback? onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.textPrimary),
+      leading: HugeIcon(icon: icon, color: AppColors.textPrimary, size: 22),
       title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
       subtitle: Text(subtitle, style: const TextStyle(color: AppColors.textSecondary)),
       onTap: onTap ?? () => Navigator.pop(ctx),
@@ -108,7 +109,7 @@ class HomePage extends StatelessWidget {
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.edit_outlined, color: AppColors.textPrimary),
+              leading: const HugeIcon(icon: HugeIcons.strokeRoundedEdit02, color: AppColors.textPrimary),
               title: const Text('Rename', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(ctx);
@@ -116,7 +117,7 @@ class HomePage extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.copy_outlined, color: AppColors.textPrimary),
+              leading: const HugeIcon(icon: HugeIcons.strokeRoundedCopy01, color: AppColors.textPrimary),
               title: const Text('Duplicate', style: TextStyle(color: AppColors.textPrimary)),
               onTap: () {
                 Navigator.pop(ctx);
@@ -124,7 +125,7 @@ class HomePage extends StatelessWidget {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: AppColors.error),
+              leading: const HugeIcon(icon: HugeIcons.strokeRoundedDelete01, color: AppColors.error),
               title: const Text('Delete', style: TextStyle(color: AppColors.error)),
               onTap: () {
                 Navigator.pop(ctx);
@@ -271,7 +272,7 @@ class HomePage extends StatelessWidget {
             onPressed: () => _openAccount(context),
           ),
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 24),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedSettings02, color: Colors.white, size: 24),
             tooltip: 'Settings',
             onPressed: () => _openSettings(context),
           ),
@@ -288,7 +289,7 @@ class HomePage extends StatelessWidget {
         height: 56,
         child: ElevatedButton.icon(
           onPressed: () => _createNewProject(context),
-          icon: const Icon(Icons.add_rounded, size: 26),
+          icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 26),
           label: const Text('New project'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.accent,
@@ -335,7 +336,7 @@ class HomePage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          Icon(Icons.video_library_outlined, size: 56, color: AppColors.textDisabled),
+          HugeIcon(icon: HugeIcons.strokeRoundedVideo02, size: 56, color: AppColors.textDisabled),
           SizedBox(height: 16),
           Text(
             'Start your first project',
@@ -385,8 +386,8 @@ class HomePage extends StatelessWidget {
                   Container(
                     color: AppColors.surface,
                     child: Center(
-                      child: Icon(
-                        isPortrait ? Icons.stay_current_portrait : Icons.movie_outlined,
+                      child: HugeIcon(
+                        icon: isPortrait ? HugeIcons.strokeRoundedSmartPhone01 : HugeIcons.strokeRoundedVideo01,
                         size: 32,
                         color: AppColors.textDisabled,
                       ),
@@ -423,7 +424,7 @@ class HomePage extends StatelessWidget {
                           color: Colors.black.withAlpha(140),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.more_horiz, size: 16, color: Colors.white),
+                        child: const HugeIcon(icon: HugeIcons.strokeRoundedMoreHorizontal, size: 16, color: Colors.white),
                       ),
                     ),
                   ),

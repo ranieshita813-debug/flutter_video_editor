@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -68,7 +69,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: _text),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -95,7 +96,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              icon: const Icon(Icons.add_photo_alternate_outlined, size: 20),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedImageAdd01, size: 20),
               label: const Text('Add Overlay Video or Photo'),
               onPressed: () {
                 Navigator.pop(context);
@@ -109,13 +110,13 @@ class _ElementsSheetState extends State<ElementsSheet> {
   }
 
   Widget _shapesGrid(EditorController c) {
-    final shapes = <(ElementShape, String, IconData)>[
-      (ElementShape.rectangle, 'Rectangle', Icons.crop_square_rounded),
-      (ElementShape.circle, 'Circle', Icons.circle_outlined),
-      (ElementShape.star, 'Star', Icons.star_border_rounded),
-      (ElementShape.triangle, 'Triangle', Icons.change_history_rounded),
-      (ElementShape.arrow, 'Arrow', Icons.arrow_forward_rounded),
-      (ElementShape.line, 'Line', Icons.remove_rounded),
+    final shapes = <(ElementShape, String, List<List<dynamic>>)>[
+      (ElementShape.rectangle, 'Rectangle', HugeIcons.strokeRoundedSquare),
+      (ElementShape.circle, 'Circle', HugeIcons.strokeRoundedCircle),
+      (ElementShape.star, 'Star', HugeIcons.strokeRoundedStar),
+      (ElementShape.triangle, 'Triangle', HugeIcons.strokeRoundedTriangle),
+      (ElementShape.arrow, 'Arrow', HugeIcons.strokeRoundedArrowRight01),
+      (ElementShape.line, 'Line', HugeIcons.strokeRoundedMinusSignCircle),
     ];
 
     return GridView.builder(
@@ -145,7 +146,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Icon(item.$3, size: 18, color: Colors.white),
+                HugeIcon(icon: item.$3, size: 18, color: Colors.white),
                 const SizedBox(width: 6),
                 Text(
                   item.$2,

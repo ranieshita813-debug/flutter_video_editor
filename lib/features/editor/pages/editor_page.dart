@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
@@ -76,25 +77,25 @@ bool _isImagePath(String p) {
 // interactive, and nothing opens as a modal dialog / bottom sheet.
 // ----------------------------------------------------------------------------
 enum _Tool {
-  audio('Audio', Icons.volume_up_outlined),
-  text('Text', Icons.title_rounded),
-  stickers('Stickers', Icons.emoji_emotions_rounded),
-  filters('Filters', Icons.filter_vintage_rounded),
-  effects('Effects', Icons.local_fire_department_outlined),
-  adjust('Adjust', Icons.layers_outlined),
-  crop('Crop', Icons.crop_rounded),
-  speed('Speed', Icons.speed_rounded),
-  elements('Elements', Icons.shape_line_outlined),
-  draw('Draw', Icons.brush_rounded),
-  mask('Mask', Icons.masks_outlined),
-  keyframes('Keyframes', Icons.diamond_outlined),
-  camera('Camera', Icons.camera_outlined),
-  track('Track', Icons.center_focus_strong_rounded),
-  plugins('Plug-ins', Icons.extension_outlined);
+  audio('Audio', HugeIcons.strokeRoundedVolumeHigh),
+  text('Text', HugeIcons.strokeRoundedText),
+  stickers('Stickers', HugeIcons.strokeRoundedSmile),
+  filters('Filters', HugeIcons.strokeRoundedFilter),
+  effects('Effects', HugeIcons.strokeRoundedFire),
+  adjust('Adjust', HugeIcons.strokeRoundedLayers01),
+  crop('Crop', HugeIcons.strokeRoundedCrop),
+  speed('Speed', HugeIcons.strokeRoundedDashboardSpeed01),
+  elements('Elements', HugeIcons.strokeRoundedShapes),
+  draw('Draw', HugeIcons.strokeRoundedPaintBrush01),
+  mask('Mask', HugeIcons.strokeRoundedMask),
+  keyframes('Keyframes', HugeIcons.strokeRoundedDiamond),
+  camera('Camera', HugeIcons.strokeRoundedCamera01),
+  track('Track', HugeIcons.strokeRoundedTarget01),
+  plugins('Plug-ins', HugeIcons.strokeRoundedGrid);
 
   const _Tool(this.title, this.icon);
   final String title;
-  final IconData icon;
+  final List<List<dynamic>> icon;
 
   // These are the same widgets the old sheets showed, now embedded inline.
   // If a constructor needs arguments in your project, pass them here.
@@ -188,7 +189,7 @@ class _ToolPanel extends StatelessWidget {
                 child: Row(
                   children: <Widget>[
                     const SizedBox(width: 14),
-                    Icon(tool.icon, color: Colors.white70, size: 18),
+                    HugeIcon(icon: tool.icon, color: Colors.white70, size: 18),
                     const SizedBox(width: 8),
                     Text(tool.title,
                         style: const TextStyle(
@@ -196,7 +197,7 @@ class _ToolPanel extends StatelessWidget {
                     const Spacer(),
                     IconButton(
                       visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.check_rounded, color: Colors.white, size: 22),
+                      icon: const HugeIcon(icon: HugeIcons.strokeRoundedTick01, color: Colors.white, size: 22),
                       onPressed: () {
                         HapticFeedback.selectionClick();
                         onClose();
@@ -308,10 +309,19 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
     // Position inside the source file.
     // If your TimelineClip has an in-point / trim offset, add it here:
     //   final local = _e.playhead - clip.start + clip.trimStart;
-    Duration local = _e.playhead - clip.start;
+    Duration local = (_e.playhead - clip.start) + clip.trimIn;
     if (local.isNegative) local = Duration.zero;
     final Duration dur = c.value.duration;
-    if (local > dur) local = dur;
+    if (dur > Duration.zero && local > dur) local = dur;
+
+    try {
+      if ((c.value.volume - clip.volume).abs() > 0.01) {
+        await c.setVolume(clip.volume.clamp(0.0, 1.0));
+      }
+      if ((c.value.playbackSpeed - clip.speed).abs() > 0.01 && clip.speed > 0) {
+        await c.setPlaybackSpeed(clip.speed.clamp(0.1, 4.0));
+      }
+    } catch (_) {}
 
     final Duration drift = (c.value.position - local).abs();
 
@@ -319,7 +329,7 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
       if (!c.value.isPlaying) {
         await c.seekTo(local);
         await c.play();
-      } else if (drift > const Duration(milliseconds: 400)) {
+      } else if (drift > const Duration(milliseconds: 800)) {
         await c.seekTo(local);
       }
     } else {
@@ -384,7 +394,7 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
     });
   }
 
-  Widget _placeholder(String text, {IconData icon = Icons.movie_outlined}) {
+  Widget _placeholder(String text, {List<List<dynamic>> icon = HugeIcons.strokeRoundedVideo01}) {
     return Container(
       color: const Color(0xFF07080B),
       child: Center(
@@ -398,7 +408,7 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
               )
             else
-              Icon(icon, size: 48, color: Colors.white24),
+              HugeIcon(icon: icon, size: 48, color: Colors.white24),
             const SizedBox(height: 10),
             Text(text, style: const TextStyle(color: Colors.white38, fontSize: 12)),
           ],
@@ -432,7 +442,7 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
       );
     }
 
-    if (_failed) return _placeholder('Can\'t play this file', icon: Icons.error_outline_rounded);
+    if (_failed) return _placeholder('Can\'t play this file', icon: HugeIcons.strokeRoundedAlertCircle);
     return _placeholder(clip?.label ?? 'Canvas Preview');
   }
 }
@@ -444,16 +454,16 @@ class _Preview extends StatelessWidget {
   const _Preview({required this.editor});
   final EditorController editor;
 
-  Widget _step(IconData i, int dir) => IconButton(
+  Widget _step(List<List<dynamic>> i, int dir) => IconButton(
         visualDensity: VisualDensity.compact,
-        icon: Icon(i, color: Colors.white, size: 26),
+        icon: HugeIcon(icon: i, color: Colors.white, size: 26),
         onPressed: () {
           HapticFeedback.selectionClick();
           _seek(editor, _seconds(editor.playhead) + dir / _fps);
         },
       );
 
-  Widget _roundBtn(IconData i, VoidCallback onTap) => GestureDetector(
+  Widget _roundBtn(List<List<dynamic>> i, VoidCallback onTap) => GestureDetector(
         onTap: () {
           HapticFeedback.selectionClick();
           onTap();
@@ -462,7 +472,7 @@ class _Preview extends StatelessWidget {
           width: 36,
           height: 36,
           decoration: const BoxDecoration(color: Colors.black38, shape: BoxShape.circle),
-          child: Icon(i, color: Colors.white, size: 20),
+          child: HugeIcon(icon: i, color: Colors.white, size: 20),
         ),
       );
 
@@ -497,11 +507,21 @@ class _Preview extends StatelessWidget {
         ),
         Consumer<EditorController>(
           builder: (ctx, e, _) {
+            final activeOverlays = e.project.clips.where((c) =>
+                c.isVisible &&
+                e.playhead >= c.start &&
+                e.playhead <= c.end &&
+                c.clipType != ClipType.video &&
+                c.clipType != ClipType.audio &&
+                c.clipType != ClipType.image).toList();
+
             final tracking = e.selectedClip?.trackingData;
             return IgnorePointer(
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
+                  for (final clip in activeOverlays)
+                    _buildOverlayWidget(clip),
                   if (e.activeDrawingStrokes.isNotEmpty)
                     Positioned.fill(
                       child: CustomPaint(
@@ -558,7 +578,7 @@ class _Preview extends StatelessWidget {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(Icons.ios_share_rounded, color: Colors.black, size: 16),
+                          HugeIcon(icon: HugeIcons.strokeRoundedShare01, color: Colors.black, size: 16),
                           SizedBox(width: 5),
                           Text('Export',
                               style: TextStyle(
@@ -599,7 +619,7 @@ class _Preview extends StatelessWidget {
                       height: 38,
                       decoration:
                           const BoxDecoration(color: Color(0xFF1C1C20), shape: BoxShape.circle),
-                      child: const Icon(Icons.check_rounded, color: Colors.white, size: 22),
+                      child: const HugeIcon(icon: HugeIcons.strokeRoundedTick01, color: Colors.white, size: 22),
                     ),
                   ),
                 ],
@@ -639,12 +659,12 @@ class _Preview extends StatelessWidget {
               const SizedBox(height: 4),
               Row(
                 children: <Widget>[
-                  _roundBtn(Icons.undo_rounded, editor.undo),
+                  _roundBtn(HugeIcons.strokeRoundedUndo, editor.undo),
                   Expanded(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: <Widget>[
-                        _step(Icons.skip_previous_rounded, -1),
+                        _step(HugeIcons.strokeRoundedPrevious, -1),
                         const SizedBox(width: 6),
                         Selector<EditorController, bool>(
                           selector: (_, e) => e.isPlaying,
@@ -658,19 +678,19 @@ class _Preview extends StatelessWidget {
                               height: 46,
                               decoration: const BoxDecoration(
                                   color: Colors.white, shape: BoxShape.circle),
-                              child: Icon(
-                                  playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              child: HugeIcon(
+                                  icon: playing ? HugeIcons.strokeRoundedPause : HugeIcons.strokeRoundedPlay,
                                   color: Colors.black,
                                   size: 30),
                             ),
                           ),
                         ),
                         const SizedBox(width: 6),
-                        _step(Icons.skip_next_rounded, 1),
+                        _step(HugeIcons.strokeRoundedNext, 1),
                       ],
                     ),
                   ),
-                  _roundBtn(Icons.redo_rounded, editor.redo),
+                  _roundBtn(HugeIcons.strokeRoundedRedo01, editor.redo),
                 ],
               ),
             ],
@@ -680,6 +700,69 @@ class _Preview extends StatelessWidget {
     );
   }
 }
+
+  Widget _buildOverlayWidget(TimelineClip clip) {
+    Widget content;
+    switch (clip.clipType) {
+      case ClipType.text:
+      case ClipType.caption:
+        content = Text(
+          clip.label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontFamily: clip.fontFamily,
+            fontWeight: FontWeight.bold,
+            shadows: const <Shadow>[
+              Shadow(color: Colors.black, blurRadius: 8, offset: Offset(1, 1)),
+            ],
+          ),
+        );
+      case ClipType.element:
+        final props = clip.elementProperties;
+        content = Container(
+          width: props.size,
+          height: props.size,
+          decoration: BoxDecoration(
+            color: props.fillColor,
+            border: props.strokeWidth > 0 ? Border.all(color: props.strokeColor, width: props.strokeWidth) : null,
+            shape: props.shape == ElementShape.circle ? BoxShape.circle : BoxShape.rectangle,
+          ),
+        );
+      case ClipType.sticker:
+        content = Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white10,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(clip.label, style: const TextStyle(fontSize: 28)),
+        );
+      case ClipType.drawing:
+        content = CustomPaint(
+          size: const Size(200, 200),
+          painter: _DrawingPainter(strokes: clip.strokes),
+        );
+      default:
+        content = const SizedBox.shrink();
+    }
+
+    return Positioned(
+      left: 100 + clip.positionX,
+      top: 200 + clip.positionY,
+      child: Transform.rotate(
+        angle: clip.rotation * (math.pi / 180.0),
+        child: Transform.scale(
+          scale: clip.scale,
+          child: Opacity(
+            opacity: clip.opacity.clamp(0.0, 1.0),
+            child: content,
+          ),
+        ),
+      ),
+    );
+  }
 
 class _DrawingPainter extends CustomPainter {
   _DrawingPainter({required this.strokes});
@@ -948,12 +1031,12 @@ class _TimelineState extends State<_Timeline> {
               top: 4,
               child: Row(
                 children: <Widget>[
-                  _chip(Icons.align_horizontal_center_rounded, _snap,
+                  _chip(HugeIcons.strokeRoundedTextAlignCenter, _snap,
                       () => setState(() => _snap = !_snap)),
                   const SizedBox(width: 4),
-                  _chip(Icons.remove_rounded, false, () => _setZoom(editor.zoom - 0.5)),
+                  _chip(HugeIcons.strokeRoundedMinusSignCircle, false, () => _setZoom(editor.zoom - 0.5)),
                   const SizedBox(width: 4),
-                  _chip(Icons.add_rounded, false, () => _setZoom(editor.zoom + 0.5)),
+                  _chip(HugeIcons.strokeRoundedAdd01, false, () => _setZoom(editor.zoom + 0.5)),
                 ],
               ),
             ),
@@ -963,7 +1046,7 @@ class _TimelineState extends State<_Timeline> {
     );
   }
 
-  Widget _chip(IconData icon, bool on, VoidCallback onTap) => GestureDetector(
+  Widget _chip(List<List<dynamic>> icon, bool on, VoidCallback onTap) => GestureDetector(
         onTap: onTap,
         child: Container(
           width: 28,
@@ -972,29 +1055,29 @@ class _TimelineState extends State<_Timeline> {
             color: on ? Colors.white : const Color(0xFF26262C),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Icon(icon, size: 14, color: on ? Colors.black : Colors.white),
+          child: HugeIcon(icon: icon, size: 14, color: on ? Colors.black : Colors.white),
         ),
       );
 
   Widget _header(_Lane l) {
     final bool locked = l.clips.isNotEmpty && l.clips.every((c) => c.isLocked);
     final bool visible = l.clips.any((c) => c.isVisible);
-    Widget btn(IconData i, bool active, VoidCallback f) => InkWell(
+    Widget btn(List<List<dynamic>> i, bool active, VoidCallback f) => InkWell(
           onTap: f,
           child: Padding(
             padding: const EdgeInsets.all(2),
-            child: Icon(i, size: 13, color: active ? Colors.white : Colors.white54),
+            child: HugeIcon(icon: i, size: 13, color: active ? Colors.white : Colors.white54),
           ),
         );
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        btn(locked ? Icons.lock_rounded : Icons.lock_open_rounded, locked, () {
+        btn(locked ? HugeIcons.strokeRoundedLockKeyhole : HugeIcons.strokeRoundedLockKeyholeOpen, locked, () {
           for (final c in l.clips) {
             if (c.isLocked == locked) editor.toggleClipLock(c.id);
           }
         }),
-        btn(visible ? Icons.visibility_rounded : Icons.visibility_off_rounded, !visible, () {
+        btn(visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff, !visible, () {
           for (final c in l.clips) {
             if (c.isVisible == visible) editor.toggleClipVisibility(c.id);
           }
@@ -1030,7 +1113,7 @@ class _TimelineState extends State<_Timeline> {
                     height: 22,
                     decoration:
                         const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                    child: const Icon(Icons.join_inner_rounded, size: 13, color: Colors.black),
+                    child: const HugeIcon(icon: HugeIcons.strokeRoundedLink01, size: 13, color: Colors.black),
                   ),
                 ),
             ],
@@ -1045,7 +1128,7 @@ class _TimelineState extends State<_Timeline> {
                     height: 22,
                     decoration:
                         const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                    child: const Icon(Icons.add_rounded, size: 16, color: Colors.black),
+                    child: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 16, color: Colors.black),
                   ),
                 ),
               ),
@@ -1090,9 +1173,9 @@ class _ClipBlock extends StatelessWidget {
             if (fx)
               const Padding(
                 padding: EdgeInsets.only(right: 6),
-                child: Icon(Icons.auto_awesome_rounded, size: 16, color: Colors.white),
+                child: HugeIcon(icon: HugeIcons.strokeRoundedMagicWand01, size: 16, color: Colors.white),
               ),
-            const Icon(Icons.title_rounded, size: 18, color: Colors.white70),
+            const HugeIcon(icon: HugeIcons.strokeRoundedText, size: 18, color: Colors.white70),
             const SizedBox(width: 6),
             Expanded(
               child: Text(clip.label,
@@ -1263,7 +1346,7 @@ class _Toolbar extends StatelessWidget {
     final bool canSplit =
         sel != null && editor.playhead > sel.start && editor.playhead < sel.end;
 
-    Widget toolItem(IconData icon, String label, VoidCallback? onTap, {Color? color}) {
+    Widget toolItem(List<List<dynamic>> icon, String label, VoidCallback? onTap, {Color? color}) {
       final enabled = onTap != null;
       return InkWell(
         onTap: enabled
@@ -1280,7 +1363,7 @@ class _Toolbar extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(icon,
+                HugeIcon(icon: icon,
                     size: 22,
                     color: enabled ? (color ?? Colors.white) : Colors.white24),
                 const SizedBox(height: 3),
@@ -1312,27 +1395,27 @@ class _Toolbar extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Row(
               children: <Widget>[
-                toolItem(Icons.content_cut_rounded, 'Split',
+                toolItem(HugeIcons.strokeRoundedScissors, 'Split',
                     canSplit ? editor.splitSelectedClip : null),
-                toolItem(Icons.volume_up_outlined, 'Audio', () => onOpen(_Tool.audio)),
-                toolItem(Icons.title_rounded, 'Text', () => onOpen(_Tool.text)),
-                toolItem(Icons.subtitles_rounded, 'Captions', editor.generateAutoCaptions),
-                toolItem(Icons.emoji_emotions_rounded, 'Stickers', () => onOpen(_Tool.stickers)),
-                toolItem(Icons.filter_vintage_rounded, 'Filters',
+                toolItem(HugeIcons.strokeRoundedVolumeHigh, 'Audio', () => onOpen(_Tool.audio)),
+                toolItem(HugeIcons.strokeRoundedText, 'Text', () => onOpen(_Tool.text)),
+                toolItem(HugeIcons.strokeRoundedText, 'Captions', editor.generateAutoCaptions),
+                toolItem(HugeIcons.strokeRoundedSmile, 'Stickers', () => onOpen(_Tool.stickers)),
+                toolItem(HugeIcons.strokeRoundedFilter, 'Filters',
                     () => onOpen(_Tool.filters)),
-                toolItem(Icons.local_fire_department_outlined, 'Effects',
+                toolItem(HugeIcons.strokeRoundedFire, 'Effects',
                     () => onOpen(_Tool.effects)),
-                toolItem(Icons.layers_outlined, 'Adjust', () => onOpen(_Tool.adjust)),
-                toolItem(Icons.crop_rounded, 'Crop', () => onOpen(_Tool.crop)),
-                toolItem(Icons.speed_rounded, 'Speed', () => onOpen(_Tool.speed)),
-                toolItem(Icons.shape_line_outlined, 'Elements', () => onOpen(_Tool.elements)),
-                toolItem(Icons.brush_rounded, 'Draw', () => onOpen(_Tool.draw)),
-                toolItem(Icons.masks_outlined, 'Mask', () => onOpen(_Tool.mask)),
-                toolItem(Icons.diamond_outlined, 'Keyframes', () => onOpen(_Tool.keyframes)),
-                toolItem(Icons.camera_outlined, 'Camera', () => onOpen(_Tool.camera)),
-                toolItem(Icons.center_focus_strong_rounded, 'Track', () => onOpen(_Tool.track)),
-                toolItem(Icons.extension_outlined, 'Plug-ins', () => onOpen(_Tool.plugins)),
-                toolItem(Icons.delete_outline_rounded, 'Delete',
+                toolItem(HugeIcons.strokeRoundedLayers01, 'Adjust', () => onOpen(_Tool.adjust)),
+                toolItem(HugeIcons.strokeRoundedCrop, 'Crop', () => onOpen(_Tool.crop)),
+                toolItem(HugeIcons.strokeRoundedDashboardSpeed01, 'Speed', () => onOpen(_Tool.speed)),
+                toolItem(HugeIcons.strokeRoundedShapes, 'Elements', () => onOpen(_Tool.elements)),
+                toolItem(HugeIcons.strokeRoundedPaintBrush01, 'Draw', () => onOpen(_Tool.draw)),
+                toolItem(HugeIcons.strokeRoundedMask, 'Mask', () => onOpen(_Tool.mask)),
+                toolItem(HugeIcons.strokeRoundedDiamond, 'Keyframes', () => onOpen(_Tool.keyframes)),
+                toolItem(HugeIcons.strokeRoundedCamera01, 'Camera', () => onOpen(_Tool.camera)),
+                toolItem(HugeIcons.strokeRoundedTarget01, 'Track', () => onOpen(_Tool.track)),
+                toolItem(HugeIcons.strokeRoundedGrid, 'Plug-ins', () => onOpen(_Tool.plugins)),
+                toolItem(HugeIcons.strokeRoundedDelete01, 'Delete',
                     sel != null ? editor.deleteSelectedClip : null,
                     color: Colors.redAccent),
               ],

@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -168,7 +169,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
                         color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: _text),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -480,7 +481,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
       decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.timer_outlined, size: 18, color: _muted),
+          const HugeIcon(icon: HugeIcons.strokeRoundedTime01, size: 18, color: _muted),
           const SizedBox(width: 10),
           const Text('Duration', style: TextStyle(color: _muted, fontSize: 13)),
           const Spacer(),

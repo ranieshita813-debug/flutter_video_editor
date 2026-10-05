@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -83,7 +84,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: _text),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -101,7 +102,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  icon: const Icon(Icons.add_location_alt_rounded, size: 18),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 18),
                   label: const Text('Add Keyframe'),
                   onPressed: () {
                     HapticFeedback.selectionClick();
@@ -161,7 +162,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                       ),
                       child: Row(
                         children: <Widget>[
-                          const Icon(Icons.diamond_outlined,
+                          const HugeIcon(icon: HugeIcons.strokeRoundedDiamond,
                               color: Colors.white, size: 16),
                           const SizedBox(width: 10),
                           Text(
@@ -173,7 +174,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                           ),
                           const Spacer(),
                           IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded,
+                            icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete01,
                                 color: Colors.white70, size: 18),
                             onPressed: () => c.removeKeyframe(kf.id),
                           ),
