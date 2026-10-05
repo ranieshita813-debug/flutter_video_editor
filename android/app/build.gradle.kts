@@ -15,10 +15,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     defaultConfig {
         applicationId = "com.motiongr.videoedit"
         minSdk = maxOf(21, flutter.minSdkVersion)
