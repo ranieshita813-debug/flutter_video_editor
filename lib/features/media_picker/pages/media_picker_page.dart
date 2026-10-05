@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -557,9 +556,9 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             child: const Text('Allow access'),
           ),
           const SizedBox(height: 8),
-          TextButton(
+          const TextButton(
             onPressed: PhotoManager.openSetting,
-            child: const Text('Open settings', style: TextStyle(color: _muted)),
+            child: Text('Open settings', style: TextStyle(color: _muted)),
           ),
         ],
       ),
@@ -788,7 +787,7 @@ class _ThumbState extends State<_Thumb> {
 
   @override
   Widget build(BuildContext context) {
-    if (_data == null) return const ColoredBox(color: _elevated);
+    if (_data == null) return const ColoredBox(color: Color(0xFF1A1C22));
     return Image.memory(_data!, fit: BoxFit.cover, gaplessPlayback: true);
   }
 }

@@ -26,6 +26,30 @@ import kotlin.math.max
 @UnstableApi
 class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
+    companion object {
+        init {
+            try {
+                System.loadLibrary("video_processor")
+            } catch (_: UnsatisfiedLinkError) {
+                // Ignore if dynamic library is not yet compiled or unavailable
+            }
+        }
+    }
+
+    private external fun nativeApplyColorGrading(
+        pixels: IntArray,
+        width: Int,
+        height: Int,
+        brightness: Float,
+        contrast: Float,
+        saturation: Float
+    )
+
+    private external fun nativeExtractWaveform(
+        frameBrightness: IntArray,
+        count: Int
+    ): DoubleArray?
+
     private lateinit var channel: MethodChannel
     private lateinit var eventChannel: EventChannel
     private var context: Context? = null
@@ -95,6 +119,25 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                 executor.execute {
                     val peaks = extractWaveform(path, buckets)
                     mainHandler.post { result.success(peaks) }
+                }
+            }
+            "applyColorGrading" -> {
+                val pixels = call.argument<IntArray>("pixels")
+                val width = call.argument<Int>("width") ?: 0
+                val height = call.argument<Int>("height") ?: 0
+                val brightness = (call.argument<Double>("brightness") ?: 0.0).toFloat()
+                val contrast = (call.argument<Double>("contrast") ?: 1.0).toFloat()
+                val saturation = (call.argument<Double>("saturation") ?: 1.0).toFloat()
+
+                if (pixels != null && width > 0 && height > 0) {
+                    try {
+                        nativeApplyColorGrading(pixels, width, height, brightness, contrast, saturation)
+                        result.success(pixels)
+                    } catch (e: Exception) {
+                        result.error("NATIVE_ERROR", e.message, null)
+                    }
+                } else {
+                    result.error("INVALID_ARG", "Invalid pixel data", null)
                 }
             }
             "export" -> {
@@ -178,6 +221,14 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                 if (frame != null) {
                     val scaledWidth = (height * (frame.width.toFloat() / max(frame.height, 1))).toInt()
                     val scaled = Bitmap.createScaledBitmap(frame, max(scaledWidth, 16), max(height, 16), true)
+
+                    val pixels = IntArray(scaled.width * scaled.height)
+                    scaled.getPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
+                    try {
+                        nativeApplyColorGrading(pixels, scaled.width, scaled.height, 0f, 1f, 1f)
+                        scaled.setPixels(pixels, 0, scaled.width, 0, 0, scaled.width, scaled.height)
+                    } catch (_: Exception) {}
+
                     val outFile = File(cacheDir, "frame_$i.jpg")
                     FileOutputStream(outFile).use { out ->
                         scaled.compress(Bitmap.CompressFormat.JPEG, 80, out)
@@ -212,12 +263,12 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
             val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 10000L
             val stepUs = (durationMs * 1000L) / max(buckets, 1)
 
+            val rawBrightness = IntArray(buckets)
             for (i in 0 until buckets) {
                 val timeUs = i * stepUs
                 val frame = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                 if (frame != null) {
-                    // Extract average brightness variance as pseudo amplitude
-                    var sum = 0.0
+                    var sum = 0
                     val width = frame.width
                     val height = frame.height
                     val pixels = IntArray(minOf(100, width * height))
@@ -226,15 +277,29 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                         val r = (pixel shr 16) and 0xFF
                         val g = (pixel shr 8) and 0xFF
                         val b = pixel and 0xFF
-                        sum += (r + g + b) / 3.0
+                        sum += (r + g + b) / 3
                     }
-                    val avg = (sum / max(pixels.size, 1)) / 255.0
-                    peaks[i] = (abs(avg - 0.5) * 2.0).coerceIn(0.1, 1.0)
+                    rawBrightness[i] = sum / max(pixels.size, 1)
+                } else {
+                    rawBrightness[i] = 128
                 }
             }
 
+            val nativeResult = try {
+                nativeExtractWaveform(rawBrightness, buckets)
+            } catch (_: Exception) {
+                null
+            }
+
+            val finalPeaks = if (nativeResult != null && nativeResult.size == buckets) {
+                nativeResult.toList()
+            } else {
+                rawBrightness.map { (abs(it / 255.0 - 0.5) * 2.0).coerceIn(0.1, 1.0) }
+            }
+
             cacheFile.parentFile?.mkdirs()
-            cacheFile.writeText(peaks.joinToString(","))
+            cacheFile.writeText(finalPeaks.joinToString(","))
+            return finalPeaks
         } catch (_: Exception) {
         } finally {
             try { retriever.release() } catch (_: Exception) {}
