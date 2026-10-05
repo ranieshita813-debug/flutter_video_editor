@@ -2,7 +2,6 @@ import 'package:hugeicons/hugeicons.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -100,21 +99,21 @@ enum _Tool {
   // These are the same widgets the old sheets showed, now embedded inline.
   // If a constructor needs arguments in your project, pass them here.
   Widget get body => switch (this) {
-        _Tool.audio => AudioToolsSheet(),
-        _Tool.text => TextAnimationSheet(),
-        _Tool.stickers => StickersSheet(),
-        _Tool.filters => EffectsSheet(isFilterMode: true),
-        _Tool.effects => EffectsSheet(isFilterMode: false),
-        _Tool.adjust => ColorGradingSheet(),
-        _Tool.crop => CropSheet(),
-        _Tool.speed => SpeedSheet(),
-        _Tool.elements => ElementsSheet(),
-        _Tool.draw => VectorDrawingSheet(),
-        _Tool.mask => MaskSheet(),
-        _Tool.keyframes => KeyframeSheet(),
-        _Tool.camera => CameraSettingsSheet(),
-        _Tool.track => CameraTrackingPanel(),
-        _Tool.plugins => PluginsSheet(),
+        _Tool.audio => const AudioToolsSheet(),
+        _Tool.text => const TextAnimationSheet(),
+        _Tool.stickers => const StickersSheet(),
+        _Tool.filters => const EffectsSheet(isFilterMode: true),
+        _Tool.effects => const EffectsSheet(isFilterMode: false),
+        _Tool.adjust => const ColorGradingSheet(),
+        _Tool.crop => const CropSheet(),
+        _Tool.speed => const SpeedSheet(),
+        _Tool.elements => const ElementsSheet(),
+        _Tool.draw => const VectorDrawingSheet(),
+        _Tool.mask => const MaskSheet(),
+        _Tool.keyframes => const KeyframeSheet(),
+        _Tool.camera => const CameraSettingsSheet(),
+        _Tool.track => const CameraTrackingPanel(),
+        _Tool.plugins => const PluginsSheet(),
       };
 }
 
