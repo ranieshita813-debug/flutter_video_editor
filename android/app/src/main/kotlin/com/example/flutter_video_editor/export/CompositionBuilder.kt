@@ -107,7 +107,11 @@ object CompositionBuilder {
             videoItems.add(editedMediaItem)
         }
 
-        val sequence = EditedMediaItemSequence(videoItems)
-        return Composition.Builder(ImmutableList.of(sequence)).build()
+        val sequenceBuilder = EditedMediaItemSequence.Builder()
+        for (item in videoItems) {
+            sequenceBuilder.addMediaItem(item)
+        }
+
+        return Composition.Builder(listOf(sequenceBuilder.build())).build()
     }
 }
