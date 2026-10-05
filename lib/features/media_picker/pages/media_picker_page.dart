@@ -14,7 +14,7 @@ import 'package:flutter_video_editor/features/projects/controllers/projects_cont
 // -----------------------------------------------------------------------------
 
 const Color _bg = Color(0xFF000000);
-const Color _surface = Color(0xFF0E0F13);
+const Color _surface = Color(0xFF101014);
 const Color _elevated = Color(0xFF1A1C22);
 const Color _border = Color(0xFF26282F);
 const Color _text = Color(0xFFF2F3F7);
@@ -216,7 +216,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     final AssetPathEntity? picked = await showModalBottomSheet<AssetPathEntity>(
       context: context,
       backgroundColor: _surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
       builder: (_) => SafeArea(
         child: ListView(
           shrinkWrap: true,
