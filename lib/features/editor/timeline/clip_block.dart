@@ -129,9 +129,18 @@ class ClipBlock extends StatelessWidget {
         _tap();
         editor.selectClip(clip.id);
       },
-      onLongPress: () {
+      onLongPressStart: (_) {
         _tap();
         editor.selectClip(clip.id, toggleMulti: true);
+        editor.beginGesture();
+      },
+      onLongPressMoveUpdate: (details) {
+        final double dt = details.offsetFromOrigin.dx / pps;
+        final Duration newStart = clip.start + Duration(milliseconds: (dt * 1000).round());
+        editor.moveClip(clip.id, newStart);
+      },
+      onLongPressEnd: (_) {
+        editor.commitGesture();
       },
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 120),

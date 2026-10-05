@@ -167,6 +167,7 @@ class _OverlayLayerState extends State<OverlayLayer> {
           alignment: Alignment.center,
           transform: Matrix4.identity()
             ..rotateZ(rotation)
+            // ignore: deprecated_member_use
             ..scale(scale, scale, 1.0),
           child: Container(
             padding: const EdgeInsets.all(6),
@@ -242,7 +243,9 @@ class _DrawingPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
       for (int i = 0; i < s.points.length - 1; i++) {
-        canvas.drawLine(s.points[i], s.points[i + 1], p);
+        final p1 = Offset(s.points[i].dx * size.width, s.points[i].dy * size.height);
+        final p2 = Offset(s.points[i + 1].dx * size.width, s.points[i + 1].dy * size.height);
+        canvas.drawLine(p1, p2, p);
       }
     }
   }

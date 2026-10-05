@@ -168,14 +168,21 @@ class _EditorPageState extends State<EditorPage> with WidgetsBindingObserver {
             return Column(
               children: <Widget>[
                 Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: <Widget>[
-                      VideoPlayerPreview(editor: editor),
-                      OverlayLayer(editor: editor),
-                      _buildTopBar(context),
-                      _buildBottomPreviewControls(editor),
-                    ],
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      _tap();
+                      editor.togglePlayback();
+                    },
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        VideoPlayerPreview(editor: editor),
+                        OverlayLayer(editor: editor),
+                        _buildTopBar(context),
+                        _buildBottomPreviewControls(editor),
+                      ],
+                    ),
                   ),
                 ),
                 if (!isKeyboardOpen || _activeTool == null)
