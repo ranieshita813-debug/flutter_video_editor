@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,24 +13,23 @@ import 'package:flutter_video_editor/features/export/models/export_settings.dart
 // -----------------------------------------------------------------------------
 
 const Color _bg = Color(0xFF000000);
-const Color _surface = Color(0xFF0E0F13);
-const Color _elevated = Color(0xFF1A1C22);
-const Color _border = Color(0xFF26282F);
-const Color _text = Color(0xFFF2F3F7);
-const Color _muted = Color(0xFF8A8F9C);
-const Color _violet = Color(0xFF7C5CFF);
-const Color _cyan = Color(0xFF22D3EE);
-const Color _green = Color(0xFF22C55E);
-const Color _red = Color(0xFFEF4444);
+const Color _card = Color(0xFF16161A);
+const Color _track = Color(0xFF2B2B31);
+const Color _selectedFill = Color(0xFF1C1C20);
+const Color _doneBtn = Color(0xFF1C1C20);
+const Color _text = Color(0xFFFFFFFF);
+const Color _muted = Color(0xFF9A9AA3);
+const Color _purple = Color(0xFFFFFFFF);
+const Color _green = Color(0xFFFFFFFF);
+const Color _red = Color(0xFFFFFFFF);
 
-const RoundedRectangleBorder _square =
-    RoundedRectangleBorder(borderRadius: BorderRadius.zero);
+final RoundedRectangleBorder _pill =
+    RoundedRectangleBorder(borderRadius: BorderRadius.circular(14));
 
-/// Full-screen export page. Every surface is square (no rounded corners).
+/// Full-screen export page. Entry point unchanged: `ExportModal.show(context)`.
 class ExportModal extends StatefulWidget {
   const ExportModal({super.key});
 
-  /// Same entry point as before: `ExportModal.show(context)`.
   static Future<void> show(BuildContext context) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -48,6 +49,7 @@ class _ExportModalState extends State<ExportModal> {
   late ExportQuality selectedQuality;
   late ExportFormat selectedFormat;
   String selectedCodec = 'h264';
+  DateTime? _startedAt;
 
   @override
   void initState() {
@@ -78,6 +80,12 @@ class _ExportModalState extends State<ExportModal> {
     final double progress = exportCtrl?.progress ?? editorCtrl.exportProgress;
     final ExportStatus status = exportCtrl?.status ??
         (editorCtrl.isExporting ? ExportStatus.exporting : ExportStatus.idle);
+
+    if (isExporting) {
+      _startedAt ??= DateTime.now();
+    } else {
+      _startedAt = null;
+    }
 
     final bool showSettings =
         status != ExportStatus.done && status != ExportStatus.failed && !isExporting;
@@ -113,15 +121,13 @@ class _ExportModalState extends State<ExportModal> {
   // ---- Top bar ---------------------------------------------------------------
 
   Widget _topBar(ExportController? exportCtrl, bool isExporting) {
-    return Container(
-      height: 52,
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: _border)),
-      ),
+    return SizedBox(
+      height: 56,
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.close_rounded, color: _text),
+            icon: Icon(Icons.close_rounded,
+                color: isExporting ? Colors.white24 : _text, size: 26),
             tooltip: 'Close',
             onPressed: isExporting
                 ? null
@@ -134,7 +140,7 @@ class _ExportModalState extends State<ExportModal> {
             child: Text(
               'Export',
               textAlign: TextAlign.center,
-              style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(width: 48),
@@ -147,10 +153,10 @@ class _ExportModalState extends State<ExportModal> {
 
   Widget _settingsView(EditorController editorCtrl) {
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       children: <Widget>[
         _summary(editorCtrl),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         _label('Resolution'),
         _Segmented<ExportResolution>(
           values: ExportResolution.values,
@@ -159,16 +165,16 @@ class _ExportModalState extends State<ExportModal> {
           subtitle: (r) => '${r.width}×${r.height}',
           onChanged: (v) => setState(() => selectedResolution = v),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         _label('Frame rate'),
         _Segmented<int>(
-          values: const <int>[24, 30, 60],
+          values: const <int>[24, 25, 30, 50, 60],
           selected: selectedFps,
           title: (f) => '$f',
           subtitle: (_) => 'fps',
           onChanged: (v) => setState(() => selectedFps = v),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         _label('Quality'),
         for (final q in ExportQuality.values)
           _QualityTile(
@@ -177,7 +183,7 @@ class _ExportModalState extends State<ExportModal> {
             selected: q == selectedQuality,
             onTap: () => setState(() => selectedQuality = q),
           ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         _label('Format'),
         _Segmented<ExportFormat>(
           values: ExportFormat.values,
@@ -185,7 +191,7 @@ class _ExportModalState extends State<ExportModal> {
           title: (f) => f.name.toUpperCase(),
           onChanged: (v) => setState(() => selectedFormat = v),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         _label('Codec'),
         _Segmented<String>(
           values: const <String>['h264', 'hevc'],
@@ -194,7 +200,6 @@ class _ExportModalState extends State<ExportModal> {
           subtitle: (c) => c == 'h264' ? 'Most compatible' : 'Smaller files',
           onChanged: (v) => setState(() => selectedCodec = v),
         ),
-        const SizedBox(height: 8),
       ],
     );
   }
@@ -207,13 +212,14 @@ class _ExportModalState extends State<ExportModal> {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      color: _surface,
+      decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: <Widget>[
           Container(
             width: 96,
             height: 54,
-            color: _elevated,
+            decoration:
+                BoxDecoration(color: _track, borderRadius: BorderRadius.circular(10)),
             child: const Icon(Icons.movie_creation_outlined, color: _muted),
           ),
           const SizedBox(width: 12),
@@ -226,7 +232,7 @@ class _ExportModalState extends State<ExportModal> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+                      color: _text, fontSize: 14, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -237,7 +243,7 @@ class _ExportModalState extends State<ExportModal> {
                 const SizedBox(height: 2),
                 Text(
                   'Estimated size ≈ ${mb.toStringAsFixed(mb < 10 ? 1 : 0)} MB',
-                  style: const TextStyle(color: _cyan, fontSize: 12),
+                  style: const TextStyle(color: _purple, fontSize: 12),
                 ),
               ],
             ),
@@ -255,21 +261,17 @@ class _ExportModalState extends State<ExportModal> {
       );
 
   Widget _bottomBar(ExportController? exportCtrl, EditorController editorCtrl) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      decoration: const BoxDecoration(
-        color: _bg,
-        border: Border(top: BorderSide(color: _border)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: SizedBox(
         width: double.infinity,
-        height: 50,
+        height: 52,
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
-            backgroundColor: _violet,
-            foregroundColor: Colors.white,
+            backgroundColor: _purple,
+            foregroundColor: Colors.black,
             elevation: 0,
-            shape: _square,
+            shape: _pill,
           ),
           icon: const Icon(Icons.ios_share_rounded, size: 20),
           label: const Text('Export',
@@ -296,10 +298,54 @@ class _ExportModalState extends State<ExportModal> {
 
   // ---- Progress --------------------------------------------------------------
 
+  Widget _step(String label, int state) {
+    // 0 = pending, 1 = active, 2 = done
+    return Expanded(
+      child: Column(
+        children: <Widget>[
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: state == 2 ? Colors.white : Colors.transparent,
+              border: Border.all(
+                  color: state == 0 ? _track : Colors.white, width: state == 1 ? 2 : 1.5),
+            ),
+            child: state == 2
+                ? const Icon(Icons.check_rounded, size: 16, color: Colors.black)
+                : state == 1
+                    ? const Center(
+                        child: SizedBox(
+                          width: 10,
+                          height: 10,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        ),
+                      )
+                    : null,
+          ),
+          const SizedBox(height: 6),
+          Text(label,
+              style: TextStyle(
+                  color: state == 0 ? _muted : _text,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
   Widget _progressView(ExportController? exportCtrl, double progress) {
     final String stage = (exportCtrl?.stage.isNotEmpty ?? false)
         ? exportCtrl!.stage
         : 'Rendering video…';
+    final int pct = (progress * 100).round();
+    final Duration elapsed = DateTime.now().difference(_startedAt ?? DateTime.now());
+    String eta = 'Estimating…';
+    if (progress > 0.03) {
+      final int rem = (elapsed.inSeconds * (1 - progress) / progress).round();
+      eta = rem >= 60 ? '${rem ~/ 60}m ${rem % 60}s left' : '${rem}s left';
+    }
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -307,41 +353,78 @@ class _ExportModalState extends State<ExportModal> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            '${(progress * 100).toStringAsFixed(0)}%',
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _text,
-              fontSize: 56,
-              fontWeight: FontWeight.w300,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+          Center(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: progress.clamp(0.0, 1.0).toDouble()),
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOut,
+              builder: (_, double v, __) => SizedBox(
+                width: 240,
+                height: 240,
+                child: CustomPaint(
+                  painter: _RingPainter(v),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: <Widget>[
+                            Text('$pct',
+                                style: const TextStyle(
+                                    color: _text,
+                                    fontSize: 64,
+                                    fontWeight: FontWeight.w300,
+                                    fontFeatures: <FontFeature>[
+                                      FontFeature.tabularFigures()
+                                    ])),
+                            const Text('%',
+                                style: TextStyle(
+                                    color: _muted, fontSize: 22, fontWeight: FontWeight.w400)),
+                          ],
+                        ),
+                        Text(eta, style: const TextStyle(color: _muted, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
           Text(stage,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: _muted, fontSize: 14)),
-          const SizedBox(height: 28),
-          LinearProgressIndicator(
-            value: progress,
-            minHeight: 6,
-            backgroundColor: _elevated,
-            color: _violet,
-            borderRadius: BorderRadius.zero,
+              style: const TextStyle(
+                  color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(
+            '${selectedResolution.label}  ·  $selectedFps fps  ·  ${selectedCodec == 'h264' ? 'H.264' : 'HEVC'}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _muted, fontSize: 12),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 28),
+          Row(
+            children: <Widget>[
+              _step('Prepare', progress > 0.05 ? 2 : 1),
+              _step('Render', progress >= 0.95 ? 2 : (progress > 0.05 ? 1 : 0)),
+              _step('Finalize', progress >= 0.95 ? 1 : 0),
+            ],
+          ),
+          const SizedBox(height: 32),
           const Text(
             'Keep the app open until the export finishes.',
             textAlign: TextAlign.center,
             style: TextStyle(color: _muted, fontSize: 12),
           ),
-          const SizedBox(height: 40),
+          const SizedBox(height: 16),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-              foregroundColor: _red,
-              side: const BorderSide(color: _red),
-              minimumSize: const Size.fromHeight(48),
-              shape: _square,
+              foregroundColor: _text,
+              side: const BorderSide(color: _track),
+              minimumSize: const Size.fromHeight(50),
+              shape: _pill,
             ),
             icon: const Icon(Icons.close_rounded, size: 18),
             label: const Text('Cancel export'),
@@ -354,6 +437,15 @@ class _ExportModalState extends State<ExportModal> {
 
   // ---- Done / Failed ---------------------------------------------------------
 
+  Widget _statusIcon(IconData icon, Color color, Color bg) => Center(
+        child: Container(
+          width: 84,
+          height: 84,
+          decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+          child: Icon(icon, size: 44, color: color),
+        ),
+      );
+
   Widget _doneView(ExportController? exportCtrl) {
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -361,11 +453,11 @@ class _ExportModalState extends State<ExportModal> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Icon(Icons.check_circle_outline_rounded, size: 64, color: _green),
-          const SizedBox(height: 16),
+          _statusIcon(Icons.check_rounded, _green, _doneBtn),
+          const SizedBox(height: 18),
           const Text('Export complete',
               textAlign: TextAlign.center,
-              style: TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text('Saved to ${exportCtrl?.outputPath ?? "Gallery"}',
               textAlign: TextAlign.center,
@@ -373,14 +465,14 @@ class _ExportModalState extends State<ExportModal> {
           const SizedBox(height: 32),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: _violet,
-              foregroundColor: Colors.white,
+              backgroundColor: _purple,
+              foregroundColor: Colors.black,
               elevation: 0,
-              minimumSize: const Size.fromHeight(50),
-              shape: _square,
+              minimumSize: const Size.fromHeight(52),
+              shape: _pill,
             ),
             icon: const Icon(Icons.share_rounded, size: 18),
-            label: const Text('Share video'),
+            label: const Text('Share video', style: TextStyle(fontWeight: FontWeight.w700)),
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Share option ready')),
             ),
@@ -389,9 +481,9 @@ class _ExportModalState extends State<ExportModal> {
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: _text,
-              side: const BorderSide(color: _border),
-              minimumSize: const Size.fromHeight(50),
-              shape: _square,
+              side: const BorderSide(color: _track),
+              minimumSize: const Size.fromHeight(52),
+              shape: _pill,
             ),
             icon: const Icon(Icons.save_alt_rounded, size: 18),
             label: const Text('Save to gallery'),
@@ -419,11 +511,11 @@ class _ExportModalState extends State<ExportModal> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Icon(Icons.error_outline_rounded, size: 64, color: _red),
-          const SizedBox(height: 16),
+          _statusIcon(Icons.priority_high_rounded, _red, _doneBtn),
+          const SizedBox(height: 18),
           const Text('Export failed',
               textAlign: TextAlign.center,
-              style: TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text(
             exportCtrl?.errorMessage ?? 'An error occurred during video rendering.',
@@ -433,11 +525,11 @@ class _ExportModalState extends State<ExportModal> {
           const SizedBox(height: 32),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: _violet,
-              foregroundColor: Colors.white,
+              backgroundColor: _purple,
+              foregroundColor: Colors.black,
               elevation: 0,
-              minimumSize: const Size.fromHeight(50),
-              shape: _square,
+              minimumSize: const Size.fromHeight(52),
+              shape: _pill,
             ),
             onPressed: () => exportCtrl?.resetStatus(),
             child: const Text('Try again'),
@@ -449,7 +541,7 @@ class _ExportModalState extends State<ExportModal> {
 }
 
 // -----------------------------------------------------------------------------
-// Square option widgets
+// Option widgets
 // -----------------------------------------------------------------------------
 
 class _Segmented<T> extends StatelessWidget {
@@ -470,32 +562,35 @@ class _Segmented<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(border: Border.all(color: _border)),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(14)),
       child: Row(
         children: <Widget>[
-          for (int i = 0; i < values.length; i++)
+          for (final v in values)
             Expanded(
-              child: InkWell(
-                onTap: () => onChanged(values[i]),
-                child: Container(
-                  height: subtitle == null ? 44 : 54,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onChanged(v),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  height: subtitle == null ? 42 : 52,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: values[i] == selected ? _violet : _surface,
-                    border: i == 0
-                        ? null
-                        : const Border(left: BorderSide(color: _border)),
+                    color: v == selected ? _purple : Colors.transparent,
+                    borderRadius: BorderRadius.circular(11),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
-                      Text(title(values[i]),
-                          style: const TextStyle(
-                              color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
+                      Text(title(v),
+                          style: TextStyle(
+                              color: v == selected ? Colors.black : _text,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700)),
                       if (subtitle != null)
-                        Text(subtitle!(values[i]),
+                        Text(subtitle!(v),
                             style: TextStyle(
-                                color: values[i] == selected ? Colors.white70 : _muted,
+                                color: v == selected ? Colors.black54 : _muted,
                                 fontSize: 11)),
                     ],
                   ),
@@ -523,27 +618,28 @@ class _QualityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 48,
+        height: 50,
         margin: const EdgeInsets.only(bottom: 6),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: _surface,
-          border: Border.all(color: selected ? _violet : _border, width: selected ? 1.5 : 1),
+          color: selected ? _selectedFill : _card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: selected ? _purple : Colors.transparent, width: 2),
         ),
         child: Row(
           children: <Widget>[
             Icon(
               selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
               size: 20,
-              color: selected ? _violet : _muted,
+              color: selected ? _purple : _muted,
             ),
             const SizedBox(width: 12),
             Text(title,
                 style: const TextStyle(
-                    color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
+                    color: _text, fontSize: 14, fontWeight: FontWeight.w700)),
             const Spacer(),
             Text(subtitle, style: const TextStyle(color: _muted, fontSize: 12)),
           ],
@@ -551,4 +647,52 @@ class _QualityTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RingPainter extends CustomPainter {
+  _RingPainter(this.value);
+  final double value;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset c = size.center(Offset.zero);
+    final double r = size.width / 2 - 18;
+    final Rect rect = Rect.fromCircle(center: c, radius: r);
+
+    // tick marks
+    for (int i = 0; i < 60; i++) {
+      final double a = -math.pi / 2 + i / 60 * 2 * math.pi;
+      final bool on = i / 60 < value;
+      canvas.drawLine(
+        c + Offset(math.cos(a), math.sin(a)) * (r + 10),
+        c + Offset(math.cos(a), math.sin(a)) * (r + (i % 5 == 0 ? 18 : 14)),
+        Paint()
+          ..color = on ? Colors.white : _track
+          ..strokeWidth = 1.5
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    canvas.drawCircle(
+        c,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 8
+          ..color = _track);
+    canvas.drawArc(
+      rect,
+      -math.pi / 2,
+      2 * math.pi * value,
+      false,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 8
+        ..strokeCap = StrokeCap.round
+        ..color = Colors.white,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter old) => old.value != value;
 }
