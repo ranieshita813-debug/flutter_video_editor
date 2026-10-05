@@ -48,7 +48,7 @@ void main() {
 
     expect(find.text('motionGr'), findsOneWidget);
     expect(find.text('New project'), findsOneWidget);
-    expect(find.text('Projects'), findsOneWidget);
+    expect(find.text('Your projects'), findsOneWidget);
     expect(find.text('Start your first project'), findsOneWidget);
   });
 

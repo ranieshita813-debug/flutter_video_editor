@@ -35,6 +35,7 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
   late TextEditingController _customFontController;
   String selectedFont = 'Poppins';
   TextAnimationStyle selectedAnimation = TextAnimationStyle.fadeIn;
+  bool _showFontInput = false;
 
   @override
   void initState() {
@@ -166,55 +167,65 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
                         color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
                 const Spacer(),
                 TextButton.icon(
-                  icon: const Icon(Icons.add_rounded, size: 16, color: _text),
-                  label: const Text('Add Font',
-                      style: TextStyle(color: _text, fontSize: 12)),
+                  icon: Icon(_showFontInput ? Icons.close_rounded : Icons.add_rounded, size: 16, color: _text),
+                  label: Text(_showFontInput ? 'Cancel' : 'Add Font',
+                      style: const TextStyle(color: _text, fontSize: 12)),
                   onPressed: () {
-                    showDialog<void>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        backgroundColor: _sheet,
-                        title: const Text('Add Custom Font',
-                            style: TextStyle(color: _text)),
-                        content: TextField(
-                          controller: _customFontController,
-                          style: const TextStyle(color: _text),
-                          decoration: const InputDecoration(
-                            hintText: 'Enter font name',
-                            hintStyle: TextStyle(color: _muted),
-                          ),
-                        ),
-                        actions: <Widget>[
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('Cancel',
-                                style: TextStyle(color: _muted)),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                            ),
-                            onPressed: () {
-                              if (_customFontController.text.trim().isNotEmpty) {
-                                controller.uploadCustomFont(
-                                    _customFontController.text.trim());
-                                setState(() {
-                                  selectedFont =
-                                      _customFontController.text.trim();
-                                });
-                              }
-                              Navigator.of(ctx).pop();
-                            },
-                            child: const Text('Add Font'),
-                          ),
-                        ],
-                      ),
-                    );
+                    setState(() => _showFontInput = !_showFontInput);
                   },
                 ),
               ],
             ),
+            if (_showFontInput) ...<Widget>[
+              const SizedBox(height: 8),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      controller: _customFontController,
+                      style: const TextStyle(color: _text, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Font name (e.g., Unbounded)',
+                        hintStyle: const TextStyle(color: _muted, fontSize: 13),
+                        filled: true,
+                        fillColor: _card,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: _track),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () {
+                      final fontName = _customFontController.text.trim();
+                      if (fontName.isNotEmpty) {
+                        controller.uploadCustomFont(fontName);
+                        setState(() {
+                          selectedFont = fontName;
+                          _customFontController.clear();
+                          _showFontInput = false;
+                        });
+                      }
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             SizedBox(
               height: 36,

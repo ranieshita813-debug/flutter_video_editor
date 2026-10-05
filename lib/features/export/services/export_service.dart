@@ -77,7 +77,7 @@ class ExportService {
         'path': path,
         'buckets': buckets,
       });
-      if (result != null) {
+      if (result != null && result.isNotEmpty) {
         return result.map((e) => (e as num).toDouble()).toList();
       }
     } on MissingPluginException catch (_) {
@@ -86,9 +86,40 @@ class ExportService {
       // Fallback
     } catch (_) {}
 
-    // Simulated waveform fallback
-    final rnd = math.Random(path.hashCode);
-    return List<double>.generate(buckets, (i) => rnd.nextDouble());
+    try {
+      final file = File(path);
+      if (await file.exists()) {
+        final bytes = await file.readAsBytes();
+        if (bytes.isNotEmpty) {
+          final int step = (bytes.length / buckets).floor();
+          if (step > 0) {
+            final List<double> amps = <double>[];
+            for (int i = 0; i < buckets; i++) {
+              int sum = 0;
+              final int start = i * step;
+              final int end = math.min(start + step, bytes.length);
+              for (int j = start; j < end; j += 16) {
+                sum += (bytes[j] - 128).abs();
+              }
+              final double avg = sum / math.max(1, ((end - start) / 16).ceil());
+              amps.add((avg / 128.0).clamp(0.15, 1.0));
+            }
+            return amps;
+          }
+        }
+      }
+    } catch (_) {}
+
+    final int seed = path.hashCode;
+    final List<double> envelope = <double>[];
+    for (int i = 0; i < buckets; i++) {
+      final double t = i / buckets;
+      final double wave1 = math.sin(t * 20.0 + seed);
+      final double wave2 = math.cos(t * 45.0 + seed * 2);
+      final double val = (wave1.abs() * 0.6 + wave2.abs() * 0.4).clamp(0.12, 1.0);
+      envelope.add(val);
+    }
+    return envelope;
   }
 
   Future<String> exportTimeline(Map<String, dynamic> timelineJson) async {

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,7 +30,6 @@ import 'package:flutter_video_editor/features/editor/widgets/vector_drawing_shee
 // ----------------------------------------------------------------------------
 const Color _bg = Color(0xFF000000);
 const Color _surface = Color(0xFF101014);
-const Color _surface2 = Color(0xFF1A1A20);
 const Color _muted = Color(0xFF9A9AA3);
 const Color _textTrack = Color(0xFF2A2440);
 const Color _fxTrack = Color(0xFF3A2C1C);
@@ -97,21 +95,21 @@ enum _Tool {
   final IconData icon;
 
   Widget get body => switch (this) {
-        _Tool.audio => AudioToolsSheet(),
-        _Tool.text => TextAnimationSheet(),
-        _Tool.stickers => StickersSheet(),
-        _Tool.filters => EffectsSheet(isFilterMode: true),
-        _Tool.effects => EffectsSheet(isFilterMode: false),
-        _Tool.adjust => ColorGradingSheet(),
-        _Tool.crop => CropSheet(),
-        _Tool.speed => SpeedSheet(),
-        _Tool.elements => ElementsSheet(),
-        _Tool.draw => VectorDrawingSheet(),
-        _Tool.mask => MaskSheet(),
-        _Tool.keyframes => KeyframeSheet(),
-        _Tool.camera => CameraSettingsSheet(),
-        _Tool.track => CameraTrackingPanel(),
-        _Tool.plugins => PluginsSheet(),
+        _Tool.audio => const AudioToolsSheet(),
+        _Tool.text => const TextAnimationSheet(),
+        _Tool.stickers => const StickersSheet(),
+        _Tool.filters => const EffectsSheet(isFilterMode: true),
+        _Tool.effects => const EffectsSheet(isFilterMode: false),
+        _Tool.adjust => const ColorGradingSheet(),
+        _Tool.crop => const CropSheet(),
+        _Tool.speed => const SpeedSheet(),
+        _Tool.elements => const ElementsSheet(),
+        _Tool.draw => const VectorDrawingSheet(),
+        _Tool.mask => const MaskSheet(),
+        _Tool.keyframes => const KeyframeSheet(),
+        _Tool.camera => const CameraSettingsSheet(),
+        _Tool.track => const CameraTrackingPanel(),
+        _Tool.plugins => const PluginsSheet(),
       };
 }
 
@@ -422,10 +420,12 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
       return;
     }
 
-    if (mounted) setState(() {
-      _loading = true;
-      _failed = false;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _failed = false;
+      });
+    }
 
     final file = File(path);
     if (!await file.exists()) {
@@ -1164,7 +1164,7 @@ class _TimelineState extends State<_Timeline> {
                 top: 0,
                 bottom: 0,
                 width: math.max(44.0, _seconds(list[i].duration) * pps - 4),
-                child: _ClipBlock(editor: editor, clip: list[i], kind: l.kind),
+                child: _ClipBlock(editor: editor, clip: list[i], kind: l.kind, pps: pps),
               ),
               if (l.kind == _ClipKind.video && i < list.length - 1)
                 Positioned(
@@ -1201,10 +1201,16 @@ class _TimelineState extends State<_Timeline> {
 enum _ClipKind { text, video, audio }
 
 class _ClipBlock extends StatelessWidget {
-  const _ClipBlock({required this.editor, required this.clip, required this.kind});
+  const _ClipBlock({
+    required this.editor,
+    required this.clip,
+    required this.kind,
+    required this.pps,
+  });
   final EditorController editor;
   final TimelineClip clip;
   final _ClipKind kind;
+  final double pps;
 
   @override
   Widget build(BuildContext context) {
@@ -1239,13 +1245,6 @@ class _ClipBlock extends StatelessWidget {
             ),
           ]),
         );
-        if (selected) {
-          body = Stack(clipBehavior: Clip.none, children: <Widget>[
-            Positioned.fill(child: body),
-            const Positioned(left: -6, top: 4, bottom: 4, child: _Handle()),
-            const Positioned(right: -6, top: 4, bottom: 4, child: _Handle()),
-          ]);
-        }
       case _ClipKind.video:
         body = Container(
           decoration: BoxDecoration(
@@ -1287,6 +1286,51 @@ class _ClipBlock extends StatelessWidget {
                 child: const SizedBox.expand()),
           ),
         );
+    }
+
+    if (selected && !clip.isLocked) {
+      body = Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          Positioned.fill(child: body),
+          Positioned(
+            left: -8,
+            top: 2,
+            bottom: 2,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragUpdate: (details) {
+                final double deltaSec = details.delta.dx / pps;
+                final double newStartSec = (_seconds(clip.start) + deltaSec)
+                    .clamp(0.0, _seconds(clip.end) - 0.2);
+                editor.trimSelectedClip(
+                  Duration(milliseconds: (newStartSec * 1000).round()),
+                  clip.end,
+                );
+              },
+              child: const _Handle(),
+            ),
+          ),
+          Positioned(
+            right: -8,
+            top: 2,
+            bottom: 2,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragUpdate: (details) {
+                final double deltaSec = details.delta.dx / pps;
+                final double newEndSec = (_seconds(clip.end) + deltaSec)
+                    .clamp(_seconds(clip.start) + 0.2, 86400.0);
+                editor.trimSelectedClip(
+                  clip.start,
+                  Duration(milliseconds: (newEndSec * 1000).round()),
+                );
+              },
+              child: const _Handle(),
+            ),
+          ),
+        ],
+      );
     }
 
     return GestureDetector(
@@ -1521,7 +1565,7 @@ class _Toolbar extends StatelessWidget {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: <Color>[_surface.withOpacity(0), _surface],
+                        colors: <Color>[_surface.withValues(alpha: 0), _surface],
                       ),
                     ),
                   ),
