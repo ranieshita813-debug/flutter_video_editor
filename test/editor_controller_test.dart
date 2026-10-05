@@ -27,6 +27,15 @@ void main() {
     });
 
     test('Zoom and Playhead setting', () {
+      controller.addClip(
+        TimelineClip(
+          id: 'c1',
+          label: 'Test Clip',
+          start: Duration.zero,
+          end: const Duration(seconds: 10),
+          clipType: ClipType.video,
+        ),
+      );
       controller.setZoom(2.0);
       expect(controller.zoom, equals(2.0));
 

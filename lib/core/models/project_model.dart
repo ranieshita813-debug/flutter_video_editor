@@ -51,6 +51,34 @@ enum ClipAnimation {
   glitch,
 }
 
+enum TransitionType {
+  none,
+  fade,
+  dissolve,
+  slide,
+  zoom,
+}
+
+class ClipTransition {
+  const ClipTransition({
+    this.type = TransitionType.none,
+    this.duration = const Duration(milliseconds: 500),
+  });
+
+  final TransitionType type;
+  final Duration duration;
+
+  ClipTransition copyWith({
+    TransitionType? type,
+    Duration? duration,
+  }) {
+    return ClipTransition(
+      type: type ?? this.type,
+      duration: duration ?? this.duration,
+    );
+  }
+}
+
 enum ElementShape {
   rectangle,
   circle,
@@ -501,8 +529,9 @@ class TimelineClip {
     this.layerIndex = 0,
     this.isVisible = true,
     this.isLocked = false,
-    this.trimIn = Duration.zero,
-    this.trimOut = Duration.zero,
+    this.trimStart = Duration.zero,
+    this.trimEnd = Duration.zero,
+    this.sourceDuration = const Duration(seconds: 1000),
     this.speed = 1.0,
     this.volume = 1.0,
     this.opacity = 1.0,
@@ -526,6 +555,8 @@ class TimelineClip {
     this.inAnimation = ClipAnimation.none,
     this.outAnimation = ClipAnimation.none,
     this.loopAnimation = ClipAnimation.none,
+    this.transition = const ClipTransition(),
+    this.isReversed = false,
     this.strokes = const <DrawingStroke>[],
     this.trackingData = const TrackingData(),
     this.waveform,
@@ -540,8 +571,9 @@ class TimelineClip {
   final int layerIndex;
   final bool isVisible;
   final bool isLocked;
-  final Duration trimIn;
-  final Duration trimOut;
+  final Duration trimStart;
+  final Duration trimEnd;
+  final Duration sourceDuration;
   final double speed;
   final double volume;
   final double opacity;
@@ -565,10 +597,15 @@ class TimelineClip {
   final ClipAnimation inAnimation;
   final ClipAnimation outAnimation;
   final ClipAnimation loopAnimation;
+  final ClipTransition transition;
+  final bool isReversed;
   final List<DrawingStroke> strokes;
   final TrackingData trackingData;
   final List<double>? waveform;
   final List<String>? thumbnails;
+
+  Duration get trimIn => trimStart;
+  Duration get trimOut => trimEnd;
 
   Duration get duration => end - start;
 
@@ -581,8 +618,9 @@ class TimelineClip {
     int? layerIndex,
     bool? isVisible,
     bool? isLocked,
-    Duration? trimIn,
-    Duration? trimOut,
+    Duration? trimStart,
+    Duration? trimEnd,
+    Duration? sourceDuration,
     double? speed,
     double? volume,
     double? opacity,
@@ -606,6 +644,8 @@ class TimelineClip {
     ClipAnimation? inAnimation,
     ClipAnimation? outAnimation,
     ClipAnimation? loopAnimation,
+    ClipTransition? transition,
+    bool? isReversed,
     List<DrawingStroke>? strokes,
     TrackingData? trackingData,
     List<double>? waveform,
@@ -620,8 +660,9 @@ class TimelineClip {
       layerIndex: layerIndex ?? this.layerIndex,
       isVisible: isVisible ?? this.isVisible,
       isLocked: isLocked ?? this.isLocked,
-      trimIn: trimIn ?? this.trimIn,
-      trimOut: trimOut ?? this.trimOut,
+      trimStart: trimStart ?? this.trimStart,
+      trimEnd: trimEnd ?? this.trimEnd,
+      sourceDuration: sourceDuration ?? this.sourceDuration,
       speed: speed ?? this.speed,
       volume: volume ?? this.volume,
       opacity: opacity ?? this.opacity,
@@ -645,6 +686,8 @@ class TimelineClip {
       inAnimation: inAnimation ?? this.inAnimation,
       outAnimation: outAnimation ?? this.outAnimation,
       loopAnimation: loopAnimation ?? this.loopAnimation,
+      transition: transition ?? this.transition,
+      isReversed: isReversed ?? this.isReversed,
       strokes: strokes ?? this.strokes,
       trackingData: trackingData ?? this.trackingData,
       waveform: waveform ?? this.waveform,
@@ -660,6 +703,7 @@ class Project {
     String? projectName,
     this.aspectRatio = AspectRatioPreset.nineSixteen,
     this.resolution = ExportResolution.res1080p,
+    this.fps = 30,
     List<TimelineClip>? clips,
     List<CaptionCue>? captions,
     List<String>? customFonts,
@@ -687,6 +731,7 @@ class Project {
   String get projectName => name;
   final AspectRatioPreset aspectRatio;
   final ExportResolution resolution;
+  final int fps;
   final List<TimelineClip> clips;
   final List<CaptionCue> captions;
   final List<String> customFonts;
@@ -722,6 +767,7 @@ class Project {
     String? name,
     AspectRatioPreset? aspectRatio,
     ExportResolution? resolution,
+    int? fps,
     List<TimelineClip>? clips,
     List<CaptionCue>? captions,
     List<String>? customFonts,
@@ -734,6 +780,7 @@ class Project {
       name: name ?? this.name,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       resolution: resolution ?? this.resolution,
+      fps: fps ?? this.fps,
       clips: clips != null ? List<TimelineClip>.from(clips) : List<TimelineClip>.from(this.clips),
       captions: captions != null ? List<CaptionCue>.from(captions) : List<CaptionCue>.from(this.captions),
       customFonts: customFonts != null ? List<String>.from(customFonts) : List<String>.from(this.customFonts),

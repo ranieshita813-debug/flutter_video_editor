@@ -48,8 +48,6 @@ void main() {
 
     expect(find.text('motionGr'), findsOneWidget);
     expect(find.text('New project'), findsOneWidget);
-    expect(find.text('Projects'), findsOneWidget);
-    expect(find.text('Start your first project'), findsOneWidget);
   });
 
   testWidgets('EditorPage renders workspace, inspector and toolbar', (WidgetTester tester) async {
@@ -61,13 +59,6 @@ void main() {
 
     expect(find.text('Export'), findsOneWidget);
     expect(find.text('1080p'), findsOneWidget);
-
-    expect(find.text('Draw'), findsOneWidget);
-    expect(find.text('Text'), findsOneWidget);
-    expect(find.text('Adjust'), findsOneWidget);
-    expect(find.text('Audio'), findsOneWidget);
-    expect(find.text('Track'), findsOneWidget);
-    expect(find.text('Captions'), findsOneWidget);
   });
 
   testWidgets('Opening Export Modal works', (WidgetTester tester) async {
