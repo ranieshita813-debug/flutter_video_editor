@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/theme/app_colors.dart';
+import 'package:flutter_video_editor/core/widgets/auth_sheet.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/media_picker/pages/media_picker_page.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
@@ -27,6 +29,10 @@ class HomePage extends StatelessWidget {
     Navigator.of(context).pushNamed('/editor');
   }
 
+  void _openAccount(BuildContext context) {
+    AuthSheet.show(context);
+  }
+
   void _openSettings(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
@@ -39,6 +45,11 @@ class HomePage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            _sheetTile(ctx, Icons.account_circle_outlined, 'Account', 'Sign in / Profile',
+                onTap: () {
+              Navigator.pop(ctx);
+              _openAccount(context);
+            }),
             _sheetTile(ctx, Icons.hd_outlined, 'Default resolution', '1080p (Full HD)'),
             _sheetTile(ctx, Icons.speed, 'Default frame rate', '30 FPS'),
             _sheetTile(ctx, Icons.info_outline, 'About motionGr', 'Version 1.0.0'),
@@ -53,13 +64,14 @@ class HomePage extends StatelessWidget {
     BuildContext ctx,
     IconData icon,
     String title,
-    String subtitle,
-  ) {
+    String subtitle, {
+    VoidCallback? onTap,
+  }) {
     return ListTile(
       leading: Icon(icon, color: AppColors.textPrimary),
       title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
       subtitle: Text(subtitle, style: const TextStyle(color: AppColors.textSecondary)),
-      onTap: () => Navigator.pop(ctx),
+      onTap: onTap ?? () => Navigator.pop(ctx),
     );
   }
 
@@ -222,6 +234,9 @@ class HomePage extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final auth = context.watch<AuthController>();
+    final user = auth.currentUser;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 8, 4),
       child: Row(
@@ -236,6 +251,24 @@ class HomePage extends StatelessWidget {
                 letterSpacing: 0.5,
               ),
             ),
+          ),
+          IconButton(
+            icon: CircleAvatar(
+              radius: 14,
+              backgroundColor: AppColors.accent,
+              child: Text(
+                user != null && user.displayName.isNotEmpty
+                    ? user.displayName.substring(0, 1).toUpperCase()
+                    : 'U',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            tooltip: 'Account',
+            onPressed: () => _openAccount(context),
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 24),

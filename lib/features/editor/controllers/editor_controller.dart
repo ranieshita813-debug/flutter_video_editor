@@ -1,10 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 
-import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
+import 'package:flutter_video_editor/features/export/models/export_settings.dart';
+import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
+import 'package:flutter_video_editor/features/export/services/export_service.dart';
 
 class EditorController extends ChangeNotifier {
   EditorController() {
@@ -137,7 +138,6 @@ class EditorController extends ChangeNotifier {
     _ticker?.cancel();
 
     if (_isPlaying) {
-      // Restart from the beginning if playback starts at the very end.
       final Duration total = _project.totalDuration;
       if (total > Duration.zero && _playhead >= total) {
         _playhead = Duration.zero;
@@ -415,7 +415,6 @@ class EditorController extends ChangeNotifier {
     _saveState();
     _project.captions.clear();
 
-    // Remove caption clips from a previous run so they don't pile up.
     _project.clips.removeWhere((TimelineClip c) => c.clipType == ClipType.caption);
 
     final mediaClips = _project.clips
@@ -468,37 +467,26 @@ class EditorController extends ChangeNotifier {
     _exportProgress = 0.0;
     notifyListeners();
 
-    for (int i = 1; i <= 100; i++) {
-      await Future.delayed(const Duration(milliseconds: 25));
-      _exportProgress = i / 100.0;
-      notifyListeners();
-    }
-
-    String? savedFilePath;
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final extension = _exportSettings.format.name;
-      final fileName = 'export_${DateTime.now().millisecondsSinceEpoch}.$extension';
-      final file = File('${dir.path}/$fileName');
-
-      final fileContent = 'Rendered Video Data (${_exportSettings.resolution.label}, ${_exportSettings.fps}fps, ${_exportSettings.quality.label})';
-      await file.writeAsString(fileContent);
-      savedFilePath = file.path;
-    } catch (_) {
-      savedFilePath = null;
-    }
-
-    _isExporting = false;
-    notifyListeners();
-
-    if (onComplete != null) {
-      if (onComplete is void Function(String)) {
-        onComplete(savedFilePath ?? '');
-      } else {
-        onComplete();
+      final exportService = ExportService();
+      final dto = TimelineDto.fromProject(_project, _exportSettings);
+      final resultPath = await exportService.exportTimeline(dto.toJson());
+      _isExporting = false;
+      _exportProgress = 1.0;
+      notifyListeners();
+      if (onComplete != null) {
+        if (onComplete is void Function(String)) {
+          onComplete(resultPath);
+        } else {
+          onComplete();
+        }
       }
+      return resultPath;
+    } catch (_) {
+      _isExporting = false;
+      notifyListeners();
+      return null;
     }
-    return savedFilePath;
   }
 
   void reset() {

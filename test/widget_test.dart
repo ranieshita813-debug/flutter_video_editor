@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
+import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
 import 'package:flutter_video_editor/core/theme/app_theme.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
@@ -13,6 +14,7 @@ import 'package:flutter_video_editor/features/splash/pages/splash_screen.dart';
 Widget createTestWidget(Widget child) {
   return MultiProvider(
     providers: [
+      ChangeNotifierProvider(create: (_) => AuthController()),
       ChangeNotifierProvider(create: (_) => ProjectsController()),
       ChangeNotifierProvider(create: (_) => EditorController()),
       ChangeNotifierProvider(create: (_) => ExportController()),
@@ -58,11 +60,11 @@ void main() {
     await tester.pumpWidget(createTestWidget(const EditorPage()));
 
     expect(find.text('Export'), findsOneWidget);
-    expect(find.text('1080p · 30 fps'), findsOneWidget);
+    expect(find.text('1080p'), findsOneWidget);
 
     expect(find.text('Draw'), findsOneWidget);
     expect(find.text('Text'), findsOneWidget);
-    expect(find.text('Color'), findsOneWidget);
+    expect(find.text('Adjust'), findsOneWidget);
     expect(find.text('Audio'), findsOneWidget);
     expect(find.text('Track'), findsOneWidget);
     expect(find.text('Captions'), findsOneWidget);
@@ -81,8 +83,6 @@ void main() {
     await tester.tap(exportButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Fast Export & Render'), findsOneWidget);
     expect(find.text('Resolution'), findsOneWidget);
-    expect(find.text('Export Now (Fast Engine)'), findsOneWidget);
   });
 }

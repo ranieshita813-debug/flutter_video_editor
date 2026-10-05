@@ -9,7 +9,11 @@ import 'package:flutter_video_editor/features/editor/controllers/editor_controll
 import 'package:flutter_video_editor/features/editor/widgets/audio_tools_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/camera_tracking_panel.dart';
 import 'package:flutter_video_editor/features/editor/widgets/color_grading_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/crop_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/effects_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
+import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/stickers_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/text_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/vector_drawing_sheet.dart';
 
@@ -33,8 +37,6 @@ const LinearGradient _accentGradient = LinearGradient(
   end: Alignment.centerRight,
 );
 
-const double _fps = 30;
-
 // -----------------------------------------------------------------------------
 // Helpers
 // -----------------------------------------------------------------------------
@@ -51,25 +53,9 @@ String _clock(double seconds) {
   return '${_two(whole ~/ 60)}:${_two(whole % 60)}';
 }
 
-String _timecode(double seconds) {
-  final int fps = _fps.toInt();
-  final int frames = (math.max(seconds, 0.0) * _fps).round();
-  return '${_two((frames ~/ (fps * 60)) % 60)}:${_two((frames ~/ fps) % 60)}:${_two(frames % fps)}';
-}
-
 void _seek(EditorController e, double seconds) {
   final double c = seconds.clamp(0.0, _totalSeconds(e)).toDouble();
   e.setPlayhead(Duration(milliseconds: (c * 1000).round()));
-}
-
-void _soon(BuildContext context, String name) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text('$name is coming soon'),
-      duration: const Duration(seconds: 1),
-      behavior: SnackBarBehavior.floating,
-    ));
 }
 
 TextStyle _mono(Color c, {double size = 12, FontWeight w = FontWeight.w600}) =>
@@ -140,7 +126,7 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
             ),
-            _ResolutionChip(onTap: () => _soon(context, 'Resolution settings')),
+            _ResolutionChip(onTap: () => ExportModal.show(context)),
             const SizedBox(width: 8),
             _ExportButton(onTap: () => ExportModal.show(context)),
             const SizedBox(width: 6),
@@ -341,6 +327,41 @@ class _PlaybackBar extends StatelessWidget {
   const _PlaybackBar({required this.editor});
   final EditorController editor;
 
+  void _showFullScreenPreview(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Stack(
+            children: <Widget>[
+              Center(
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Container(
+                    color: const Color(0xFF07080B),
+                    child: const Center(
+                      child: Icon(Icons.play_circle_outline_rounded,
+                          size: 64, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: IconButton(
+                  icon: const Icon(Icons.close_rounded, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.of(ctx).pop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final double t = _seconds(editor.playhead);
@@ -385,10 +406,10 @@ class _PlaybackBar extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: <Widget>[
-                  _iconBtn(Icons.undo_rounded, 'Undo', () => _soon(context, 'Undo')),
-                  _iconBtn(Icons.redo_rounded, 'Redo', () => _soon(context, 'Redo')),
+                  _iconBtn(Icons.undo_rounded, 'Undo', editor.canUndo ? editor.undo : null),
+                  _iconBtn(Icons.redo_rounded, 'Redo', editor.canRedo ? editor.redo : null),
                   _iconBtn(Icons.fullscreen_rounded, 'Full screen',
-                      () => _soon(context, 'Full screen')),
+                      () => _showFullScreenPreview(context)),
                 ],
               ),
             ),
@@ -398,9 +419,9 @@ class _PlaybackBar extends StatelessWidget {
     );
   }
 
-  Widget _iconBtn(IconData icon, String tip, VoidCallback onTap) => IconButton(
+  Widget _iconBtn(IconData icon, String tip, VoidCallback? onTap) => IconButton(
         visualDensity: VisualDensity.compact,
-        icon: Icon(icon, size: 21, color: _text),
+        icon: Icon(icon, size: 21, color: onTap != null ? _text : Colors.white24),
         tooltip: tip,
         onPressed: onTap,
       );
@@ -452,7 +473,6 @@ class _TimelineState extends State<_Timeline> {
         ClipType.sticker => const Color(0xFF2290B0),
       };
 
-  /// Overlay lanes (top layer first), then main video lane, then audio lanes.
   List<_TrackRow> _rows(List<TimelineClip> clips) {
     final List<int> visual = clips
         .where((c) => c.clipType != ClipType.audio)
@@ -564,7 +584,6 @@ class _TimelineState extends State<_Timeline> {
                         ),
                       ),
                     ),
-                    // Fixed centre playhead
                     Positioned(
                       left: half - 1,
                       top: 0,
@@ -597,7 +616,6 @@ class _TimelineState extends State<_Timeline> {
                         ),
                       ),
                     ),
-                    // Zoom buttons
                     Positioned(
                       right: 6,
                       top: 2,
@@ -675,7 +693,7 @@ class _TimelineState extends State<_Timeline> {
                   borderRadius: BorderRadius.circular(8),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(8),
-                    onTap: () => _soon(context, 'Add media'),
+                    onTap: () => Navigator.of(context).pushNamed('/media_picker'),
                     child: const Center(
                       child: Icon(Icons.add_rounded, size: 26, color: Colors.black),
                     ),
@@ -820,7 +838,6 @@ class _TrimHandle extends StatelessWidget {
   }
 }
 
-/// Reads real waveform peaks if the model provides a `waveform` list.
 List<double>? _peaksFor(TimelineClip clip) {
   try {
     final dynamic raw = (clip as dynamic).waveform;
@@ -982,7 +999,9 @@ class _ToolDockState extends State<_ToolDock> {
           if (widget.editor.selectedClip != null) {
             setState(() => _clipMode = true);
           } else {
-            _soon(context, 'Select a clip first —');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Select a clip on timeline first')),
+            );
           }
         }),
         _DockItem(Icons.graphic_eq_rounded, 'Audio', () => AudioToolsSheet.show(context)),
@@ -992,9 +1011,11 @@ class _ToolDockState extends State<_ToolDock> {
         _DockItem(Icons.tune_rounded, 'Adjust', () => ColorGradingSheet.show(context)),
         _DockItem(Icons.center_focus_strong_rounded, 'Track',
             () => CameraTrackingPanel.show(context)),
-        _DockItem(Icons.emoji_emotions_rounded, 'Stickers', () => _soon(context, 'Stickers')),
-        _DockItem(Icons.auto_awesome_rounded, 'Effects', () => _soon(context, 'Effects')),
-        _DockItem(Icons.filter_vintage_rounded, 'Filters', () => _soon(context, 'Filters')),
+        _DockItem(Icons.emoji_emotions_rounded, 'Stickers', () => StickersSheet.show(context)),
+        _DockItem(Icons.auto_awesome_rounded, 'Effects',
+            () => EffectsSheet.show(context, isFilterMode: false)),
+        _DockItem(Icons.filter_vintage_rounded, 'Filters',
+            () => EffectsSheet.show(context, isFilterMode: true)),
       ];
 
   List<_DockItem> _clipItems(BuildContext context) {
@@ -1003,10 +1024,10 @@ class _ToolDockState extends State<_ToolDock> {
     final bool canSplit = sel != null && e.playhead > sel.start && e.playhead < sel.end;
     return <_DockItem>[
       _DockItem(Icons.call_split_rounded, 'Split', canSplit ? e.splitSelectedClip : null),
-      _DockItem(Icons.speed_rounded, 'Speed', () => _soon(context, 'Speed')),
+      _DockItem(Icons.speed_rounded, 'Speed', () => SpeedSheet.show(context)),
       _DockItem(Icons.volume_up_rounded, 'Volume', () => AudioToolsSheet.show(context)),
       _DockItem(Icons.tune_rounded, 'Adjust', () => ColorGradingSheet.show(context)),
-      _DockItem(Icons.crop_rounded, 'Crop', () => _soon(context, 'Crop')),
+      _DockItem(Icons.crop_rounded, 'Crop', () => CropSheet.show(context)),
       _DockItem(Icons.title_rounded, 'Text', () => TextAnimationSheet.show(context)),
       _DockItem(Icons.delete_rounded, 'Delete', sel != null ? e.deleteSelectedClip : null,
           danger: true),

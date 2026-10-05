@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
-import 'package:flutter_video_editor/features/export/models/export_settings.dart' as model_export;
+import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 
 // -----------------------------------------------------------------------------
 // Tokens (same palette as the editor page)
@@ -275,21 +275,14 @@ class _ExportModalState extends State<ExportModal> {
           label: const Text('Export',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           onPressed: () {
-            final newSettings = model_export.ExportSettings(
+            final newSettings = ExportSettings(
               resolution: selectedResolution,
               fps: selectedFps,
               quality: selectedQuality,
               format: selectedFormat,
               codec: selectedCodec,
             );
-            editorCtrl.updateExportSettings(
-              ExportSettings(
-                resolution: selectedResolution,
-                fps: selectedFps,
-                quality: selectedQuality,
-                format: selectedFormat,
-              ),
-            );
+            editorCtrl.updateExportSettings(newSettings);
             if (exportCtrl != null) {
               exportCtrl.startExport(editorCtrl.project, newSettings);
             } else {
