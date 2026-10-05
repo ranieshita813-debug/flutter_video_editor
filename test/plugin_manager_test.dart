@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_video_editor/core/plugins/builtin_plugins.dart';
-import 'package:flutter_video_editor/core/plugins/plugin_interface.dart';
 import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
 
 void main() {
