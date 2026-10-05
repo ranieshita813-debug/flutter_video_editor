@@ -514,7 +514,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
           Switch(
             value: value,
             onChanged: f,
-            activeColor: Colors.black,
+            activeThumbColor: Colors.black,
             activeTrackColor: Colors.white,
             inactiveThumbColor: _muted,
             inactiveTrackColor: _track,

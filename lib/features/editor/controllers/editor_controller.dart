@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
@@ -468,6 +469,7 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      AppLogger.info('Starting timeline export for project ${_project.id}', tag: 'EditorController');
       final exportService = ExportService();
       final dto = TimelineDto.fromProject(_project, _exportSettings);
       final resultPath = await exportService.exportTimeline(dto.toJson());
@@ -482,7 +484,8 @@ class EditorController extends ChangeNotifier {
         }
       }
       return resultPath;
-    } catch (_) {
+    } catch (e, stack) {
+      AppLogger.error('Timeline export failed', tag: 'EditorController', error: e, stackTrace: stack);
       _isExporting = false;
       notifyListeners();
       return null;

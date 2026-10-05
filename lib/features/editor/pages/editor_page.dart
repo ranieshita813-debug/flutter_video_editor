@@ -146,7 +146,30 @@ class _Preview extends StatelessWidget {
                 children: <Widget>[
                   GestureDetector(
                     onTap: () => ExportModal.show(context),
-                    child: const Icon(Icons.ios_share_rounded, color: Colors.white, size: 24),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _purple,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(Icons.ios_share_rounded, color: Colors.white, size: 16),
+                          SizedBox(width: 4),
+                          Text('Export', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white12,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text('1080p', style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600)),
                   ),
                   const Expanded(
                     child: Center(
@@ -327,7 +350,7 @@ class _Timeline extends StatefulWidget {
 
 class _TimelineState extends State<_Timeline> {
   static const double _rulerH = 28, _textH = 30, _videoH = 44, _audioH = 36;
-  static const double _gap = 6, _hdrW = 34;
+  static const double _gap = 6, _hdrW = 36;
 
   final ScrollController _sc = ScrollController();
   final ScrollController _vc = ScrollController();
@@ -852,33 +875,59 @@ class _Toolbar extends StatelessWidget {
     final bool canSplit =
         sel != null && editor.playhead > sel.start && editor.playhead < sel.end;
 
-    Widget btn(IconData i, VoidCallback? onTap, {Color? color}) => IconButton(
-          icon: Icon(i, size: 24, color: onTap == null ? Colors.white24 : (color ?? Colors.white)),
-          onPressed: onTap == null
-              ? null
-              : () {
-                  HapticFeedback.selectionClick();
-                  onTap();
-                },
-        );
+    Widget toolItem(IconData icon, String label, VoidCallback? onTap, {Color? color}) {
+      final enabled = onTap != null;
+      return InkWell(
+        onTap: enabled
+            ? () {
+                HapticFeedback.selectionClick();
+                onTap();
+              }
+            : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(icon, size: 20, color: enabled ? (color ?? Colors.white) : Colors.white24),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  color: enabled ? Colors.white70 : Colors.white24,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return SafeArea(
       top: false,
       child: SizedBox(
-        height: 72,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: <Widget>[
-            btn(Icons.content_cut_rounded, canSplit ? editor.splitSelectedClip : null),
-            btn(Icons.local_fire_department_outlined,
-                () => EffectsSheet.show(context, isFilterMode: false)),
-            btn(Icons.volume_up_outlined, () => AudioToolsSheet.show(context)),
-            btn(Icons.crop_rounded, () => CropSheet.show(context)),
-            btn(Icons.speed_rounded, () => SpeedSheet.show(context)),
-            btn(Icons.layers_outlined, () => ColorGradingSheet.show(context)),
-            btn(Icons.delete_outline_rounded,
-                sel != null ? editor.deleteSelectedClip : null),
-          ],
+        height: 64,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: <Widget>[
+              toolItem(Icons.content_cut_rounded, 'Split', canSplit ? editor.splitSelectedClip : null),
+              toolItem(Icons.title_rounded, 'Text', () => TextAnimationSheet.show(context)),
+              toolItem(Icons.subtitles_rounded, 'Captions', editor.generateAutoCaptions),
+              toolItem(Icons.brush_rounded, 'Draw', () => VectorDrawingSheet.show(context)),
+              toolItem(Icons.center_focus_strong_rounded, 'Track', () => CameraTrackingPanel.show(context)),
+              toolItem(Icons.volume_up_outlined, 'Audio', () => AudioToolsSheet.show(context)),
+              toolItem(Icons.layers_outlined, 'Adjust', () => ColorGradingSheet.show(context)),
+              toolItem(Icons.local_fire_department_outlined, 'Effects', () => EffectsSheet.show(context, isFilterMode: false)),
+              toolItem(Icons.crop_rounded, 'Crop', () => CropSheet.show(context)),
+              toolItem(Icons.speed_rounded, 'Speed', () => SpeedSheet.show(context)),
+              toolItem(Icons.delete_outline_rounded, 'Delete', sel != null ? editor.deleteSelectedClip : null, color: Colors.redAccent),
+            ],
+          ),
         ),
       ),
     );

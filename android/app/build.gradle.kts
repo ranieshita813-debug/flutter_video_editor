@@ -20,14 +20,30 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.flutter_video_editor"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        applicationId = "com.motiongr.videoedit"
         minSdk = maxOf(21, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("key.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = java.util.Properties()
+                keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+                storeFile = file(keystoreProperties.getProperty("storeFile") ?: "upload-keystore.jks")
+                storePassword = keystoreProperties.getProperty("storePassword") ?: System.getenv("KEYSTORE_STORE_PASSWORD")
+                keyAlias = keystoreProperties.getProperty("keyAlias") ?: System.getenv("KEYSTORE_KEY_ALIAS")
+                keyPassword = keystoreProperties.getProperty("keyPassword") ?: System.getenv("KEYSTORE_KEY_PASSWORD")
+            } else {
+                storeFile = file(System.getenv("KEYSTORE_PATH") ?: "upload-keystore.jks")
+                storePassword = System.getenv("KEYSTORE_STORE_PASSWORD")
+                keyAlias = System.getenv("KEYSTORE_KEY_ALIAS")
+                keyPassword = System.getenv("KEYSTORE_KEY_PASSWORD")
+            }
+        }
     }
 
     externalNativeBuild {
@@ -38,9 +54,12 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            val releaseSigning = signingConfigs.getByName("release")
+            signingConfig = if (releaseSigning.storeFile?.exists() == true || System.getenv("KEYSTORE_BASE64") != null) {
+                releaseSigning
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
