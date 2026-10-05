@@ -24,36 +24,36 @@ android {
     }
 
     signingConfigs {
-    create("release") {
-        val keystorePropertiesFile = rootProject.file("key.properties")
-        if (keystorePropertiesFile.exists()) {
-            val keystoreProperties = java.util.Properties()
-            keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
-            storeFile = file(keystoreProperties.getProperty("storeFile") ?: "upload-keystore.jks")
-            storePassword = keystoreProperties.getProperty("storePassword") ?: System.getenv("KEYSTORE_STORE_PASSWORD")
-            keyAlias = keystoreProperties.getProperty("keyAlias") ?: System.getenv("KEYSTORE_KEY_ALIAS")
-            keyPassword = keystoreProperties.getProperty("keyPassword") ?: System.getenv("KEYSTORE_KEY_PASSWORD")
-        } else {
-            val keystorePath = System.getenv("KEYSTORE_PATH")
-            val keystoreStorePassword = System.getenv("KEYSTORE_STORE_PASSWORD")
-            val keystoreKeyAlias = System.getenv("KEYSTORE_KEY_ALIAS")
-            val keystoreKeyPassword = System.getenv("KEYSTORE_KEY_PASSWORD")
-            
-            if (keystorePath != null && keystoreStorePassword != null && keystoreKeyAlias != null && keystoreKeyPassword != null) {
-                storeFile = file(keystorePath)
-                storePassword = keystoreStorePassword
-                keyAlias = keystoreKeyAlias
-                keyPassword = keystoreKeyPassword
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("key.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = java.util.Properties()
+                keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+                storeFile = file(keystoreProperties.getProperty("storeFile") ?: "upload-keystore.jks")
+                storePassword = keystoreProperties.getProperty("storePassword") ?: System.getenv("KEYSTORE_STORE_PASSWORD")
+                keyAlias = keystoreProperties.getProperty("keyAlias") ?: System.getenv("KEYSTORE_KEY_ALIAS")
+                keyPassword = keystoreProperties.getProperty("keyPassword") ?: System.getenv("KEYSTORE_KEY_PASSWORD")
             } else {
-                // Fallback to debug signing when no credentials are available
-                storeFile = null
-                storePassword = null
-                keyAlias = null
-                keyPassword = null
+                val keystorePath = System.getenv("KEYSTORE_PATH")
+                val keystoreStorePassword = System.getenv("KEYSTORE_STORE_PASSWORD")
+                val keystoreKeyAlias = System.getenv("KEYSTORE_KEY_ALIAS")
+                val keystoreKeyPassword = System.getenv("KEYSTORE_KEY_PASSWORD")
+
+                if (keystorePath != null && keystoreStorePassword != null && keystoreKeyAlias != null && keystoreKeyPassword != null) {
+                    storeFile = file(keystorePath)
+                    storePassword = keystoreStorePassword
+                    keyAlias = keystoreKeyAlias
+                    keyPassword = keystoreKeyPassword
+                } else {
+                    // Fallback to debug signing when no credentials are available
+                    storeFile = null
+                    storePassword = null
+                    keyAlias = null
+                    keyPassword = null
+                }
             }
         }
     }
-}
 
     externalNativeBuild {
         cmake {
