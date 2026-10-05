@@ -6,18 +6,35 @@ import 'package:flutter_video_editor/features/editor/controllers/editor_controll
 import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
 import 'package:flutter_video_editor/features/export/models/export_settings.dart' as model_export;
 
+// -----------------------------------------------------------------------------
+// Tokens (same palette as the editor page)
+// -----------------------------------------------------------------------------
+
+const Color _bg = Color(0xFF000000);
+const Color _surface = Color(0xFF0E0F13);
+const Color _elevated = Color(0xFF1A1C22);
+const Color _border = Color(0xFF26282F);
+const Color _text = Color(0xFFF2F3F7);
+const Color _muted = Color(0xFF8A8F9C);
+const Color _violet = Color(0xFF7C5CFF);
+const Color _cyan = Color(0xFF22D3EE);
+const Color _green = Color(0xFF22C55E);
+const Color _red = Color(0xFFEF4444);
+
+const RoundedRectangleBorder _square =
+    RoundedRectangleBorder(borderRadius: BorderRadius.zero);
+
+/// Full-screen export page. Every surface is square (no rounded corners).
 class ExportModal extends StatefulWidget {
   const ExportModal({super.key});
 
-  static void show(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF111827),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  /// Same entry point as before: `ExportModal.show(context)`.
+  static Future<void> show(BuildContext context) {
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => const ExportModal(),
       ),
-      builder: (_) => const ExportModal(),
     );
   }
 
@@ -36,8 +53,7 @@ class _ExportModalState extends State<ExportModal> {
   void initState() {
     super.initState();
     try {
-      final exportCtrl = context.read<ExportController>();
-      final settings = exportCtrl.exportSettings;
+      final settings = context.read<ExportController>().exportSettings;
       selectedResolution = settings.resolution;
       selectedFps = settings.fps;
       selectedQuality = settings.quality;
@@ -60,312 +76,485 @@ class _ExportModalState extends State<ExportModal> {
 
     final bool isExporting = exportCtrl?.isExporting ?? editorCtrl.isExporting;
     final double progress = exportCtrl?.progress ?? editorCtrl.exportProgress;
-    final ExportStatus status = exportCtrl?.status ?? (editorCtrl.isExporting ? ExportStatus.exporting : ExportStatus.idle);
+    final ExportStatus status = exportCtrl?.status ??
+        (editorCtrl.isExporting ? ExportStatus.exporting : ExportStatus.idle);
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final bool showSettings =
+        status != ExportStatus.done && status != ExportStatus.failed && !isExporting;
+
+    Widget body;
+    if (status == ExportStatus.done) {
+      body = _doneView(exportCtrl);
+    } else if (status == ExportStatus.failed) {
+      body = _failedView(exportCtrl);
+    } else if (isExporting) {
+      body = _progressView(exportCtrl, progress);
+    } else {
+      body = _settingsView(editorCtrl);
+    }
+
+    return PopScope(
+      canPop: !isExporting,
+      child: Scaffold(
+        backgroundColor: _bg,
+        body: SafeArea(
+          child: Column(
             children: <Widget>[
-              const Text(
-                'Fast Export & Render',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.white70),
-                onPressed: isExporting
-                    ? null
-                    : () {
-                        exportCtrl?.resetStatus();
-                        Navigator.of(context).pop();
-                      },
-              ),
+              _topBar(exportCtrl, isExporting),
+              Expanded(child: body),
+              if (showSettings) _bottomBar(exportCtrl, editorCtrl),
             ],
           ),
-          const SizedBox(height: 16),
-          if (status == ExportStatus.done) ...<Widget>[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF166534).withAlpha(76),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF22C55E)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const Row(
-                    children: <Widget>[
-                      Icon(Icons.check_circle_rounded, color: Color(0xFF22C55E)),
-                      SizedBox(width: 8),
-                      Text(
-                        'Export Complete!',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Saved to: ${exportCtrl?.outputPath ?? "Gallery"}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Video saved to device gallery!')),
-                            );
-                          },
-                          icon: const Icon(Icons.save_alt_rounded, size: 18),
-                          label: const Text('Save to Gallery'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF8B5CF6)),
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Share option ready!')),
-                            );
-                          },
-                          icon: const Icon(Icons.share_rounded, size: 18),
-                          label: const Text('Share Video'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+        ),
+      ),
+    );
+  }
+
+  // ---- Top bar ---------------------------------------------------------------
+
+  Widget _topBar(ExportController? exportCtrl, bool isExporting) {
+    return Container(
+      height: 52,
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _border)),
+      ),
+      child: Row(
+        children: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.close_rounded, color: _text),
+            tooltip: 'Close',
+            onPressed: isExporting
+                ? null
+                : () {
+                    exportCtrl?.resetStatus();
+                    Navigator.of(context).pop();
+                  },
+          ),
+          const Expanded(
+            child: Text(
+              'Export',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 16),
-          ] else if (status == ExportStatus.failed) ...<Widget>[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF991B1B).withAlpha(76),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFEF4444)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const Row(
-                    children: <Widget>[
-                      Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444)),
-                      SizedBox(width: 8),
-                      Text(
-                        'Export Failed',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    exportCtrl?.errorMessage ?? 'An error occurred during video rendering.',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () => exportCtrl?.resetStatus(),
-                    child: const Text('Try Again', style: TextStyle(color: Color(0xFF8B5CF6))),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ] else if (isExporting) ...<Widget>[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1F2937),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      Text(
-                        (exportCtrl?.stage.isNotEmpty ?? false) ? exportCtrl!.stage : 'Rendering Video...',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                      ),
-                      Text(
-                        '${(progress * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(color: Color(0xFF8B5CF6), fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: const Color(0xFF374151),
-                    color: const Color(0xFF8B5CF6),
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFFEF4444),
-                        side: const BorderSide(color: Color(0xFFEF4444)),
-                      ),
-                      icon: const Icon(Icons.cancel_outlined, size: 18),
-                      label: const Text('Cancel Export'),
-                      onPressed: () => exportCtrl?.cancelExport(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-          ] else ...<Widget>[
-            const Text('Format & Codec', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: SegmentedButton<ExportFormat>(
-                    segments: ExportFormat.values.map((f) {
-                      return ButtonSegment<ExportFormat>(
-                        value: f,
-                        label: Text(f.name.toUpperCase()),
-                      );
-                    }).toList(),
-                    selected: <ExportFormat>{selectedFormat},
-                    onSelectionChanged: (Set<ExportFormat> newSelection) {
-                      setState(() {
-                        selectedFormat = newSelection.first;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SegmentedButton<String>(
-                    segments: const <ButtonSegment<String>>[
-                      ButtonSegment<String>(value: 'h264', label: Text('H.264')),
-                      ButtonSegment<String>(value: 'hevc', label: Text('HEVC')),
-                    ],
-                    selected: <String>{selectedCodec},
-                    onSelectionChanged: (Set<String> newSelection) {
-                      setState(() {
-                        selectedCodec = newSelection.first;
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text('Resolution', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            SegmentedButton<ExportResolution>(
-              segments: ExportResolution.values.map((r) {
-                return ButtonSegment<ExportResolution>(
-                  value: r,
-                  label: Text('${r.label} (${r.width}x${r.height})'),
-                );
-              }).toList(),
-              selected: <ExportResolution>{selectedResolution},
-              onSelectionChanged: (Set<ExportResolution> newSelection) {
-                setState(() {
-                  selectedResolution = newSelection.first;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            const Text('Frame Rate (FPS)', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            SegmentedButton<int>(
-              segments: const <ButtonSegment<int>>[
-                ButtonSegment<int>(value: 24, label: Text('24 fps')),
-                ButtonSegment<int>(value: 30, label: Text('30 fps')),
-                ButtonSegment<int>(value: 60, label: Text('60 fps')),
-              ],
-              selected: <int>{selectedFps},
-              onSelectionChanged: (Set<int> newSelection) {
-                setState(() {
-                  selectedFps = newSelection.first;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            const Text('Quality & Bitrate', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            SegmentedButton<ExportQuality>(
-              segments: ExportQuality.values.map((q) {
-                return ButtonSegment<ExportQuality>(
-                  value: q,
-                  label: Text('${q.label.split(' ')[0]}\n${q.bitrateMbps.toInt()} Mbps'),
-                );
-              }).toList(),
-              selected: <ExportQuality>{selectedQuality},
-              onSelectionChanged: (Set<ExportQuality> newSelection) {
-                setState(() {
-                  selectedQuality = newSelection.first;
-                });
-              },
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8B5CF6),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                icon: const Icon(Icons.flash_on_rounded),
-                label: const Text('Export Now (Fast Engine)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                onPressed: () {
-                  final newSettings = model_export.ExportSettings(
-                    resolution: selectedResolution,
-                    fps: selectedFps,
-                    quality: selectedQuality,
-                    format: selectedFormat,
-                    codec: selectedCodec,
-                  );
-                  editorCtrl.updateExportSettings(
-                    ExportSettings(
-                      resolution: selectedResolution,
-                      fps: selectedFps,
-                      quality: selectedQuality,
-                      format: selectedFormat,
-                    ),
-                  );
-                  if (exportCtrl != null) {
-                    exportCtrl.startExport(editorCtrl.project, newSettings);
-                  } else {
-                    editorCtrl.startExport();
-                  }
-                },
-              ),
-            ),
-          ],
+          ),
+          const SizedBox(width: 48),
         ],
+      ),
+    );
+  }
+
+  // ---- Settings --------------------------------------------------------------
+
+  Widget _settingsView(EditorController editorCtrl) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        _summary(editorCtrl),
+        const SizedBox(height: 20),
+        _label('Resolution'),
+        _Segmented<ExportResolution>(
+          values: ExportResolution.values,
+          selected: selectedResolution,
+          title: (r) => r.label,
+          subtitle: (r) => '${r.width}×${r.height}',
+          onChanged: (v) => setState(() => selectedResolution = v),
+        ),
+        const SizedBox(height: 20),
+        _label('Frame rate'),
+        _Segmented<int>(
+          values: const <int>[24, 30, 60],
+          selected: selectedFps,
+          title: (f) => '$f',
+          subtitle: (_) => 'fps',
+          onChanged: (v) => setState(() => selectedFps = v),
+        ),
+        const SizedBox(height: 20),
+        _label('Quality'),
+        for (final q in ExportQuality.values)
+          _QualityTile(
+            title: q.label.split(' ')[0],
+            subtitle: '${q.bitrateMbps.toInt()} Mbps',
+            selected: q == selectedQuality,
+            onTap: () => setState(() => selectedQuality = q),
+          ),
+        const SizedBox(height: 20),
+        _label('Format'),
+        _Segmented<ExportFormat>(
+          values: ExportFormat.values,
+          selected: selectedFormat,
+          title: (f) => f.name.toUpperCase(),
+          onChanged: (v) => setState(() => selectedFormat = v),
+        ),
+        const SizedBox(height: 20),
+        _label('Codec'),
+        _Segmented<String>(
+          values: const <String>['h264', 'hevc'],
+          selected: selectedCodec,
+          title: (c) => c == 'h264' ? 'H.264' : 'HEVC',
+          subtitle: (c) => c == 'h264' ? 'Most compatible' : 'Smaller files',
+          onChanged: (v) => setState(() => selectedCodec = v),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  Widget _summary(EditorController editorCtrl) {
+    final double seconds = editorCtrl.project.totalDuration.inMilliseconds / 1000.0;
+    final double mb = selectedQuality.bitrateMbps * seconds / 8;
+    final int m = seconds ~/ 60;
+    final int s = seconds.round() % 60;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      color: _surface,
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 96,
+            height: 54,
+            color: _elevated,
+            child: const Icon(Icons.movie_creation_outlined, color: _muted),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  editorCtrl.project.projectName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$m:${s.toString().padLeft(2, '0')}  ·  '
+                  '${selectedResolution.label}  ·  $selectedFps fps',
+                  style: const TextStyle(color: _muted, fontSize: 12),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Estimated size ≈ ${mb.toStringAsFixed(mb < 10 ? 1 : 0)} MB',
+                  style: const TextStyle(color: _cyan, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _label(String t) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(t,
+            style: const TextStyle(
+                color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
+      );
+
+  Widget _bottomBar(ExportController? exportCtrl, EditorController editorCtrl) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: const BoxDecoration(
+        color: _bg,
+        border: Border(top: BorderSide(color: _border)),
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 50,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _violet,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: _square,
+          ),
+          icon: const Icon(Icons.ios_share_rounded, size: 20),
+          label: const Text('Export',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          onPressed: () {
+            final newSettings = model_export.ExportSettings(
+              resolution: selectedResolution,
+              fps: selectedFps,
+              quality: selectedQuality,
+              format: selectedFormat,
+              codec: selectedCodec,
+            );
+            editorCtrl.updateExportSettings(
+              ExportSettings(
+                resolution: selectedResolution,
+                fps: selectedFps,
+                quality: selectedQuality,
+                format: selectedFormat,
+              ),
+            );
+            if (exportCtrl != null) {
+              exportCtrl.startExport(editorCtrl.project, newSettings);
+            } else {
+              editorCtrl.startExport();
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  // ---- Progress --------------------------------------------------------------
+
+  Widget _progressView(ExportController? exportCtrl, double progress) {
+    final String stage = (exportCtrl?.stage.isNotEmpty ?? false)
+        ? exportCtrl!.stage
+        : 'Rendering video…';
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Text(
+            '${(progress * 100).toStringAsFixed(0)}%',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _text,
+              fontSize: 56,
+              fontWeight: FontWeight.w300,
+              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(stage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _muted, fontSize: 14)),
+          const SizedBox(height: 28),
+          LinearProgressIndicator(
+            value: progress,
+            minHeight: 6,
+            backgroundColor: _elevated,
+            color: _violet,
+            borderRadius: BorderRadius.zero,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Keep the app open until the export finishes.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted, fontSize: 12),
+          ),
+          const SizedBox(height: 40),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _red,
+              side: const BorderSide(color: _red),
+              minimumSize: const Size.fromHeight(48),
+              shape: _square,
+            ),
+            icon: const Icon(Icons.close_rounded, size: 18),
+            label: const Text('Cancel export'),
+            onPressed: () => exportCtrl?.cancelExport(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- Done / Failed ---------------------------------------------------------
+
+  Widget _doneView(ExportController? exportCtrl) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const Icon(Icons.check_circle_outline_rounded, size: 64, color: _green),
+          const SizedBox(height: 16),
+          const Text('Export complete',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text('Saved to ${exportCtrl?.outputPath ?? "Gallery"}',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _muted, fontSize: 12)),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _violet,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              minimumSize: const Size.fromHeight(50),
+              shape: _square,
+            ),
+            icon: const Icon(Icons.share_rounded, size: 18),
+            label: const Text('Share video'),
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Share option ready')),
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _text,
+              side: const BorderSide(color: _border),
+              minimumSize: const Size.fromHeight(50),
+              shape: _square,
+            ),
+            icon: const Icon(Icons.save_alt_rounded, size: 18),
+            label: const Text('Save to gallery'),
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Video saved to device gallery')),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            onPressed: () {
+              exportCtrl?.resetStatus();
+              Navigator.of(context).pop();
+            },
+            child: const Text('Done', style: TextStyle(color: _muted)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _failedView(ExportController? exportCtrl) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const Icon(Icons.error_outline_rounded, size: 64, color: _red),
+          const SizedBox(height: 16),
+          const Text('Export failed',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text(
+            exportCtrl?.errorMessage ?? 'An error occurred during video rendering.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _muted, fontSize: 12),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _violet,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              minimumSize: const Size.fromHeight(50),
+              shape: _square,
+            ),
+            onPressed: () => exportCtrl?.resetStatus(),
+            child: const Text('Try again'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Square option widgets
+// -----------------------------------------------------------------------------
+
+class _Segmented<T> extends StatelessWidget {
+  const _Segmented({
+    required this.values,
+    required this.selected,
+    required this.title,
+    required this.onChanged,
+    this.subtitle,
+  });
+
+  final List<T> values;
+  final T selected;
+  final String Function(T) title;
+  final String Function(T)? subtitle;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(border: Border.all(color: _border)),
+      child: Row(
+        children: <Widget>[
+          for (int i = 0; i < values.length; i++)
+            Expanded(
+              child: InkWell(
+                onTap: () => onChanged(values[i]),
+                child: Container(
+                  height: subtitle == null ? 44 : 54,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: values[i] == selected ? _violet : _surface,
+                    border: i == 0
+                        ? null
+                        : const Border(left: BorderSide(color: _border)),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Text(title(values[i]),
+                          style: const TextStyle(
+                              color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
+                      if (subtitle != null)
+                        Text(subtitle!(values[i]),
+                            style: TextStyle(
+                                color: values[i] == selected ? Colors.white70 : _muted,
+                                fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QualityTile extends StatelessWidget {
+  const _QualityTile({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        height: 48,
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: _surface,
+          border: Border.all(color: selected ? _violet : _border, width: selected ? 1.5 : 1),
+        ),
+        child: Row(
+          children: <Widget>[
+            Icon(
+              selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+              size: 20,
+              color: selected ? _violet : _muted,
+            ),
+            const SizedBox(width: 12),
+            Text(title,
+                style: const TextStyle(
+                    color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text(subtitle, style: const TextStyle(color: _muted, fontSize: 12)),
+          ],
+        ),
       ),
     );
   }

@@ -1,12 +1,33 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
-import 'package:flutter_video_editor/core/theme/app_colors.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 
+// -----------------------------------------------------------------------------
+// Tokens (same palette as the editor page)
+// -----------------------------------------------------------------------------
+
+const Color _bg = Color(0xFF000000);
+const Color _surface = Color(0xFF0E0F13);
+const Color _elevated = Color(0xFF1A1C22);
+const Color _border = Color(0xFF26282F);
+const Color _text = Color(0xFFF2F3F7);
+const Color _muted = Color(0xFF8A8F9C);
+const Color _violet = Color(0xFF7C5CFF);
+
+String _fmt(Duration d) {
+  final int s = d.inSeconds;
+  return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+}
+
+/// Kept for compatibility with other files that may import it.
 class MediaAsset {
   MediaAsset({
     required this.id,
@@ -27,8 +48,46 @@ class MediaAsset {
   final String? path;
 }
 
+/// One selected item: either a gallery entity or a file chosen via "Files".
+class _Picked {
+  _Picked({
+    required this.id,
+    required this.name,
+    required this.duration,
+    required this.type,
+    this.entity,
+    this.path,
+  });
+
+  factory _Picked.fromEntity(AssetEntity e) => _Picked(
+        id: e.id,
+        name: e.title ?? e.id,
+        duration: e.type == AssetType.image ? Duration.zero : e.videoDuration,
+        type: e.type == AssetType.video
+            ? ClipType.video
+            : (e.type == AssetType.audio ? ClipType.audio : ClipType.image),
+        entity: e,
+      );
+
+  final String id;
+  final String name;
+  final Duration duration;
+  final ClipType type;
+  final AssetEntity? entity;
+  final String? path;
+}
+
+enum _Perm { checking, granted, denied }
+
 class MediaPickerPage extends StatefulWidget {
   const MediaPickerPage({super.key});
+
+  /// Call this early (app start, home screen, first project tap) so the
+  /// permission dialog is already answered when the gallery opens.
+  static Future<bool> ensurePermission() async {
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
+    return ps.hasAccess;
+  }
 
   @override
   State<MediaPickerPage> createState() => _MediaPickerPageState();
@@ -36,365 +95,700 @@ class MediaPickerPage extends StatefulWidget {
 
 class _MediaPickerPageState extends State<MediaPickerPage>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  final List<MediaAsset> _pickedAssets = <MediaAsset>[];
-  final List<MediaAsset> _selectedAssets = <MediaAsset>[];
-  bool _isLoading = false;
+  static const int _pageSize = 80;
+
+  late final TabController _tabs = TabController(length: 4, vsync: this);
+  final ScrollController _scroll = ScrollController();
+
+  final List<_Picked> _selected = <_Picked>[];
+  final List<AssetEntity> _assets = <AssetEntity>[];
+
+  _Perm _perm = _Perm.checking;
+  bool _limited = false;
+  bool _loading = false;
+  bool _busy = false;
+  bool _hasMore = true;
+  bool _adding = false;
+  int _page = 0;
+  int _gen = 0;
+  int _lastTab = 0;
+
+  List<AssetPathEntity> _albums = <AssetPathEntity>[];
+  AssetPathEntity? _album;
+
+  RequestType get _type => switch (_tabs.index) {
+        0 => RequestType.common,
+        1 => RequestType.video,
+        2 => RequestType.image,
+        _ => RequestType.audio,
+      };
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabs.addListener(() {
+      if (!_tabs.indexIsChanging && _tabs.index != _lastTab) {
+        _lastTab = _tabs.index;
+        _loadAlbums();
+      }
+    });
+    _scroll.addListener(() {
+      if (_scroll.hasClients &&
+          _scroll.position.pixels > _scroll.position.maxScrollExtent - 600) {
+        _loadMore();
+      }
+    });
+    _init();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabs.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
-  Future<void> _pickFilesFromDevice({FileType type = FileType.any}) async {
+  // ---- Permission + loading --------------------------------------------------
+
+  Future<void> _init() async {
+    setState(() => _perm = _Perm.checking);
+    final PermissionState ps = await PhotoManager.requestPermissionExtend();
+    if (!mounted) return;
+    if (ps.hasAccess) {
+      setState(() {
+        _perm = _Perm.granted;
+        _limited = ps == PermissionState.limited;
+      });
+      await _loadAlbums();
+    } else {
+      setState(() => _perm = _Perm.denied);
+    }
+  }
+
+  Future<void> _loadAlbums() async {
+    final int gen = ++_gen;
     setState(() {
-      _isLoading = true;
+      _loading = true;
+      _assets.clear();
+      _page = 0;
+      _hasMore = true;
     });
 
     try {
-      final result = await FilePicker.pickFiles(
-        type: type,
-        allowedExtensions: type == FileType.custom
-            ? <String>['mp4', 'mov', 'avi', 'mkv', 'jpg', 'jpeg', 'png', 'mp3', 'wav', 'm4a']
-            : null,
-      );
-
-      if (result.isNotEmpty) {
-        for (final file in result) {
-          final ext = file.extension?.toLowerCase() ?? '';
-          final isVid = <String>['mp4', 'mov', 'avi', 'mkv', 'webm', '3gp'].contains(ext);
-          final isAud = <String>['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg'].contains(ext);
-
-          final asset = MediaAsset(
-            id: 'file_${DateTime.now().microsecondsSinceEpoch}_${file.name.hashCode}',
-            name: file.name,
-            duration: isVid ? const Duration(seconds: 10) : (isAud ? const Duration(seconds: 15) : Duration.zero),
-            isVid: isVid,
-            isAudio: isAud,
-            category: isVid ? 'Videos' : (isAud ? 'Audio' : 'Photos'),
-            path: file.path,
-          );
-
-          if (!_pickedAssets.any((a) => a.path == file.path && file.path != null)) {
-            _pickedAssets.add(asset);
-            _selectedAssets.add(asset);
-          }
-        }
-      }
+      final List<AssetPathEntity> albums =
+          await PhotoManager.getAssetPathList(type: _type, onlyAll: false);
+      if (!mounted || gen != _gen) return;
+      setState(() {
+        _albums = albums;
+        _album = albums.isNotEmpty ? albums.first : null;
+        _hasMore = _album != null;
+      });
+      _busy = false;
+      await _loadMore();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking file: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _loading = false);
+        _snack('Could not load gallery: $e');
       }
     }
   }
 
-  void _toggleSelection(MediaAsset asset) {
+  Future<void> _loadMore() async {
+    final AssetPathEntity? album = _album;
+    if (album == null || _busy || !_hasMore) return;
+    _busy = true;
+    final int gen = _gen;
+    try {
+      final List<AssetEntity> list =
+          await album.getAssetListPaged(page: _page, size: _pageSize);
+      if (!mounted || gen != _gen) return;
+      setState(() {
+        _assets.addAll(list);
+        _page++;
+        _hasMore = list.length == _pageSize;
+        _loading = false;
+      });
+    } finally {
+      if (gen == _gen) _busy = false;
+    }
+  }
+
+  Future<void> _chooseAlbum() async {
+    final AssetPathEntity? picked = await showModalBottomSheet<AssetPathEntity>(
+      context: context,
+      backgroundColor: _surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            for (final a in _albums)
+              ListTile(
+                title: Text(a.isAll ? 'Recent' : a.name,
+                    style: const TextStyle(color: _text, fontSize: 15)),
+                trailing: FutureBuilder<int>(
+                  future: a.assetCountAsync,
+                  builder: (_, s) => Text('${s.data ?? ''}',
+                      style: const TextStyle(color: _muted, fontSize: 13)),
+                ),
+                selected: a.id == _album?.id,
+                selectedColor: _violet,
+                onTap: () => Navigator.of(context).pop(a),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || picked.id == _album?.id) return;
+    final int gen = ++_gen;
     setState(() {
-      if (_selectedAssets.contains(asset)) {
-        _selectedAssets.remove(asset);
+      _album = picked;
+      _assets.clear();
+      _page = 0;
+      _hasMore = true;
+      _loading = true;
+    });
+    _busy = false;
+    if (gen == _gen) await _loadMore();
+  }
+
+  // ---- Selection -------------------------------------------------------------
+
+  int _indexOf(String id) => _selected.indexWhere((p) => p.id == id);
+
+  void _toggle(_Picked p) {
+    setState(() {
+      final int i = _indexOf(p.id);
+      if (i >= 0) {
+        _selected.removeAt(i);
       } else {
-        _selectedAssets.add(asset);
+        _selected.add(p);
       }
     });
   }
 
-  void _addMediaToProject() {
-    if (_selectedAssets.isEmpty) return;
-
-    final clips = <TimelineClip>[];
-    Duration currentOffset = Duration.zero;
-
-    for (int i = 0; i < _selectedAssets.length; i++) {
-      final asset = _selectedAssets[i];
-      final ClipType clipType = asset.isAudio
-          ? ClipType.audio
-          : (asset.isVid ? ClipType.video : ClipType.image);
-
-      final clipDuration = asset.isVid && asset.duration > Duration.zero
-          ? asset.duration
-          : (asset.isAudio ? asset.duration : const Duration(seconds: 4));
-
-      clips.add(
-        TimelineClip(
-          id: 'clip_${DateTime.now().millisecondsSinceEpoch}_$i',
-          label: asset.name,
-          start: currentOffset,
-          end: currentOffset + clipDuration,
-          clipType: clipType,
-          layerIndex: asset.isAudio ? 1 : 0,
-          sourcePath: asset.path,
-        ),
-      );
-
-      if (!asset.isAudio) {
-        currentOffset += clipDuration;
-      }
+  /// Fallback for audio on platforms where the gallery can't list it (iOS),
+  /// or for files outside the media library.
+  Future<void> _browseFiles() async {
+    try {
+      final result = await FilePicker.pickFiles(type: FileType.any);
+      if (result.isEmpty) return;
+      setState(() {
+        for (final file in result) {
+          final String ext = file.extension?.toLowerCase() ?? '';
+          final bool isVid = <String>['mp4', 'mov', 'avi', 'mkv', 'webm', '3gp'].contains(ext);
+          final bool isAud = <String>['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg'].contains(ext);
+          final String id = 'file_${file.path ?? file.name}';
+          if (_indexOf(id) >= 0) continue;
+          _selected.add(_Picked(
+            id: id,
+            name: file.name,
+            duration: isVid
+                ? const Duration(seconds: 10)
+                : (isAud ? const Duration(seconds: 15) : Duration.zero),
+            type: isVid ? ClipType.video : (isAud ? ClipType.audio : ClipType.image),
+            path: file.path,
+          ));
+        }
+      });
+    } catch (e) {
+      _snack('Error picking file: $e');
     }
-
-    final projectsController =
-        Provider.of<ProjectsController>(context, listen: false);
-    final editorController =
-        Provider.of<EditorController>(context, listen: false);
-
-    final newProj = projectsController.createProject(
-      name: _selectedAssets.first.name,
-      clips: clips,
-    );
-
-    editorController.loadProject(newProj);
-
-    Navigator.of(context).pushReplacementNamed('/editor');
   }
+
+  void _snack(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  // ---- Add to project --------------------------------------------------------
+
+  Future<void> _addMediaToProject() async {
+    if (_selected.isEmpty || _adding) return;
+    setState(() => _adding = true);
+
+    try {
+      final List<TimelineClip> clips = <TimelineClip>[];
+      Duration offset = Duration.zero;
+      final int stamp = DateTime.now().millisecondsSinceEpoch;
+
+      for (int i = 0; i < _selected.length; i++) {
+        final _Picked p = _selected[i];
+        final String? path = p.path ?? (await p.entity?.file)?.path;
+        final bool isAudio = p.type == ClipType.audio;
+        final bool isVideo = p.type == ClipType.video;
+
+        final Duration d = (isVideo || isAudio) && p.duration > Duration.zero
+            ? p.duration
+            : (isAudio ? const Duration(seconds: 15) : (isVideo ? const Duration(seconds: 10) : const Duration(seconds: 4)));
+
+        String name = p.name;
+        if (p.entity != null) name = (await p.entity!.titleAsync);
+
+        clips.add(TimelineClip(
+          id: 'clip_${stamp}_$i',
+          label: name,
+          start: offset,
+          end: offset + d,
+          clipType: p.type,
+          layerIndex: isAudio ? 1 : 0,
+          sourcePath: path,
+        ));
+
+        if (!isAudio) offset += d;
+      }
+
+      if (!mounted) return;
+      final projects = Provider.of<ProjectsController>(context, listen: false);
+      final editor = Provider.of<EditorController>(context, listen: false);
+
+      final newProj = projects.createProject(
+        name: _selected.first.name,
+        clips: clips,
+      );
+      editor.loadProject(newProj);
+
+      Navigator.of(context).pushReplacementNamed('/editor');
+    } catch (e) {
+      _snack('Could not add media: $e');
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  // ---- Build -----------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Select Media',
-          style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
-        ),
-        actions: <Widget>[
-          TextButton.icon(
-            onPressed: () => _pickFilesFromDevice(),
-            icon: const Icon(Icons.add_a_photo_outlined, color: AppColors.accent, size: 20),
-            label: const Text('Browse Files', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppColors.accent,
-          labelColor: AppColors.accent,
-          unselectedLabelColor: AppColors.textSecondary,
-          tabs: const <Widget>[
-            Tab(text: 'All Items'),
-            Tab(text: 'Videos'),
-            Tab(text: 'Photos'),
-            Tab(text: 'Audio'),
-          ],
-        ),
-      ),
+      backgroundColor: _bg,
       body: SafeArea(
         child: Column(
           children: <Widget>[
-            if (_isLoading)
-              const LinearProgressIndicator(color: AppColors.accent),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: <Widget>[
-                  _buildGrid(_pickedAssets),
-                  _buildGrid(_pickedAssets.where((a) => a.isVid).toList()),
-                  _buildGrid(_pickedAssets.where((a) => !a.isVid && !a.isAudio).toList()),
-                  _buildGrid(_pickedAssets.where((a) => a.isAudio).toList()),
-                ],
-              ),
-            ),
-            // Bottom Bar displaying "Add (N)"
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                border: Border(top: BorderSide(color: AppColors.divider)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: <Widget>[
-                  Text(
-                    _selectedAssets.isEmpty
-                        ? 'Tap items or Browse Files to select'
-                        : '${_selectedAssets.length} item(s) selected',
-                    style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                  ),
-                  ElevatedButton(
-                    onPressed:
-                        _selectedAssets.isNotEmpty ? _addMediaToProject : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
-                      disabledBackgroundColor: AppColors.surfaceVariant,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: Text(
-                      'Add (${_selectedAssets.length})',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _header(),
+            if (_perm == _Perm.granted) _tabBar(),
+            if (_limited && _perm == _Perm.granted) _limitedBanner(),
+            Expanded(child: _body()),
+            if (_perm == _Perm.granted) ...<Widget>[
+              if (_selected.isNotEmpty) _tray(),
+              _bottomBar(),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildGrid(List<MediaAsset> assets) {
-    if (assets.isEmpty) {
+  Widget _header() {
+    return SizedBox(
+      height: 52,
+      child: Row(
+        children: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.close_rounded, color: _text),
+            tooltip: 'Close',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          Expanded(
+            child: Center(
+              child: InkWell(
+                onTap: _albums.isEmpty ? null : _chooseAlbum,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        _album == null ? 'Gallery' : (_album!.isAll ? 'Recent' : _album!.name),
+                        style: const TextStyle(
+                            color: _text, fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      if (_albums.isNotEmpty)
+                        const Icon(Icons.keyboard_arrow_down_rounded, color: _text),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.folder_open_rounded, color: _text),
+            tooltip: 'Browse files',
+            onPressed: _browseFiles,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tabBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _border)),
+      ),
+      child: TabBar(
+        controller: _tabs,
+        indicatorColor: _violet,
+        indicatorSize: TabBarIndicatorSize.label,
+        labelColor: _text,
+        unselectedLabelColor: _muted,
+        dividerColor: Colors.transparent,
+        labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        tabs: const <Widget>[
+          Tab(text: 'All'),
+          Tab(text: 'Videos'),
+          Tab(text: 'Photos'),
+          Tab(text: 'Audio'),
+        ],
+      ),
+    );
+  }
+
+  Widget _limitedBanner() {
+    return Container(
+      color: _elevated,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.info_outline_rounded, size: 16, color: _muted),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text('Limited access: only selected items are shown.',
+                style: TextStyle(color: _muted, fontSize: 12)),
+          ),
+          TextButton(
+            onPressed: () async {
+              await PhotoManager.presentLimited();
+              _loadAlbums();
+            },
+            child: const Text('Manage', style: TextStyle(color: _violet)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _body() {
+    if (_perm == _Perm.checking) {
+      return const Center(child: CircularProgressIndicator(color: _violet));
+    }
+    if (_perm == _Perm.denied) return _deniedView();
+
+    if (_loading && _assets.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: _violet));
+    }
+
+    if (_assets.isEmpty) {
       return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.perm_media_outlined, size: 64, color: AppColors.textDisabled),
-            const SizedBox(height: 16),
-            const Text(
-              'No media files selected',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => _pickFilesFromDevice(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.accent,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            const Icon(Icons.perm_media_outlined, size: 56, color: _muted),
+            const SizedBox(height: 12),
+            const Text('Nothing here yet',
+                style: TextStyle(color: _muted, fontSize: 15)),
+            if (_tabs.index == 3) ...<Widget>[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _browseFiles,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _text,
+                  side: const BorderSide(color: _border),
+                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                ),
+                icon: const Icon(Icons.folder_open_rounded, size: 18),
+                label: const Text('Browse audio files'),
               ),
-              icon: const Icon(Icons.folder_open_rounded),
-              label: const Text('Browse Files from Storage'),
-            ),
+            ],
           ],
         ),
       );
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(8),
+      controller: _scroll,
+      padding: const EdgeInsets.all(2),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
-        childAspectRatio: 1.0,
+        crossAxisCount: 4,
+        crossAxisSpacing: 2,
+        mainAxisSpacing: 2,
       ),
-      itemCount: assets.length,
-      itemBuilder: (context, index) {
-        final asset = assets[index];
-        final selectedIndex = _selectedAssets.indexOf(asset);
-        final isSelected = selectedIndex != -1;
-
-        return GestureDetector(
-          onTap: () => _toggleSelection(asset),
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(8),
-                  border: isSelected
-                      ? Border.all(color: AppColors.accent, width: 2)
-                      : null,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Icon(
-                      asset.isVid
-                          ? Icons.videocam
-                          : (asset.isAudio ? Icons.audiotrack : Icons.image),
-                      color: AppColors.textSecondary,
-                      size: 32,
-                    ),
-                    const SizedBox(height: 4),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: Text(
-                        asset.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Duration Badge for videos & audio
-              if (asset.isVid || asset.isAudio)
-                Positioned(
-                  bottom: 6,
-                  right: 6,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withAlpha(200),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      EditorUtils.formatDuration(asset.duration),
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 9,
-                      ),
-                    ),
-                  ),
-                ),
-
-              // Selection Badge
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isSelected
-                        ? AppColors.accent
-                        : Colors.black.withAlpha(120),
-                    border: Border.all(
-                      color: isSelected ? AppColors.accent : Colors.white,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: isSelected
-                      ? Center(
-                          child: Text(
-                            '${selectedIndex + 1}',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        )
-                      : null,
-                ),
-              ),
-            ],
-          ),
+      itemCount: _assets.length,
+      itemBuilder: (context, i) {
+        final AssetEntity e = _assets[i];
+        final int idx = _indexOf(e.id);
+        return _Cell(
+          key: ValueKey<String>(e.id),
+          entity: e,
+          order: idx >= 0 ? idx + 1 : null,
+          onTap: () => _toggle(_Picked.fromEntity(e)),
         );
       },
     );
+  }
+
+  Widget _deniedView() {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const Icon(Icons.photo_library_outlined, size: 56, color: _muted),
+          const SizedBox(height: 16),
+          const Text('Allow access to your gallery',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          const Text(
+            'Photos, videos and audio are shown right here, so you never have to leave the app to pick them.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted, fontSize: 13),
+          ),
+          const SizedBox(height: 28),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _violet,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              minimumSize: const Size.fromHeight(48),
+              shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+            ),
+            onPressed: _init,
+            child: const Text('Allow access'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: PhotoManager.openSetting,
+            child: const Text('Open settings', style: TextStyle(color: _muted)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tray() {
+    return Container(
+      height: 72,
+      color: _surface,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        itemCount: _selected.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final _Picked p = _selected[i];
+          return SizedBox(
+            width: 52,
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                if (p.entity != null && p.type != ClipType.audio)
+                  _Thumb(entity: p.entity!, size: 160)
+                else
+                  Container(
+                    color: _elevated,
+                    child: Icon(
+                      p.type == ClipType.audio
+                          ? Icons.music_note_rounded
+                          : Icons.image_outlined,
+                      color: _muted,
+                      size: 22,
+                    ),
+                  ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: () => _toggle(p),
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      color: Colors.black.withAlpha(190),
+                      child: const Icon(Icons.close_rounded, size: 13, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _bottomBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      decoration: const BoxDecoration(
+        color: _bg,
+        border: Border(top: BorderSide(color: _border)),
+      ),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              _selected.isEmpty
+                  ? 'Tap items to select'
+                  : '${_selected.length} selected',
+              style: const TextStyle(color: _muted, fontSize: 13),
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: ElevatedButton(
+              onPressed: _selected.isNotEmpty && !_adding ? _addMediaToProject : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _violet,
+                disabledBackgroundColor: _elevated,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+              ),
+              child: _adding
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text('Add (${_selected.length})',
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Grid cell + thumbnail
+// -----------------------------------------------------------------------------
+
+class _Cell extends StatelessWidget {
+  const _Cell({super.key, required this.entity, required this.order, required this.onTap});
+
+  final AssetEntity entity;
+  final int? order;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool sel = order != null;
+    final bool isAudio = entity.type == AssetType.audio;
+    final bool hasDuration = entity.type != AssetType.image;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          if (isAudio)
+            Container(
+              color: _elevated,
+              padding: const EdgeInsets.all(6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  const Icon(Icons.music_note_rounded, color: _muted, size: 26),
+                  const SizedBox(height: 4),
+                  Text(entity.title ?? '',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: _text, fontSize: 10)),
+                ],
+              ),
+            )
+          else
+            _Thumb(entity: entity, size: 300),
+          if (sel) Container(color: Colors.black.withAlpha(90)),
+          if (sel)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  decoration: BoxDecoration(border: Border.all(color: _violet, width: 2)),
+                ),
+              ),
+            ),
+          if (hasDuration)
+            Positioned(
+              left: 4,
+              bottom: 3,
+              child: Text(
+                _fmt(entity.videoDuration),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  shadows: <Shadow>[Shadow(color: Colors.black, blurRadius: 4)],
+                ),
+              ),
+            ),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: sel ? _violet : Colors.black.withAlpha(110),
+                border: Border.all(color: sel ? _violet : Colors.white, width: 1.5),
+              ),
+              child: sel
+                  ? Center(
+                      child: Text('$order',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+                    )
+                  : null,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Thumb extends StatefulWidget {
+  const _Thumb({required this.entity, required this.size});
+
+  final AssetEntity entity;
+  final int size;
+
+  @override
+  State<_Thumb> createState() => _ThumbState();
+}
+
+class _ThumbState extends State<_Thumb> {
+  Uint8List? _data;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _Thumb old) {
+    super.didUpdateWidget(old);
+    if (old.entity.id != widget.entity.id) {
+      _data = null;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final String id = widget.entity.id;
+    final Uint8List? d = await widget.entity
+        .thumbnailDataWithSize(ThumbnailSize.square(widget.size));
+    if (mounted && id == widget.entity.id) setState(() => _data = d);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_data == null) return const ColoredBox(color: _elevated);
+    return Image.memory(_data!, fit: BoxFit.cover, gaplessPlayback: true);
   }
 }
