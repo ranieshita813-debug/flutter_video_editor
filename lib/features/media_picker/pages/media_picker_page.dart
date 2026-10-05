@@ -7,20 +7,14 @@ import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 
-// -----------------------------------------------------------------------------
-// Tokens (monochrome, CapCut-like)
-// -----------------------------------------------------------------------------
-
-const Color _bg = Color(0xFF000000);
-const Color _surface = Color(0xFF111111);
-const Color _elevated = Color(0xFF1C1C1C);
-const Color _border = Color(0xFF2A2A2A);
-const Color _text = Color(0xFFFFFFFF);
-const Color _muted = Color(0xFF8C8C8C);
-const Color _accent = Color(0xFFFFFFFF); // white accent (monochrome)
-const Color _onAccent = Color(0xFF000000);
+/// Navigation arguments passed when opening MediaPickerPage
+class MediaPickerArgs {
+  const MediaPickerArgs({this.appendToCurrent = false});
+  final bool appendToCurrent;
+}
 
 String _fmt(Duration d) {
   final int s = d.inSeconds;
@@ -80,10 +74,11 @@ class _Picked {
 enum _Perm { checking, granted, denied }
 
 class MediaPickerPage extends StatefulWidget {
-  const MediaPickerPage({super.key});
+  const MediaPickerPage({super.key, this.args});
 
-  /// Call this early (app start, home screen, first project tap) so the
-  /// permission dialog is already answered when the gallery opens.
+  final MediaPickerArgs? args;
+
+  /// Call this early so the permission dialog is answered when gallery opens.
   static Future<bool> ensurePermission() async {
     final PermissionState ps = await PhotoManager.requestPermissionExtend();
     return ps.hasAccess;
@@ -182,7 +177,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         _albums = albums;
         _album = albums.isNotEmpty ? albums.first : null;
         _hasMore = _album != null;
-        if (_album == null) _loading = false; // nothing to load -> stop spinner
+        if (_album == null) _loading = false;
       });
       _busy = false;
       await _loadMore();
@@ -222,7 +217,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   Future<void> _chooseAlbum() async {
     final AssetPathEntity? picked = await showModalBottomSheet<AssetPathEntity>(
       context: context,
-      backgroundColor: _surface,
+      backgroundColor: EditorTokens.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
       ),
@@ -233,14 +228,14 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             for (final AssetPathEntity a in _albums)
               ListTile(
                 title: Text(a.isAll ? 'Recent' : a.name,
-                    style: const TextStyle(color: _text, fontSize: 15)),
+                    style: const TextStyle(color: EditorTokens.text, fontSize: 15)),
                 trailing: FutureBuilder<int>(
                   future: a.assetCountAsync,
                   builder: (_, AsyncSnapshot<int> s) => Text('${s.data ?? ''}',
-                      style: const TextStyle(color: _muted, fontSize: 13)),
+                      style: const TextStyle(color: EditorTokens.muted, fontSize: 13)),
                 ),
                 selected: a.id == _album?.id,
-                selectedColor: _accent,
+                selectedColor: EditorTokens.text,
                 onTap: () => Navigator.of(sheetCtx).pop(a),
               ),
           ],
@@ -275,15 +270,14 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     });
   }
 
-  /// Fallback for audio on platforms where the gallery can't list it (iOS),
-  /// or for files outside the media library.
   Future<void> _browseFiles() async {
     try {
-      final FilePickerResult? result = await FilePicker.platform
-          .pickFiles(type: FileType.any, allowMultiple: true);
-      if (result == null || result.files.isEmpty) return;
+      final List<PlatformFile> files = await FilePicker.pickFiles(
+        type: FileType.any,
+      );
+      if (files.isEmpty) return;
       setState(() {
-        for (final PlatformFile file in result.files) {
+        for (final PlatformFile file in files) {
           final String ext = file.extension?.toLowerCase() ?? '';
           final bool isVid =
               <String>['mp4', 'mov', 'avi', 'mkv', 'webm', '3gp'].contains(ext);
@@ -321,6 +315,10 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     setState(() => _adding = true);
 
     try {
+      final MediaPickerArgs? routeArgs =
+          ModalRoute.of(context)?.settings.arguments as MediaPickerArgs? ?? widget.args;
+      final bool appendToCurrent = routeArgs?.appendToCurrent ?? false;
+
       final List<TimelineClip> clips = <TimelineClip>[];
       Duration offset = Duration.zero;
       final int stamp = DateTime.now().millisecondsSinceEpoch;
@@ -347,6 +345,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
           label: name,
           start: offset,
           end: offset + d,
+          sourceDuration: d,
           clipType: p.type,
           layerIndex: isAudio ? 1 : 0,
           sourcePath: path,
@@ -356,18 +355,24 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       }
 
       if (!mounted) return;
-      final ProjectsController projects =
-          Provider.of<ProjectsController>(context, listen: false);
       final EditorController editor =
           Provider.of<EditorController>(context, listen: false);
 
-      final newProj = projects.createProject(
-        name: _selected.first.name,
-        clips: clips,
-      );
-      editor.loadProject(newProj);
+      if (appendToCurrent) {
+        editor.addClips(clips);
+        Navigator.of(context).pop();
+      } else {
+        final ProjectsController projects =
+            Provider.of<ProjectsController>(context, listen: false);
 
-      Navigator.of(context).pushReplacementNamed('/editor');
+        final newProj = projects.createProject(
+          name: _selected.first.name,
+          clips: clips,
+        );
+        editor.loadProject(newProj);
+
+        Navigator.of(context).pushReplacementNamed('/editor');
+      }
     } catch (e) {
       _snack('Could not add media: $e');
       if (mounted) setState(() => _adding = false);
@@ -379,7 +384,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: EditorTokens.bg,
       body: SafeArea(
         child: Column(
           children: <Widget>[
@@ -403,7 +408,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.close_rounded, color: _text),
+            icon: const Icon(Icons.close_rounded, color: EditorTokens.text),
             tooltip: 'Close',
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -423,13 +428,13 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                             ? 'Gallery'
                             : (_album!.isAll ? 'Recent' : _album!.name),
                         style: const TextStyle(
-                            color: _text,
+                            color: EditorTokens.text,
                             fontSize: 16,
                             fontWeight: FontWeight.w700),
                       ),
                       if (_albums.isNotEmpty)
                         const Icon(Icons.keyboard_arrow_down_rounded,
-                            color: _text),
+                            color: EditorTokens.text),
                     ],
                   ),
                 ),
@@ -437,7 +442,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.folder_open_rounded, color: _text),
+            icon: const Icon(Icons.folder_open_rounded, color: EditorTokens.text),
             tooltip: 'Browse files',
             onPressed: _browseFiles,
           ),
@@ -451,12 +456,12 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       controller: _tabs,
       isScrollable: true,
       tabAlignment: TabAlignment.start,
-      indicatorColor: _accent,
+      indicatorColor: EditorTokens.text,
       indicatorWeight: 2,
       indicatorSize: TabBarIndicatorSize.label,
-      labelColor: _text,
-      unselectedLabelColor: _muted,
-      dividerColor: _border,
+      labelColor: EditorTokens.text,
+      unselectedLabelColor: EditorTokens.muted,
+      dividerColor: EditorTokens.border,
       overlayColor: WidgetStateProperty.all(Colors.transparent),
       labelPadding: const EdgeInsets.symmetric(horizontal: 18),
       labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
@@ -473,22 +478,22 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
   Widget _limitedBanner() {
     return Container(
-      color: _elevated,
+      color: EditorTokens.elevated,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.info_outline_rounded, size: 16, color: _muted),
+          const Icon(Icons.info_outline_rounded, size: 16, color: EditorTokens.muted),
           const SizedBox(width: 8),
           const Expanded(
             child: Text('Limited access: only selected items are shown.',
-                style: TextStyle(color: _muted, fontSize: 12)),
+                style: TextStyle(color: EditorTokens.muted, fontSize: 12)),
           ),
           TextButton(
             onPressed: () async {
               await PhotoManager.presentLimited();
               _loadAlbums();
             },
-            child: const Text('Manage', style: TextStyle(color: _text)),
+            child: const Text('Manage', style: TextStyle(color: EditorTokens.text)),
           ),
         ],
       ),
@@ -497,12 +502,12 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
   Widget _body() {
     if (_perm == _Perm.checking) {
-      return const Center(child: CircularProgressIndicator(color: _accent));
+      return const Center(child: CircularProgressIndicator(color: EditorTokens.text));
     }
     if (_perm == _Perm.denied) return _deniedView();
 
     if (_loading && _assets.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: _accent));
+      return const Center(child: CircularProgressIndicator(color: EditorTokens.text));
     }
 
     if (_assets.isEmpty) {
@@ -510,17 +515,17 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.perm_media_outlined, size: 56, color: _muted),
+            const Icon(Icons.perm_media_outlined, size: 56, color: EditorTokens.muted),
             const SizedBox(height: 12),
             const Text('Nothing here yet',
-                style: TextStyle(color: _muted, fontSize: 15)),
+                style: TextStyle(color: EditorTokens.muted, fontSize: 15)),
             if (_tabs.index == 3) ...<Widget>[
               const SizedBox(height: 14),
               OutlinedButton.icon(
                 onPressed: _browseFiles,
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: _text,
-                  side: const BorderSide(color: _border),
+                  foregroundColor: EditorTokens.text,
+                  side: const BorderSide(color: EditorTokens.border),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20)),
                 ),
@@ -562,23 +567,23 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Icon(Icons.photo_library_outlined, size: 56, color: _muted),
+          const Icon(Icons.photo_library_outlined, size: 56, color: EditorTokens.muted),
           const SizedBox(height: 16),
           const Text('Allow access to your gallery',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
+                  color: EditorTokens.text, fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           const Text(
             'Photos, videos and audio are shown right here, so you never have to leave the app to pick them.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: _muted, fontSize: 13),
+            style: TextStyle(color: EditorTokens.muted, fontSize: 13),
           ),
           const SizedBox(height: 28),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: _accent,
-              foregroundColor: _onAccent,
+              backgroundColor: EditorTokens.text,
+              foregroundColor: EditorTokens.bg,
               elevation: 0,
               minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(
@@ -591,7 +596,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => PhotoManager.openSetting(),
-            child: const Text('Open settings', style: TextStyle(color: _muted)),
+            child: const Text('Open settings', style: TextStyle(color: EditorTokens.muted)),
           ),
         ],
       ),
@@ -602,8 +607,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     return Container(
       height: 76,
       decoration: const BoxDecoration(
-        color: _surface,
-        border: Border(top: BorderSide(color: _border)),
+        color: EditorTokens.surface,
+        border: Border(top: BorderSide(color: EditorTokens.border)),
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
@@ -623,12 +628,12 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                     _Thumb(entity: p.entity!, size: 160)
                   else
                     Container(
-                      color: _elevated,
+                      color: EditorTokens.elevated,
                       child: Icon(
                         p.type == ClipType.audio
                             ? Icons.music_note_rounded
                             : Icons.image_outlined,
-                        color: _muted,
+                        color: EditorTokens.muted,
                         size: 22,
                       ),
                     ),
@@ -663,8 +668,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: const BoxDecoration(
-        color: _bg,
-        border: Border(top: BorderSide(color: _border)),
+        color: EditorTokens.bg,
+        border: Border(top: BorderSide(color: EditorTokens.border)),
       ),
       child: Row(
         children: <Widget>[
@@ -673,7 +678,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
               _selected.isEmpty
                   ? 'Select items to add'
                   : '${_selected.length} selected',
-              style: const TextStyle(color: _muted, fontSize: 13),
+              style: const TextStyle(color: EditorTokens.muted, fontSize: 13),
             ),
           ),
           SizedBox(
@@ -681,10 +686,10 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             child: ElevatedButton(
               onPressed: enabled ? _addMediaToProject : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _accent,
-                foregroundColor: _onAccent,
-                disabledBackgroundColor: _elevated,
-                disabledForegroundColor: _muted,
+                backgroundColor: EditorTokens.text,
+                foregroundColor: EditorTokens.bg,
+                disabledBackgroundColor: EditorTokens.elevated,
+                disabledForegroundColor: EditorTokens.muted,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 28),
                 shape: RoundedRectangleBorder(
@@ -695,7 +700,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: _onAccent),
+                          strokeWidth: 2, color: EditorTokens.bg),
                     )
                   : Text('Add (${_selected.length})',
                       style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -736,18 +741,18 @@ class _Cell extends StatelessWidget {
         children: <Widget>[
           if (isAudio)
             Container(
-              color: _elevated,
+              color: EditorTokens.elevated,
               padding: const EdgeInsets.all(6),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  const Icon(Icons.music_note_rounded, color: _muted, size: 26),
+                  const Icon(Icons.music_note_rounded, color: EditorTokens.muted, size: 26),
                   const SizedBox(height: 4),
                   Text(entity.title ?? '',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: _text, fontSize: 10)),
+                      style: const TextStyle(color: EditorTokens.text, fontSize: 10)),
                 ],
               ),
             )
@@ -759,7 +764,7 @@ class _Cell extends StatelessWidget {
               child: IgnorePointer(
                 child: Container(
                   decoration:
-                      BoxDecoration(border: Border.all(color: _accent, width: 2)),
+                      BoxDecoration(border: Border.all(color: EditorTokens.text, width: 2)),
                 ),
               ),
             ),
@@ -791,14 +796,14 @@ class _Cell extends StatelessWidget {
               height: 20,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: sel ? _accent : Colors.black.withAlpha(90),
+                color: sel ? EditorTokens.text : Colors.black.withAlpha(90),
                 border: Border.all(color: Colors.white, width: 1.5),
               ),
               child: sel
                   ? Center(
                       child: Text('$order',
                           style: const TextStyle(
-                              color: _onAccent,
+                              color: EditorTokens.bg,
                               fontSize: 11,
                               fontWeight: FontWeight.w800)),
                     )
@@ -848,7 +853,7 @@ class _ThumbState extends State<_Thumb> {
 
   @override
   Widget build(BuildContext context) {
-    if (_data == null) return const ColoredBox(color: _elevated);
+    if (_data == null) return const ColoredBox(color: EditorTokens.elevated);
     return Image.memory(_data!, fit: BoxFit.cover, gaplessPlayback: true);
   }
 }
