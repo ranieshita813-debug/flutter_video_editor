@@ -1043,7 +1043,7 @@ class _ToolDockState extends State<_ToolDock> {
       height: 66,
       decoration: const BoxDecoration(
         color: _bg,
-        border: Border(top: BorderSide(color: _border)),
+        
       ),
       child: Row(
         children: <Widget>[
