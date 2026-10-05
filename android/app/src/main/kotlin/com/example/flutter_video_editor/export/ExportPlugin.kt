@@ -11,7 +11,6 @@ import androidx.media3.transformer.Composition
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
-import androidx.media3.transformer.TransformationRequest
 import androidx.media3.transformer.Transformer
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
@@ -328,10 +327,6 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                 MimeTypes.VIDEO_H264
             }
 
-            val transformationRequest = TransformationRequest.Builder()
-                .setVideoMimeType(mimeType)
-                .build()
-
             val transformerListener = object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     if (isCancelled) {
@@ -360,7 +355,7 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
             }
 
             val transformer = Transformer.Builder(ctx)
-                .setTransformationRequest(transformationRequest)
+                .setVideoMimeType(mimeType)
                 .addListener(transformerListener)
                 .build()
 
