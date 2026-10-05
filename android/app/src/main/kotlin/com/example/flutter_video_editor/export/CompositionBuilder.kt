@@ -109,7 +109,7 @@ object CompositionBuilder {
 
         val sequenceBuilder = EditedMediaItemSequence.Builder()
         for (item in videoItems) {
-            sequenceBuilder.addMediaItem(item)
+            sequenceBuilder.addItem(item)
         }
 
         return Composition.Builder(listOf(sequenceBuilder.build())).build()
