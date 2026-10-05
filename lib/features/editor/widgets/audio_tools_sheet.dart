@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -122,7 +123,7 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: _text),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -139,7 +140,7 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon: const Icon(Icons.music_note_rounded, size: 18),
+                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedMusic01, size: 18),
                     label: const Text('Add Track'),
                     onPressed: () {
                       controller.addAudioTrack(
@@ -158,7 +159,7 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon: const Icon(Icons.subtitles_rounded, size: 18),
+                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedText, size: 18),
                     label: const Text('Auto Captions'),
                     onPressed: () {
                       controller.generateAutoCaptions();

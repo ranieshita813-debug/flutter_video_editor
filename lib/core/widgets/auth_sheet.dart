@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -68,7 +69,7 @@ class _AuthSheetState extends State<AuthSheet> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: AppColors.textSecondary),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -115,7 +116,7 @@ class _AuthSheetState extends State<AuthSheet> {
                     side: const BorderSide(color: AppColors.error),
                     minimumSize: const Size.fromHeight(48),
                   ),
-                  icon: const Icon(Icons.logout),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedLogout01),
                   label: const Text('Sign Out'),
                   onPressed: () async {
                     final navigator = Navigator.of(context);

@@ -1,4 +1,4 @@
-import 'dart:ui' show FontFeature;
+import 'package:hugeicons/hugeicons.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,20 +17,20 @@ const Color _accent = Color(0xFF5B8CFF);
 /// The camera parameters shown in the inline panel, grouped like a real camera:
 /// lens, exposure, orientation.
 enum _Cam {
-  fov('FOV', Icons.panorama_wide_angle_outlined, 10, 120),
-  focal('Focal', Icons.center_focus_strong_outlined, 14, 200),
-  zoom('Zoom', Icons.zoom_in_rounded, 0.5, 5),
-  iso('ISO', Icons.grain_rounded, 100, 6400),
-  shutter('Shutter', Icons.shutter_speed_rounded, 0.001, 0.1),
-  aperture('Aperture', Icons.lens_blur_rounded, 1.2, 22),
-  wb('White bal.', Icons.wb_sunny_outlined, 2000, 10000),
-  pan('Pan', Icons.swap_horiz_rounded, -180, 180),
-  tilt('Tilt', Icons.swap_vert_rounded, -90, 90),
-  roll('Roll', Icons.rotate_right_rounded, -180, 180);
+  fov('FOV', HugeIcons.strokeRoundedView, 10, 120),
+  focal('Focal', HugeIcons.strokeRoundedTarget01, 14, 200),
+  zoom('Zoom', HugeIcons.strokeRoundedZoomInArea, 0.5, 5),
+  iso('ISO', HugeIcons.strokeRoundedSun01, 100, 6400),
+  shutter('Shutter', HugeIcons.strokeRoundedTime01, 0.001, 0.1),
+  aperture('Aperture', HugeIcons.strokeRoundedCircle, 1.2, 22),
+  wb('White bal.', HugeIcons.strokeRoundedSun01, 2000, 10000),
+  pan('Pan', HugeIcons.strokeRoundedArrowLeftRight, -180, 180),
+  tilt('Tilt', HugeIcons.strokeRoundedArrowUpDown, -90, 90),
+  roll('Roll', HugeIcons.strokeRoundedRotateRight01, -180, 180);
 
   const _Cam(this.label, this.icon, this.min, this.max);
   final String label;
-  final IconData icon;
+  final List<List<dynamic>> icon;
   final double min;
   final double max;
 
@@ -153,14 +153,14 @@ class _CameraSettingsSheetState extends State<CameraSettingsSheet> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         children: <Widget>[
-          _pill(Icons.restart_alt_rounded, 'Reset', () => _apply(c, const CameraProperties())),
+          _pill(HugeIcons.strokeRoundedRefresh01, 'Reset', () => _apply(c, const CameraProperties())),
           for (final p in _presets) _pill(null, p.$1, () => _apply(c, p.$2)),
         ],
       ),
     );
   }
 
-  Widget _pill(IconData? icon, String label, VoidCallback onTap) => Padding(
+  Widget _pill(List<List<dynamic>>? icon, String label, VoidCallback onTap) => Padding(
         padding: const EdgeInsets.only(right: 8),
         child: GestureDetector(
           onTap: () {
@@ -179,7 +179,7 @@ class _CameraSettingsSheetState extends State<CameraSettingsSheet> {
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
                 if (icon != null) ...<Widget>[
-                  Icon(icon, size: 14, color: _muted),
+                  HugeIcon(icon: icon, size: 14, color: _muted),
                   const SizedBox(width: 5),
                 ],
                 Text(label,
@@ -236,7 +236,7 @@ class _CameraSettingsSheetState extends State<CameraSettingsSheet> {
                     color: on ? _text : _chip,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(p.icon, size: 19, color: on ? Colors.black : _text),
+                  child: HugeIcon(icon: p.icon, size: 19, color: on ? Colors.black : _text),
                 ),
                 if (changed)
                   Positioned(
@@ -286,7 +286,7 @@ class _CameraSettingsSheetState extends State<CameraSettingsSheet> {
               IconButton(
                 tooltip: 'Reset ${p.label}',
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.restart_alt_rounded, color: _muted, size: 20),
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedRefresh01, color: _muted, size: 20),
                 onPressed: () {
                   HapticFeedback.selectionClick();
                   _apply(c, p.write(_camera, def));
@@ -331,7 +331,7 @@ class _EmptyState extends StatelessWidget {
       child: const Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(Icons.touch_app_outlined, color: Colors.white38, size: 30),
+          HugeIcon(icon: HugeIcons.strokeRoundedTouch01, color: Colors.white38, size: 30),
           SizedBox(height: 8),
           Text('Select a clip to adjust its camera',
               textAlign: TextAlign.center,

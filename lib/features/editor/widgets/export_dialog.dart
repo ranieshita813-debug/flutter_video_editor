@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -126,7 +127,7 @@ class _ExportModalState extends State<ExportModal> {
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: Icon(Icons.close_rounded,
+            icon: HugeIcon(icon: HugeIcons.strokeRoundedCancel01,
                 color: isExporting ? Colors.white24 : _text, size: 26),
             tooltip: 'Close',
             onPressed: isExporting
@@ -220,7 +221,7 @@ class _ExportModalState extends State<ExportModal> {
             height: 54,
             decoration:
                 BoxDecoration(color: _track, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.movie_creation_outlined, color: _muted),
+            child: const HugeIcon(icon: HugeIcons.strokeRoundedVideo01, color: _muted),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -273,7 +274,7 @@ class _ExportModalState extends State<ExportModal> {
             elevation: 0,
             shape: _pill,
           ),
-          icon: const Icon(Icons.ios_share_rounded, size: 20),
+          icon: const HugeIcon(icon: HugeIcons.strokeRoundedShare01, size: 20),
           label: const Text('Export',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           onPressed: () {
@@ -313,7 +314,7 @@ class _ExportModalState extends State<ExportModal> {
                   color: state == 0 ? _track : Colors.white, width: state == 1 ? 2 : 1.5),
             ),
             child: state == 2
-                ? const Icon(Icons.check_rounded, size: 16, color: Colors.black)
+                ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 16, color: Colors.black)
                 : state == 1
                     ? const Center(
                         child: SizedBox(
@@ -426,7 +427,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(50),
               shape: _pill,
             ),
-            icon: const Icon(Icons.close_rounded, size: 18),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 18),
             label: const Text('Cancel export'),
             onPressed: () => exportCtrl?.cancelExport(),
           ),
@@ -437,12 +438,12 @@ class _ExportModalState extends State<ExportModal> {
 
   // ---- Done / Failed ---------------------------------------------------------
 
-  Widget _statusIcon(IconData icon, Color color, Color bg) => Center(
+  Widget _statusHugeIcon(List<List<dynamic>> icon, Color color, Color bg) => Center(
         child: Container(
           width: 84,
           height: 84,
           decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-          child: Icon(icon, size: 44, color: color),
+          child: HugeIcon(icon: icon, size: 44, color: color),
         ),
       );
 
@@ -453,7 +454,7 @@ class _ExportModalState extends State<ExportModal> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _statusIcon(Icons.check_rounded, _green, _doneBtn),
+          _statusHugeIcon(HugeIcons.strokeRoundedTick01, _green, _doneBtn),
           const SizedBox(height: 18),
           const Text('Export complete',
               textAlign: TextAlign.center,
@@ -471,7 +472,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(52),
               shape: _pill,
             ),
-            icon: const Icon(Icons.share_rounded, size: 18),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedShare01, size: 18),
             label: const Text('Share video', style: TextStyle(fontWeight: FontWeight.w700)),
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Share option ready')),
@@ -485,7 +486,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(52),
               shape: _pill,
             ),
-            icon: const Icon(Icons.save_alt_rounded, size: 18),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedDownload01, size: 18),
             label: const Text('Save to gallery'),
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Video saved to device gallery')),
@@ -511,7 +512,7 @@ class _ExportModalState extends State<ExportModal> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _statusIcon(Icons.priority_high_rounded, _red, _doneBtn),
+          _statusHugeIcon(HugeIcons.strokeRoundedAlertCircle, _red, _doneBtn),
           const SizedBox(height: 18),
           const Text('Export failed',
               textAlign: TextAlign.center,
@@ -631,8 +632,8 @@ class _QualityTile extends StatelessWidget {
         ),
         child: Row(
           children: <Widget>[
-            Icon(
-              selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
+            HugeIcon(
+              icon: selected ? HugeIcons.strokeRoundedTick01 : HugeIcons.strokeRoundedCircle,
               size: 20,
               color: selected ? _purple : _muted,
             ),

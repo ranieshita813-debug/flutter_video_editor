@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -164,7 +165,7 @@ class _ColorGradingSheetState extends State<ColorGradingSheet> {
                     decoration: BoxDecoration(
                         color: _card, borderRadius: BorderRadius.circular(12)),
                     child: const Row(children: <Widget>[
-                      Icon(Icons.compare_rounded, size: 16, color: _text),
+                      HugeIcon(icon: HugeIcons.strokeRoundedView, size: 16, color: _text),
                       SizedBox(width: 6),
                       Text('Hold to compare',
                           style: TextStyle(color: _text, fontSize: 12)),
@@ -172,7 +173,7 @@ class _ColorGradingSheetState extends State<ColorGradingSheet> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: _text),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],

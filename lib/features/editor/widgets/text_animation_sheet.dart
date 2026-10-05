@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -99,7 +100,7 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, color: _text),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -166,7 +167,7 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
                         color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
                 const Spacer(),
                 TextButton.icon(
-                  icon: const Icon(Icons.add_rounded, size: 16, color: _text),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 16, color: _text),
                   label: const Text('Add Font',
                       style: TextStyle(color: _text, fontSize: 12)),
                   onPressed: () {

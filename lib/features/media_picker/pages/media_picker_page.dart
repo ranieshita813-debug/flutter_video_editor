@@ -1,3 +1,4 @@
+import 'package:hugeicons/hugeicons.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -383,7 +384,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.close_rounded, color: _text),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text),
             tooltip: 'Close',
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -402,7 +403,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                             color: _text, fontSize: 15, fontWeight: FontWeight.w600),
                       ),
                       if (_albums.isNotEmpty)
-                        const Icon(Icons.keyboard_arrow_down_rounded, color: _text),
+                        const HugeIcon(icon: HugeIcons.strokeRoundedArrowDown01, color: _text),
                     ],
                   ),
                 ),
@@ -410,7 +411,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.folder_open_rounded, color: _text),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolder01, color: _text),
             tooltip: 'Browse files',
             onPressed: _browseFiles,
           ),
@@ -448,7 +449,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.info_outline_rounded, size: 16, color: _muted),
+          const HugeIcon(icon: HugeIcons.strokeRoundedInformationCircle, size: 16, color: _muted),
           const SizedBox(width: 8),
           const Expanded(
             child: Text('Limited access: only selected items are shown.',
@@ -481,7 +482,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.perm_media_outlined, size: 56, color: _muted),
+            const HugeIcon(icon: HugeIcons.strokeRoundedFolder01, size: 56, color: _muted),
             const SizedBox(height: 12),
             const Text('Nothing here yet',
                 style: TextStyle(color: _muted, fontSize: 15)),
@@ -494,7 +495,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                   side: const BorderSide(color: _border),
                   shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
                 ),
-                icon: const Icon(Icons.folder_open_rounded, size: 18),
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolder01, size: 18),
                 label: const Text('Browse audio files'),
               ),
             ],
@@ -532,7 +533,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Icon(Icons.photo_library_outlined, size: 56, color: _muted),
+          const HugeIcon(icon: HugeIcons.strokeRoundedFolder01, size: 56, color: _muted),
           const SizedBox(height: 16),
           const Text('Allow access to your gallery',
               textAlign: TextAlign.center,
@@ -586,10 +587,10 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 else
                   Container(
                     color: _elevated,
-                    child: Icon(
-                      p.type == ClipType.audio
-                          ? Icons.music_note_rounded
-                          : Icons.image_outlined,
+                    child: HugeIcon(
+                      icon: p.type == ClipType.audio
+                          ? HugeIcons.strokeRoundedMusic01
+                          : HugeIcons.strokeRoundedImage01,
                       color: _muted,
                       size: 22,
                     ),
@@ -603,7 +604,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                       width: 18,
                       height: 18,
                       color: Colors.black.withAlpha(190),
-                      child: const Icon(Icons.close_rounded, size: 13, color: Colors.white),
+                      child: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 13, color: Colors.white),
                     ),
                   ),
                 ),
@@ -689,7 +690,7 @@ class _Cell extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  const Icon(Icons.music_note_rounded, color: _muted, size: 26),
+                  const HugeIcon(icon: HugeIcons.strokeRoundedMusic01, color: _muted, size: 26),
                   const SizedBox(height: 4),
                   Text(entity.title ?? '',
                       maxLines: 2,
