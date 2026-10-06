@@ -3,12 +3,14 @@ import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
 import 'package:flutter_video_editor/core/theme/app_theme.dart';
+import 'package:flutter_video_editor/features/auth/pages/auth_page.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
-import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
 import 'package:flutter_video_editor/features/editor/pages/editor_page.dart';
+import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
 import 'package:flutter_video_editor/features/media_picker/pages/media_picker_page.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 import 'package:flutter_video_editor/features/projects/pages/home_page.dart';
+import 'package:flutter_video_editor/features/settings/pages/settings_page.dart';
 import 'package:flutter_video_editor/features/splash/pages/splash_screen.dart';
 
 class VideoEditorApp extends StatelessWidget {
@@ -32,6 +34,8 @@ class VideoEditorApp extends StatelessWidget {
           '/home': (_) => const HomePage(),
           '/media_picker': (_) => const MediaPickerPage(),
           '/editor': (_) => const EditorPage(),
+          '/auth': (_) => const AuthPage(),
+          '/settings': (_) => const SettingsPage(),
         },
       ),
     );
