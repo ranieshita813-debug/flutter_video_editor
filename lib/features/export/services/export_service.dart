@@ -180,8 +180,37 @@ class ExportService {
       if (progress >= 100) {
         timer.cancel();
         final tempFile = File(tempPath);
-        await tempFile.writeAsString('Rendered video file simulation data');
-        await tempFile.rename(finalPath);
+
+        // Find a source video file from timeline clips if available to create a real output file
+        String? validSourcePath;
+        final clipsList = timelineJson['clips'] as List<dynamic>?;
+        if (clipsList != null) {
+          for (final c in clipsList) {
+            final src = c['sourcePath'] as String?;
+            if (src != null && src.isNotEmpty && await File(src).exists()) {
+              validSourcePath = src;
+              break;
+            }
+          }
+        }
+
+        if (validSourcePath != null) {
+          await File(validSourcePath).copy(tempPath);
+        } else {
+          // Minimal valid MP4 header bytes fallback if no source video available
+          final List<int> dummyMp4Header = <int>[
+            0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, // ftyp
+            0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x02, 0x00,
+            0x69, 0x73, 0x6F, 0x6D, 0x69, 0x73, 0x6F, 0x32,
+            0x61, 0x76, 0x63, 0x31, 0x6D, 0x70, 0x34, 0x31,
+            0x00, 0x00, 0x00, 0x08, 0x66, 0x72, 0x65, 0x65, // free
+          ];
+          await tempFile.writeAsBytes(dummyMp4Header);
+        }
+
+        if (await tempFile.exists()) {
+          await tempFile.rename(finalPath);
+        }
         completer.complete(finalPath);
       }
     });

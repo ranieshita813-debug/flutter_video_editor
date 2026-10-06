@@ -220,10 +220,11 @@ Future<List<double>> _fallbackWave(String path, int bars) async {
 // ----------------------------------------------------------------------------
 enum _Tool {
   audio('Audio', HugeIcons.strokeRoundedVolumeHigh),
-  text('Text', HugeIcons.strokeRoundedTextFont),
+  text('Add Text', HugeIcons.strokeRoundedTextFont),
   stickers('Stickers', HugeIcons.strokeRoundedSmile),
   filters('Filters', HugeIcons.strokeRoundedFilter),
   effects('Effects', HugeIcons.strokeRoundedMagicWand01),
+  chromaKey('Chroma Key', HugeIcons.strokeRoundedColorPicker),
   adjust('Adjust', HugeIcons.strokeRoundedLayers01),
   crop('Canvas', HugeIcons.strokeRoundedCrop),
   speed('Speed', HugeIcons.strokeRoundedTime01),
@@ -245,6 +246,7 @@ enum _Tool {
         _Tool.stickers => const StickersSheet(),
         _Tool.filters => const EffectsSheet(isFilterMode: true),
         _Tool.effects => const EffectsSheet(isFilterMode: false),
+        _Tool.chromaKey => const ChromaKeySheet(),
         _Tool.adjust => const ColorGradingSheet(),
         _Tool.crop => const CropSheet(),
         _Tool.speed => const SpeedSheet(),
@@ -897,19 +899,117 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
       if (sc != 1.0) child = Transform.scale(scale: sc, child: child);
     }
 
+    // Chroma Key color filter
+    if (clip != null && clip.chromaKey.isEnabled) {
+      final keyColor = clip.chromaKey.keyColor;
+      final double sim = clip.chromaKey.similarity;
+      final double kr = keyColor.r / 255.0;
+      final double kg = keyColor.g / 255.0;
+      final double kb = keyColor.b / 255.0;
+
+      // Real-time chroma key color transformation matrix
+      final double alphaCoeff = 1.0 - sim;
+      child = ColorFiltered(
+        colorFilter: ColorFilter.matrix(<double>[
+          1.0, 0, 0, 0, 0,
+          0, 1.0, 0, 0, 0,
+          0, 0, 1.0, 0, 0,
+          -kr * (1.0 - alphaCoeff), -kg * (1.0 - alphaCoeff), -kb * (1.0 - alphaCoeff), alphaCoeff, 0,
+        ]),
+        child: child,
+      );
+    }
+
+    // Opacity
+    if (clip != null && clip.opacity < 1.0) {
+      child = Opacity(opacity: clip.opacity.clamp(0.0, 1.0), child: child);
+    }
+
+    // Video Effects
+    if (clip != null && clip.effect != VideoEffect.none) {
+      switch (clip.effect) {
+        case VideoEffect.warm:
+          child = ColorFiltered(
+            colorFilter: const ColorFilter.matrix(<double>[
+              1.2, 0, 0, 0, 10,
+              0, 1.0, 0, 0, 0,
+              0, 0, 0.8, 0, -10,
+              0, 0, 0, 1, 0,
+            ]),
+            child: child,
+          );
+        case VideoEffect.cinematic:
+          child = ColorFiltered(
+            colorFilter: const ColorFilter.matrix(<double>[
+              1.1, 0, 0, 0, -10,
+              0, 1.1, 0, 0, -5,
+              0, 0, 1.2, 0, 15,
+              0, 0, 0, 1, 0,
+            ]),
+            child: child,
+          );
+        case VideoEffect.noir:
+          child = ColorFiltered(
+            colorFilter: const ColorFilter.matrix(<double>[
+              0.2126, 0.7152, 0.0722, 0, 0,
+              0.2126, 0.7152, 0.0722, 0, 0,
+              0.2126, 0.7152, 0.0722, 0, 0,
+              0, 0, 0, 1, 0,
+            ]),
+            child: child,
+          );
+        case VideoEffect.vibrant:
+          child = ColorFiltered(
+            colorFilter: const ColorFilter.matrix(<double>[
+              1.3, -0.1, -0.1, 0, 0,
+              -0.1, 1.3, -0.1, 0, 0,
+              -0.1, -0.1, 1.3, 0, 0,
+              0, 0, 0, 1, 0,
+            ]),
+            child: child,
+          );
+        case VideoEffect.vintage:
+          child = ColorFiltered(
+            colorFilter: const ColorFilter.matrix(<double>[
+              0.9, 0.2, 0.1, 0, 15,
+              0.1, 0.8, 0.1, 0, 10,
+              0.1, 0.1, 0.6, 0, 5,
+              0, 0, 0, 1, 0,
+            ]),
+            child: child,
+          );
+        case VideoEffect.retro:
+          child = ColorFiltered(
+            colorFilter: const ColorFilter.matrix(<double>[
+              0.8, 0.2, 0.1, 0, 20,
+              0.1, 0.9, 0.1, 0, 0,
+              0.1, 0.1, 0.7, 0, 20,
+              0, 0, 0, 1, 0,
+            ]),
+            child: child,
+          );
+        default:
+          break;
+      }
+    }
+
     final cg = clip?.colorGrading;
     if (cg != null) {
       final double b = cg.brightness;
       final double cont = cg.contrast;
       final double s = cg.saturation;
-      if (b != 0.0 || cont != 1.0 || s != 1.0) {
+      final double temp = cg.temperature; // -1 to 1
+      if (b != 0.0 || cont != 1.0 || s != 1.0 || temp != 0.0) {
         const double lr = 0.2126, lg = 0.7152, lb = 0.0722;
         final double sr = (1 - s) * lr, sg = (1 - s) * lg, sb = (1 - s) * lb;
         final double off = (0.5 * (1 - cont) + b) * 255;
+        final double tempR = temp > 0 ? temp * 20 : 0;
+        final double tempB = temp < 0 ? -temp * 20 : 0;
+
         final List<double> matrix = <double>[
-          cont * (sr + s), cont * sg, cont * sb, 0, off,
+          cont * (sr + s), cont * sg, cont * sb, 0, off + tempR,
           cont * sr, cont * (sg + s), cont * sb, 0, off,
-          cont * sr, cont * sg, cont * (sb + s), 0, off,
+          cont * sr, cont * sg, cont * (sb + s), 0, off + tempB,
           0, 0, 0, 1, 0,
         ];
         child = ColorFiltered(colorFilter: ColorFilter.matrix(matrix), child: child);
@@ -2065,52 +2165,86 @@ class _TimelineState extends State<_Timeline> {
       c.type != ClipType.audio && c.type != ClipType.video && c.type != ClipType.image;
 
   List<_Lane> _lanes(List<_ClipSnapshot> clips) {
-    final main = clips.where((c) => c.isMain).toList()
-      ..sort((a, b) => a.startMs.compareTo(b.startMs));
     final audio = clips.where((c) => c.type == ClipType.audio).toList();
-    final layers =
-        clips.where(_isOverlay).map<int>((c) => c.layer).toSet().toList()..sort();
+    final nonAudio = clips.where((c) => c.type != ClipType.audio).toList();
+    final layers = nonAudio.map<int>((c) => c.layer).toSet().toList()..sort();
+    if (!layers.contains(0)) layers.add(0);
+    layers.sort();
+
     return <_Lane>[
       for (final l in layers.reversed)
-        _Lane(_textH, _ClipKind.text,
-            clips.where((c) => _isOverlay(c) && c.layer == l).toList()),
-      _Lane(_videoH, _ClipKind.video, main, add: true),
+        if (l == 0)
+          _Lane(
+            _videoH,
+            _ClipKind.video,
+            clips.where((c) => c.isMain && c.layer == 0).toList()..sort((a, b) => a.startMs.compareTo(b.startMs)),
+            add: true,
+          )
+        else if (clips.any((c) => c.isMain && c.layer == l))
+          _Lane(
+            _videoH,
+            _ClipKind.video,
+            clips.where((c) => c.isMain && c.layer == l).toList()..sort((a, b) => a.startMs.compareTo(b.startMs)),
+          )
+        else
+          _Lane(
+            _textH,
+            _ClipKind.text,
+            clips.where((c) => _isOverlay(c) && c.layer == l).toList(),
+          ),
       if (audio.isNotEmpty) _Lane(_audioH, _ClipKind.audio, audio),
     ];
   }
 
   double _snapTime(double t, double pps, List<_ClipSnapshot> clips,
-      {String? excludeId}) {
+      {String? excludeId, double durationSec = 0.0}) {
     if (!_snap.value) return t;
     double best = t;
-    double bd = 8 / pps;
+    double bd = 12 / pps; // 12 screen pixels magnetic pull threshold
+
     final double ph = _seconds(editor.playhead);
-    for (final double e in <double>[ph, 0.0]) {
-      final double d = (e - t).abs();
-      if (d < bd) {
-        bd = d;
-        best = e;
-      }
-    }
+    final List<double> snapTargets = <double>[0.0, ph];
+
     for (final c in clips) {
       if (c.id == excludeId) continue;
-      for (final double e in <double>[c.startSec, c.endSec]) {
-        final double d = (e - t).abs();
+      snapTargets.add(c.startSec);
+      snapTargets.add(c.endSec);
+    }
+
+    // Snap start position
+    for (final target in snapTargets) {
+      final double d = (target - t).abs();
+      if (d < bd) {
+        bd = d;
+        best = target;
+      }
+    }
+
+    // Snap end position (if clip duration > 0)
+    if (durationSec > 0) {
+      for (final target in snapTargets) {
+        final double d = (target - (t + durationSec)).abs();
         if (d < bd) {
           bd = d;
-          best = e;
+          best = target - durationSec;
         }
       }
     }
-    if (best != t && _lastSnap != best) _tap();
-    _lastSnap = best != t ? best : null;
+
+    if (best != t && _lastSnap != best) {
+      HapticFeedback.lightImpact();
+      _lastSnap = best;
+    } else if (best == t) {
+      _lastSnap = null;
+    }
+
     return best;
   }
 
   // Neighbour clamp + snap for clip MOVE on the main lane.
   double _constrainMove(_ClipSnapshot clip, double desired, double pps,
       List<_ClipSnapshot> mainClips) {
-    double s = _snapTime(desired, pps, mainClips, excludeId: clip.id);
+    double s = _snapTime(desired, pps, mainClips, excludeId: clip.id, durationSec: clip.durSec);
     double lo = 0;
     double hi = double.infinity;
     for (final c in mainClips) {
@@ -2462,8 +2596,6 @@ class _TimelineState extends State<_Timeline> {
   }
 
   Widget _header(_Lane l, List<_ClipSnapshot> all) {
-    final bool locked = l.clips.isNotEmpty && l.clips.every((c) => c.locked);
-    final bool visible = l.clips.any((c) => c.visible);
     Widget btn(dynamic i, bool active, String tip, VoidCallback f) => Tooltip(
           message: tip,
           child: InkResponse(
@@ -2486,26 +2618,6 @@ class _TimelineState extends State<_Timeline> {
     final isTextLane = l.kind == _ClipKind.text && l.clips.isNotEmpty;
 
     final children = <Widget>[
-      btn(
-        locked ? HugeIcons.strokeRoundedLock : HugeIcons.strokeRoundedLockKey,
-        locked,
-        locked ? 'Unlock track' : 'Lock track',
-        () {
-          for (final c in l.clips) {
-            if (c.locked == locked) editor.toggleClipLock(c.id);
-          }
-        },
-      ),
-      btn(
-        visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff,
-        !visible,
-        visible ? 'Hide track' : 'Show track',
-        () {
-          for (final c in l.clips) {
-            if (c.visible == visible) editor.toggleClipVisibility(c.id);
-          }
-        },
-      ),
       if (isTextLane)
         btn(HugeIcons.strokeRoundedArrowUp01, true, 'Move layer higher', () {
           final first = l.clips.first;
@@ -2517,6 +2629,8 @@ class _TimelineState extends State<_Timeline> {
           editor.reorderClipLayer(first.id, first.layer - 1);
         }),
     ];
+
+    if (children.isEmpty) return const SizedBox.shrink();
 
     return l.h >= 50
         ? Column(mainAxisAlignment: MainAxisAlignment.center, children: children)
@@ -2833,12 +2947,6 @@ class _ClipBlockState extends State<_ClipBlock> {
               clipBehavior: Clip.none,
               children: <Widget>[
                 Positioned.fill(child: _buildBody()),
-                if (locked)
-                  const Positioned(
-                    top: 4,
-                    right: 6,
-                    child: Icon(Icons.lock_rounded, size: 11, color: Colors.white70),
-                  ),
                 if (inMulti)
                   const Positioned(
                     top: 4,
@@ -3291,12 +3399,18 @@ class _Toolbar extends StatelessWidget {
                             _vDivider(),
                           ],
                           tool(_Tool.audio),
+                          item(
+                            HugeIcons.strokeRoundedMusicNote02,
+                            'Extract Audio',
+                            selIsMain ? () => editor.extractAudioFromSelectedClip() : null,
+                          ),
                           tool(_Tool.text),
                           item(HugeIcons.strokeRoundedTextFont, 'Auto captions',
                               () => editor.generateAutoCaptions()),
                           tool(_Tool.stickers),
                           tool(_Tool.filters),
                           tool(_Tool.effects),
+                          tool(_Tool.chromaKey),
                           tool(_Tool.adjust),
                           tool(_Tool.crop),
                           tool(_Tool.speed),
@@ -3719,6 +3833,87 @@ class EffectsSheet extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class ChromaKeySheet extends StatelessWidget {
+  const ChromaKeySheet({super.key});
+
+  static const List<Color> _presetColors = <Color>[
+    Color(0xFF00FF00), // Green
+    Color(0xFF0000FF), // Blue
+    Color(0xFFFF0000), // Red
+    Color(0xFF00FFFF), // Cyan
+    Color(0xFF000000), // Black
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+    final clip = editor.selectedClip;
+    final chroma = clip?.chromaKey ?? const ChromaKeySettings();
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        _Card(
+          child: Row(
+            children: <Widget>[
+              const Text('Enable Chroma Key',
+                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Switch(
+                value: chroma.isEnabled,
+                activeTrackColor: _accent,
+                onChanged: clip == null
+                    ? null
+                    : (val) => editor.updateChromaKey(chroma.copyWith(isEnabled: val)),
+              ),
+            ],
+          ),
+        ),
+        if (chroma.isEnabled) ...<Widget>[
+          const SizedBox(height: 12),
+          const Text('Key Color Target',
+              style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: _presetColors
+                .map((color) => GestureDetector(
+                      onTap: () => editor.updateChromaKey(chroma.copyWith(keyColor: color)),
+                      child: CircleAvatar(
+                        backgroundColor: color,
+                        radius: 18,
+                        child: chroma.keyColor.toARGB32() == color.toARGB32()
+                            ? const HugeIcon(
+                                icon: HugeIcons.strokeRoundedTick01, size: 16, color: Colors.white)
+                            : null,
+                      ),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 14),
+          _SliderCard(
+            label: 'Similarity (Tolerance)',
+            value: chroma.similarity,
+            min: 0.0,
+            max: 1.0,
+            display: '${(chroma.similarity * 100).round()}%',
+            onChanged: (v) => editor.updateChromaKey(chroma.copyWith(similarity: v)),
+          ),
+          const SizedBox(height: 10),
+          _SliderCard(
+            label: 'Edge Smoothness',
+            value: chroma.smoothness,
+            min: 0.0,
+            max: 1.0,
+            display: '${(chroma.smoothness * 100).round()}%',
+            onChanged: (v) => editor.updateChromaKey(chroma.copyWith(smoothness: v)),
+          ),
+        ],
+      ],
     );
   }
 }

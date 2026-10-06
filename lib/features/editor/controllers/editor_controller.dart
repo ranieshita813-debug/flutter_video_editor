@@ -468,6 +468,20 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateChromaKey(ChromaKeySettings chromaKey) {
+    if (_selectedClipId == null) return;
+
+    final index = _project.clips.indexWhere(
+      (TimelineClip clip) => clip.id == _selectedClipId,
+    );
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] =
+        _project.clips[index].copyWith(chromaKey: chromaKey);
+    notifyListeners();
+  }
+
   void updateColorGrading(ColorGradingSettings colorGrading) {
     if (_selectedClipId == null) return;
 
@@ -483,6 +497,32 @@ class EditorController extends ChangeNotifier {
   }
 
   // Audio Tools & Multi-layer
+  void extractAudioFromSelectedClip() {
+    final clip = selectedClip;
+    if (clip == null || clip.clipType != ClipType.video) return;
+
+    _saveState();
+    final extractedAudio = TimelineClip(
+      id: 'audio_extracted_${DateTime.now().millisecondsSinceEpoch}',
+      label: 'Audio - ${clip.label}',
+      start: clip.start,
+      end: clip.end,
+      clipType: ClipType.audio,
+      layerIndex: 1,
+      sourcePath: clip.sourcePath,
+      volume: clip.volume,
+      audioProperties: clip.audioProperties,
+    );
+
+    // Optionally set video clip volume to 0 or leave as is
+    final index = _project.clips.indexOf(clip);
+    _project.clips[index] = clip.copyWith(volume: 0.0);
+
+    _project.addClip(extractedAudio);
+    _selectedClipId = extractedAudio.id;
+    notifyListeners();
+  }
+
   void addAudioTrack(String trackName, {double volume = 1.0}) {
     _saveState();
     final clip = TimelineClip(

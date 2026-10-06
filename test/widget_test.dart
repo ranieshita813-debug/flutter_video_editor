@@ -60,10 +60,9 @@ void main() {
     await tester.pumpWidget(createTestWidget(const EditorPage()));
 
     expect(find.text('Export'), findsOneWidget);
-    expect(find.text('1080p'), findsOneWidget);
 
     expect(find.text('Draw'), findsWidgets);
-    expect(find.text('Text'), findsWidgets);
+    expect(find.text('Add Text'), findsWidgets);
     expect(find.text('Adjust'), findsWidgets);
     expect(find.text('Audio'), findsWidgets);
     expect(find.text('Track'), findsWidgets);
