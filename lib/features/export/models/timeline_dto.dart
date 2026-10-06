@@ -75,6 +75,9 @@ class ClipDto {
     required this.audioProperties,
     required this.fontFamily,
     required this.textAnimationStyle,
+    required this.textStyle,
+    required this.inAnimation,
+    required this.outAnimation,
     required this.strokes,
     required this.stickerAssetPath,
     required this.effect,
@@ -101,6 +104,9 @@ class ClipDto {
   final Map<String, dynamic> audioProperties;
   final String fontFamily;
   final String textAnimationStyle;
+  final Map<String, dynamic> textStyle;
+  final String inAnimation;
+  final String outAnimation;
   final List<Map<String, dynamic>> strokes;
   final String? stickerAssetPath;
   final String effect;
@@ -143,6 +149,23 @@ class ClipDto {
       },
       fontFamily: clip.fontFamily,
       textAnimationStyle: clip.textAnimationStyle.name,
+      textStyle: <String, dynamic>{
+        'fontSize': clip.textStyle.fontSize,
+        'lineHeight': clip.textStyle.lineHeight,
+        'textColor': clip.textStyle.textColor.toARGB32(),
+        'textEffect': clip.textStyle.textEffect,
+        'strokeColor': clip.textStyle.strokeColor.toARGB32(),
+        'strokeWidth': clip.textStyle.strokeWidth,
+        'shadowColor': clip.textStyle.shadowColor.toARGB32(),
+        'shadowBlurRadius': clip.textStyle.shadowBlurRadius,
+        'shadowOffsetX': clip.textStyle.shadowOffsetX,
+        'shadowOffsetY': clip.textStyle.shadowOffsetY,
+        'backgroundColor': clip.textStyle.backgroundColor.toARGB32(),
+        'backgroundPadding': clip.textStyle.backgroundPadding,
+        'textAlign': clip.textStyle.textAlign.name,
+      },
+      inAnimation: clip.inAnimation.name,
+      outAnimation: clip.outAnimation.name,
       strokes: clip.strokes
           .map((stroke) => <String, dynamic>{
                 'id': stroke.id,
@@ -184,6 +207,9 @@ class ClipDto {
       'audioProperties': audioProperties,
       'fontFamily': fontFamily,
       'textAnimationStyle': textAnimationStyle,
+      'textStyle': textStyle,
+      'inAnimation': inAnimation,
+      'outAnimation': outAnimation,
       'strokes': strokes,
       'stickerAssetPath': stickerAssetPath,
       'effect': effect,
@@ -213,6 +239,9 @@ class ClipDto {
       audioProperties: json['audioProperties'] as Map<String, dynamic>? ?? <String, dynamic>{},
       fontFamily: json['fontFamily'] as String? ?? 'Poppins',
       textAnimationStyle: json['textAnimationStyle'] as String? ?? 'none',
+      textStyle: json['textStyle'] as Map<String, dynamic>? ?? <String, dynamic>{},
+      inAnimation: json['inAnimation'] as String? ?? 'none',
+      outAnimation: json['outAnimation'] as String? ?? 'none',
       strokes: (json['strokes'] as List<dynamic>?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??

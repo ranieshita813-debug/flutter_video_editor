@@ -23,6 +23,22 @@ data class ColorGradingSpec(
     val vignette: Double
 )
 
+data class TextStyleSpec(
+    val fontSize: Double,
+    val lineHeight: Double,
+    val textColor: Long,
+    val textEffect: String,
+    val strokeColor: Long,
+    val strokeWidth: Double,
+    val shadowColor: Long,
+    val shadowBlurRadius: Double,
+    val shadowOffsetX: Double,
+    val shadowOffsetY: Double,
+    val backgroundColor: Long,
+    val backgroundPadding: Double,
+    val textAlign: String
+)
+
 data class AudioPropertiesSpec(
     val volume: Double,
     val speed: Double,
@@ -66,6 +82,9 @@ data class ClipSpec(
     val audioProperties: AudioPropertiesSpec,
     val fontFamily: String,
     val textAnimationStyle: String,
+    val textStyle: TextStyleSpec,
+    val inAnimation: String,
+    val outAnimation: String,
     val strokes: List<DrawingStrokeSpec>,
     val stickerAssetPath: String?,
     val effect: String
@@ -116,6 +135,23 @@ object TimelineParser {
                     vignette = cgObj.optDouble("vignette", 0.0)
                 )
 
+                val tsObj = clipObj.optJSONObject("textStyle") ?: JSONObject()
+                val textStyle = TextStyleSpec(
+                    fontSize = tsObj.optDouble("fontSize", 28.0),
+                    lineHeight = tsObj.optDouble("lineHeight", 1.2),
+                    textColor = tsObj.optLong("textColor", 0xFFFFFFFFL),
+                    textEffect = tsObj.optString("textEffect", "none"),
+                    strokeColor = tsObj.optLong("strokeColor", 0x00000000L),
+                    strokeWidth = tsObj.optDouble("strokeWidth", 0.0),
+                    shadowColor = tsObj.optLong("shadowColor", 0x00000000L),
+                    shadowBlurRadius = tsObj.optDouble("shadowBlurRadius", 0.0),
+                    shadowOffsetX = tsObj.optDouble("shadowOffsetX", 0.0),
+                    shadowOffsetY = tsObj.optDouble("shadowOffsetY", 0.0),
+                    backgroundColor = tsObj.optLong("backgroundColor", 0x00000000L),
+                    backgroundPadding = tsObj.optDouble("backgroundPadding", 8.0),
+                    textAlign = tsObj.optString("textAlign", "center")
+                )
+
                 val apObj = clipObj.optJSONObject("audioProperties") ?: JSONObject()
                 val audioProperties = AudioPropertiesSpec(
                     volume = apObj.optDouble("volume", 1.0),
@@ -147,7 +183,7 @@ object TimelineParser {
                         strokes.add(
                             DrawingStrokeSpec(
                                 id = strokeObj.optString("id", ""),
-                                color = strokeObj.optLong("color", 0xFFFFFFFF),
+                                color = strokeObj.optLong("color", 0xFFFFFFFFL),
                                 strokeWidth = strokeObj.optDouble("strokeWidth", 4.0),
                                 points = points
                             )
@@ -178,6 +214,9 @@ object TimelineParser {
                         audioProperties = audioProperties,
                         fontFamily = clipObj.optString("fontFamily", "Poppins"),
                         textAnimationStyle = clipObj.optString("textAnimationStyle", "none"),
+                        textStyle = textStyle,
+                        inAnimation = clipObj.optString("inAnimation", "none"),
+                        outAnimation = clipObj.optString("outAnimation", "none"),
                         strokes = strokes,
                         stickerAssetPath = if (clipObj.has("stickerAssetPath") && !clipObj.isNull("stickerAssetPath")) clipObj.getString("stickerAssetPath") else null,
                         effect = clipObj.optString("effect", "none")

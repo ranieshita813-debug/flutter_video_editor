@@ -12,9 +12,12 @@ import 'package:video_player/video_player.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/widgets/editor_toolbar.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
 import 'package:flutter_video_editor/features/editor/widgets/skeleton_grid.dart';
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_style_sheet.dart';
 
 // ----------------------------------------------------------------------------
 // Tokens
@@ -230,10 +233,11 @@ enum _Tool {
   elements('Elements', HugeIcons.strokeRoundedShapes),
   draw('Draw', HugeIcons.strokeRoundedPencilEdit02),
   mask('Mask', HugeIcons.strokeRoundedSquare),
-  keyframes('Keyframes', HugeIcons.strokeRoundedLocation01),
   camera('Camera', HugeIcons.strokeRoundedCamera01),
   track('Track', HugeIcons.strokeRoundedTarget01),
-  plugins('Plug-ins', HugeIcons.strokeRoundedGridView);
+  plugins('Plug-ins', HugeIcons.strokeRoundedGridView),
+  textStyle('Text Style', HugeIcons.strokeRoundedTextFont),
+  animation('Animation', HugeIcons.strokeRoundedPlay);
 
   const _Tool(this.title, this.icon);
   final String title;
@@ -251,10 +255,11 @@ enum _Tool {
         _Tool.elements => const ElementsSheet(),
         _Tool.draw => const VectorDrawingSheet(),
         _Tool.mask => const MaskSheet(),
-        _Tool.keyframes => const KeyframeSheet(),
         _Tool.camera => const CameraSettingsSheet(),
         _Tool.track => const CameraTrackingPanel(),
         _Tool.plugins => const PluginsSheet(),
+        _Tool.textStyle => const TextStyleSheet(),
+        _Tool.animation => const ClipAnimationSheet(),
       };
 }
 
@@ -276,28 +281,6 @@ void _splitAllTracks(EditorController editor) {
   }
 }
 
-void _rippleDelete(EditorController editor) {
-  final TimelineClip? sel = editor.selectedClip;
-  if (sel == null) return;
-  _tap();
-  final bool isMain =
-      sel.clipType == ClipType.video || sel.clipType == ClipType.image;
-  final List<TimelineClip> later = isMain
-      ? editor.project.clips
-          .where((c) =>
-              c.id != sel.id &&
-              (c.clipType == ClipType.video || c.clipType == ClipType.image) &&
-              c.start >= sel.end)
-          .toList()
-      : const <TimelineClip>[];
-  editor.deleteSelectedClip();
-  for (final c in later) {
-    try {
-      editor.selectClip(c.id);
-      editor.trimSelectedClip(c.start - sel.duration, c.end - sel.duration);
-    } catch (_) {}
-  }
-}
 
 // ----------------------------------------------------------------------------
 // Page
@@ -322,6 +305,31 @@ class _EditorPageState extends State<EditorPage> {
   void _open(_Tool t) {
     _tap();
     setState(() => _tool = _tool == t ? null : t);
+  }
+
+  void _openSheet(String sheetName) {
+    _Tool? target;
+    switch (sheetName) {
+      case 'audio': target = _Tool.audio; break;
+      case 'text': target = _Tool.text; break;
+      case 'stickers': target = _Tool.stickers; break;
+      case 'filters': target = _Tool.filters; break;
+      case 'effects': target = _Tool.effects; break;
+      case 'adjust': target = _Tool.adjust; break;
+      case 'crop': target = _Tool.crop; break;
+      case 'speed': target = _Tool.speed; break;
+      case 'elements': target = _Tool.elements; break;
+      case 'draw': target = _Tool.draw; break;
+      case 'mask': target = _Tool.mask; break;
+      case 'camera': target = _Tool.camera; break;
+      case 'track': target = _Tool.track; break;
+      case 'plugins': target = _Tool.plugins; break;
+      case 'text_style': target = _Tool.textStyle; break;
+      case 'animation': target = _Tool.animation; break;
+    }
+    if (target != null) {
+      _open(target);
+    }
   }
 
   void _close() => setState(() => _tool = null);
@@ -410,13 +418,16 @@ class _EditorPageState extends State<EditorPage> {
                     (c.maxWidth * 0.3).clamp(320.0, 440.0).toDouble();
                 final bool hideTimeline = keyboard && _tool != null && !wide;
 
-                final Widget toolbar = _Toolbar(
+                final Widget toolbar = EditorToolbar(
                   key: const ValueKey('bar'),
-                  onOpen: _open,
-                  active: _tool,
-                  multiOn: _multiOn,
-                  multi: _multi,
-                  onClearMulti: _clearMulti,
+                  onSelectToolSheet: _openSheet,
+                  onAddMedia: () async {
+                    final nav = Navigator.of(context);
+                    final mediaPath = await nav.pushNamed('/media_picker');
+                    if (mediaPath != null && mediaPath is String) {
+                      editor.addMediaClip(mediaPath);
+                    }
+                  },
                 );
 
                 final Widget main = Column(
@@ -1037,7 +1048,7 @@ class _PreviewState extends State<_Preview> {
     super.dispose();
   }
 
-  Widget _roundBtn(IconData i, String tip, VoidCallback onTap,
+  Widget _roundBtn(dynamic icon, String tip, VoidCallback onTap,
           {double size = 36, double iconSize = 17, bool on = false}) =>
       Semantics(
         button: true,
@@ -1056,7 +1067,13 @@ class _PreviewState extends State<_Preview> {
               decoration: BoxDecoration(
                   color: on ? Colors.white : const Color(0xFF1B1B20),
                   shape: BoxShape.circle),
-              child: Icon(i, color: on ? Colors.black : Colors.white, size: iconSize),
+              child: Center(
+                child: HugeIcon(
+                  icon: icon,
+                  color: on ? Colors.black : Colors.white,
+                  size: iconSize,
+                ),
+              ),
             ),
           ),
         ),
@@ -1078,7 +1095,7 @@ class _PreviewState extends State<_Preview> {
             padding: EdgeInsets.symmetric(horizontal: 10 * s),
             child: Row(
               children: <Widget>[
-                _roundBtn(Icons.arrow_back_ios_new_rounded, 'Back',
+                _roundBtn(HugeIcons.strokeRoundedArrowLeft01, 'Back',
                     () => Navigator.of(context).maybePop(),
                     size: btn, iconSize: 16 * s),
                 if (showLogo) ...<Widget>[
@@ -1098,6 +1115,23 @@ class _PreviewState extends State<_Preview> {
                   ),
                 ],
                 const Spacer(),
+                // Resolution Badge '1080p'
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1B1B20),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '1080p',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11 * s,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 6 * s),
                 ValueListenableBuilder<_CanvasRatio>(
                   valueListenable: _canvasRatio,
                   builder: (_, r, __) => PopupMenuButton<_CanvasRatio>(
@@ -1134,8 +1168,12 @@ class _PreviewState extends State<_Preview> {
                                   color: Colors.white,
                                   fontSize: 11.5 * s,
                                   fontWeight: FontWeight.w600)),
-                          const Icon(Icons.arrow_drop_down_rounded,
-                              size: 18, color: Colors.white70),
+                          SizedBox(width: 4 * s),
+                          HugeIcon(
+                            icon: HugeIcons.strokeRoundedArrowDown01,
+                            size: 14 * s,
+                            color: Colors.white70,
+                          ),
                         ],
                       ),
                     ),
@@ -1144,15 +1182,15 @@ class _PreviewState extends State<_Preview> {
                 SizedBox(width: 6 * s),
                 _roundBtn(
                     _fill
-                        ? Icons.fit_screen_rounded
-                        : Icons.crop_free_rounded,
+                        ? HugeIcons.strokeRoundedZoomOut
+                        : HugeIcons.strokeRoundedZoomIn,
                     _fill ? 'Fit video' : 'Fill canvas',
                     () => setState(() => _fill = !_fill),
                     size: btn,
                     iconSize: 17 * s,
                     on: _fill),
                 SizedBox(width: 6 * s),
-                _roundBtn(Icons.grid_on_rounded, _grid ? 'Hide guides' : 'Show guides',
+                _roundBtn(HugeIcons.strokeRoundedGrid, _grid ? 'Hide guides' : 'Show guides',
                     () => setState(() => _grid = !_grid),
                     size: btn, iconSize: 17 * s, on: _grid),
                 SizedBox(width: 8 * s),
@@ -1172,8 +1210,11 @@ class _PreviewState extends State<_Preview> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            Icon(Icons.ios_share_rounded,
-                                color: Colors.black, size: 15 * s),
+                            HugeIcon(
+                              icon: HugeIcons.strokeRoundedShare01,
+                              color: Colors.black,
+                              size: 15 * s,
+                            ),
                             SizedBox(width: 5 * s),
                             Text('Export',
                                 style: TextStyle(
@@ -1721,20 +1762,81 @@ class _OverlayClipState extends State<_OverlayClip> {
       case ClipType.text:
       case ClipType.caption:
       case ClipType.sticker:
-        return Text(
+        final ts = clip.textStyle;
+        final double effectiveSize = ts.fontSize * clip.scale * u;
+
+        List<Shadow> shadows = [];
+        if (ts.shadowColor != Colors.transparent &&
+            (ts.shadowBlurRadius > 0 || ts.shadowOffsetX != 0 || ts.shadowOffsetY != 0)) {
+          shadows.add(
+            Shadow(
+              color: ts.shadowColor,
+              blurRadius: ts.shadowBlurRadius,
+              offset: Offset(ts.shadowOffsetX, ts.shadowOffsetY),
+            ),
+          );
+        } else if (ts.textEffect == 'glow' || ts.textEffect == 'neon') {
+          shadows.add(
+            Shadow(
+              color: ts.shadowColor != Colors.transparent
+                  ? ts.shadowColor
+                  : const Color(0xFF00E5FF),
+              blurRadius: ts.shadowBlurRadius > 0 ? ts.shadowBlurRadius : 12.0,
+            ),
+          );
+        } else if (shadows.isEmpty) {
+          shadows.add(const Shadow(blurRadius: 4, color: Colors.black, offset: Offset(1, 1)));
+        }
+
+        Widget textWidget = Text(
           clip.label,
+          textAlign: ts.textAlign,
           style: TextStyle(
-            color: Colors.white,
-            fontSize: 24 * clip.scale * u,
+            color: ts.textColor,
+            fontSize: effectiveSize,
             fontFamily: clip.fontFamily,
             fontWeight: FontWeight.bold,
-            shadows: const <Shadow>[
-              Shadow(blurRadius: 4, color: Colors.black, offset: Offset(1, 1)),
-            ],
+            height: ts.lineHeight,
+            shadows: shadows,
           ),
         );
+
+        if (ts.strokeWidth > 0 && ts.strokeColor != Colors.transparent) {
+          textWidget = Stack(
+            children: [
+              Text(
+                clip.label,
+                textAlign: ts.textAlign,
+                style: TextStyle(
+                  fontSize: effectiveSize,
+                  fontFamily: clip.fontFamily,
+                  fontWeight: FontWeight.bold,
+                  height: ts.lineHeight,
+                  foreground: Paint()
+                    ..style = PaintingStyle.stroke
+                    ..strokeWidth = ts.strokeWidth * u
+                    ..color = ts.strokeColor,
+                ),
+              ),
+              textWidget,
+            ],
+          );
+        }
+
+        if (ts.backgroundColor != Colors.transparent) {
+          textWidget = Container(
+            padding: EdgeInsets.all(ts.backgroundPadding * u),
+            decoration: BoxDecoration(
+              color: ts.backgroundColor,
+              borderRadius: BorderRadius.circular(4 * u),
+            ),
+            child: textWidget,
+          );
+        }
+
+        return _applyAnimations(textWidget, clip);
       case ClipType.element:
-        return Container(
+        final elWidget = Container(
           width: 80 * clip.scale * u,
           height: 80 * clip.scale * u,
           decoration: BoxDecoration(
@@ -1747,15 +1849,87 @@ class _OverlayClipState extends State<_OverlayClip> {
                 : null,
           ),
         );
+        return _applyAnimations(elWidget, clip);
       case ClipType.drawing:
-        return CustomPaint(
+        final drWidget = CustomPaint(
           size: Size(120 * clip.scale * u, 120 * clip.scale * u),
           painter: _DrawingPainter(strokes: clip.strokes, unit: u),
         );
+        return _applyAnimations(drWidget, clip);
       default:
-        return Text(clip.label,
-            style: TextStyle(color: Colors.white, fontSize: 16 * u));
+        return _applyAnimations(
+          Text(clip.label, style: TextStyle(color: Colors.white, fontSize: 16 * u)),
+          clip,
+        );
     }
+  }
+
+  Widget _applyAnimations(Widget child, TimelineClip clip) {
+    final editor = context.read<EditorController>();
+    final playhead = editor.playhead;
+    const int durInMs = 500;
+
+    double opacity = clip.opacity;
+    double scaleMult = 1.0;
+    double transX = 0.0;
+
+    if (clip.inAnimation != ClipAnimation.none && playhead >= clip.start) {
+      final elapsed = (playhead - clip.start).inMilliseconds;
+      if (elapsed < durInMs) {
+        final t = (elapsed / durInMs).clamp(0.0, 1.0);
+        switch (clip.inAnimation) {
+          case ClipAnimation.fadeIn:
+            opacity *= t;
+            break;
+          case ClipAnimation.zoomIn:
+            scaleMult *= (0.3 + 0.7 * t);
+            break;
+          case ClipAnimation.slideLeft:
+            transX -= (1.0 - t) * 60;
+            break;
+          case ClipAnimation.slideRight:
+            transX += (1.0 - t) * 60;
+            break;
+          default:
+            break;
+        }
+      }
+    }
+
+    if (clip.outAnimation != ClipAnimation.none && playhead <= clip.end) {
+      final remaining = (clip.end - playhead).inMilliseconds;
+      if (remaining < durInMs) {
+        final t = (remaining / durInMs).clamp(0.0, 1.0);
+        switch (clip.outAnimation) {
+          case ClipAnimation.fadeOut:
+            opacity *= t;
+            break;
+          case ClipAnimation.zoomOut:
+            scaleMult *= (0.3 + 0.7 * t);
+            break;
+          case ClipAnimation.slideRight:
+            transX += (1.0 - t) * 60;
+            break;
+          case ClipAnimation.slideLeft:
+            transX -= (1.0 - t) * 60;
+            break;
+          default:
+            break;
+        }
+      }
+    }
+
+    Widget result = child;
+    if (transX != 0.0) {
+      result = Transform.translate(offset: Offset(transX, 0), child: result);
+    }
+    if (scaleMult != 1.0) {
+      result = Transform.scale(scale: scaleMult, child: result);
+    }
+    if (opacity < 1.0) {
+      result = Opacity(opacity: opacity.clamp(0.0, 1.0), child: result);
+    }
+    return result;
   }
 
   @override
@@ -3141,206 +3315,6 @@ void _showTransitionSheet(BuildContext context) {
   );
 }
 
-// ----------------------------------------------------------------------------
-// Bottom toolbar (rebuilds only when selection/split state changes)
-// ----------------------------------------------------------------------------
-class _Toolbar extends StatelessWidget {
-  const _Toolbar({
-    super.key,
-    required this.onOpen,
-    required this.active,
-    required this.multiOn,
-    required this.multi,
-    required this.onClearMulti,
-  });
-  final void Function(_Tool) onOpen;
-  final _Tool? active;
-  final ValueNotifier<bool> multiOn;
-  final ValueNotifier<Set<String>> multi;
-  final VoidCallback onClearMulti;
-
-  @override
-  Widget build(BuildContext context) {
-    final editor = context.read<EditorController>();
-    final double s = _scaleOf(MediaQuery.sizeOf(context));
-    final double itemW = (58 * s).clamp(56.0, 74.0).toDouble();
-    final double barH = (64 * s).clamp(60.0, 80.0).toDouble();
-
-    final (bool hasSel, bool canSplit, bool selIsMain) =
-        context.select<EditorController, (bool, bool, bool)>((e) {
-      final TimelineClip? sel = e.selectedClip;
-      return (
-        sel != null,
-        sel != null && e.playhead > sel.start && e.playhead < sel.end,
-        sel != null &&
-            (sel.clipType == ClipType.video || sel.clipType == ClipType.image),
-      );
-    });
-
-    Widget item(dynamic icon, String title, VoidCallback? onTap,
-        {Color? color, bool on = false}) {
-      final bool enabled = onTap != null;
-      final Color fg = !enabled
-          ? Colors.white24
-          : on
-              ? _accent
-              : (color ?? Colors.white);
-      return Tooltip(
-        message: title,
-        child: InkWell(
-          onTap: enabled
-              ? () {
-                  _tap();
-                  onTap();
-                }
-              : null,
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            width: itemW,
-            height: barH - 4,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                HugeIcon(icon: icon, size: 20 * s, color: fg),
-                const SizedBox(height: 3),
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 10 * s,
-                    fontWeight: FontWeight.w500,
-                    color: !enabled
-                        ? Colors.white24
-                        : on
-                            ? _accent
-                            : (color ?? Colors.white70),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    Widget tool(_Tool t) => item(t.icon, t.title, () => onOpen(t), on: active == t);
-
-    return Container(
-      color: _surface,
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: barH,
-          child: Stack(
-            children: <Widget>[
-              ValueListenableBuilder<bool>(
-                valueListenable: multiOn,
-                builder: (context, multiActive, _) =>
-                    ValueListenableBuilder<Set<String>>(
-                  valueListenable: multi,
-                  builder: (context, multiSet, _) {
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.only(left: 4, right: 28),
-                      child: Row(
-                        children: <Widget>[
-                          if (multiActive) ...<Widget>[
-                            item(HugeIcons.strokeRoundedTick01, 'Done', onClearMulti),
-                            item(
-                              HugeIcons.strokeRoundedScissors,
-                              'Split selected',
-                              multiSet.isEmpty
-                                  ? null
-                                  : () {
-                                      for (final id in multiSet.toList()) {
-                                        editor.selectClip(id);
-                                        editor.splitSelectedClip();
-                                      }
-                                      onClearMulti();
-                                    },
-                            ),
-                            item(
-                              HugeIcons.strokeRoundedDelete02,
-                              'Delete selected',
-                              multiSet.isEmpty
-                                  ? null
-                                  : () {
-                                      for (final id in multiSet.toList()) {
-                                        editor.selectClip(id);
-                                        editor.deleteSelectedClip();
-                                      }
-                                      onClearMulti();
-                                    },
-                              color: Colors.redAccent,
-                            ),
-                            _vDivider(),
-                          ] else ...<Widget>[
-                            item(
-                              HugeIcons.strokeRoundedScissors,
-                              'Split all tracks',
-                              canSplit ? () => _splitAllTracks(editor) : null,
-                            ),
-                            item(HugeIcons.strokeRoundedDelete02, 'Delete',
-                                hasSel ? editor.deleteSelectedClip : null,
-                                color: Colors.redAccent),
-                            item(HugeIcons.strokeRoundedDelete01, 'Ripple delete',
-                                selIsMain ? () => _rippleDelete(editor) : null,
-                                color: Colors.redAccent),
-                            _vDivider(),
-                          ],
-                          tool(_Tool.audio),
-                          tool(_Tool.text),
-                          item(HugeIcons.strokeRoundedTextFont, 'Auto captions',
-                              () => editor.generateAutoCaptions()),
-                          tool(_Tool.stickers),
-                          tool(_Tool.filters),
-                          tool(_Tool.effects),
-                          tool(_Tool.adjust),
-                          tool(_Tool.crop),
-                          tool(_Tool.speed),
-                          tool(_Tool.elements),
-                          tool(_Tool.draw),
-                          tool(_Tool.mask),
-                          tool(_Tool.keyframes),
-                          tool(_Tool.camera),
-                          tool(_Tool.track),
-                          tool(_Tool.plugins),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Positioned(
-                right: 0,
-                top: 0,
-                bottom: 0,
-                width: 28,
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: <Color>[_surface.withValues(alpha: 0), _surface],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _vDivider() => Container(
-      width: 1,
-      height: 26,
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      color: _divider);
-}
 
 // ----------------------------------------------------------------------------
 // Shared sheet widgets
