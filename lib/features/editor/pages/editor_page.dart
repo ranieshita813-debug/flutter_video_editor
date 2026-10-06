@@ -21,6 +21,7 @@ import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
 // ----------------------------------------------------------------------------
 const Color _bg = Color(0xFF000000);
 const Color _surface = Color(0xFF101014);
+const Color _card = Color(0xFF232327);
 const Color _muted = Color(0xFF9A9AA3);
 const Color _textTrack = Color(0xFF2A2440);
 const Color _fxTrack = Color(0xFF3A2C1C);
@@ -34,6 +35,44 @@ const double _playheadFrac = 0.42;
 // TODO(project): drive from project settings instead of a constant.
 const int _fps = 30;
 
+/// Overlay clip coordinates are interpreted in a 360-unit-wide design space
+/// that scales with the canvas, so layouts look identical on every device.
+const double _designW = 360;
+
+// ----------------------------------------------------------------------------
+// Responsive helpers
+// ----------------------------------------------------------------------------
+double _scaleOf(Size size) => (size.shortestSide / 400).clamp(0.9, 1.25).toDouble();
+
+bool _isWide(Size size) =>
+    size.width >= 840 || (size.width > size.height && size.width >= 700);
+
+bool _isShort(Size size) => size.height < 520;
+
+int _cols(double width, double tile, {int min = 2, int max = 8}) =>
+    (width / tile).floor().clamp(min, max);
+
+// ----------------------------------------------------------------------------
+// Canvas aspect ratio (shared between the Canvas tool and the preview)
+// ----------------------------------------------------------------------------
+enum _CanvasRatio {
+  r16x9('16:9', 16 / 9),
+  r9x16('9:16', 9 / 16),
+  r1x1('1:1', 1),
+  r4x5('4:5', 4 / 5),
+  r21x9('21:9', 21 / 9);
+
+  const _CanvasRatio(this.label, this.value);
+  final String label;
+  final double value;
+}
+
+final ValueNotifier<_CanvasRatio> _canvasRatio =
+    ValueNotifier<_CanvasRatio>(_CanvasRatio.r16x9);
+
+// ----------------------------------------------------------------------------
+// Small utils
+// ----------------------------------------------------------------------------
 double _seconds(Duration v) => v.inMilliseconds / 1000.0;
 String _two(int n) => n.toString().padLeft(2, '0');
 
@@ -41,6 +80,12 @@ String _tc(double s) {
   final int f = (math.max(s, 0) * _fps).round();
   final int sec = f ~/ _fps;
   return '${_two(sec ~/ 3600)}:${_two(sec % 3600 ~/ 60)}:${_two(sec % 60)}:${_two(f % _fps)}';
+}
+
+String _tcShort(double s) {
+  final int f = (math.max(s, 0) * _fps).round();
+  final int sec = f ~/ _fps;
+  return '${_two(sec ~/ 60)}:${_two(sec % 60)}.${_two(f % _fps)}';
 }
 
 void _seek(EditorController e, double s) {
@@ -60,6 +105,18 @@ bool _isImagePath(String p) {
 }
 
 void _tap() => HapticFeedback.selectionClick();
+
+/// True while a text field has focus, so keyboard shortcuts don't hijack typing.
+bool _typing() {
+  final BuildContext? c = FocusManager.instance.primaryFocus?.context;
+  if (c == null) return false;
+  return c.widget is EditableText ||
+      c.findAncestorWidgetOfExactType<EditableText>() != null;
+}
+
+VoidCallback _guard(VoidCallback f) => () {
+      if (!_typing()) f();
+    };
 
 // ----------------------------------------------------------------------------
 // Pluggable media pipelines
@@ -168,7 +225,7 @@ enum _Tool {
   filters('Filters', HugeIcons.strokeRoundedFilter),
   effects('Effects', HugeIcons.strokeRoundedMagicWand01),
   adjust('Adjust', HugeIcons.strokeRoundedLayers01),
-  crop('Crop', HugeIcons.strokeRoundedCrop),
+  crop('Canvas', HugeIcons.strokeRoundedCrop),
   speed('Speed', HugeIcons.strokeRoundedTime01),
   elements('Elements', HugeIcons.strokeRoundedShapes),
   draw('Draw', HugeIcons.strokeRoundedPencilEdit02),
@@ -254,7 +311,8 @@ class EditorPage extends StatefulWidget {
 
 class _EditorPageState extends State<EditorPage> {
   _Tool? _tool;
-  double _frac = 0.32;
+  double _frac = 0.34;
+  double _splitAdj = 0, _minAdj = -400, _maxAdj = 400;
   bool _dragging = false;
 
   // Multi-select lives here so both the timeline and the toolbar can share it.
@@ -263,7 +321,7 @@ class _EditorPageState extends State<EditorPage> {
 
   void _open(_Tool t) {
     _tap();
-    setState(() => _tool = t);
+    setState(() => _tool = _tool == t ? null : t);
   }
 
   void _close() => setState(() => _tool = null);
@@ -274,7 +332,18 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _canvasRatio.addListener(_resetSplit);
+  }
+
+  void _resetSplit() {
+    if (mounted) setState(() => _splitAdj = 0);
+  }
+
+  @override
   void dispose() {
+    _canvasRatio.removeListener(_resetSplit);
     _multiOn.dispose();
     _multi.dispose();
     super.dispose();
@@ -283,95 +352,192 @@ class _EditorPageState extends State<EditorPage> {
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
+    final Size size = MediaQuery.sizeOf(context);
+    final bool wide = _isWide(size);
     final bool keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.space): editor.togglePlayback,
-        const SingleActivator(LogicalKeyboardKey.keyK): editor.togglePlayback,
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
-            _seek(editor, _seconds(editor.playhead) - 1 / _fps),
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-            _seek(editor, _seconds(editor.playhead) + 1 / _fps),
-        const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true): () =>
-            _seek(editor, _seconds(editor.playhead) - 1.0),
-        const SingleActivator(LogicalKeyboardKey.arrowRight, shift: true): () =>
-            _seek(editor, _seconds(editor.playhead) + 1.0),
-        const SingleActivator(LogicalKeyboardKey.keyS): () => _splitAllTracks(editor),
-        const SingleActivator(LogicalKeyboardKey.delete): () {
+        const SingleActivator(LogicalKeyboardKey.space): _guard(editor.togglePlayback),
+        const SingleActivator(LogicalKeyboardKey.keyK): _guard(editor.togglePlayback),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft):
+            _guard(() => _seek(editor, _seconds(editor.playhead) - 1 / _fps)),
+        const SingleActivator(LogicalKeyboardKey.arrowRight):
+            _guard(() => _seek(editor, _seconds(editor.playhead) + 1 / _fps)),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft, shift: true):
+            _guard(() => _seek(editor, _seconds(editor.playhead) - 1.0)),
+        const SingleActivator(LogicalKeyboardKey.arrowRight, shift: true):
+            _guard(() => _seek(editor, _seconds(editor.playhead) + 1.0)),
+        const SingleActivator(LogicalKeyboardKey.keyS):
+            _guard(() => _splitAllTracks(editor)),
+        const SingleActivator(LogicalKeyboardKey.delete): _guard(() {
           if (editor.selectedClip != null) editor.deleteSelectedClip();
-        },
-        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): editor.undo,
-        const SingleActivator(LogicalKeyboardKey.keyY, control: true): editor.redo,
+        }),
+        const SingleActivator(LogicalKeyboardKey.backspace): _guard(() {
+          if (editor.selectedClip != null) editor.deleteSelectedClip();
+        }),
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _guard(editor.undo),
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true): _guard(editor.undo),
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): _guard(editor.redo),
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true):
+            _guard(editor.redo),
+        const SingleActivator(LogicalKeyboardKey.keyZ, meta: true, shift: true):
+            _guard(editor.redo),
       },
       child: Focus(
         autofocus: true,
-        child: PopScope(
-          canPop: _tool == null && !_multiOn.value,
-          onPopInvokedWithResult: (bool didPop, dynamic result) {
-            if (didPop) return;
-            if (_multiOn.value) {
-              _clearMulti();
-            } else {
-              _close();
-            }
-          },
-          child: Scaffold(
-            backgroundColor: _bg,
-            body: LayoutBuilder(builder: (context, c) {
-              final double panelH = math
-                  .min(c.maxHeight * _frac, c.maxHeight * 0.65)
-                  .clamp(160.0, 520.0)
-                  .toDouble();
-              return Column(
-                children: <Widget>[
-                  Expanded(child: _Preview(editor: editor)),
-                  if (!(keyboard && _tool != null))
-                    _Timeline(
-                      editor: editor,
-                      compact: _tool != null,
-                      multiOn: _multiOn,
-                      multi: _multi,
-                      onClearMulti: _clearMulti,
+        child: ListenableBuilder(
+          listenable: _multiOn,
+          builder: (context, _) => PopScope(
+            canPop: _tool == null && !_multiOn.value,
+            onPopInvokedWithResult: (bool didPop, dynamic result) {
+              if (didPop) return;
+              if (_multiOn.value) {
+                _clearMulti();
+              } else {
+                _close();
+              }
+            },
+            child: Scaffold(
+              backgroundColor: _bg,
+              resizeToAvoidBottomInset: true,
+              body: LayoutBuilder(builder: (context, c) {
+                final double panelH = math
+                    .min(c.maxHeight * _frac, c.maxHeight * 0.6)
+                    .clamp(160.0, 520.0)
+                    .toDouble();
+                final double sideW =
+                    (c.maxWidth * 0.3).clamp(320.0, 440.0).toDouble();
+                final bool hideTimeline = keyboard && _tool != null && !wide;
+
+                final Widget toolbar = _Toolbar(
+                  key: const ValueKey('bar'),
+                  onOpen: _open,
+                  active: _tool,
+                  multiOn: _multiOn,
+                  multi: _multi,
+                  onClearMulti: _clearMulti,
+                );
+
+                final Widget main = Column(
+                  children: <Widget>[
+                    ValueListenableBuilder<_CanvasRatio>(
+                      valueListenable: _canvasRatio,
+                      builder: (context, ratio, _) {
+                        final Widget pv = _Preview(editor: editor);
+                        if (hideTimeline) return Expanded(child: pv);
+                        final double s = _scaleOf(size);
+                        final EdgeInsets safe = MediaQuery.paddingOf(context);
+                        final double pad = 10 * s;
+                        final double colW = wide
+                            ? c.maxWidth - (_tool != null ? sideW : 0)
+                            : c.maxWidth;
+                        final double topH = 52 * s + safe.top;
+                        final double transportH = 52 * s + 16; // transport + divider
+                        final double barH = (64 * s).clamp(60.0, 80.0).toDouble();
+                        final double bottomH =
+                            ((wide || _tool == null) ? barH : panelH) + safe.bottom;
+                        final double tlMin = (_isShort(size) ? 90 : 120) * s;
+                        final double tlMax = 240 * s;
+                        // Canvas height = canvas width / ratio (plus chrome).
+                        final double desired =
+                            topH + (colW - 2 * pad) / ratio.value + 2 * pad;
+                        final double maxP =
+                            math.max(80.0, c.maxHeight - transportH - bottomH - tlMin);
+                        final double minP = math.min(
+                            maxP,
+                            math.max(80.0,
+                                c.maxHeight - transportH - bottomH - tlMax));
+                        final double base = desired.clamp(minP, maxP).toDouble();
+                        final double lo = math.min(
+                            maxP, math.max(80.0, c.maxHeight - transportH - bottomH - 420 * s));
+                        _minAdj = lo - base;
+                        _maxAdj = maxP - base;
+                        final double hgt =
+                            (base + _splitAdj.clamp(_minAdj, _maxAdj)).toDouble();
+                        return SizedBox(height: hgt, child: pv);
+                      },
                     ),
-                  AnimatedSize(
-                    duration:
-                        _dragging ? Duration.zero : const Duration(milliseconds: 240),
-                    curve: Curves.easeOutCubic,
-                    alignment: Alignment.topCenter,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      switchInCurve: Curves.easeOut,
-                      switchOutCurve: Curves.easeIn,
-                      layoutBuilder: (cur, prev) => Stack(
-                        alignment: Alignment.bottomCenter,
-                        children: <Widget>[...prev, if (cur != null) cur],
+                    _Transport(editor: editor),
+                    if (!hideTimeline)
+                      _PaneDivider(
+                        onDrag: (dy) => setState(() => _splitAdj =
+                            (_splitAdj + dy).clamp(_minAdj, _maxAdj).toDouble()),
+                        onReset: () => setState(() => _splitAdj = 0),
                       ),
+                    if (!hideTimeline)
+                      Expanded(
+                        child: _Timeline(
+                          editor: editor,
+                          compact: _tool != null && !wide,
+                          multiOn: _multiOn,
+                          multi: _multi,
+                          onClearMulti: _clearMulti,
+                        ),
+                      ),
+                    if (wide)
+                      toolbar
+                    else
+                      AnimatedSize(
+                        duration: _dragging
+                            ? Duration.zero
+                            : const Duration(milliseconds: 240),
+                        curve: Curves.easeOutCubic,
+                        alignment: Alignment.topCenter,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          switchInCurve: Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          layoutBuilder: (cur, prev) => Stack(
+                            alignment: Alignment.bottomCenter,
+                            children: <Widget>[...prev, if (cur != null) cur],
+                          ),
+                          child: _tool == null
+                              ? toolbar
+                              : _ToolPanel(
+                                  key: ValueKey<_Tool>(_tool!),
+                                  tool: _tool!,
+                                  height: panelH,
+                                  onClose: _close,
+                                  onResize: (dy) => setState(() {
+                                    _frac = (_frac - dy / c.maxHeight)
+                                        .clamp(0.22, 0.6)
+                                        .toDouble();
+                                  }),
+                                  onDrag: (v) => setState(() => _dragging = v),
+                                ),
+                        ),
+                      ),
+                  ],
+                );
+
+                if (!wide) return main;
+
+                // Wide layouts (tablet / desktop / landscape): tools dock on the right.
+                return Row(
+                  children: <Widget>[
+                    Expanded(child: main),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.centerRight,
                       child: _tool == null
-                          ? _Toolbar(
-                              key: const ValueKey('bar'),
-                              onOpen: _open,
-                              multiOn: _multiOn,
-                              multi: _multi,
-                              onClearMulti: _clearMulti,
-                            )
-                          : _ToolPanel(
-                              key: ValueKey<_Tool>(_tool!),
-                              tool: _tool!,
-                              height: panelH,
-                              onClose: _close,
-                              onResize: (dy) => setState(() {
-                                _frac = (_frac - dy / c.maxHeight)
-                                    .clamp(0.22, 0.6)
-                                    .toDouble();
-                              }),
-                              onDrag: (v) => setState(() => _dragging = v),
+                          ? const SizedBox(width: 0, height: 0)
+                          : SizedBox(
+                              width: sideW,
+                              height: c.maxHeight,
+                              child: _ToolPanel(
+                                key: ValueKey<_Tool>(_tool!),
+                                tool: _tool!,
+                                docked: true,
+                                onClose: _close,
+                              ),
                             ),
                     ),
-                  ),
-                ],
-              );
-            }),
+                  ],
+                );
+              }),
+            ),
           ),
         ),
       ),
@@ -383,19 +549,71 @@ class _ToolPanel extends StatelessWidget {
   const _ToolPanel({
     super.key,
     required this.tool,
-    required this.height,
     required this.onClose,
-    required this.onResize,
-    required this.onDrag,
+    this.height,
+    this.docked = false,
+    this.onResize,
+    this.onDrag,
   });
   final _Tool tool;
-  final double height;
+  final double? height;
+  final bool docked;
   final VoidCallback onClose;
-  final ValueChanged<double> onResize;
-  final ValueChanged<bool> onDrag;
+  final ValueChanged<double>? onResize;
+  final ValueChanged<bool>? onDrag;
+
+  Widget _header() => Row(
+        children: <Widget>[
+          const SizedBox(width: 16),
+          HugeIcon(icon: tool.icon, color: Colors.white70, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(tool.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+          ),
+          IconButton(
+            tooltip: 'Done',
+            icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedTick01, color: Colors.white, size: 22),
+            onPressed: () {
+              _tap();
+              onClose();
+            },
+          ),
+          const SizedBox(width: 4),
+        ],
+      );
 
   @override
   Widget build(BuildContext context) {
+    final Widget body = Expanded(
+      child: ClipRect(
+        child: Material(type: MaterialType.transparency, child: tool.body),
+      ),
+    );
+
+    if (docked) {
+      return Container(
+        decoration: const BoxDecoration(
+          color: _surface,
+          border: Border(left: BorderSide(color: _divider)),
+        ),
+        child: SafeArea(
+          left: false,
+          child: Column(
+            children: <Widget>[
+              SizedBox(height: 52, child: _header()),
+              const Divider(height: 1, thickness: 0.5, color: _divider),
+              body,
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: const BoxDecoration(
         color: _surface,
@@ -410,12 +628,12 @@ class _ToolPanel extends StatelessWidget {
             children: <Widget>[
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onVerticalDragStart: (_) => onDrag(true),
-                onVerticalDragUpdate: (d) => onResize(d.delta.dy),
-                onVerticalDragEnd: (_) => onDrag(false),
-                onVerticalDragCancel: () => onDrag(false),
+                onVerticalDragStart: (_) => onDrag?.call(true),
+                onVerticalDragUpdate: (d) => onResize?.call(d.delta.dy),
+                onVerticalDragEnd: (_) => onDrag?.call(false),
+                onVerticalDragCancel: () => onDrag?.call(false),
                 child: SizedBox(
-                  height: 48,
+                  height: 52,
                   child: Column(
                     children: <Widget>[
                       const SizedBox(height: 6),
@@ -426,49 +644,13 @@ class _ToolPanel extends StatelessWidget {
                             color: Colors.white24,
                             borderRadius: BorderRadius.circular(2)),
                       ),
-                      Expanded(
-                        child: Row(
-                          children: <Widget>[
-                            const SizedBox(width: 16),
-                            HugeIcon(
-                              icon: tool.icon,
-                              color: Colors.white70,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(tool.title,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600)),
-                            const Spacer(),
-                            IconButton(
-                              tooltip: 'Done',
-                              icon: const HugeIcon(
-                                icon: HugeIcons.strokeRoundedTick01,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                _tap();
-                                onClose();
-                              },
-                            ),
-                            const SizedBox(width: 4),
-                          ],
-                        ),
-                      ),
+                      Expanded(child: _header()),
                     ],
                   ),
                 ),
               ),
               const Divider(height: 1, thickness: 0.5, color: _divider),
-              Expanded(
-                child: ClipRect(
-                  child: Material(
-                      type: MaterialType.transparency, child: tool.body),
-                ),
-              ),
+              body,
             ],
           ),
         ),
@@ -478,11 +660,12 @@ class _ToolPanel extends StatelessWidget {
 }
 
 // ----------------------------------------------------------------------------
-// Video Player Preview
+// Video Player (inside the canvas)
 // ----------------------------------------------------------------------------
 class _VideoPlayerPreview extends StatefulWidget {
-  const _VideoPlayerPreview({required this.editor});
+  const _VideoPlayerPreview({required this.editor, required this.fill});
   final EditorController editor;
+  final bool fill;
 
   @override
   State<_VideoPlayerPreview> createState() => _VideoPlayerPreviewState();
@@ -554,7 +737,11 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
     if (path != _path) await _load(path);
 
     final c = _vc;
-    if (!mounted || c == null || clip == null || _loading || !c.value.isInitialized) {
+    if (!mounted || c == null || !c.value.isInitialized || _loading) return;
+
+    // Playhead is in a gap between clips: make sure we aren't still playing.
+    if (clip == null) {
+      if (c.value.isPlaying) await c.pause();
       return;
     }
 
@@ -641,21 +828,27 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
 
   Widget _placeholder(String text, {IconData icon = Icons.movie_rounded}) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          if (_loading)
-            const SizedBox(
-              width: 26,
-              height: 26,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white38),
-            )
-          else
-            Icon(icon, size: 44, color: Colors.white24),
-          const SizedBox(height: 10),
-          Text(text, style: const TextStyle(color: Colors.white38, fontSize: 12)),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (_loading)
+              const SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+              )
+            else
+              Icon(icon, size: 40, color: Colors.white24),
+            const SizedBox(height: 10),
+            Text(text,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white38, fontSize: 12)),
+          ],
+        ),
       ),
     );
   }
@@ -665,62 +858,77 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
     final clip = _e.activeVideoClip;
     final c = _vc;
     final bool ready = c != null && c.value.isInitialized;
+    final BoxFit fit = widget.fill ? BoxFit.cover : BoxFit.contain;
 
     Widget child;
     if (_isImg && _path != null) {
-      child = Image.file(
-        File(_path!),
-        key: ValueKey<String>(_path!),
-        fit: BoxFit.contain,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) =>
-            _placeholder('Can\'t open this image', icon: Icons.broken_image_rounded),
+      child = SizedBox.expand(
+        child: Image.file(
+          File(_path!),
+          key: ValueKey<String>(_path!),
+          fit: fit,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) =>
+              _placeholder("Can't open this image", icon: Icons.broken_image_rounded),
+        ),
       );
     } else if (ready) {
-      child = AspectRatio(aspectRatio: c.value.aspectRatio, child: VideoPlayer(c));
+      final Size vs = c.value.size;
+      child = SizedBox.expand(
+        child: FittedBox(
+          fit: fit,
+          clipBehavior: Clip.hardEdge,
+          child: SizedBox(
+            width: vs.width <= 0 ? 16 : vs.width,
+            height: vs.height <= 0 ? 9 : vs.height,
+            child: VideoPlayer(c),
+          ),
+        ),
+      );
     } else if (_failed) {
-      child = _placeholder('Can\'t play this file', icon: Icons.error_rounded);
+      child = _placeholder("Can't play this file", icon: Icons.error_rounded);
     } else {
       child = _placeholder(clip?.label ?? 'Add media to start editing');
     }
 
+    // Clip transform (scale only; position belongs to overlays).
+    if (clip != null && (_isImg || ready)) {
+      final double sc = (clip.scale).clamp(0.2, 5.0).toDouble();
+      if (sc != 1.0) child = Transform.scale(scale: sc, child: child);
+    }
+
     final cg = clip?.colorGrading;
     if (cg != null) {
-      final b = cg.brightness;
-      final cont = cg.contrast;
-      final s = cg.saturation;
+      final double b = cg.brightness;
+      final double cont = cg.contrast;
+      final double s = cg.saturation;
       if (b != 0.0 || cont != 1.0 || s != 1.0) {
+        const double lr = 0.2126, lg = 0.7152, lb = 0.0722;
+        final double sr = (1 - s) * lr, sg = (1 - s) * lg, sb = (1 - s) * lb;
+        final double off = (0.5 * (1 - cont) + b) * 255;
         final List<double> matrix = <double>[
-          cont * s, 0, 0, 0, b * 255,
-          0, cont * s, 0, 0, b * 255,
-          0, 0, cont * s, 0, b * 255,
+          cont * (sr + s), cont * sg, cont * sb, 0, off,
+          cont * sr, cont * (sg + s), cont * sb, 0, off,
+          cont * sr, cont * sg, cont * (sb + s), 0, off,
           0, 0, 0, 1, 0,
         ];
-        child = ColorFiltered(
-          colorFilter: ColorFilter.matrix(matrix),
-          child: child,
-        );
+        child = ColorFiltered(colorFilter: ColorFilter.matrix(matrix), child: child);
       }
     }
 
-    return Container(
-      color: const Color(0xFF07080B),
-      child: Stack(
-        fit: StackFit.expand,
-        alignment: Alignment.center,
-        children: <Widget>[
-          Center(child: child),
-          if (_loading && ready)
-            const Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white54),
-              ),
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        child,
+        if (_loading && ready)
+          const Center(
+            child: SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 }
@@ -728,9 +936,8 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
 // ----------------------------------------------------------------------------
 // Tracking overlay (normalized coordinates)
 //
-// Wire `resolveTrackingBox` in main() to map your TrackingData fields to a
-// normalized rect, e.g.:
-//   resolveTrackingBox = (t) => TrackingBox(t.x, t.y, t.w, t.h); // 0..1
+// Optional: wire `resolveTrackingBox` in main() for a custom mapping. If it is
+// not set, the overlay falls back to `trackingData.rect` (normalized 0..1).
 // ----------------------------------------------------------------------------
 class TrackingBox {
   const TrackingBox(this.x, this.y, this.w, this.h);
@@ -739,6 +946,18 @@ class TrackingBox {
 
 typedef TrackingBoxResolver = TrackingBox? Function(dynamic tracking);
 TrackingBoxResolver? resolveTrackingBox;
+
+TrackingBox? _trackingBox(dynamic tracking) {
+  if (tracking == null) return null;
+  final TrackingBox? custom = resolveTrackingBox?.call(tracking);
+  if (custom != null) return custom;
+  try {
+    if ((tracking as dynamic).isEnabled != true) return null;
+    final dynamic r = (tracking as dynamic).rect;
+    if (r is Rect) return TrackingBox(r.left, r.top, r.width, r.height);
+  } catch (_) {}
+  return null;
+}
 
 class _TrackingOverlay extends StatelessWidget {
   const _TrackingOverlay({required this.box, required this.label});
@@ -749,8 +968,8 @@ class _TrackingOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, c) {
-        final Rect r = Rect.fromLTWH(
-            box.x * c.maxWidth, box.y * c.maxHeight, box.w * c.maxWidth, box.h * c.maxHeight);
+        final Rect r = Rect.fromLTWH(box.x * c.maxWidth, box.y * c.maxHeight,
+            box.w * c.maxWidth, box.h * c.maxHeight);
         return CustomPaint(
           painter: _TrackingPainter(rect: r, label: label),
           child: const SizedBox.expand(),
@@ -768,7 +987,11 @@ class _TrackingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(
-        rect, Paint()..color = _accent..style = PaintingStyle.stroke..strokeWidth = 1.5);
+        rect,
+        Paint()
+          ..color = _accent
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5);
     final tp = TextPainter(
       text: TextSpan(
           text: label,
@@ -779,9 +1002,9 @@ class _TrackingPainter extends CustomPainter {
       ellipsis: '…',
     )..layout(maxWidth: math.max(40, rect.width));
     final double lw = tp.width + 12;
-    canvas.drawRect(Rect.fromLTWH(rect.left, rect.top - 16, lw, 16),
-        Paint()..color = _accent);
-    tp.paint(canvas, Offset(rect.left + 6, rect.top - 14));
+    final double top = math.max(0, rect.top - 16);
+    canvas.drawRect(Rect.fromLTWH(rect.left, top, lw, 16), Paint()..color = _accent);
+    tp.paint(canvas, Offset(rect.left + 6, top + 2));
   }
 
   @override
@@ -790,7 +1013,7 @@ class _TrackingPainter extends CustomPainter {
 }
 
 // ----------------------------------------------------------------------------
-// Preview (full-bleed) with overlaid controls
+// Preview: top bar + pro canvas
 // ----------------------------------------------------------------------------
 class _Preview extends StatefulWidget {
   const _Preview({required this.editor});
@@ -802,305 +1025,314 @@ class _Preview extends StatefulWidget {
 
 class _PreviewState extends State<_Preview> {
   final TransformationController _tf = TransformationController();
+  final ValueNotifier<_GuideState> _guides =
+      ValueNotifier<_GuideState>(const _GuideState());
   bool _grid = false;
+  bool _fill = false;
 
   @override
   void dispose() {
+    _guides.dispose();
     _tf.dispose();
     super.dispose();
   }
 
-  Widget _step(IconData i, int dir, String tip) => IconButton(
-        tooltip: tip,
-        visualDensity: VisualDensity.compact,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(width: 34, height: 34),
-        icon: Icon(i, color: Colors.white, size: 22),
-        onPressed: () {
-          _tap();
-          _seek(widget.editor, _seconds(widget.editor.playhead) + dir / _fps);
-        },
-      );
-
   Widget _roundBtn(IconData i, String tip, VoidCallback onTap,
-          {double size = 30, double iconSize = 16}) =>
+          {double size = 36, double iconSize = 17, bool on = false}) =>
       Semantics(
         button: true,
         label: tip,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            _tap();
-            onTap();
-          },
-          child: Container(
-            width: size,
-            height: size,
-            decoration:
-                const BoxDecoration(color: Colors.black45, shape: BoxShape.circle),
-            child: Icon(i, color: Colors.white, size: iconSize),
-          ),
-        ),
-      );
-
-  Widget _scrim({required bool top}) => Positioned(
-        left: 0,
-        right: 0,
-        top: top ? 0 : null,
-        bottom: top ? null : 0,
-        height: top ? 96 : 108,
-        child: IgnorePointer(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: top ? Alignment.topCenter : Alignment.bottomCenter,
-                end: top ? Alignment.bottomCenter : Alignment.topCenter,
-                colors: const <Color>[Color(0xB3000000), Color(0x00000000)],
-              ),
+        child: Tooltip(
+          message: tip,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              _tap();
+              onTap();
+            },
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                  color: on ? Colors.white : const Color(0xFF1B1B20),
+                  shape: BoxShape.circle),
+              child: Icon(i, color: on ? Colors.black : Colors.white, size: iconSize),
             ),
           ),
         ),
       );
 
-  @override
-  Widget build(BuildContext context) {
-    final editor = widget.editor;
-    return Stack(
-      fit: StackFit.expand,
-      children: <Widget>[
-        // Pinch-zoom / pan on the player; double-tap resets; tap toggles play.
-        GestureDetector(
-          onTap: editor.togglePlayback,
-          onDoubleTap: () => _tf.value = Matrix4.identity(),
-          child: InteractiveViewer(
-            transformationController: _tf,
-            minScale: 1,
-            maxScale: 5,
-            child: SizedBox.expand(child: _VideoPlayerPreview(editor: editor)),
+  Widget _topBar(BuildContext context) {
+    final Size size = MediaQuery.sizeOf(context);
+    final double s = _scaleOf(size);
+    final bool showLogo = size.width >= 430;
+    final double btn = 36 * s;
+
+    return Container(
+      color: _bg,
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 52 * s,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10 * s),
+            child: Row(
+              children: <Widget>[
+                _roundBtn(Icons.arrow_back_ios_new_rounded, 'Back',
+                    () => Navigator.of(context).maybePop(),
+                    size: btn, iconSize: 16 * s),
+                if (showLogo) ...<Widget>[
+                  SizedBox(width: 10 * s),
+                  Flexible(
+                    child: Text(
+                      'motionGr',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.unbounded(
+                        color: Colors.white,
+                        fontSize: 15 * s,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                ValueListenableBuilder<_CanvasRatio>(
+                  valueListenable: _canvasRatio,
+                  builder: (_, r, __) => PopupMenuButton<_CanvasRatio>(
+                    tooltip: 'Canvas ratio',
+                    color: _surface,
+                    onSelected: (v) {
+                      _tap();
+                      _canvasRatio.value = v;
+                      _tf.value = Matrix4.identity();
+                    },
+                    itemBuilder: (_) => <PopupMenuEntry<_CanvasRatio>>[
+                      for (final v in _CanvasRatio.values)
+                        PopupMenuItem<_CanvasRatio>(
+                          value: v,
+                          child: Text(v.label,
+                              style: TextStyle(
+                                  color: v == r ? _accent : Colors.white,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                    ],
+                    child: Container(
+                      height: 30 * s,
+                      alignment: Alignment.center,
+                      padding: EdgeInsets.symmetric(horizontal: 10 * s),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B1B20),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Text(r.label,
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11.5 * s,
+                                  fontWeight: FontWeight.w600)),
+                          const Icon(Icons.arrow_drop_down_rounded,
+                              size: 18, color: Colors.white70),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 6 * s),
+                _roundBtn(
+                    _fill
+                        ? Icons.fit_screen_rounded
+                        : Icons.crop_free_rounded,
+                    _fill ? 'Fit video' : 'Fill canvas',
+                    () => setState(() => _fill = !_fill),
+                    size: btn,
+                    iconSize: 17 * s,
+                    on: _fill),
+                SizedBox(width: 6 * s),
+                _roundBtn(Icons.grid_on_rounded, _grid ? 'Hide guides' : 'Show guides',
+                    () => setState(() => _grid = !_grid),
+                    size: btn, iconSize: 17 * s, on: _grid),
+                SizedBox(width: 8 * s),
+                Material(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () {
+                      _tap();
+                      ExportModal.show(context);
+                    },
+                    child: SizedBox(
+                      height: btn,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12 * s),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Icon(Icons.ios_share_rounded,
+                                color: Colors.black, size: 15 * s),
+                            SizedBox(width: 5 * s),
+                            Text('Export',
+                                style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 12.5 * s,
+                                    fontWeight: FontWeight.w700)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        Consumer<EditorController>(
-          builder: (ctx, e, _) {
-            final tracking = e.selectedClip?.trackingData;
-            final TrackingBox? box =
-                (tracking != null) ? resolveTrackingBox?.call(tracking) : null;
+      ),
+    );
+  }
 
-            final activeOverlays = e.clips.where((c) {
-              return c.isVisible &&
-                  c.clipType != ClipType.video &&
-                  c.clipType != ClipType.audio &&
-                  e.playhead >= c.start &&
-                  e.playhead <= c.end;
-            }).toList();
-
+  Widget _canvas(EditorController editor, double ratio) {
+    return AspectRatio(
+      aspectRatio: ratio,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black,
+          border: Border.all(color: Colors.white12),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(color: Colors.black87, blurRadius: 18, spreadRadius: 1),
+          ],
+        ),
+        child: ClipRect(
+          child: LayoutBuilder(builder: (context, fc) {
+            final double unit = fc.maxWidth / _designW;
+            final double designH = fc.maxHeight / unit;
             return Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                for (final clip in activeOverlays)
-                  _InteractiveOverlayClip(
-                    key: ValueKey<String>(clip.id),
-                    clip: clip,
-                    isSelected: clip.id == e.selectedClipId,
-                    onSelect: () => e.selectClip(clip.id),
-                    onUpdateTransform: (dx, dy, scaleDelta) {
-                      e.selectClip(clip.id);
-                      e.updateTranslation(
-                        positionX: clip.positionX + dx,
-                        positionY: clip.positionY + dy,
-                        scale: (clip.scale * scaleDelta).clamp(0.2, 5.0),
-                      );
-                    },
-                  ),
-                IgnorePointer(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: <Widget>[
-                      if (_grid)
-                        const Positioned.fill(
-                          child: CustomPaint(painter: _GuidePainter()),
+                _VideoPlayerPreview(editor: editor, fill: _fill),
+                Consumer<EditorController>(
+                  builder: (ctx, e, _) {
+                    final dynamic tracking = e.selectedClip?.trackingData;
+                    final TrackingBox? box = _trackingBox(tracking);
+
+                    final activeOverlays = e.clips.where((c) {
+                      return c.isVisible &&
+                          c.clipType != ClipType.video &&
+                          c.clipType != ClipType.image &&
+                          c.clipType != ClipType.audio &&
+                          e.playhead >= c.start &&
+                          e.playhead <= c.end;
+                    }).toList();
+
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: <Widget>[
+                        for (final clip in activeOverlays)
+                          _OverlayClip(
+                            key: ValueKey<String>(clip.id),
+                            clip: clip,
+                            unit: unit,
+                            designH: designH,
+                            othersOf: () => <Rect>[
+                              for (final o in activeOverlays)
+                                if (o.id != clip.id) _overlayRect(o)
+                            ],
+                            isSelected: clip.id == e.selectedClipId,
+                            onSelect: () => e.selectClip(clip.id),
+                            onGuides: (g) => _guides.value = g,
+                            onPosition: (x, y) {
+                              e.selectClip(clip.id);
+                              e.updateTranslation(
+                                positionX: x.clamp(-40.0, _designW - 24).toDouble(),
+                                positionY: y.clamp(-40.0, designH - 24).toDouble(),
+                              );
+                            },
+                            onScale: (v) {
+                              e.selectClip(clip.id);
+                              e.updateTranslation(scale: v);
+                            },
+                          ),
+                        IgnorePointer(
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: <Widget>[
+                              if (_grid)
+                                const Positioned.fill(
+                                    child: CustomPaint(painter: _GuidePainter())),
+                              if (e.activeDrawingStrokes.isNotEmpty)
+                                Positioned.fill(
+                                  child: CustomPaint(
+                                    painter: _DrawingPainter(
+                                        strokes: e.activeDrawingStrokes, unit: unit),
+                                  ),
+                                ),
+                              if (box != null)
+                                Positioned.fill(
+                                  child: _TrackingOverlay(
+                                    box: box,
+                                    label: '${(tracking as dynamic)?.targetName ?? 'Target'}',
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      if (e.activeDrawingStrokes.isNotEmpty)
-                        Positioned.fill(
-                          child: CustomPaint(
-                              painter: _DrawingPainter(strokes: e.activeDrawingStrokes)),
-                        ),
-                      if (box != null)
-                        Positioned.fill(
-                          child: _TrackingOverlay(
-                              box: box, label: tracking?.targetName ?? 'Target'),
-                        ),
-                    ],
+                      ],
+                    );
+                  },
+                ),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: ValueListenableBuilder<_GuideState>(
+                      valueListenable: _guides,
+                      builder: (_, g, __) => g.dragging
+                          ? CustomPaint(painter: _SnapGuidePainter(g))
+                          : const SizedBox.shrink(),
+                    ),
                   ),
                 ),
               ],
             );
-          },
-        ),
-        _scrim(top: true),
-        _scrim(top: false),
-        Positioned(
-  left: 0,
-  right: 0,
-  top: 0,
-  child: SafeArea(
-    bottom: false,
-    child: SizedBox(
-      height: 52,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            _roundBtn(Icons.arrow_back_ios_new_rounded, 'Back',
-                () => Navigator.of(context).maybePop(),
-                size: 36, iconSize: 17),
-            const SizedBox(width: 10),
-            Text(
-              'motionGr',
-              style: GoogleFonts.unbounded(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-              ),
-            ),
-            const Spacer(),
-            _roundBtn(
-              _grid ? Icons.grid_off_rounded : Icons.grid_on_rounded,
-              _grid ? 'Hide guides' : 'Show guides',
-              () => setState(() => _grid = !_grid),
-              size: 36, iconSize: 17,
-            ),
-            const SizedBox(width: 8),
-            Container(
-              height: 28,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: Colors.black38,
-                borderRadius: BorderRadius.circular(7),
-                border: Border.all(color: Colors.white24),
-              ),
-              child: const Text('1080p',
-                  style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600)),
-            ),
-            const SizedBox(width: 8),
-            Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: () {
-                  _tap();
-                  ExportModal.show(context);
-                },
-                child: const SizedBox(
-                  height: 36,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(Icons.ios_share_rounded, color: Colors.black, size: 15),
-                        SizedBox(width: 5),
-                        Text('Export',
-                            style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          }),
         ),
       ),
-    ),
-  ),
-),
-        Positioned(
-          left: 10,
-          right: 10,
-          bottom: 6,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Selector<EditorController, Duration>(
-                selector: (_, e) => e.playhead,
-                builder: (_, p, __) => Text.rich(
-                  textAlign: TextAlign.center,
-                  TextSpan(children: <TextSpan>[
-                    TextSpan(
-                        text: _tc(_seconds(p)),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            fontFeatures: <FontFeature>[FontFeature.tabularFigures()])),
-                    TextSpan(
-                        text:
-                            '  /  ${_tc(math.max(_seconds(editor.project.totalDuration), 1.0))}',
-                        style: const TextStyle(
-                            color: _muted,
-                            fontSize: 11,
-                            fontFeatures: <FontFeature>[FontFeature.tabularFigures()])),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: <Widget>[
-                  _roundBtn(Icons.undo_rounded, 'Undo', editor.undo, size: 30),
-                  Expanded(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: <Widget>[
-                        _step(Icons.skip_previous_rounded, -1, 'Previous frame'),
-                        const SizedBox(width: 4),
-                        Selector<EditorController, bool>(
-                          selector: (_, e) => e.isPlaying,
-                          builder: (_, playing, __) => Semantics(
-                            button: true,
-                            label: playing ? 'Pause' : 'Play',
-                            child: GestureDetector(
-                              onTap: () {
-                                _tap();
-                                editor.togglePlayback();
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 150),
-                                width: 40,
-                                height: 40,
-                                decoration: const BoxDecoration(
-                                    color: Colors.white, shape: BoxShape.circle),
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 150),
-                                  child: Icon(
-                                      playing
-                                          ? Icons.pause_rounded
-                                          : Icons.play_arrow_rounded,
-                                      key: ValueKey<bool>(playing),
-                                      color: Colors.black,
-                                      size: 24),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        _step(Icons.skip_next_rounded, 1, 'Next frame'),
-                      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = widget.editor;
+    final double pad = 10 * _scaleOf(MediaQuery.sizeOf(context));
+
+    return Column(
+      children: <Widget>[
+        _topBar(context),
+        Expanded(
+          child: Container(
+            color: const Color(0xFF07080B),
+            child: ClipRect(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: editor.togglePlayback,
+                onDoubleTap: () => _tf.value = Matrix4.identity(),
+                child: InteractiveViewer(
+                  transformationController: _tf,
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(pad),
+                      child: ValueListenableBuilder<_CanvasRatio>(
+                        valueListenable: _canvasRatio,
+                        builder: (_, r, __) => _canvas(editor, r.value),
+                      ),
                     ),
                   ),
-                  _roundBtn(Icons.redo_rounded, 'Redo', editor.redo, size: 30),
-                ],
+                ),
               ),
-            ],
+            ),
           ),
         ),
       ],
@@ -1108,21 +1340,383 @@ class _PreviewState extends State<_Preview> {
   }
 }
 
-class _InteractiveOverlayClip extends StatelessWidget {
-  const _InteractiveOverlayClip({
+class _PaneDivider extends StatelessWidget {
+  const _PaneDivider({required this.onDrag, required this.onReset});
+  final ValueChanged<double> onDrag;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.resizeRow,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragUpdate: (d) => onDrag(d.delta.dy),
+        onDoubleTap: () {
+          _tap();
+          onReset();
+        },
+        child: SizedBox(
+          height: 16,
+          child: Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 7.5,
+                child: Container(height: 1, color: const Color(0xFF2A2A30)),
+              ),
+              Container(
+                width: 38,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3A3A44),
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(color: _bg, width: 1.5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Transport bar (timecode, frame step, play, undo/redo)
+// ----------------------------------------------------------------------------
+class _Transport extends StatelessWidget {
+  const _Transport({required this.editor});
+  final EditorController editor;
+
+  Widget _icon(IconData i, String tip, VoidCallback onTap, double s) => IconButton(
+        tooltip: tip,
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: BoxConstraints.tightFor(width: 40 * s, height: 40 * s),
+        icon: Icon(i, color: Colors.white, size: 22 * s),
+        onPressed: () {
+          _tap();
+          onTap();
+        },
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final double s = _scaleOf(MediaQuery.sizeOf(context));
+    const List<FontFeature> tab = <FontFeature>[FontFeature.tabularFigures()];
+
+    return Container(
+      color: _bg,
+      padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 2 * s),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Selector<EditorController, Duration>(
+                selector: (_, e) => e.playhead,
+                builder: (_, p, __) => FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(_tc(_seconds(p)),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              fontFeatures: tab)),
+                      Text(
+                          _tc(math.max(_seconds(editor.project.totalDuration), 1.0)),
+                          style: const TextStyle(
+                              color: _muted, fontSize: 9, fontFeatures: tab)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _icon(Icons.skip_previous_rounded, 'Previous frame',
+              () => _seek(editor, _seconds(editor.playhead) - 1 / _fps), s),
+          Selector<EditorController, bool>(
+            selector: (_, e) => e.isPlaying,
+            builder: (_, playing, __) => Semantics(
+              button: true,
+              label: playing ? 'Pause' : 'Play',
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _tap();
+                  editor.togglePlayback();
+                },
+                child: Container(
+                  width: 48 * s,
+                  height: 48 * s,
+                  margin: EdgeInsets.symmetric(horizontal: 2 * s),
+                  alignment: Alignment.center,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 150),
+                    child: Icon(
+                        playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        key: ValueKey<bool>(playing),
+                        color: Colors.white,
+                        size: 38 * s),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _icon(Icons.skip_next_rounded, 'Next frame',
+              () => _seek(editor, _seconds(editor.playhead) + 1 / _fps), s),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _icon(Icons.undo_rounded, 'Undo', editor.undo, s),
+                  _icon(Icons.redo_rounded, 'Redo', editor.redo, s),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Smart snapping: canvas center/edges/thirds/safe margins + other objects
+// ----------------------------------------------------------------------------
+enum _SnapKind { center, edge, third, safe, object }
+
+class _SnapLine {
+  const _SnapLine(this.vertical, this.pos, this.kind);
+  final bool vertical;
+  final double pos; // design units
+  final _SnapKind kind;
+
+  @override
+  bool operator ==(Object o) =>
+      o is _SnapLine && o.vertical == vertical && o.pos == pos && o.kind == kind;
+
+  @override
+  int get hashCode => Object.hash(vertical, pos, kind);
+}
+
+class _GuideState {
+  const _GuideState({this.dragging = false, this.lines = const <_SnapLine>[]});
+  final bool dragging;
+  final List<_SnapLine> lines;
+
+  @override
+  bool operator ==(Object o) =>
+      o is _GuideState && o.dragging == dragging && _listEq(o.lines, lines);
+
+  @override
+  int get hashCode => Object.hash(dragging, lines.length);
+}
+
+/// Approximate bounds (design units) of an overlay clip, used as snap targets.
+Rect _overlayRect(TimelineClip c) {
+  double w, h;
+  switch (c.clipType) {
+    case ClipType.element:
+      w = h = 80 * c.scale;
+    case ClipType.drawing:
+      w = h = 120 * c.scale;
+    default:
+      final bool big = c.clipType == ClipType.text ||
+          c.clipType == ClipType.caption ||
+          c.clipType == ClipType.sticker;
+      final tp = TextPainter(
+        text: TextSpan(
+          text: c.label,
+          style: TextStyle(
+              fontSize: (big ? 24 * c.scale : 16.0),
+              fontFamily: c.fontFamily,
+              fontWeight: FontWeight.bold),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      w = tp.width;
+      h = tp.height;
+  }
+  return Rect.fromLTWH(c.positionX, c.positionY, w + 12, h + 12);
+}
+
+bool _snapRefOk(_SnapKind k, double t, int i, double canvas) {
+  if (k == _SnapKind.edge || k == _SnapKind.safe) {
+    if (i == 1) return false;
+    return (t < canvas / 2 && i == 0) || (t > canvas / 2 && i == 2);
+  }
+  return true;
+}
+
+(double, List<_SnapLine>) _snapAxis(
+    double pos, double size, double canvas, bool vertical, List<double> objT, double th) {
+  final List<(double, _SnapKind)> targets = <(double, _SnapKind)>[
+    (canvas / 2, _SnapKind.center),
+    (0.0, _SnapKind.edge),
+    (canvas, _SnapKind.edge),
+    (canvas / 3, _SnapKind.third),
+    (canvas * 2 / 3, _SnapKind.third),
+    (canvas * 0.05, _SnapKind.safe),
+    (canvas * 0.95, _SnapKind.safe),
+    for (final t in objT) (t, _SnapKind.object),
+  ];
+  final List<double> refs = <double>[pos, pos + size / 2, pos + size];
+
+  double? best;
+  for (final t in targets) {
+    for (int i = 0; i < 3; i++) {
+      if (!_snapRefOk(t.$2, t.$1, i, canvas)) continue;
+      final double d = t.$1 - refs[i];
+      if (d.abs() < th && (best == null || d.abs() < best.abs())) best = d;
+    }
+  }
+  if (best == null) return (pos, const <_SnapLine>[]);
+
+  final List<_SnapLine> lines = <_SnapLine>[];
+  for (final t in targets) {
+    for (int i = 0; i < 3; i++) {
+      if (!_snapRefOk(t.$2, t.$1, i, canvas)) continue;
+      if ((t.$1 - (refs[i] + best)).abs() < 0.01) {
+        final l = _SnapLine(vertical, t.$1, t.$2);
+        if (!lines.contains(l)) lines.add(l);
+      }
+    }
+  }
+  return (pos + best, lines);
+}
+
+class _SnapGuidePainter extends CustomPainter {
+  _SnapGuidePainter(this.g);
+  final _GuideState g;
+
+  static Color _color(_SnapKind k) => switch (k) {
+        _SnapKind.center || _SnapKind.edge => _accent,
+        _SnapKind.third => const Color(0xFFFFC857),
+        _SnapKind.safe => const Color(0xFF4DD0B5),
+        _SnapKind.object => const Color(0xFFFF5FA2),
+      };
+
+  static String _label(_SnapLine l) => switch (l.kind) {
+        _SnapKind.center => l.vertical ? 'Center' : 'Middle',
+        _SnapKind.edge => 'Edge',
+        _SnapKind.third => 'Thirds',
+        _SnapKind.safe => 'Safe',
+        _SnapKind.object => 'Align',
+      };
+
+  void _dashed(Canvas canvas, Offset a, Offset b, Paint p) {
+    final double total = (b - a).distance;
+    if (total <= 0) return;
+    final Offset dir = (b - a) / total;
+    double d = 0;
+    while (d < total) {
+      canvas.drawLine(a + dir * d, a + dir * math.min(d + 6, total), p);
+      d += 10;
+    }
+  }
+
+  void _tag(Canvas canvas, String text, Offset at, Color c) {
+    final tp = TextPainter(
+      text: TextSpan(
+          text: text,
+          style: TextStyle(color: c, fontSize: 9, fontWeight: FontWeight.w700)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final Rect r = Rect.fromLTWH(at.dx, at.dy, tp.width + 8, tp.height + 4);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(r, const Radius.circular(4)), Paint()..color = Colors.black87);
+    tp.paint(canvas, Offset(r.left + 4, r.top + 2));
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double k = size.width / _designW;
+    final Paint idle = Paint()
+      ..color = Colors.white38
+      ..strokeWidth = 0.8;
+
+    final bool vc = g.lines.any((l) => l.vertical && l.kind == _SnapKind.center);
+    final bool hc = g.lines.any((l) => !l.vertical && l.kind == _SnapKind.center);
+    if (!vc) {
+      _dashed(canvas, Offset(size.width / 2, 0), Offset(size.width / 2, size.height), idle);
+    }
+    if (!hc) {
+      _dashed(canvas, Offset(0, size.height / 2), Offset(size.width, size.height / 2), idle);
+    }
+
+    for (final l in g.lines) {
+      final Color c = _color(l.kind);
+      final Paint p = Paint()
+        ..color = c
+        ..strokeWidth = 1.4;
+      if (l.vertical) {
+        final double x = (l.pos * k).clamp(0.7, size.width - 0.7).toDouble();
+        _dashed(canvas, Offset(x, 0), Offset(x, size.height), p);
+        _tag(canvas, _label(l), Offset(math.min(x + 3, size.width - 52), 3), c);
+      } else {
+        final double y = (l.pos * k).clamp(0.7, size.height - 0.7).toDouble();
+        _dashed(canvas, Offset(0, y), Offset(size.width, y), p);
+        _tag(canvas, _label(l), Offset(3, math.min(y + 3, size.height - 16)), c);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SnapGuidePainter old) => old.g != g;
+}
+
+// ----------------------------------------------------------------------------
+// Overlay clip (text / sticker / element / drawing): drag + pinch + snapping
+// ----------------------------------------------------------------------------
+class _OverlayClip extends StatefulWidget {
+  const _OverlayClip({
     super.key,
     required this.clip,
+    required this.unit,
+    required this.designH,
+    required this.othersOf,
     required this.isSelected,
     required this.onSelect,
-    required this.onUpdateTransform,
+    required this.onPosition,
+    required this.onScale,
+    required this.onGuides,
   });
 
   final TimelineClip clip;
+  final double unit;
+  final double designH;
+  final List<Rect> Function() othersOf;
   final bool isSelected;
   final VoidCallback onSelect;
-  final void Function(double dx, double dy, double scaleDelta) onUpdateTransform;
+  final void Function(double x, double y) onPosition;
+  final ValueChanged<double> onScale;
+  final ValueChanged<_GuideState> onGuides;
 
-  Widget _buildContent() {
+  @override
+  State<_OverlayClip> createState() => _OverlayClipState();
+}
+
+class _OverlayClipState extends State<_OverlayClip> {
+  final GlobalKey _k = GlobalKey();
+  double _baseScale = 1;
+  double _rx = 0, _ry = 0; // raw (unsnapped) position so snapping never "sticks"
+  List<double> _ox = <double>[], _oy = <double>[];
+  String _sig = '';
+
+  Widget _content() {
+    final clip = widget.clip;
+    final double u = widget.unit;
     switch (clip.clipType) {
       case ClipType.text:
       case ClipType.caption:
@@ -1131,7 +1725,7 @@ class _InteractiveOverlayClip extends StatelessWidget {
           clip.label,
           style: TextStyle(
             color: Colors.white,
-            fontSize: 24 * clip.scale,
+            fontSize: 24 * clip.scale * u,
             fontFamily: clip.fontFamily,
             fontWeight: FontWeight.bold,
             shadows: const <Shadow>[
@@ -1141,51 +1735,85 @@ class _InteractiveOverlayClip extends StatelessWidget {
         );
       case ClipType.element:
         return Container(
-          width: 80 * clip.scale,
-          height: 80 * clip.scale,
+          width: 80 * clip.scale * u,
+          height: 80 * clip.scale * u,
           decoration: BoxDecoration(
             color: clip.elementProperties.fillColor,
             shape: clip.elementProperties.shape == ElementShape.circle
                 ? BoxShape.circle
                 : BoxShape.rectangle,
             borderRadius: clip.elementProperties.shape == ElementShape.rectangle
-                ? BorderRadius.circular(8)
+                ? BorderRadius.circular(8 * u)
                 : null,
           ),
         );
       case ClipType.drawing:
         return CustomPaint(
-          size: Size(120 * clip.scale, 120 * clip.scale),
-          painter: _DrawingPainter(strokes: clip.strokes),
+          size: Size(120 * clip.scale * u, 120 * clip.scale * u),
+          painter: _DrawingPainter(strokes: clip.strokes, unit: u),
         );
       default:
-        return Text(
-          clip.label,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-        );
+        return Text(clip.label,
+            style: TextStyle(color: Colors.white, fontSize: 16 * u));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final double u = widget.unit;
     return Positioned(
-      left: clip.positionX,
-      top: clip.positionY,
+      left: clip.positionX * u,
+      top: clip.positionY * u,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: onSelect,
-        onPanUpdate: (details) {
-          onUpdateTransform(details.delta.dx, details.delta.dy, 1.0);
+        onTap: widget.onSelect,
+        onScaleStart: (_) {
+          _baseScale = clip.scale;
+          _rx = clip.positionX;
+          _ry = clip.positionY;
+          _sig = '';
+          _ox = <double>[];
+          _oy = <double>[];
+          for (final r in widget.othersOf()) {
+            _ox.addAll(<double>[r.left, r.center.dx, r.right]);
+            _oy.addAll(<double>[r.top, r.center.dy, r.bottom]);
+          }
+          widget.onSelect();
         },
+        onScaleUpdate: (d) {
+          if (d.pointerCount >= 2) {
+            widget.onScale((_baseScale * d.scale).clamp(0.2, 5.0).toDouble());
+            return;
+          }
+          _rx += d.focalPointDelta.dx / u;
+          _ry += d.focalPointDelta.dy / u;
+          final Size? sz = _k.currentContext?.size;
+          final double w = (sz?.width ?? 0) / u;
+          final double h = (sz?.height ?? 0) / u;
+          final double th = 8 / u; // 8 screen px of magnetic pull
+          final (double x, List<_SnapLine> lx) = _snapAxis(_rx, w, _designW, true, _ox, th);
+          final (double y, List<_SnapLine> ly) =
+              _snapAxis(_ry, h, widget.designH, false, _oy, th);
+          final List<_SnapLine> lines = <_SnapLine>[...lx, ...ly];
+          final String sig =
+              lines.map((l) => '${l.vertical}${l.pos.toStringAsFixed(1)}').join('|');
+          if (sig.isNotEmpty && sig != _sig) _tap();
+          _sig = sig;
+          widget.onPosition(x, y);
+          widget.onGuides(_GuideState(dragging: true, lines: lines));
+        },
+        onScaleEnd: (_) => widget.onGuides(const _GuideState()),
         child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: isSelected
+          key: _k,
+          padding: EdgeInsets.all(6 * u),
+          decoration: widget.isSelected
               ? BoxDecoration(
                   border: Border.all(color: _accent, width: 1.5),
                   borderRadius: BorderRadius.circular(6),
                 )
               : null,
-          child: _buildContent(),
+          child: _content(),
         ),
       ),
     );
@@ -1198,14 +1826,26 @@ class _GuidePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint p = Paint()
-      ..color = Colors.white24
+      ..color = Colors.white30
       ..strokeWidth = 0.7;
     for (final double f in const <double>[1 / 3, 2 / 3]) {
       canvas.drawLine(Offset(size.width * f, 0), Offset(size.width * f, size.height), p);
       canvas.drawLine(Offset(0, size.height * f), Offset(size.width, size.height * f), p);
     }
-    canvas.drawCircle(size.center(Offset.zero), 5,
-        Paint()..color = Colors.white24..style = PaintingStyle.stroke..strokeWidth = 1);
+    // Title-safe area (90%).
+    final Rect safe = Rect.fromCenter(
+        center: size.center(Offset.zero),
+        width: size.width * 0.9,
+        height: size.height * 0.9);
+    canvas.drawRect(
+        safe,
+        Paint()
+          ..color = _accent.withValues(alpha: 0.55)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1);
+    final Offset c = size.center(Offset.zero);
+    canvas.drawLine(c.translate(-8, 0), c.translate(8, 0), p);
+    canvas.drawLine(c.translate(0, -8), c.translate(0, 8), p);
   }
 
   @override
@@ -1213,8 +1853,9 @@ class _GuidePainter extends CustomPainter {
 }
 
 class _DrawingPainter extends CustomPainter {
-  _DrawingPainter({required this.strokes});
+  _DrawingPainter({required this.strokes, this.unit = 1});
   final List<DrawingStroke> strokes;
+  final double unit;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1364,8 +2005,15 @@ class _Timeline extends StatefulWidget {
 }
 
 class _TimelineState extends State<_Timeline> {
-  static const double _rulerH = 30, _textH = 34, _videoH = 52, _audioH = 40;
-  static const double _gap = 6, _hdrW = 44;
+  static const double _gap = 6;
+
+  // Device scale, refreshed in build().
+  double _s = 1;
+  double get _rulerH => 30 * _s;
+  double get _textH => 34 * _s;
+  double get _videoH => 52 * _s;
+  double get _audioH => 40 * _s;
+  double get _hdrW => 44 * _s;
 
   final ScrollController _sc = ScrollController();
   final ScrollController _vc = ScrollController();
@@ -1506,38 +2154,40 @@ class _TimelineState extends State<_Timeline> {
   Widget _chip(IconData icon, String tip, bool on, VoidCallback onTap) => Semantics(
         button: true,
         label: tip,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            _tap();
-            onTap();
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
-            child: Container(
-              width: 30,
-              height: 24,
-              decoration: BoxDecoration(
-                color: on ? Colors.white : const Color(0xFF26262C),
-                borderRadius: BorderRadius.circular(7),
+        child: Tooltip(
+          message: tip,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              _tap();
+              onTap();
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(2),
+              child: Container(
+                width: 34 * _s,
+                height: 28 * _s,
+                decoration: BoxDecoration(
+                  color: on ? Colors.white : const Color(0xFF26262C),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16 * _s, color: on ? Colors.black : Colors.white),
               ),
-              child: Icon(icon, size: 15, color: on ? Colors.black : Colors.white),
             ),
           ),
         ),
       );
 
-  Widget scrubCard(double half, double width, List<_ClipSnapshot> clips) {
+  Widget _scrubCard(double half, double width, List<_ClipSnapshot> clips) {
     final double t = _scrubTime ?? 0;
     final _ClipSnapshot? clip = _clipAt(t, clips);
     final String? path = clip?.path;
     Widget thumb;
     if (path != null && _isImagePath(path)) {
-      thumb = Image.file(File(path), fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const _Stripes());
+      thumb = Image.file(File(path),
+          fit: BoxFit.cover, errorBuilder: (_, __, ___) => const _Stripes());
     } else if (path != null && thumbGenerator != null) {
-      final int localMs =
-          ((t - clip!.startSec).clamp(0.0, clip.durSec) * 1000).round();
+      final int localMs = ((t - clip!.startSec).clamp(0.0, clip.durSec) * 1000).round();
       thumb = FutureBuilder<Uint8List?>(
         future: ThumbCache.get(path, localMs, 160),
         builder: (_, s) {
@@ -1549,12 +2199,13 @@ class _TimelineState extends State<_Timeline> {
     } else {
       thumb = const _Stripes();
     }
+    const double w = 140;
     return Positioned(
-      left: (half - 75).clamp(6.0, math.max(6.0, width - 156)).toDouble(),
-      top: 4,
+      left: (half - w / 2).clamp(6.0, math.max(6.0, width - w - 6)).toDouble(),
+      top: -92,
       child: IgnorePointer(
         child: Container(
-          width: 150,
+          width: w,
           decoration: BoxDecoration(
             color: _surface,
             borderRadius: BorderRadius.circular(10),
@@ -1566,7 +2217,7 @@ class _TimelineState extends State<_Timeline> {
             children: <Widget>[
               ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
-                child: SizedBox(height: 58, width: 150, child: thumb),
+                child: SizedBox(height: 56, width: w, child: thumb),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
@@ -1586,6 +2237,9 @@ class _TimelineState extends State<_Timeline> {
 
   @override
   Widget build(BuildContext context) {
+    final Size size = MediaQuery.sizeOf(context);
+    _s = _scaleOf(size);
+
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
@@ -1593,7 +2247,6 @@ class _TimelineState extends State<_Timeline> {
         color: _bg,
         border: Border(top: BorderSide(color: _divider)),
       ),
-      // Height depends only on lane structure + zoom — both inside the model.
       child: LayoutBuilder(
         builder: (context, c) {
           final double half = c.maxWidth * _playheadFrac;
@@ -1605,12 +2258,15 @@ class _TimelineState extends State<_Timeline> {
               final List<_Lane> lanes = _lanes(model.clips);
               final double contentH =
                   _rulerH + lanes.fold<double>(0, (s, l) => s + l.h + _gap) + 16;
-              final double maxH = widget.compact ? 150 : 230;
+              final double h = c.maxHeight.isFinite
+                  ? c.maxHeight
+                  : math.min(contentH, 240.0 * _s);
               final double contentW = total * pps + c.maxWidth;
 
               return SizedBox(
-                height: math.min(contentH, maxH),
+                height: h,
                 child: Stack(
+                  clipBehavior: Clip.none,
                   children: <Widget>[
                     Listener(
                       onPointerDown: (_) {
@@ -1638,18 +2294,17 @@ class _TimelineState extends State<_Timeline> {
                         child: NotificationListener<ScrollNotification>(
                           onNotification: (n) {
                             if (n.metrics.axis != Axis.horizontal) return false;
-                            if (n is ScrollStartNotification &&
-                                n.dragDetails != null) {
+                            if (n is ScrollStartNotification && n.dragDetails != null) {
                               _userScrolling = true;
-                              _scrubTime = n.metrics.pixels / pps;
-                            } else if (n is ScrollUpdateNotification &&
-                                _userScrolling) {
-                              final double t = _snapTime(
-                                  n.metrics.pixels / pps, pps, model.clips);
+                              setState(() => _scrubTime = n.metrics.pixels / pps);
+                            } else if (n is ScrollUpdateNotification && _userScrolling) {
+                              final double t =
+                                  _snapTime(n.metrics.pixels / pps, pps, model.clips);
                               setState(() => _scrubTime = t);
                               _seek(editor, t);
                             } else if (n is ScrollEndNotification) {
                               _userScrolling = false;
+                              setState(() => _scrubTime = null);
                               _syncScroll();
                             }
                             return false;
@@ -1673,17 +2328,14 @@ class _TimelineState extends State<_Timeline> {
                                         behavior: HitTestBehavior.opaque,
                                         onTapDown: (d) {
                                           widget.onClearMulti();
-                                          _seek(editor,
-                                              (d.localPosition.dx - half) / pps);
+                                          _seek(editor, (d.localPosition.dx - half) / pps);
                                         },
                                         child: SizedBox(
                                           height: _rulerH,
                                           width: contentW,
                                           child: CustomPaint(
                                             painter: _RulerPainter(
-                                                pps: pps,
-                                                seconds: total + 5,
-                                                leftPad: half),
+                                                pps: pps, seconds: total + 5, leftPad: half, totalSec: total),
                                           ),
                                         ),
                                       ),
@@ -1698,6 +2350,7 @@ class _TimelineState extends State<_Timeline> {
                         ),
                       ),
                     ),
+                    // Lane headers
                     Positioned(
                       left: 0,
                       top: 0,
@@ -1715,13 +2368,12 @@ class _TimelineState extends State<_Timeline> {
                             height: contentH,
                             child: Column(
                               children: <Widget>[
-                                const SizedBox(height: _rulerH),
+                                SizedBox(height: _rulerH),
                                 for (final l in lanes)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: _gap),
                                     child: SizedBox(
-                                        height: l.h,
-                                        child: _header(l, model.clips)),
+                                        height: l.h, child: _header(l, model.clips)),
                                   ),
                               ],
                             ),
@@ -1729,23 +2381,39 @@ class _TimelineState extends State<_Timeline> {
                         ),
                       ),
                     ),
+                    // Playhead (time pill + line)
                     Positioned(
-                      left: half - 5,
+                      left: half - 32,
                       top: 0,
                       bottom: 0,
-                      width: 10,
+                      width: 64,
                       child: IgnorePointer(
                         child: Column(
                           children: <Widget>[
                             Container(
-                              width: 10,
-                              height: 10,
-                              decoration: const BoxDecoration(
+                              height: 17 * _s,
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
                                 color: Colors.white,
-                                shape: BoxShape.circle,
-                                boxShadow: <BoxShadow>[
+                                borderRadius: BorderRadius.circular(9),
+                                boxShadow: const <BoxShadow>[
                                   BoxShadow(color: Colors.black54, blurRadius: 4)
                                 ],
+                              ),
+                              child: Selector<EditorController, Duration>(
+                                selector: (_, e) => e.playhead,
+                                builder: (_, p, __) => Text(
+                                  _tcShort(_seconds(p)),
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: <FontFeature>[
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                             Expanded(child: Container(width: 2, color: Colors.white)),
@@ -1753,28 +2421,36 @@ class _TimelineState extends State<_Timeline> {
                         ),
                       ),
                     ),
+                    // Snap + zoom
                     Positioned(
                       right: 6,
-                      top: 2,
-                      child: Row(
-                        children: <Widget>[
-                          ValueListenableBuilder<bool>(
-                            valueListenable: _snap,
-                            builder: (_, snap, __) => _chip(
-                                Icons.align_horizontal_center_rounded,
-                                'Snap',
-                                snap,
-                                () => _snap.value = !_snap.value),
-                          ),
-                          const SizedBox(width: 4),
-                          _chip(Icons.remove_rounded, 'Zoom out', false,
-                              () => _applyZoom(model.zoom - 0.5, half, half)),
-                          const SizedBox(width: 4),
-                          _chip(Icons.add_rounded, 'Zoom in', false,
-                              () => _applyZoom(model.zoom + 0.5, half, half)),
-                        ],
+                      bottom: 4,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xD9101014),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: _divider),
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            ValueListenableBuilder<bool>(
+                              valueListenable: _snap,
+                              builder: (_, snap, __) => _chip(
+                                  Icons.align_horizontal_center_rounded,
+                                  'Snap',
+                                  snap,
+                                  () => _snap.value = !_snap.value),
+                            ),
+                            _chip(Icons.remove_rounded, 'Zoom out', false,
+                                () => _applyZoom(model.zoom - 0.5, half, half)),
+                            _chip(Icons.add_rounded, 'Zoom in', false,
+                                () => _applyZoom(model.zoom + 0.5, half, half)),
+                          ],
+                        ),
                       ),
                     ),
+                    if (_userScrolling && _scrubTime != null)
+                      _scrubCard(half, c.maxWidth, model.clips),
                   ],
                 ),
               );
@@ -1800,7 +2476,7 @@ class _TimelineState extends State<_Timeline> {
               padding: const EdgeInsets.all(2),
               child: HugeIcon(
                 icon: i,
-                size: 14,
+                size: 14 * _s,
                 color: active ? Colors.white : Colors.white54,
               ),
             ),
@@ -1831,25 +2507,15 @@ class _TimelineState extends State<_Timeline> {
         },
       ),
       if (isTextLane)
-        btn(
-          HugeIcons.strokeRoundedArrowUp01,
-          true,
-          'Move layer higher',
-          () {
-            final first = l.clips.first;
-            editor.reorderClipLayer(first.id, first.layer + 1);
-          },
-        ),
+        btn(HugeIcons.strokeRoundedArrowUp01, true, 'Move layer higher', () {
+          final first = l.clips.first;
+          editor.reorderClipLayer(first.id, first.layer + 1);
+        }),
       if (isTextLane && l.clips.first.layer > 2)
-        btn(
-          HugeIcons.strokeRoundedArrowDown01,
-          true,
-          'Move layer lower',
-          () {
-            final first = l.clips.first;
-            editor.reorderClipLayer(first.id, first.layer - 1);
-          },
-        ),
+        btn(HugeIcons.strokeRoundedArrowDown01, true, 'Move layer lower', () {
+          final first = l.clips.first;
+          editor.reorderClipLayer(first.id, first.layer - 1);
+        }),
     ];
 
     return l.h >= 50
@@ -1859,7 +2525,7 @@ class _TimelineState extends State<_Timeline> {
 
   Widget _addButton(double left, double h) => Positioned(
         left: left,
-        top: h / 2 - 14,
+        top: h / 2 - 15 * _s,
         child: Semantics(
           button: true,
           label: 'Add media',
@@ -1870,11 +2536,11 @@ class _TimelineState extends State<_Timeline> {
               Navigator.of(context).pushNamed('/media_picker');
             },
             child: Container(
-              width: 28,
-              height: 28,
+              width: 30 * _s,
+              height: 30 * _s,
               decoration:
                   const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: const Icon(Icons.add_rounded, size: 18, color: Colors.black),
+              child: Icon(Icons.add_rounded, size: 19 * _s, color: Colors.black),
             ),
           ),
         ),
@@ -1906,19 +2572,17 @@ class _TimelineState extends State<_Timeline> {
                     multiOn: widget.multiOn,
                     multi: widget.multi,
                     moveClamp: l.kind == _ClipKind.video
-                        ? (desired) =>
-                            _constrainMove(list[i], desired, pps, list)
+                        ? (desired) => _constrainMove(list[i], desired, pps, list)
                         : (desired) => math.max(
-                            0.0,
-                            _snapTime(desired, pps, m.clips, excludeId: list[i].id)),
+                            0.0, _snapTime(desired, pps, m.clips, excludeId: list[i].id)),
                   ),
                 ),
               ),
-              // Transition picker between main-track clips (now tappable).
+              // Transition picker between main-track clips.
               if (l.kind == _ClipKind.video && i < list.length - 1)
                 Positioned(
-                  left: half + list[i].endSec * pps - 12,
-                  top: l.h / 2 - 10,
+                  left: half + list[i].endSec * pps - 14 * _s,
+                  top: l.h / 2 - 12 * _s,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
@@ -1926,19 +2590,18 @@ class _TimelineState extends State<_Timeline> {
                       _showTransitionSheet(context);
                     },
                     child: Container(
-                      width: 22,
-                      height: 22,
+                      width: 24 * _s,
+                      height: 24 * _s,
                       decoration: const BoxDecoration(
                           color: Colors.white, shape: BoxShape.circle),
-                      child: const Icon(Icons.join_inner_rounded,
-                          size: 13, color: Colors.black),
+                      child: Icon(Icons.join_inner_rounded,
+                          size: 14 * _s, color: Colors.black),
                     ),
                   ),
                 ),
             ],
             if (l.add)
-              _addButton(
-                  half + (list.isEmpty ? 0 : list.last.endSec * pps) + 4, l.h),
+              _addButton(half + (list.isEmpty ? 0 : list.last.endSec * pps) + 16 * _s, l.h),
           ],
         ),
       ),
@@ -1947,7 +2610,7 @@ class _TimelineState extends State<_Timeline> {
 }
 
 // ----------------------------------------------------------------------------
-// Clip block (stateful: holds drag origin/accumulator across rebuilds)
+// Clip block
 // ----------------------------------------------------------------------------
 class _ClipBlock extends StatefulWidget {
   const _ClipBlock({
@@ -1992,8 +2655,48 @@ class _ClipBlockState extends State<_ClipBlock> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  // Trim handles live INSIDE the block so they are actually hit-testable.
+  Widget _trimHandle({required bool left}) {
+    final clip = widget.clip;
+    return Positioned(
+      left: left ? 0 : null,
+      right: left ? null : 0,
+      top: 0,
+      bottom: 0,
+      width: 24,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragUpdate: (d) {
+          if (left) {
+            final double newStart = (clip.startSec + d.delta.dx / widget.pps)
+                .clamp(0.0, math.max(0.0, clip.endSec - 0.2))
+                .toDouble();
+            widget.editor.trimSelectedClip(
+              Duration(milliseconds: (newStart * 1000).round()),
+              Duration(milliseconds: (clip.endSec * 1000).round()),
+            );
+          } else {
+            final double newEnd = (clip.endSec + d.delta.dx / widget.pps)
+                .clamp(clip.startSec + 0.2, 86400.0)
+                .toDouble();
+            widget.editor.trimSelectedClip(
+              Duration(milliseconds: (clip.startSec * 1000).round()),
+              Duration(milliseconds: (newEnd * 1000).round()),
+            );
+          }
+        },
+        child: Align(
+          alignment: left ? Alignment.centerLeft : Alignment.centerRight,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 2),
+            child: _Handle(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
     final clip = widget.clip;
     final bool locked = clip.locked;
     final Color border = widget.selected ? Colors.white : Colors.transparent;
@@ -2038,10 +2741,10 @@ class _ClipBlockState extends State<_ClipBlock> {
               fit: StackFit.expand,
               children: <Widget>[
                 LayoutBuilder(
-                  builder: (context, c) => (clip.path != null &&
-                          !locked)
+                  builder: (context, c) => (clip.path != null && !locked)
                       ? _Filmstrip(
-                          key: ValueKey<String>('${clip.id}|${widget.pps.toStringAsFixed(2)}'),
+                          key: ValueKey<String>(
+                              '${clip.id}|${widget.pps.toStringAsFixed(2)}'),
                           path: clip.path!,
                           durationSec: clip.durSec,
                           width: c.maxWidth,
@@ -2054,8 +2757,7 @@ class _ClipBlockState extends State<_ClipBlock> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(4)),
+                        color: Colors.black54, borderRadius: BorderRadius.circular(4)),
                     child: Text('${clip.durSec.toStringAsFixed(1)}s',
                         style: const TextStyle(color: Colors.white, fontSize: 10)),
                   ),
@@ -2080,96 +2782,74 @@ class _ClipBlockState extends State<_ClipBlock> {
         );
     }
 
-    // Trim handles (guarded clamps — no more inverted-clamp crash).
     if (widget.selected && !locked) {
       body = Stack(
-        clipBehavior: Clip.none,
         children: <Widget>[
           Positioned.fill(child: body),
-          Positioned(
-            left: -8,
-            top: 2,
-            bottom: 2,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onHorizontalDragUpdate: (d) {
-                final double newStart = (clip.startSec + d.delta.dx / widget.pps)
-                    .clamp(0.0, math.max(0.0, clip.endSec - 0.2))
-                    .toDouble();
-                widget.editor.trimSelectedClip(
-                  Duration(milliseconds: (newStart * 1000).round()),
-                  Duration(milliseconds: (clip.endSec * 1000).round()),
-                );
-              },
-              child: const _Handle(),
-            ),
-          ),
-          Positioned(
-            right: -8,
-            top: 2,
-            bottom: 2,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onHorizontalDragUpdate: (d) {
-                final double newEnd = (clip.endSec + d.delta.dx / widget.pps)
-                    .clamp(clip.startSec + 0.2, 86400.0)
-                    .toDouble();
-                widget.editor.trimSelectedClip(
-                  Duration(milliseconds: (clip.startSec * 1000).round()),
-                  Duration(milliseconds: (newEnd * 1000).round()),
-                );
-              },
-              child: const _Handle(),
-            ),
-          ),
+          _trimHandle(left: true),
+          _trimHandle(left: false),
         ],
       );
     }
+    return body;
+  }
 
-    final bool multiActive = widget.multiOn.value;
-    final bool inMulti = widget.multi.value.contains(clip.id);
+  @override
+  Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final bool locked = clip.locked;
 
-    return GestureDetector(
-      onTap: () {
-        _tap();
-        if (multiActive) {
-          final Set<String> next = Set<String>.of(widget.multi.value);
-          if (!next.remove(clip.id)) next.add(clip.id);
-          widget.multi.value = next;
-        } else {
-          widget.editor.selectClip(clip.id);
-        }
+    return ListenableBuilder(
+      listenable: Listenable.merge(<Listenable>[widget.multiOn, widget.multi]),
+      builder: (context, _) {
+        final bool multiActive = widget.multiOn.value;
+        final bool inMulti = widget.multi.value.contains(clip.id);
+        // Drag-to-move only on an already selected clip; otherwise the drag
+        // scrolls the timeline like everywhere else.
+        final bool canMove = !locked && !multiActive && widget.selected;
+
+        return GestureDetector(
+          onTap: () {
+            _tap();
+            if (multiActive) {
+              final Set<String> next = Set<String>.of(widget.multi.value);
+              if (!next.remove(clip.id)) next.add(clip.id);
+              widget.multi.value = next;
+            } else {
+              widget.editor.selectClip(clip.id);
+            }
+          },
+          onLongPress: () {
+            _tap();
+            widget.multiOn.value = true;
+            widget.multi.value = <String>{clip.id};
+          },
+          onHorizontalDragStart: canMove ? (_) => _startMove() : null,
+          onHorizontalDragUpdate: canMove ? (d) => _updateMove(d.delta.dx) : null,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 150),
+            opacity: clip.visible ? 1 : 0.35,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                Positioned.fill(child: _buildBody()),
+                if (locked)
+                  const Positioned(
+                    top: 4,
+                    right: 6,
+                    child: Icon(Icons.lock_rounded, size: 11, color: Colors.white70),
+                  ),
+                if (inMulti)
+                  const Positioned(
+                    top: 4,
+                    left: 6,
+                    child: Icon(Icons.check_circle_rounded, size: 14, color: _accent),
+                  ),
+              ],
+            ),
+          ),
+        );
       },
-      onLongPress: () {
-        _tap();
-        widget.multiOn.value = true;
-        widget.multi.value = <String>{clip.id};
-      },
-      onHorizontalDragStart: locked || multiActive ? null : (_) => _startMove(),
-      onHorizontalDragUpdate: locked || multiActive ? null : (d) => _updateMove(d.delta.dx),
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 150),
-        opacity: clip.visible ? 1 : 0.35,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: <Widget>[
-            Positioned.fill(child: body),
-            if (locked)
-              const Positioned(
-                top: 4,
-                right: 6,
-                child: Icon(Icons.lock_rounded, size: 11, color: Colors.white70),
-              ),
-            if (inMulti)
-              const Positioned(
-                top: 4,
-                left: 6,
-                child: Icon(Icons.check_circle_rounded,
-                    size: 14, color: _accent),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -2304,38 +2984,88 @@ class _WavePainter extends CustomPainter {
 }
 
 class _RulerPainter extends CustomPainter {
-  _RulerPainter({required this.pps, required this.seconds, required this.leftPad});
+  _RulerPainter({
+    required this.pps,
+    required this.seconds,
+    required this.leftPad,
+    required this.totalSec,
+  });
   final double pps;
   final double seconds;
   final double leftPad;
+  final double totalSec;
+
+  String _label(double t, double step) {
+    if (step < 1) return '${t.toStringAsFixed(1)}s';
+    final int s = t.round();
+    if (s >= 60) return '${s ~/ 60}:${_two(s % 60)}';
+    return '${s}s';
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Strip background + bottom hairline.
+    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF0B0B0E));
+    canvas.drawLine(Offset(0, size.height - 0.5), Offset(size.width, size.height - 0.5),
+        Paint()..color = const Color(0xFF26262C));
+
+    // Everything past the project end is dimmed, with an accent end marker.
+    final double endX = leftPad + totalSec * pps;
+    if (endX < size.width) {
+      canvas.drawRect(Rect.fromLTRB(endX, 0, size.width, size.height),
+          Paint()..color = Colors.white.withValues(alpha: 0.04));
+    }
+    canvas.drawLine(Offset(endX, 0), Offset(endX, size.height),
+        Paint()
+          ..color = _accent.withValues(alpha: 0.7)
+          ..strokeWidth = 1);
+
     const steps = <double>[0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300];
-    final double step = steps.firstWhere((s) => s * pps >= 64, orElse: () => steps.last);
-    final Paint dot = Paint()..color = const Color(0xFF6A6A72);
+    final double step = steps.firstWhere((s) => s * pps >= 72, orElse: () => steps.last);
+    final Paint major = Paint()
+      ..color = Colors.white60
+      ..strokeWidth = 1;
+    final Paint minor = Paint()
+      ..color = Colors.white24
+      ..strokeWidth = 1;
     final int count = (seconds / step).ceil();
 
     for (int i = 0; i <= count; i++) {
       final double t = i * step;
       final double x = leftPad + t * pps;
       if (x > size.width) break;
+
+      canvas.drawLine(Offset(x, size.height - 11), Offset(x, size.height), major);
+
       final tp = TextPainter(
         text: TextSpan(
-            text: step < 1 ? '${t.toStringAsFixed(1)}s' : '${t.toInt()}s',
-            style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          text: _label(t, step),
+          style: TextStyle(
+            color: t > totalSec + 1e-6 ? Colors.white38 : Colors.white70,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w500,
+            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+          ),
+        ),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(canvas, Offset(x - tp.width / 2, 12));
+      tp.paint(canvas, Offset(x + 4, 4));
+
+      // 3 minor ticks between majors (the middle one is taller).
       for (int j = 1; j < 4; j++) {
-        canvas.drawCircle(Offset(x + j * step * pps / 4, 12 + tp.height / 2), 1, dot);
+        final double mx = x + j * step * pps / 4;
+        canvas.drawLine(
+            Offset(mx, size.height - (j == 2 ? 7 : 4)), Offset(mx, size.height), minor);
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant _RulerPainter old) =>
-      old.pps != pps || old.seconds != seconds || old.leftPad != leftPad;
+      old.pps != pps ||
+      old.seconds != seconds ||
+      old.leftPad != leftPad ||
+      old.totalSec != totalSec;
 }
 
 // ----------------------------------------------------------------------------
@@ -2349,6 +3079,8 @@ void _showTransitionSheet(BuildContext context) {
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: _surface,
+    isScrollControlled: true,
+    constraints: const BoxConstraints(maxWidth: 560),
     shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
     builder: (context) => SafeArea(
@@ -2376,7 +3108,7 @@ void _showTransitionSheet(BuildContext context) {
                       child: Column(
                         children: <Widget>[
                           Container(
-                            height: 46,
+                            height: 48,
                             margin: const EdgeInsets.symmetric(horizontal: 4),
                             decoration: BoxDecoration(
                               color: const Color(0xFF26262C),
@@ -2395,8 +3127,7 @@ void _showTransitionSheet(BuildContext context) {
                           ),
                           const SizedBox(height: 6),
                           Text(t.name,
-                              style: const TextStyle(
-                                  color: Colors.white70, fontSize: 10)),
+                              style: const TextStyle(color: Colors.white70, fontSize: 10)),
                         ],
                       ),
                     ),
@@ -2411,32 +3142,49 @@ void _showTransitionSheet(BuildContext context) {
 }
 
 // ----------------------------------------------------------------------------
-// Bottom toolbar (icon-only; titles exposed via tooltips for a11y)
+// Bottom toolbar (rebuilds only when selection/split state changes)
 // ----------------------------------------------------------------------------
 class _Toolbar extends StatelessWidget {
   const _Toolbar({
     super.key,
     required this.onOpen,
+    required this.active,
     required this.multiOn,
     required this.multi,
     required this.onClearMulti,
   });
   final void Function(_Tool) onOpen;
+  final _Tool? active;
   final ValueNotifier<bool> multiOn;
   final ValueNotifier<Set<String>> multi;
   final VoidCallback onClearMulti;
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final TimelineClip? sel = editor.selectedClip;
-    final bool canSplit =
-        sel != null && editor.playhead > sel.start && editor.playhead < sel.end;
-    final bool selIsMain =
-        sel != null && (sel.clipType == ClipType.video || sel.clipType == ClipType.image);
+    final editor = context.read<EditorController>();
+    final double s = _scaleOf(MediaQuery.sizeOf(context));
+    final double itemW = (58 * s).clamp(56.0, 74.0).toDouble();
+    final double barH = (64 * s).clamp(60.0, 80.0).toDouble();
 
-    Widget item(dynamic icon, String title, VoidCallback? onTap, {Color? color}) {
+    final (bool hasSel, bool canSplit, bool selIsMain) =
+        context.select<EditorController, (bool, bool, bool)>((e) {
+      final TimelineClip? sel = e.selectedClip;
+      return (
+        sel != null,
+        sel != null && e.playhead > sel.start && e.playhead < sel.end,
+        sel != null &&
+            (sel.clipType == ClipType.video || sel.clipType == ClipType.image),
+      );
+    });
+
+    Widget item(dynamic icon, String title, VoidCallback? onTap,
+        {Color? color, bool on = false}) {
       final bool enabled = onTap != null;
+      final Color fg = !enabled
+          ? Colors.white24
+          : on
+              ? _accent
+              : (color ?? Colors.white);
       return Tooltip(
         message: title,
         child: InkWell(
@@ -2448,25 +3196,25 @@ class _Toolbar extends StatelessWidget {
               : null,
           borderRadius: BorderRadius.circular(8),
           child: SizedBox(
-            width: 58,
-            height: 58,
+            width: itemW,
+            height: barH - 4,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                HugeIcon(
-                  icon: icon,
-                  size: 20,
-                  color: enabled ? (color ?? Colors.white) : Colors.white24,
-                ),
+                HugeIcon(icon: icon, size: 20 * s, color: fg),
                 const SizedBox(height: 3),
                 Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 10 * s,
                     fontWeight: FontWeight.w500,
-                    color: enabled ? (color ?? Colors.white70) : Colors.white24,
+                    color: !enabled
+                        ? Colors.white24
+                        : on
+                            ? _accent
+                            : (color ?? Colors.white70),
                   ),
                 ),
               ],
@@ -2476,19 +3224,20 @@ class _Toolbar extends StatelessWidget {
       );
     }
 
-    Widget tool(_Tool t) => item(t.icon, t.title, () => onOpen(t));
+    Widget tool(_Tool t) => item(t.icon, t.title, () => onOpen(t), on: active == t);
 
     return Container(
       color: _surface,
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          height: barH,
           child: Stack(
             children: <Widget>[
               ValueListenableBuilder<bool>(
                 valueListenable: multiOn,
-                builder: (context, multiActive, _) => ValueListenableBuilder<Set<String>>(
+                builder: (context, multiActive, _) =>
+                    ValueListenableBuilder<Set<String>>(
                   valueListenable: multi,
                   builder: (context, multiSet, _) {
                     return SingleChildScrollView(
@@ -2505,8 +3254,7 @@ class _Toolbar extends StatelessWidget {
                               multiSet.isEmpty
                                   ? null
                                   : () {
-                                      final ids = multiSet.toList();
-                                      for (final id in ids) {
+                                      for (final id in multiSet.toList()) {
                                         editor.selectClip(id);
                                         editor.splitSelectedClip();
                                       }
@@ -2519,8 +3267,7 @@ class _Toolbar extends StatelessWidget {
                               multiSet.isEmpty
                                   ? null
                                   : () {
-                                      final ids = multiSet.toList();
-                                      for (final id in ids) {
+                                      for (final id in multiSet.toList()) {
                                         editor.selectClip(id);
                                         editor.deleteSelectedClip();
                                       }
@@ -2536,7 +3283,7 @@ class _Toolbar extends StatelessWidget {
                               canSplit ? () => _splitAllTracks(editor) : null,
                             ),
                             item(HugeIcons.strokeRoundedDelete02, 'Delete',
-                                sel != null ? editor.deleteSelectedClip : null,
+                                hasSel ? editor.deleteSelectedClip : null,
                                 color: Colors.redAccent),
                             item(HugeIcons.strokeRoundedDelete01, 'Ripple delete',
                                 selIsMain ? () => _rippleDelete(editor) : null,
@@ -2546,7 +3293,7 @@ class _Toolbar extends StatelessWidget {
                           tool(_Tool.audio),
                           tool(_Tool.text),
                           item(HugeIcons.strokeRoundedTextFont, 'Auto captions',
-                              editor.generateAutoCaptions),
+                              () => editor.generateAutoCaptions()),
                           tool(_Tool.stickers),
                           tool(_Tool.filters),
                           tool(_Tool.effects),
@@ -2589,9 +3336,175 @@ class _Toolbar extends StatelessWidget {
   }
 
   Widget _vDivider() => Container(
-      width: 1, height: 26, margin: const EdgeInsets.symmetric(horizontal: 2),
+      width: 1,
+      height: 26,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
       color: _divider);
 }
+
+// ----------------------------------------------------------------------------
+// Shared sheet widgets
+// ----------------------------------------------------------------------------
+class _Card extends StatelessWidget {
+  const _Card({required this.child, this.padding = const EdgeInsets.all(12)});
+  final Widget child;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: padding,
+        decoration:
+            BoxDecoration(color: _card, borderRadius: BorderRadius.circular(12)),
+        child: child,
+      );
+}
+
+class _SliderCard extends StatelessWidget {
+  const _SliderCard({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onChanged,
+    this.display,
+  });
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final ValueChanged<double> onChanged;
+  final String? display;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Text(display ?? value.toStringAsFixed(2),
+                  style: const TextStyle(color: _accent, fontSize: 12)),
+            ],
+          ),
+          Slider(
+            value: value.clamp(min, max).toDouble(),
+            min: min,
+            max: max,
+            activeColor: _accent,
+            inactiveColor: _divider,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _primaryBtn(dynamic icon, String label, VoidCallback? onPressed) => SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _accent,
+          foregroundColor: Colors.black,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        onPressed: onPressed == null
+            ? null
+            : () {
+                _tap();
+                onPressed();
+              },
+        icon: HugeIcon(icon: icon, color: Colors.black, size: 18),
+        label: Text(label, overflow: TextOverflow.ellipsis),
+      ),
+    );
+
+/// Responsive grid: column count adapts to the available width.
+class _ResponsiveGrid extends StatefulWidget {
+  const _ResponsiveGrid({
+    required this.itemCount,
+    required this.itemBuilder,
+    this.minTile = 100,
+    this.aspect = 1,
+    this.fakeLoad = false,
+  });
+  final int itemCount;
+  final IndexedWidgetBuilder itemBuilder;
+  final double minTile;
+  final double aspect;
+  final bool fakeLoad;
+
+  @override
+  State<_ResponsiveGrid> createState() => _ResponsiveGridState();
+}
+
+class _ResponsiveGridState extends State<_ResponsiveGrid> {
+  late bool _loading = widget.fakeLoad;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_loading) {
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) setState(() => _loading = false);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, c) {
+      final int cols = _cols(c.maxWidth - 24, widget.minTile);
+      if (_loading) {
+        return SkeletonGrid(
+            itemCount: math.min(widget.itemCount, cols * 2),
+            crossAxisCount: cols,
+            childAspectRatio: widget.aspect);
+      }
+      return GridView.builder(
+        padding: const EdgeInsets.all(12),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: cols,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: widget.aspect,
+        ),
+        itemCount: widget.itemCount,
+        itemBuilder: widget.itemBuilder,
+      );
+    });
+  }
+}
+
+Widget _tile({
+  required Widget child,
+  required VoidCallback onTap,
+  bool selected = false,
+}) =>
+    InkWell(
+      onTap: () {
+        _tap();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: selected ? _accent.withValues(alpha: 0.2) : _card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: selected ? _accent : Colors.transparent),
+        ),
+        alignment: Alignment.center,
+        child: child,
+      ),
+    );
 
 // ----------------------------------------------------------------------------
 // Tool Sheet Implementations
@@ -2604,15 +3517,14 @@ class AudioToolsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.watch<EditorController>();
     final clip = editor.selectedClip;
-    final bool hasAudio = clip != null && (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
+    final bool hasAudio = clip != null &&
+        (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
     final double volume = clip?.volume ?? 1.0;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
+        _Card(
           child: Row(
             children: <Widget>[
               const HugeIcon(icon: HugeIcons.strokeRoundedMusicNote01, color: _accent, size: 22),
@@ -2621,16 +3533,22 @@ class AudioToolsSheet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Add Audio Track', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text('Insert soundtrack clip to timeline', style: TextStyle(color: _muted, fontSize: 11)),
+                    Text('Add Audio Track',
+                        style: TextStyle(
+                            color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text('Insert soundtrack clip to timeline',
+                        style: TextStyle(color: _muted, fontSize: 11)),
                   ],
                 ),
               ),
+              const SizedBox(width: 8),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent, foregroundColor: Colors.black),
                 onPressed: () {
                   _tap();
-                  editor.addAudioTrack('Track ${editor.clips.where((c) => c.clipType == ClipType.audio).length + 1}');
+                  editor.addAudioTrack(
+                      'Track ${editor.clips.where((c) => c.clipType == ClipType.audio).length + 1}');
                 },
                 icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, color: Colors.black, size: 16),
                 label: const Text('Add'),
@@ -2639,31 +3557,15 @@ class AudioToolsSheet extends StatelessWidget {
           ),
         ),
         if (hasAudio) ...<Widget>[
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
-            child: Column(
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    const Text('Volume', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    Text('${(volume * 100).round()}%', style: const TextStyle(color: _accent, fontSize: 12)),
-                  ],
-                ),
-                Slider(
-                  value: volume,
-                  min: 0.0,
-                  max: 2.0,
-                  activeColor: _accent,
-                  inactiveColor: _divider,
-                  onChanged: (val) {
-                    editor.updateAudioProperties(AudioProperties(volume: val, speed: clip.speed));
-                  },
-                ),
-              ],
-            ),
+          const SizedBox(height: 12),
+          _SliderCard(
+            label: 'Volume',
+            value: volume,
+            min: 0,
+            max: 2,
+            display: '${(volume * 100).round()}%',
+            onChanged: (val) =>
+                editor.updateAudioProperties(AudioProperties(volume: val, speed: clip.speed)),
           ),
         ],
       ],
@@ -2682,17 +3584,10 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
   final TextEditingController _ctrl = TextEditingController(text: 'Sample Text');
   String _selectedFont = 'Poppins';
   final TextAnimationStyle _anim = TextAnimationStyle.fadeIn;
-  bool _loading = true;
 
-  static const List<String> _fonts = <String>['Poppins', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'];
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() => _loading = false);
-    });
-  }
+  static const List<String> _fonts = <String>[
+    'Poppins', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'
+  ];
 
   @override
   void dispose() {
@@ -2703,82 +3598,66 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
   @override
   Widget build(BuildContext context) {
     final editor = context.watch<EditorController>();
+    final bool editing = editor.selectedClip?.clipType == ClipType.text;
 
     return Column(
       children: <Widget>[
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
           child: TextField(
             controller: _ctrl,
-            style: const TextStyle(color: Colors.white, fontSize: 13),
+            style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
+              isDense: true,
               labelText: 'Text Content',
               labelStyle: const TextStyle(color: _muted),
               filled: true,
-              fillColor: const Color(0xFF232327),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              fillColor: _card,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             ),
           ),
         ),
         Expanded(
-          child: _loading
-              ? const SkeletonGrid(itemCount: 6, crossAxisCount: 3, childAspectRatio: 2.2)
-              : GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 2.2,
+          child: _ResponsiveGrid(
+            fakeLoad: true,
+            itemCount: _fonts.length,
+            minTile: 110,
+            aspect: 2.2,
+            itemBuilder: (context, i) {
+              final font = _fonts[i];
+              final bool selected = font == _selectedFont;
+              return _tile(
+                selected: selected,
+                onTap: () => setState(() => _selectedFont = font),
+                child: Text(
+                  font,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected ? _accent : Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
-                  itemCount: _fonts.length,
-                  itemBuilder: (context, index) {
-                    final font = _fonts[index];
-                    final bool selected = font == _selectedFont;
-                    return InkWell(
-                      onTap: () {
-                        _tap();
-                        setState(() => _selectedFont = font);
-                      },
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: selected ? _accent.withValues(alpha: 0.2) : const Color(0xFF232327),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: selected ? _accent : Colors.transparent),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          font,
-                          style: TextStyle(
-                            color: selected ? _accent : Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
                 ),
+              );
+            },
+          ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-          child: SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
-              onPressed: () {
-                _tap();
-                if (editor.selectedClip?.clipType == ClipType.text) {
-                  editor.updateSelectedTextProperties(text: _ctrl.text, fontFamily: _selectedFont, textAnimationStyle: _anim);
-                } else {
-                  editor.addTextOverlay(_ctrl.text.isEmpty ? 'Text' : _ctrl.text, fontFamily: _selectedFont, animationStyle: _anim);
-                }
-              },
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, color: Colors.black, size: 18),
-              label: Text(editor.selectedClip?.clipType == ClipType.text ? 'Update Selected Text' : 'Add Text Clip'),
-            ),
+          child: _primaryBtn(
+            HugeIcons.strokeRoundedAdd01,
+            editing ? 'Update Selected Text' : 'Add Text Clip',
+            () {
+              if (editing) {
+                editor.updateSelectedTextProperties(
+                    text: _ctrl.text, fontFamily: _selectedFont, textAnimationStyle: _anim);
+              } else {
+                editor.addTextOverlay(_ctrl.text.isEmpty ? 'Text' : _ctrl.text,
+                    fontFamily: _selectedFont, animationStyle: _anim);
+              }
+            },
           ),
         ),
       ],
@@ -2786,120 +3665,56 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
   }
 }
 
-class StickersSheet extends StatefulWidget {
+class StickersSheet extends StatelessWidget {
   const StickersSheet({super.key});
 
-  @override
-  State<StickersSheet> createState() => _StickersSheetState();
-}
-
-class _StickersSheetState extends State<StickersSheet> {
-  bool _loading = true;
-  static const List<String> _emojis = <String>['🔥', '✨', '⚡', '🎉', '❤️', '🌟', '🎬', '👏', '🚀', '💯', '💥', '⭐', '🎈', '🏆', '💎'];
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() => _loading = false);
-    });
-  }
+  static const List<String> _emojis = <String>[
+    '🔥', '✨', '⚡', '🎉', '❤️', '🌟', '🎬', '👏', '🚀', '💯', '💥', '⭐', '🎈', '🏆', '💎'
+  ];
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-
-    if (_loading) return const SkeletonGrid(itemCount: 10, crossAxisCount: 5);
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
+    return _ResponsiveGrid(
+      fakeLoad: true,
       itemCount: _emojis.length,
-      itemBuilder: (context, index) {
-        final emoji = _emojis[index];
-        return InkWell(
-          onTap: () {
-            _tap();
-            editor.addTextOverlay(emoji, fontFamily: 'Poppins');
-          },
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF232327),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            alignment: Alignment.center,
-            child: Text(emoji, style: const TextStyle(fontSize: 22)),
-          ),
-        );
-      },
+      minTile: 64,
+      itemBuilder: (context, i) => _tile(
+        onTap: () => editor.addTextOverlay(_emojis[i], fontFamily: 'Poppins'),
+        child: Text(_emojis[i], style: const TextStyle(fontSize: 24)),
+      ),
     );
   }
 }
 
-class EffectsSheet extends StatefulWidget {
+class EffectsSheet extends StatelessWidget {
   const EffectsSheet({super.key, required this.isFilterMode});
   final bool isFilterMode;
-
-  @override
-  State<EffectsSheet> createState() => _EffectsSheetState();
-}
-
-class _EffectsSheetState extends State<EffectsSheet> {
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() => _loading = false);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.watch<EditorController>();
     final currentEffect = editor.selectedClip?.effect ?? VideoEffect.none;
 
-    if (_loading) return const SkeletonGrid(itemCount: 6, crossAxisCount: 3, childAspectRatio: 1.8);
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 1.8,
-      ),
+    return _ResponsiveGrid(
+      fakeLoad: true,
       itemCount: VideoEffect.values.length,
-      itemBuilder: (context, index) {
-        final fx = VideoEffect.values[index];
-        final selected = fx == currentEffect;
-        return InkWell(
-          onTap: () {
-            _tap();
-            editor.applyEffect(fx);
-          },
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: selected ? _accent.withValues(alpha: 0.2) : const Color(0xFF232327),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: selected ? _accent : Colors.transparent),
-            ),
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              fx.name.toUpperCase(),
-              style: TextStyle(
-                color: selected ? _accent : Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+      minTile: 104,
+      aspect: 1.8,
+      itemBuilder: (context, i) {
+        final fx = VideoEffect.values[i];
+        final bool selected = fx == currentEffect;
+        return _tile(
+          selected: selected,
+          onTap: () => editor.applyEffect(fx),
+          child: Text(
+            fx.name.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? _accent : Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
           ),
         );
@@ -2908,149 +3723,135 @@ class _EffectsSheetState extends State<EffectsSheet> {
   }
 }
 
-class ColorGradingSheet extends StatefulWidget {
+class ColorGradingSheet extends StatelessWidget {
   const ColorGradingSheet({super.key});
-
-  @override
-  State<ColorGradingSheet> createState() => _ColorGradingSheetState();
-}
-
-class _ColorGradingSheetState extends State<ColorGradingSheet> {
-  double _brightness = 0.0;
-  double _contrast = 1.0;
-  double _saturation = 1.0;
 
   @override
   Widget build(BuildContext context) {
     final editor = context.watch<EditorController>();
+    final cg = editor.selectedClip?.colorGrading;
+    final double b = cg?.brightness ?? 0.0;
+    final double c = cg?.contrast ?? 1.0;
+    final double s = cg?.saturation ?? 1.0;
+
+    void push(double nb, double nc, double ns) => editor.updateColorGrading(
+        ColorGradingSettings(brightness: nb, contrast: nc, saturation: ns));
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        _cardSlider('Brightness', _brightness, -0.5, 0.5, (v) {
-          setState(() => _brightness = v);
-          editor.updateColorGrading(ColorGradingSettings(brightness: _brightness, contrast: _contrast, saturation: _saturation));
-        }),
+        _SliderCard(label: 'Brightness', value: b, min: -0.5, max: 0.5,
+            onChanged: (v) => push(v, c, s)),
         const SizedBox(height: 10),
-        _cardSlider('Contrast', _contrast, 0.5, 2.0, (v) {
-          setState(() => _contrast = v);
-          editor.updateColorGrading(ColorGradingSettings(brightness: _brightness, contrast: _contrast, saturation: _saturation));
-        }),
+        _SliderCard(label: 'Contrast', value: c, min: 0.5, max: 2.0,
+            onChanged: (v) => push(b, v, s)),
         const SizedBox(height: 10),
-        _cardSlider('Saturation', _saturation, 0.0, 2.0, (v) {
-          setState(() => _saturation = v);
-          editor.updateColorGrading(ColorGradingSettings(brightness: _brightness, contrast: _contrast, saturation: _saturation));
-        }),
+        _SliderCard(label: 'Saturation', value: s, min: 0.0, max: 2.0,
+            onChanged: (v) => push(b, c, v)),
+        const SizedBox(height: 12),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: _divider),
+              minimumSize: const Size.fromHeight(42)),
+          onPressed: () {
+            _tap();
+            push(0.0, 1.0, 1.0);
+          },
+          child: const Text('Reset', style: TextStyle(color: Colors.white70)),
+        ),
       ],
-    );
-  }
-
-  Widget _cardSlider(String label, double val, double min, double max, ValueChanged<double> onChanged) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
-      decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-              const Spacer(),
-              Text(val.toStringAsFixed(2), style: const TextStyle(color: _accent, fontSize: 12)),
-            ],
-          ),
-          Slider(value: val, min: min, max: max, activeColor: _accent, inactiveColor: _divider, onChanged: onChanged),
-        ],
-      ),
     );
   }
 }
 
+/// "Canvas" tool: canvas aspect ratio + zoom of the selected clip.
 class CropSheet extends StatelessWidget {
   const CropSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.read<EditorController>();
+    final editor = context.watch<EditorController>();
+    final double scale = editor.selectedClip?.scale ?? 1.0;
 
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: <Widget>[
-          _ratioBtn(context, '16:9', () => editor.updateTranslation(scale: 1.0)),
-          _ratioBtn(context, '9:16', () => editor.updateTranslation(scale: 1.2)),
-          _ratioBtn(context, '1:1', () => editor.updateTranslation(scale: 1.1)),
-          _ratioBtn(context, '4:5', () => editor.updateTranslation(scale: 1.05)),
-        ],
-      ),
-    );
-  }
-
-  Widget _ratioBtn(BuildContext context, String label, VoidCallback onTap) {
-    return InkWell(
-      onTap: () {
-        _tap();
-        onTap();
-      },
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        width: 64,
-        height: 48,
-        decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(10)),
-        alignment: Alignment.center,
-        child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
-      ),
+      children: <Widget>[
+        const Text('Canvas ratio',
+            style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        ValueListenableBuilder<_CanvasRatio>(
+          valueListenable: _canvasRatio,
+          builder: (_, cur, __) => Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              for (final r in _CanvasRatio.values)
+                InkWell(
+                  onTap: () {
+                    _tap();
+                    _canvasRatio.value = r;
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    width: 68,
+                    height: 48,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: r == cur ? _accent.withValues(alpha: 0.2) : _card,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: r == cur ? _accent : Colors.transparent),
+                    ),
+                    child: Text(r.label,
+                        style: TextStyle(
+                            color: r == cur ? _accent : Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12)),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _SliderCard(
+          label: 'Clip zoom',
+          value: scale,
+          min: 0.5,
+          max: 3.0,
+          display: '${(scale * 100).round()}%',
+          onChanged: editor.selectedClip == null
+              ? (_) {}
+              : (v) => editor.updateTranslation(scale: v),
+        ),
+      ],
     );
   }
 }
 
-class ElementsSheet extends StatefulWidget {
+class ElementsSheet extends StatelessWidget {
   const ElementsSheet({super.key});
-
-  @override
-  State<ElementsSheet> createState() => _ElementsSheetState();
-}
-
-class _ElementsSheetState extends State<ElementsSheet> {
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) setState(() => _loading = false);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-
-    if (_loading) return const SkeletonGrid(itemCount: 4, crossAxisCount: 4);
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 8, mainAxisSpacing: 8),
+    return _ResponsiveGrid(
+      fakeLoad: true,
       itemCount: ElementShape.values.length,
-      itemBuilder: (context, index) {
-        final shape = ElementShape.values[index];
-        return InkWell(
-          onTap: () {
-            _tap();
-            editor.addElementClip(shape, label: shape.name, color: Colors.cyanAccent);
-          },
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(10)),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                const HugeIcon(icon: HugeIcons.strokeRoundedShapes, color: _accent, size: 22),
-                const SizedBox(height: 4),
-                Text(shape.name, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-              ],
-            ),
+      minTile: 80,
+      itemBuilder: (context, i) {
+        final shape = ElementShape.values[i];
+        return _tile(
+          onTap: () =>
+              editor.addElementClip(shape, label: shape.name, color: Colors.cyanAccent),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              const HugeIcon(icon: HugeIcons.strokeRoundedShapes, color: _accent, size: 22),
+              const SizedBox(height: 4),
+              Text(shape.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white70, fontSize: 10)),
+            ],
           ),
         );
       },
@@ -3076,32 +3877,29 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
-          child: Row(
-            children: <Widget>[
-              const Text('Stroke Width', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-              Expanded(
-                child: Slider(
-                  value: _width,
-                  min: 1.0,
-                  max: 20.0,
-                  activeColor: _accent,
-                  inactiveColor: _divider,
-                  onChanged: (v) {
-                    setState(() => _width = v);
-                    editor.setStrokeWidth(v);
-                  },
-                ),
-              ),
-            ],
-          ),
+        _SliderCard(
+          label: 'Stroke width',
+          value: _width,
+          min: 1,
+          max: 20,
+          display: _width.toStringAsFixed(0),
+          onChanged: (v) {
+            setState(() => _width = v);
+            editor.setStrokeWidth(v);
+          },
         ),
         const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: <Color>[Colors.cyanAccent, Colors.redAccent, Colors.greenAccent, Colors.yellowAccent, Colors.white]
+        Wrap(
+          alignment: WrapAlignment.spaceEvenly,
+          spacing: 12,
+          runSpacing: 8,
+          children: <Color>[
+            Colors.cyanAccent,
+            Colors.redAccent,
+            Colors.greenAccent,
+            Colors.yellowAccent,
+            Colors.white
+          ]
               .map((c) => GestureDetector(
                     onTap: () {
                       setState(() => _color = c);
@@ -3109,8 +3907,11 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
                     },
                     child: CircleAvatar(
                       backgroundColor: c,
-                      radius: 14,
-                      child: _color == c ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 14, color: Colors.black) : null,
+                      radius: 16,
+                      child: _color == c
+                          ? const HugeIcon(
+                              icon: HugeIcons.strokeRoundedTick01, size: 14, color: Colors.black)
+                          : null,
                     ),
                   ))
               .toList(),
@@ -3120,7 +3921,9 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
           children: <Widget>[
             Expanded(
               child: OutlinedButton(
-                style: OutlinedButton.styleFrom(side: const BorderSide(color: _divider)),
+                style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: _divider),
+                    minimumSize: const Size.fromHeight(44)),
                 onPressed: () {
                   _tap();
                   editor.clearActiveDrawing();
@@ -3131,7 +3934,10 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _accent,
+                    foregroundColor: Colors.black,
+                    minimumSize: const Size.fromHeight(44)),
                 onPressed: () {
                   _tap();
                   editor.saveVectorDrawingAsClip();
@@ -3152,24 +3958,20 @@ class MaskSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 2.2),
+    return _ResponsiveGrid(
       itemCount: MaskType.values.length,
-      itemBuilder: (context, index) {
-        final type = MaskType.values[index];
-        return InkWell(
-          onTap: () {
-            _tap();
-            editor.updateMaskProperties(MaskProperties(type: type, feather: 10.0));
-          },
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(10)),
-            alignment: Alignment.center,
-            child: Text(type.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
-          ),
+      minTile: 104,
+      aspect: 2.2,
+      itemBuilder: (context, i) {
+        final type = MaskType.values[i];
+        return _tile(
+          onTap: () =>
+              editor.updateMaskProperties(MaskProperties(type: type, feather: 10.0)),
+          child: Text(type.name.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
         );
       },
     );
@@ -3187,32 +3989,42 @@ class KeyframeSheet extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        SizedBox(
-          height: 42,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
-            onPressed: () {
-              _tap();
-              editor.addKeyframe(Keyframe(
-                id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
-                time: editor.playhead,
-                property: KeyframeProperty.scale,
-                value: 1.0,
-              ));
-            },
-            icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, color: Colors.black, size: 18),
-            label: const Text('Add Keyframe at Playhead'),
-          ),
+        _primaryBtn(
+          HugeIcons.strokeRoundedAdd01,
+          'Add Keyframe at Playhead',
+          editor.selectedClip == null
+              ? null
+              : () => editor.addKeyframe(Keyframe(
+                    id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
+                    time: editor.playhead,
+                    property: KeyframeProperty.scale,
+                    value: 1.0,
+                  )),
         ),
         const SizedBox(height: 12),
+        if (keyframes.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(
+              child: Text('No keyframes yet',
+                  style: TextStyle(color: _muted, fontSize: 12)),
+            ),
+          ),
         ...keyframes.map((kf) => Container(
               margin: const EdgeInsets.only(bottom: 6),
-              decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(10)),
+              decoration:
+                  BoxDecoration(color: _card, borderRadius: BorderRadius.circular(10)),
               child: ListTile(
                 dense: true,
-                title: Text('${kf.property} @ ${_seconds(kf.time).toStringAsFixed(1)}s', style: const TextStyle(color: Colors.white, fontSize: 13)),
+                title: Text(
+                    '${'${kf.property}'.split('.').last} @ ${_seconds(kf.time).toStringAsFixed(1)}s',
+                    style: const TextStyle(color: Colors.white, fontSize: 13)),
                 trailing: IconButton(
-                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete02, color: Colors.redAccent, size: 18),
+                  tooltip: 'Remove keyframe',
+                  icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedDelete02,
+                      color: Colors.redAccent,
+                      size: 18),
                   onPressed: () => editor.removeKeyframe(kf.id),
                 ),
               ),
@@ -3233,24 +4045,13 @@ class CameraSettingsSheet extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        Container(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-          decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
-          child: Row(
-            children: <Widget>[
-              const Text('Focal Length', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-              Expanded(
-                child: Slider(
-                  value: props.focalLength,
-                  min: 10.0,
-                  max: 200.0,
-                  activeColor: _accent,
-                  inactiveColor: _divider,
-                  onChanged: (v) => editor.updateCameraProperties(props.copyWith(focalLength: v)),
-                ),
-              ),
-            ],
-          ),
+        _SliderCard(
+          label: 'Focal length',
+          value: props.focalLength,
+          min: 10,
+          max: 200,
+          display: '${props.focalLength.round()} mm',
+          onChanged: (v) => editor.updateCameraProperties(props.copyWith(focalLength: v)),
         ),
       ],
     );
@@ -3264,33 +4065,34 @@ class CameraTrackingPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.watch<EditorController>();
     final tracking = editor.selectedClip?.trackingData;
+    final bool active = tracking?.isEnabled == true;
 
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Tracking Status: ${tracking?.isEnabled == true ? "Active" : "None"}', style: const TextStyle(color: Colors.white, fontSize: 13)),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
-              onPressed: () {
-                _tap();
-                editor.updateTrackingData(const TrackingData(
-                  isEnabled: true,
-                  targetName: 'Subject',
-                  rect: Rect.fromLTWH(0.2, 0.2, 0.6, 0.6),
-                ));
-              },
-              icon: const HugeIcon(icon: HugeIcons.strokeRoundedTarget01, color: Colors.black, size: 18),
-              label: const Text('Start Auto-Tracking'),
-            ),
+      children: <Widget>[
+        _Card(
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.circle, size: 10, color: active ? Colors.greenAccent : Colors.white24),
+              const SizedBox(width: 8),
+              Text('Tracking status: ${active ? "Active" : "None"}',
+                  style: const TextStyle(color: Colors.white, fontSize: 13)),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        _primaryBtn(
+          HugeIcons.strokeRoundedTarget01,
+          active ? 'Stop Tracking' : 'Start Auto-Tracking',
+          editor.selectedClip == null
+              ? null
+              : () => editor.updateTrackingData(TrackingData(
+                    isEnabled: !active,
+                    targetName: 'Subject',
+                    rect: const Rect.fromLTWH(0.2, 0.2, 0.6, 0.6),
+                  )),
+        ),
+      ],
     );
   }
 }
@@ -3302,6 +4104,12 @@ class PluginsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final plugins = PluginManager().activePlugins;
 
+    if (plugins.isEmpty) {
+      return const Center(
+        child: Text('No active plug-ins', style: TextStyle(color: _muted, fontSize: 12)),
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: plugins.length,
@@ -3309,11 +4117,15 @@ class PluginsSheet extends StatelessWidget {
         final p = plugins[index];
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(12)),
           child: ListTile(
-            leading: const HugeIcon(icon: HugeIcons.strokeRoundedGridView, color: _accent, size: 20),
-            title: Text(p.name, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-            subtitle: Text(p.version, style: const TextStyle(color: _muted, fontSize: 11)),
+            leading: const HugeIcon(
+                icon: HugeIcons.strokeRoundedGridView, color: _accent, size: 20),
+            title: Text(p.name,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+            subtitle:
+                Text(p.version, style: const TextStyle(color: _muted, fontSize: 11)),
           ),
         );
       },
