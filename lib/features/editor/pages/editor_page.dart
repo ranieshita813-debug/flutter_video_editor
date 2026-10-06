@@ -9,22 +9,6 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
-import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
-import 'package:flutter_video_editor/features/editor/widgets/audio_tools_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/camera_settings_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/camera_tracking_panel.dart';
-import 'package:flutter_video_editor/features/editor/widgets/color_grading_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/crop_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/effects_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/elements_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
-import 'package:flutter_video_editor/features/editor/widgets/keyframe_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/mask_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/plugins_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/stickers_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/text_animation_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/vector_drawing_sheet.dart';
 
 // ----------------------------------------------------------------------------
 // Tokens
