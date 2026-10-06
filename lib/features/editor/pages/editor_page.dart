@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +17,7 @@ import 'package:flutter_video_editor/features/editor/widgets/editor_toolbar.dart
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
 import 'package:flutter_video_editor/features/editor/widgets/skeleton_grid.dart';
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_style_sheet.dart';
 
@@ -237,7 +239,8 @@ enum _Tool {
   track('Track', HugeIcons.strokeRoundedTarget01),
   plugins('Plug-ins', HugeIcons.strokeRoundedGridView),
   textStyle('Text Style', HugeIcons.strokeRoundedTextFont),
-  animation('Animation', HugeIcons.strokeRoundedPlay);
+  animation('Animation', HugeIcons.strokeRoundedPlay),
+  chromaKey('Chroma Key', HugeIcons.strokeRoundedFilter);
 
   const _Tool(this.title, this.icon);
   final String title;
@@ -260,6 +263,7 @@ enum _Tool {
         _Tool.plugins => const PluginsSheet(),
         _Tool.textStyle => const TextStyleSheet(),
         _Tool.animation => const ClipAnimationSheet(),
+        _Tool.chromaKey => const ChromaKeySheet(),
       };
 }
 
@@ -326,6 +330,7 @@ class _EditorPageState extends State<EditorPage> {
       case 'plugins': target = _Tool.plugins; break;
       case 'text_style': target = _Tool.textStyle; break;
       case 'animation': target = _Tool.animation; break;
+      case 'chroma_key': target = _Tool.chromaKey; break;
     }
     if (target != null) {
       _open(target);
@@ -721,6 +726,9 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
   }
 
   void _onEditor() {
+    if (mounted) {
+      setState(() {});
+    }
     if (_busy) {
       _dirty = true;
       return;
@@ -908,23 +916,8 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
       if (sc != 1.0) child = Transform.scale(scale: sc, child: child);
     }
 
-    final cg = clip?.colorGrading;
-    if (cg != null) {
-      final double b = cg.brightness;
-      final double cont = cg.contrast;
-      final double s = cg.saturation;
-      if (b != 0.0 || cont != 1.0 || s != 1.0) {
-        const double lr = 0.2126, lg = 0.7152, lb = 0.0722;
-        final double sr = (1 - s) * lr, sg = (1 - s) * lg, sb = (1 - s) * lb;
-        final double off = (0.5 * (1 - cont) + b) * 255;
-        final List<double> matrix = <double>[
-          cont * (sr + s), cont * sg, cont * sb, 0, off,
-          cont * sr, cont * (sg + s), cont * sb, 0, off,
-          cont * sr, cont * sg, cont * (sb + s), 0, off,
-          0, 0, 0, 1, 0,
-        ];
-        child = ColorFiltered(colorFilter: ColorFilter.matrix(matrix), child: child);
-      }
+    if (clip != null) {
+      child = _applyEffectsAndGrading(child, clip);
     }
 
     return Stack(
@@ -941,6 +934,186 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
           ),
       ],
     );
+  }
+
+  Widget _applyEffectsAndGrading(Widget child, TimelineClip clip) {
+    // 1. Color Grading
+    final cg = clip.colorGrading;
+    final double b = cg.brightness;
+    final double cont = cg.contrast;
+    final double s = cg.saturation;
+    if (b != 0.0 || cont != 1.0 || s != 1.0) {
+      const double lr = 0.2126, lg = 0.7152, lb = 0.0722;
+      final double sr = (1 - s) * lr, sg = (1 - s) * lg, sb = (1 - s) * lb;
+      final double off = (0.5 * (1 - cont) + b) * 255;
+      final List<double> matrix = <double>[
+        cont * (sr + s), cont * sg, cont * sb, 0, off,
+        cont * sr, cont * (sg + s), cont * sb, 0, off,
+        cont * sr, cont * sg, cont * (sb + s), 0, off,
+        0, 0, 0, 1, 0,
+      ];
+      child = ColorFiltered(colorFilter: ColorFilter.matrix(matrix), child: child);
+    }
+
+    // 2. Video Effect
+    switch (clip.effect) {
+      case VideoEffect.warm:
+        child = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            1.2, 0, 0, 0, 10,
+            0, 1.05, 0, 0, 5,
+            0, 0, 0.85, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+        break;
+      case VideoEffect.cinematic:
+        child = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            1.3, 0.0, 0.0, 0, 10,
+            0.0, 1.1, 0.1, 0, 0,
+            0.0, 0.2, 1.4, 0, 15,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+        break;
+      case VideoEffect.noir:
+        child = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            0.33, 0.59, 0.11, 0, -20,
+            0.33, 0.59, 0.11, 0, -20,
+            0.33, 0.59, 0.11, 0, -20,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+        break;
+      case VideoEffect.vibrant:
+        child = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            1.4, -0.2, -0.2, 0, 0,
+            -0.2, 1.4, -0.2, 0, 0,
+            -0.2, -0.2, 1.4, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+        break;
+      case VideoEffect.vintage:
+        child = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            0.393, 0.769, 0.189, 0, 0,
+            0.349, 0.686, 0.168, 0, 0,
+            0.272, 0.534, 0.131, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+        break;
+      case VideoEffect.retro:
+        child = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            0.9, 0.2, 0.1, 0, 20,
+            0.1, 0.8, 0.1, 0, 10,
+            0.1, 0.2, 0.7, 0, -10,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+        break;
+      case VideoEffect.matrix:
+        child = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            0.1, 0.8, 0.1, 0, 0,
+            0.0, 1.5, 0.0, 0, 20,
+            0.1, 0.8, 0.1, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+        break;
+      case VideoEffect.flame:
+        child = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            1.6, 0.2, 0.0, 0, 30,
+            0.2, 0.9, 0.0, 0, 10,
+            0.0, 0.0, 0.4, 0, -20,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+        break;
+      case VideoEffect.blur:
+        child = ImageFiltered(
+          imageFilter: ui.ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+          child: child,
+        );
+        break;
+      case VideoEffect.glow:
+      case VideoEffect.glitch:
+        child = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            1.2, 0.1, 0.3, 0, 15,
+            0.0, 1.3, 0.1, 0, 15,
+            0.2, 0.0, 1.4, 0, 15,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+        break;
+      case VideoEffect.none:
+        break;
+    }
+
+    // 3. Chroma Key
+    final ck = clip.chromaKey;
+    if (ck.enabled) {
+      final double r = ck.color.r;
+      final double g = ck.color.g;
+      final double b = ck.color.b;
+      final double dist = ck.distance.clamp(0.1, 1.0);
+      final double soft = ck.softness.clamp(0.0, 1.0);
+
+      final double rMult = r > g && r > b ? (1.0 - dist) : 1.0;
+      final double gMult = g >= r && g >= b ? (1.0 - dist) : 1.0;
+      final double bMult = b > r && b > g ? (1.0 - dist) : 1.0;
+      final double alphaMult = (1.0 - dist * (1.0 - soft / 2)).clamp(0.0, 1.0);
+
+      final List<double> chromaMatrix = <double>[
+        rMult, 0, 0, 0, 0,
+        0, gMult, 0, 0, 0,
+        0, 0, bMult, 0, 0,
+        0, 0, 0, alphaMult, 0,
+      ];
+      child = ColorFiltered(colorFilter: ColorFilter.matrix(chromaMatrix), child: child);
+    }
+
+    // 4. Mask
+    final mask = clip.maskProperties;
+    if (mask.type != MaskType.none) {
+      switch (mask.type) {
+        case MaskType.circle:
+          child = ClipOval(child: child);
+          break;
+        case MaskType.rectangle:
+          child = ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: child,
+          );
+          break;
+        case MaskType.linear:
+        case MaskType.mirror:
+        case MaskType.star:
+          child = ClipRect(child: child);
+          break;
+        case MaskType.none:
+          break;
+      }
+    }
+
+    return child;
   }
 }
 
@@ -1266,7 +1439,8 @@ class _PreviewState extends State<_Preview> {
                           c.clipType != ClipType.audio &&
                           e.playhead >= c.start &&
                           e.playhead <= c.end;
-                    }).toList();
+                    }).toList()
+                      ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
 
                     return Stack(
                       fit: StackFit.expand,
@@ -1598,6 +1772,36 @@ bool _snapRefOk(_SnapKind k, double t, int i, double canvas) {
     return (t < canvas / 2 && i == 0) || (t > canvas / 2 && i == 2);
   }
   return true;
+}
+
+double _snapValue(
+  double t,
+  double pps,
+  List<_ClipSnapshot> clips,
+  double playheadSec,
+  String excludeId,
+) {
+  double best = t;
+  double bd = 12 / pps;
+  for (final double e in <double>[playheadSec, 0.0]) {
+    final double d = (e - t).abs();
+    if (d < bd) {
+      bd = d;
+      best = e;
+    }
+  }
+  for (final c in clips) {
+    if (c.id == excludeId) continue;
+    for (final double e in <double>[c.startSec, c.endSec]) {
+      final double d = (e - t).abs();
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+  }
+  if (best != t) _tap();
+  return best;
 }
 
 (double, List<_SnapLine>) _snapAxis(
@@ -2257,7 +2461,7 @@ class _TimelineState extends State<_Timeline> {
       {String? excludeId}) {
     if (!_snap.value) return t;
     double best = t;
-    double bd = 8 / pps;
+    double bd = 12 / pps;
     final double ph = _seconds(editor.playhead);
     for (final double e in <double>[ph, 0.0]) {
       final double d = (e - t).abs();
@@ -2636,8 +2840,6 @@ class _TimelineState extends State<_Timeline> {
   }
 
   Widget _header(_Lane l, List<_ClipSnapshot> all) {
-    final bool locked = l.clips.isNotEmpty && l.clips.every((c) => c.locked);
-    final bool visible = l.clips.any((c) => c.visible);
     Widget btn(dynamic i, bool active, String tip, VoidCallback f) => Tooltip(
           message: tip,
           child: InkResponse(
@@ -2660,26 +2862,6 @@ class _TimelineState extends State<_Timeline> {
     final isTextLane = l.kind == _ClipKind.text && l.clips.isNotEmpty;
 
     final children = <Widget>[
-      btn(
-        locked ? HugeIcons.strokeRoundedLock : HugeIcons.strokeRoundedLockKey,
-        locked,
-        locked ? 'Unlock track' : 'Lock track',
-        () {
-          for (final c in l.clips) {
-            if (c.locked == locked) editor.toggleClipLock(c.id);
-          }
-        },
-      ),
-      btn(
-        visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff,
-        !visible,
-        visible ? 'Hide track' : 'Show track',
-        () {
-          for (final c in l.clips) {
-            if (c.visible == visible) editor.toggleClipVisibility(c.id);
-          }
-        },
-      ),
       if (isTextLane)
         btn(HugeIcons.strokeRoundedArrowUp01, true, 'Move layer higher', () {
           final first = l.clips.first;
@@ -2690,6 +2872,14 @@ class _TimelineState extends State<_Timeline> {
           final first = l.clips.first;
           editor.reorderClipLayer(first.id, first.layer - 1);
         }),
+      if (!isTextLane)
+        HugeIcon(
+          icon: l.kind == _ClipKind.video
+              ? HugeIcons.strokeRoundedVideo01
+              : HugeIcons.strokeRoundedVolumeHigh,
+          size: 14 * _s,
+          color: Colors.white54,
+        ),
     ];
 
     return l.h >= 50
@@ -2832,6 +3022,18 @@ class _ClipBlockState extends State<_ClipBlock> {
   // Trim handles live INSIDE the block so they are actually hit-testable.
   Widget _trimHandle({required bool left}) {
     final clip = widget.clip;
+    final allClips = widget.editor.project.clips.map((c) => _ClipSnapshot(
+      id: c.id,
+      startMs: c.start.inMilliseconds,
+      endMs: c.end.inMilliseconds,
+      label: c.label,
+      type: c.clipType,
+      layer: c.layerIndex,
+      locked: c.isLocked,
+      visible: c.isVisible,
+      path: c.sourcePath,
+    )).toList();
+
     return Positioned(
       left: left ? 0 : null,
       right: left ? null : 0,
@@ -2842,7 +3044,15 @@ class _ClipBlockState extends State<_ClipBlock> {
         behavior: HitTestBehavior.opaque,
         onHorizontalDragUpdate: (d) {
           if (left) {
-            final double newStart = (clip.startSec + d.delta.dx / widget.pps)
+            final double rawStart = (clip.startSec + d.delta.dx / widget.pps);
+            final double snappedStart = _snapValue(
+              rawStart,
+              widget.pps,
+              allClips,
+              _seconds(widget.editor.playhead),
+              clip.id,
+            );
+            final double newStart = snappedStart
                 .clamp(0.0, math.max(0.0, clip.endSec - 0.2))
                 .toDouble();
             widget.editor.trimSelectedClip(
@@ -2850,7 +3060,15 @@ class _ClipBlockState extends State<_ClipBlock> {
               Duration(milliseconds: (clip.endSec * 1000).round()),
             );
           } else {
-            final double newEnd = (clip.endSec + d.delta.dx / widget.pps)
+            final double rawEnd = (clip.endSec + d.delta.dx / widget.pps);
+            final double snappedEnd = _snapValue(
+              rawEnd,
+              widget.pps,
+              allClips,
+              _seconds(widget.editor.playhead),
+              clip.id,
+            );
+            final double newEnd = snappedEnd
                 .clamp(clip.startSec + 0.2, 86400.0)
                 .toDouble();
             widget.editor.trimSelectedClip(
@@ -2872,7 +3090,6 @@ class _ClipBlockState extends State<_ClipBlock> {
 
   Widget _buildBody() {
     final clip = widget.clip;
-    final bool locked = clip.locked;
     final Color border = widget.selected ? Colors.white : Colors.transparent;
 
     Widget body;
@@ -2915,7 +3132,7 @@ class _ClipBlockState extends State<_ClipBlock> {
               fit: StackFit.expand,
               children: <Widget>[
                 LayoutBuilder(
-                  builder: (context, c) => (clip.path != null && !locked)
+                  builder: (context, c) => (clip.path != null)
                       ? _Filmstrip(
                           key: ValueKey<String>(
                               '${clip.id}|${widget.pps.toStringAsFixed(2)}'),
@@ -2956,7 +3173,7 @@ class _ClipBlockState extends State<_ClipBlock> {
         );
     }
 
-    if (widget.selected && !locked) {
+    if (widget.selected) {
       body = Stack(
         children: <Widget>[
           Positioned.fill(child: body),
@@ -2971,16 +3188,13 @@ class _ClipBlockState extends State<_ClipBlock> {
   @override
   Widget build(BuildContext context) {
     final clip = widget.clip;
-    final bool locked = clip.locked;
 
     return ListenableBuilder(
       listenable: Listenable.merge(<Listenable>[widget.multiOn, widget.multi]),
       builder: (context, _) {
         final bool multiActive = widget.multiOn.value;
         final bool inMulti = widget.multi.value.contains(clip.id);
-        // Drag-to-move only on an already selected clip; otherwise the drag
-        // scrolls the timeline like everywhere else.
-        final bool canMove = !locked && !multiActive && widget.selected;
+        final bool canMove = !multiActive && widget.selected;
 
         return GestureDetector(
           onTap: () {
@@ -3007,12 +3221,6 @@ class _ClipBlockState extends State<_ClipBlock> {
               clipBehavior: Clip.none,
               children: <Widget>[
                 Positioned.fill(child: _buildBody()),
-                if (locked)
-                  const Positioned(
-                    top: 4,
-                    right: 6,
-                    child: Icon(Icons.lock_rounded, size: 11, color: Colors.white70),
-                  ),
                 if (inMulti)
                   const Positioned(
                     top: 4,

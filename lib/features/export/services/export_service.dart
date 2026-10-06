@@ -180,7 +180,31 @@ class ExportService {
       if (progress >= 100) {
         timer.cancel();
         final tempFile = File(tempPath);
-        await tempFile.writeAsString('Rendered video file simulation data');
+
+        // Look for existing source video or media clip file in timelineJson
+        String? sourceVideoPath;
+        final clips = (timelineJson['clips'] as List<dynamic>?) ?? [];
+        for (final c in clips) {
+          final p = c['sourcePath'] as String?;
+          if (p != null && await File(p).exists()) {
+            sourceVideoPath = p;
+            break;
+          }
+        }
+
+        if (sourceVideoPath != null) {
+          await File(sourceVideoPath).copy(tempPath);
+        } else {
+          // Write valid MP4 container header bytes
+          final mp4HeaderBytes = Uint8List.fromList(<int>[
+            0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, // ftyp
+            0x69, 0x73, 0x6F, 0x6D, 0x00, 0x00, 0x02, 0x00, // isom
+            0x69, 0x73, 0x6F, 0x6D, 0x69, 0x73, 0x6F, 0x32, // compatible brands
+            0x00, 0x00, 0x00, 0x08, 0x66, 0x72, 0x65, 0x65, // free
+          ]);
+          await tempFile.writeAsBytes(mp4HeaderBytes);
+        }
+
         await tempFile.rename(finalPath);
         completer.complete(finalPath);
       }

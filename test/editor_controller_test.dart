@@ -140,6 +140,53 @@ void main() {
       expect(controller.project.customFonts.contains('Futura'), isTrue);
     });
 
+    test('Extract audio from video clip', () {
+      final videoClip = TimelineClip(
+        id: 'v1',
+        label: 'Sample Video',
+        start: Duration.zero,
+        end: const Duration(seconds: 5),
+        clipType: ClipType.video,
+        sourcePath: '/tmp/test.mp4',
+        volume: 1.0,
+      );
+      controller.addClip(videoClip);
+      controller.selectClip('v1');
+
+      controller.extractAudioFromSelectedClip();
+
+      // Original video clip muted
+      final video = controller.clips.firstWhere((c) => c.id == 'v1');
+      expect(video.volume, equals(0.0));
+
+      // Extracted audio clip created
+      final audioClips = controller.clips.where((c) => c.clipType == ClipType.audio).toList();
+      expect(audioClips.isNotEmpty, isTrue);
+      expect(audioClips.first.sourcePath, equals('/tmp/test.mp4'));
+    });
+
+    test('Chroma key settings update and reorder clip layer', () {
+      final clip = TimelineClip(
+        id: 'c1',
+        label: 'Green Screen Clip',
+        start: Duration.zero,
+        end: const Duration(seconds: 5),
+        clipType: ClipType.video,
+        layerIndex: 0,
+      );
+      controller.addClip(clip);
+      controller.selectClip('c1');
+
+      controller.updateChromaKeySettings(
+        const ChromaKeySettings(enabled: true, color: Color(0xFF00FF00), distance: 0.5),
+      );
+      expect(controller.selectedClip?.chromaKey.enabled, isTrue);
+      expect(controller.selectedClip?.chromaKey.distance, equals(0.5));
+
+      controller.reorderClipLayer('c1', 2);
+      expect(controller.selectedClip?.layerIndex, equals(2));
+    });
+
     test('Fast Export simulation pipeline', () async {
       expect(controller.isExporting, isFalse);
 

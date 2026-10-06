@@ -182,6 +182,25 @@ class EditorToolbar extends StatelessWidget {
             onTap: () => editor.splitSelectedClip(),
           ),
           EditorToolbarItem(
+            id: 'text',
+            title: 'Add Text',
+            icon: HugeIcons.strokeRoundedTextFont,
+            onTap: () => onSelectToolSheet('text'),
+          ),
+          if (clip.clipType == ClipType.video)
+            EditorToolbarItem(
+              id: 'extract_audio',
+              title: 'Extract Audio',
+              icon: HugeIcons.strokeRoundedMusicNote01,
+              onTap: () => editor.extractAudioFromSelectedClip(),
+            ),
+          EditorToolbarItem(
+            id: 'chroma_key',
+            title: 'Chroma Key',
+            icon: HugeIcons.strokeRoundedFilter,
+            onTap: () => onSelectToolSheet('chroma_key'),
+          ),
+          EditorToolbarItem(
             id: 'speed',
             title: 'Speed',
             icon: HugeIcons.strokeRoundedTime01,
@@ -228,6 +247,24 @@ class EditorToolbar extends StatelessWidget {
             title: 'Mask',
             icon: HugeIcons.strokeRoundedSquare,
             onTap: () => onSelectToolSheet('mask'),
+          ),
+          EditorToolbarItem(
+            id: 'elements',
+            title: 'Elements',
+            icon: HugeIcons.strokeRoundedShapes,
+            onTap: () => onSelectToolSheet('elements'),
+          ),
+          EditorToolbarItem(
+            id: 'stickers',
+            title: 'Stickers',
+            icon: HugeIcons.strokeRoundedSmile,
+            onTap: () => onSelectToolSheet('stickers'),
+          ),
+          EditorToolbarItem(
+            id: 'draw',
+            title: 'Draw',
+            icon: HugeIcons.strokeRoundedPencilEdit02,
+            onTap: () => onSelectToolSheet('draw'),
           ),
           EditorToolbarItem(
             id: 'duplicate',
