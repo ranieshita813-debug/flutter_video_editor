@@ -140,15 +140,25 @@ class ExportService {
     _fallbackTimer?.cancel();
     _fallbackProgressController ??= StreamController<Map<String, dynamic>>.broadcast();
 
-    Directory dir;
+    Directory motionGrDir;
     try {
-      dir = await getApplicationDocumentsDirectory();
+      final primaryStorage = Directory('/storage/emulated/0/MotionGr');
+      if (await primaryStorage.exists() || (await primaryStorage.create(recursive: true).then((_) => true).catchError((_) => false))) {
+        motionGrDir = primaryStorage;
+      } else {
+        final docsDir = await getApplicationDocumentsDirectory();
+        motionGrDir = Directory('${docsDir.path}/MotionGr');
+        if (!await motionGrDir.exists()) {
+          await motionGrDir.create(recursive: true);
+        }
+      }
     } catch (_) {
-      dir = Directory.systemTemp;
+      motionGrDir = Directory.systemTemp;
     }
+
     final ext = (timelineJson['settings']?['format'] as String?) ?? 'mp4';
-    final tempPath = '${dir.path}/export_temp_${DateTime.now().millisecondsSinceEpoch}.$ext';
-    final finalPath = '${dir.path}/export_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final tempPath = '${motionGrDir.path}/export_temp_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final finalPath = '${motionGrDir.path}/MotionGr_${DateTime.now().millisecondsSinceEpoch}.$ext';
 
     int progress = 0;
     final completer = Completer<String>();

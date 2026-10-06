@@ -314,9 +314,14 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
 
         isCancelled = false
         val timeline = TimelineParser.parse(timelineMap)
-        val outputDir = File(ctx.filesDir, "exports").apply { if (!exists()) mkdirs() }
+        val publicMotionGrDir = File("/storage/emulated/0/MotionGr")
+        val outputDir = if (publicMotionGrDir.exists() || publicMotionGrDir.mkdirs()) {
+            publicMotionGrDir
+        } else {
+            File(ctx.filesDir, "MotionGr").apply { if (!exists()) mkdirs() }
+        }
         val tempFile = File(outputDir, "export_temp_${System.currentTimeMillis()}.${timeline.settings.format}")
-        val finalFile = File(outputDir, "export_${System.currentTimeMillis()}.${timeline.settings.format}")
+        val finalFile = File(outputDir, "MotionGr_${System.currentTimeMillis()}.${timeline.settings.format}")
 
         try {
             val composition = CompositionBuilder.buildComposition(ctx, timeline)

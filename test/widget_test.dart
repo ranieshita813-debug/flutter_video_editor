@@ -62,12 +62,12 @@ void main() {
     expect(find.text('Export'), findsOneWidget);
     expect(find.text('1080p'), findsOneWidget);
 
-    expect(find.text('Draw'), findsOneWidget);
-    expect(find.text('Text'), findsOneWidget);
-    expect(find.text('Adjust'), findsOneWidget);
-    expect(find.text('Audio'), findsOneWidget);
-    expect(find.text('Track'), findsOneWidget);
-    expect(find.text('Captions'), findsOneWidget);
+    expect(find.byIcon(Icons.brush_rounded), findsWidgets);
+    expect(find.byIcon(Icons.title_rounded), findsWidgets);
+    expect(find.byIcon(Icons.layers_rounded), findsWidgets);
+    expect(find.byIcon(Icons.volume_up_rounded), findsWidgets);
+    expect(find.byIcon(Icons.center_focus_strong_rounded), findsWidgets);
+    expect(find.byIcon(Icons.subtitles_rounded), findsWidgets);
   });
 
   testWidgets('Opening Export Modal works', (WidgetTester tester) async {
