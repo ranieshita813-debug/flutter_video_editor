@@ -23,6 +23,13 @@ data class ColorGradingSpec(
     val vignette: Double
 )
 
+data class ChromaKeySpec(
+    val enabled: Boolean,
+    val color: Long,
+    val distance: Double,
+    val softness: Double
+)
+
 data class TextStyleSpec(
     val fontSize: Double,
     val lineHeight: Double,
@@ -87,7 +94,8 @@ data class ClipSpec(
     val outAnimation: String,
     val strokes: List<DrawingStrokeSpec>,
     val stickerAssetPath: String?,
-    val effect: String
+    val effect: String,
+    val chromaKey: ChromaKeySpec
 )
 
 data class TimelineSpec(
@@ -150,6 +158,14 @@ object TimelineParser {
                     backgroundColor = tsObj.optLong("backgroundColor", 0x00000000L),
                     backgroundPadding = tsObj.optDouble("backgroundPadding", 8.0),
                     textAlign = tsObj.optString("textAlign", "center")
+                )
+
+                val ckObj = clipObj.optJSONObject("chromaKey") ?: JSONObject()
+                val chromaKey = ChromaKeySpec(
+                    enabled = ckObj.optBoolean("enabled", false),
+                    color = ckObj.optLong("color", 0xFF00FF00L),
+                    distance = ckObj.optDouble("distance", 0.4),
+                    softness = ckObj.optDouble("softness", 0.1)
                 )
 
                 val apObj = clipObj.optJSONObject("audioProperties") ?: JSONObject()
@@ -219,7 +235,8 @@ object TimelineParser {
                         outAnimation = clipObj.optString("outAnimation", "none"),
                         strokes = strokes,
                         stickerAssetPath = if (clipObj.has("stickerAssetPath") && !clipObj.isNull("stickerAssetPath")) clipObj.getString("stickerAssetPath") else null,
-                        effect = clipObj.optString("effect", "none")
+                        effect = clipObj.optString("effect", "none"),
+                        chromaKey = chromaKey
                     )
                 )
             }

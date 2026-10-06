@@ -81,6 +81,7 @@ class ClipDto {
     required this.strokes,
     required this.stickerAssetPath,
     required this.effect,
+    required this.chromaKey,
   });
 
   final String id;
@@ -110,6 +111,7 @@ class ClipDto {
   final List<Map<String, dynamic>> strokes;
   final String? stickerAssetPath;
   final String effect;
+  final Map<String, dynamic> chromaKey;
 
   factory ClipDto.fromTimelineClip(TimelineClip clip) {
     return ClipDto(
@@ -181,6 +183,12 @@ class ClipDto {
           .toList(),
       stickerAssetPath: clip.stickerAssetPath,
       effect: clip.effect.name,
+      chromaKey: <String, dynamic>{
+        'enabled': clip.chromaKey.enabled,
+        'color': clip.chromaKey.color.toARGB32(),
+        'distance': clip.chromaKey.distance,
+        'softness': clip.chromaKey.softness,
+      },
     );
   }
 
@@ -213,6 +221,7 @@ class ClipDto {
       'strokes': strokes,
       'stickerAssetPath': stickerAssetPath,
       'effect': effect,
+      'chromaKey': chromaKey,
     };
   }
 
@@ -248,6 +257,7 @@ class ClipDto {
           <Map<String, dynamic>>[],
       stickerAssetPath: json['stickerAssetPath'] as String?,
       effect: json['effect'] as String? ?? 'none',
+      chromaKey: json['chromaKey'] as Map<String, dynamic>? ?? <String, dynamic>{},
     );
   }
 }

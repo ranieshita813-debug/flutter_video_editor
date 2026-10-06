@@ -80,11 +80,19 @@ object CompositionBuilder {
                 effectsList.add(OverlayEffect(listOf(bitmapOverlay)))
             }
 
-            val sourceUri = if (clip.sourcePath != null && File(clip.sourcePath).exists()) {
-                Uri.fromFile(File(clip.sourcePath))
+            val sourceFile = if (clip.sourcePath != null) File(clip.sourcePath) else null
+            val validSourcePath = if (sourceFile != null && sourceFile.exists()) {
+                clip.sourcePath
             } else {
-                Uri.parse("file:///android_asset/placeholder.mp4")
+                timeline.clips.firstOrNull { it.sourcePath != null && File(it.sourcePath).exists() }?.sourcePath
             }
+
+            if (validSourcePath == null) {
+                // If no real media clip file exists in project, skip adding sequence item with dummy URI
+                continue
+            }
+
+            val sourceUri = Uri.fromFile(File(validSourcePath))
 
             val mediaItemBuilder = MediaItem.Builder().setUri(sourceUri)
 

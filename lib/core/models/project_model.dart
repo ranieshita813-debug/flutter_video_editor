@@ -117,6 +117,34 @@ class Keyframe {
   }
 }
 
+class ChromaKeySettings {
+  const ChromaKeySettings({
+    this.enabled = false,
+    this.color = const Color(0xFF00FF00),
+    this.distance = 0.4,
+    this.softness = 0.1,
+  });
+
+  final bool enabled;
+  final Color color;
+  final double distance;
+  final double softness;
+
+  ChromaKeySettings copyWith({
+    bool? enabled,
+    Color? color,
+    double? distance,
+    double? softness,
+  }) {
+    return ChromaKeySettings(
+      enabled: enabled ?? this.enabled,
+      color: color ?? this.color,
+      distance: distance ?? this.distance,
+      softness: softness ?? this.softness,
+    );
+  }
+}
+
 class TextStyleProperties {
   const TextStyleProperties({
     this.fontSize = 28.0,
@@ -587,6 +615,7 @@ class TimelineClip {
     this.elementProperties = const ElementProperties(),
     this.cameraProperties = const CameraProperties(),
     this.maskProperties = const MaskProperties(),
+    this.chromaKey = const ChromaKeySettings(),
     this.keyframes = const <Keyframe>[],
     this.inAnimation = ClipAnimation.none,
     this.outAnimation = ClipAnimation.none,
@@ -627,6 +656,7 @@ class TimelineClip {
   final ElementProperties elementProperties;
   final CameraProperties cameraProperties;
   final MaskProperties maskProperties;
+  final ChromaKeySettings chromaKey;
   final List<Keyframe> keyframes;
   final ClipAnimation inAnimation;
   final ClipAnimation outAnimation;
@@ -669,6 +699,7 @@ class TimelineClip {
     ElementProperties? elementProperties,
     CameraProperties? cameraProperties,
     MaskProperties? maskProperties,
+    ChromaKeySettings? chromaKey,
     List<Keyframe>? keyframes,
     ClipAnimation? inAnimation,
     ClipAnimation? outAnimation,
@@ -709,6 +740,7 @@ class TimelineClip {
       elementProperties: elementProperties ?? this.elementProperties,
       cameraProperties: cameraProperties ?? this.cameraProperties,
       maskProperties: maskProperties ?? this.maskProperties,
+      chromaKey: chromaKey ?? this.chromaKey,
       keyframes: keyframes ?? this.keyframes,
       inAnimation: inAnimation ?? this.inAnimation,
       outAnimation: outAnimation ?? this.outAnimation,
