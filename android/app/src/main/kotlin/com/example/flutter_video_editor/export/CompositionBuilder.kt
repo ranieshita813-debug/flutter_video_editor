@@ -48,14 +48,25 @@ object CompositionBuilder {
                 effectsList.add(transform)
             }
 
-            // Overlay rendering (text or drawing)
+            // Overlay rendering (text with styles or drawing)
             if (clip.clipType == "text" || clip.clipType == "caption") {
+                val ts = clip.textStyle
                 val bitmap = OverlayRenderer.renderTextOverlay(
-                    clip.label,
-                    timeline.settings.width,
-                    timeline.settings.height,
-                    48f,
-                    clip.fontFamily
+                    text = clip.label,
+                    width = timeline.settings.width,
+                    height = timeline.settings.height,
+                    fontSizeSp = ts.fontSize.toFloat(),
+                    fontFamily = clip.fontFamily,
+                    textColorInt = ts.textColor.toInt(),
+                    strokeColorInt = ts.strokeColor.toInt(),
+                    strokeWidthPx = ts.strokeWidth.toFloat(),
+                    shadowColorInt = ts.shadowColor.toInt(),
+                    shadowBlurPx = ts.shadowBlurRadius.toFloat(),
+                    shadowOffsetX = ts.shadowOffsetX.toFloat(),
+                    shadowOffsetY = ts.shadowOffsetY.toFloat(),
+                    bgColorInt = ts.backgroundColor.toInt(),
+                    bgPaddingPx = ts.backgroundPadding.toFloat(),
+                    textAlignStr = ts.textAlign
                 )
                 val bitmapOverlay = BitmapOverlay.createStaticBitmapOverlay(bitmap) as TextureOverlay
                 effectsList.add(OverlayEffect(listOf(bitmapOverlay)))

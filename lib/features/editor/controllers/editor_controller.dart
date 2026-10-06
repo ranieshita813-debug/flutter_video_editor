@@ -218,6 +218,45 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void removeSelectedClip() {
+    deleteSelectedClip();
+  }
+
+  void duplicateSelectedClip() {
+    final current = selectedClip;
+    if (current == null) return;
+    _saveState();
+    final copy = current.copyWith(
+      id: 'clip_${DateTime.now().millisecondsSinceEpoch}',
+      start: current.end,
+      end: current.end + current.duration,
+    );
+    _project.addClip(copy);
+    _selectedClipId = copy.id;
+    notifyListeners();
+  }
+
+  void addMediaClip(String path) {
+    _saveState();
+    final lower = path.toLowerCase();
+    final isVideo = lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.avi') ||
+        lower.endsWith('.webm');
+    final clip = TimelineClip(
+      id: 'clip_${DateTime.now().millisecondsSinceEpoch}',
+      label: path.split('/').last,
+      start: _playhead,
+      end: _playhead + const Duration(seconds: 5),
+      clipType: isVideo ? ClipType.video : ClipType.image,
+      sourcePath: path,
+    );
+    _project.addClip(clip);
+    _selectedClipId = clip.id;
+    notifyListeners();
+  }
+
   void trimSelectedClip(Duration trimStart, Duration trimEnd) {
     if (_selectedClipId == null) return;
 
@@ -232,6 +271,14 @@ class EditorController extends ChangeNotifier {
       end: trimEnd,
     );
     notifyListeners();
+  }
+
+  void updateSelectedClipAnimation(ClipAnimation animation, {required bool isInAnimation}) {
+    if (isInAnimation) {
+      updateAnimations(inAnimation: animation);
+    } else {
+      updateAnimations(outAnimation: animation);
+    }
   }
 
   void toggleClipVisibility(String id) {
@@ -276,13 +323,56 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  List<String> get availableFonts {
+    final list = <String>[
+      'Poppins',
+      'Unbounded',
+      'Roboto',
+      'Montserrat',
+      'Playfair Display',
+      'Bebas Neue',
+      'Caveat',
+      ..._project.customFonts,
+    ];
+    return list.toSet().toList();
+  }
+
+  void updateSelectedClipTextStyle(TextStyleProperties properties) {
+    final current = selectedClip;
+    if (current == null) return;
+
+    _saveState();
+    final index = _project.clips.indexWhere((c) => c.id == current.id);
+    if (index != -1) {
+      _project.clips[index] = _project.clips[index].copyWith(
+        textStyle: properties,
+      );
+      notifyListeners();
+    }
+  }
+
+  void updateSelectedClipFont(String fontFamily) {
+    final current = selectedClip;
+    if (current == null) return;
+
+    _saveState();
+    final index = _project.clips.indexWhere((c) => c.id == current.id);
+    if (index != -1) {
+      _project.clips[index] = _project.clips[index].copyWith(
+        fontFamily: fontFamily,
+      );
+      notifyListeners();
+    }
+  }
+
   void updateSelectedTextProperties({
     String? text,
     String? fontFamily,
     TextAnimationStyle? textAnimationStyle,
+    TextStyleProperties? textStyle,
   }) {
     final current = selectedClip;
-    if (current == null || current.clipType != ClipType.text) return;
+    if (current == null || (current.clipType != ClipType.text && current.clipType != ClipType.caption)) return;
 
     _saveState();
     final index = _project.clips.indexWhere((c) => c.id == current.id);
@@ -290,6 +380,7 @@ class EditorController extends ChangeNotifier {
       label: text ?? current.label,
       fontFamily: fontFamily ?? current.fontFamily,
       textAnimationStyle: textAnimationStyle ?? current.textAnimationStyle,
+      textStyle: textStyle ?? current.textStyle,
     );
     notifyListeners();
   }

@@ -21,6 +21,22 @@ struct ColorGradingSpec {
     let vignette: Double
 }
 
+struct TextStyleSpec {
+    let fontSize: Double
+    let lineHeight: Double
+    let textColor: Int64
+    let textEffect: String
+    let strokeColor: Int64
+    let strokeWidth: Double
+    let shadowColor: Int64
+    let shadowBlurRadius: Double
+    let shadowOffsetX: Double
+    let shadowOffsetY: Double
+    let backgroundColor: Int64
+    let backgroundPadding: Double
+    let textAlign: String
+}
+
 struct AudioPropertiesSpec {
     let volume: Double
     let speed: Double
@@ -64,6 +80,9 @@ struct ClipSpec {
     let audioProperties: AudioPropertiesSpec
     let fontFamily: String
     let textAnimationStyle: String
+    let textStyle: TextStyleSpec
+    let inAnimation: String
+    let outAnimation: String
     let strokes: [DrawingStrokeSpec]
     let stickerAssetPath: String?
     let effect: String
@@ -107,6 +126,23 @@ class TimelineParser {
                     tint: cgDict["tint"] as? Double ?? 0.0,
                     exposure: cgDict["exposure"] as? Double ?? 0.0,
                     vignette: cgDict["vignette"] as? Double ?? 0.0
+                )
+
+                let tsDict = clipDict["textStyle"] as? [String: Any] ?? [:]
+                let textStyle = TextStyleSpec(
+                    fontSize: tsDict["fontSize"] as? Double ?? 28.0,
+                    lineHeight: tsDict["lineHeight"] as? Double ?? 1.2,
+                    textColor: tsDict["textColor"] as? Int64 ?? 0xFFFFFFFF,
+                    textEffect: tsDict["textEffect"] as? String ?? "none",
+                    strokeColor: tsDict["strokeColor"] as? Int64 ?? 0x00000000,
+                    strokeWidth: tsDict["strokeWidth"] as? Double ?? 0.0,
+                    shadowColor: tsDict["shadowColor"] as? Int64 ?? 0x00000000,
+                    shadowBlurRadius: tsDict["shadowBlurRadius"] as? Double ?? 0.0,
+                    shadowOffsetX: tsDict["shadowOffsetX"] as? Double ?? 0.0,
+                    shadowOffsetY: tsDict["shadowOffsetY"] as? Double ?? 0.0,
+                    backgroundColor: tsDict["backgroundColor"] as? Int64 ?? 0x00000000,
+                    backgroundPadding: tsDict["backgroundPadding"] as? Double ?? 8.0,
+                    textAlign: tsDict["textAlign"] as? String ?? "center"
                 )
 
                 let apDict = clipDict["audioProperties"] as? [String: Any] ?? [:]
@@ -162,6 +198,9 @@ class TimelineParser {
                     audioProperties: audioProperties,
                     fontFamily: clipDict["fontFamily"] as? String ?? "Poppins",
                     textAnimationStyle: clipDict["textAnimationStyle"] as? String ?? "none",
+                    textStyle: textStyle,
+                    inAnimation: clipDict["inAnimation"] as? String ?? "none",
+                    outAnimation: clipDict["outAnimation"] as? String ?? "none",
                     strokes: strokes,
                     stickerAssetPath: clipDict["stickerAssetPath"] as? String,
                     effect: clipDict["effect"] as? String ?? "none"

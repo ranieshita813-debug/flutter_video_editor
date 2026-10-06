@@ -117,6 +117,70 @@ class Keyframe {
   }
 }
 
+class TextStyleProperties {
+  const TextStyleProperties({
+    this.fontSize = 28.0,
+    this.lineHeight = 1.2,
+    this.textColor = Colors.white,
+    this.textEffect = 'none',
+    this.strokeColor = Colors.transparent,
+    this.strokeWidth = 0.0,
+    this.shadowColor = Colors.transparent,
+    this.shadowBlurRadius = 0.0,
+    this.shadowOffsetX = 0.0,
+    this.shadowOffsetY = 0.0,
+    this.backgroundColor = Colors.transparent,
+    this.backgroundPadding = 8.0,
+    this.textAlign = TextAlign.center,
+  });
+
+  final double fontSize;
+  final double lineHeight;
+  final Color textColor;
+  final String textEffect; // 'none', 'outline', 'shadow', 'glow', 'neon', '3d'
+  final Color strokeColor;
+  final double strokeWidth;
+  final Color shadowColor;
+  final double shadowBlurRadius;
+  final double shadowOffsetX;
+  final double shadowOffsetY;
+  final Color backgroundColor;
+  final double backgroundPadding;
+  final TextAlign textAlign;
+
+  TextStyleProperties copyWith({
+    double? fontSize,
+    double? lineHeight,
+    Color? textColor,
+    String? textEffect,
+    Color? strokeColor,
+    double? strokeWidth,
+    Color? shadowColor,
+    double? shadowBlurRadius,
+    double? shadowOffsetX,
+    double? shadowOffsetY,
+    Color? backgroundColor,
+    double? backgroundPadding,
+    TextAlign? textAlign,
+  }) {
+    return TextStyleProperties(
+      fontSize: fontSize ?? this.fontSize,
+      lineHeight: lineHeight ?? this.lineHeight,
+      textColor: textColor ?? this.textColor,
+      textEffect: textEffect ?? this.textEffect,
+      strokeColor: strokeColor ?? this.strokeColor,
+      strokeWidth: strokeWidth ?? this.strokeWidth,
+      shadowColor: shadowColor ?? this.shadowColor,
+      shadowBlurRadius: shadowBlurRadius ?? this.shadowBlurRadius,
+      shadowOffsetX: shadowOffsetX ?? this.shadowOffsetX,
+      shadowOffsetY: shadowOffsetY ?? this.shadowOffsetY,
+      backgroundColor: backgroundColor ?? this.backgroundColor,
+      backgroundPadding: backgroundPadding ?? this.backgroundPadding,
+      textAlign: textAlign ?? this.textAlign,
+    );
+  }
+}
+
 class ElementProperties {
   const ElementProperties({
     this.shape = ElementShape.rectangle,
@@ -517,6 +581,7 @@ class TimelineClip {
     this.stickerAssetPath,
     this.fontFamily = 'Poppins',
     this.textAnimationStyle = TextAnimationStyle.none,
+    this.textStyle = const TextStyleProperties(),
     this.colorGrading = const ColorGradingSettings(),
     this.audioProperties = const AudioProperties(),
     this.elementProperties = const ElementProperties(),
@@ -556,6 +621,7 @@ class TimelineClip {
   final String? stickerAssetPath;
   final String fontFamily;
   final TextAnimationStyle textAnimationStyle;
+  final TextStyleProperties textStyle;
   final ColorGradingSettings colorGrading;
   final AudioProperties audioProperties;
   final ElementProperties elementProperties;
@@ -597,6 +663,7 @@ class TimelineClip {
     String? stickerAssetPath,
     String? fontFamily,
     TextAnimationStyle? textAnimationStyle,
+    TextStyleProperties? textStyle,
     ColorGradingSettings? colorGrading,
     AudioProperties? audioProperties,
     ElementProperties? elementProperties,
@@ -636,6 +703,7 @@ class TimelineClip {
       stickerAssetPath: stickerAssetPath ?? this.stickerAssetPath,
       fontFamily: fontFamily ?? this.fontFamily,
       textAnimationStyle: textAnimationStyle ?? this.textAnimationStyle,
+      textStyle: textStyle ?? this.textStyle,
       colorGrading: colorGrading ?? this.colorGrading,
       audioProperties: audioProperties ?? this.audioProperties,
       elementProperties: elementProperties ?? this.elementProperties,
