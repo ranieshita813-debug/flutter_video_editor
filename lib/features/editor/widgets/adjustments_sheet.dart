@@ -109,7 +109,7 @@ class AdjustSettings {
   }
 
   @override
-  bool operator ==(Object o) => o is AdjustSettings && mapEquals(o.values, values);
+  bool operator ==(Object other) => other is AdjustSettings && mapEquals(other.values, values);
   @override
   int get hashCode => Object.hashAll(
       values.entries.map((e) => Object.hash(e.key, e.value)));

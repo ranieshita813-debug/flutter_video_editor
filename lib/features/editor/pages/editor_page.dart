@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +8,10 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
+import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
+import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
 
 // ----------------------------------------------------------------------------
 // Tokens
@@ -302,13 +305,12 @@ class _EditorPageState extends State<EditorPage> {
         autofocus: true,
         child: PopScope(
           canPop: _tool == null && !_multiOn.value,
-          onPopInvokedWithResult: (didPop, _) {
-            if (!didPop) {
-              if (_multiOn.value) {
-                _clearMulti();
-              } else {
-                _close();
-              }
+          onPopInvokedWithResult: (bool didPop, dynamic result) {
+            if (didPop) return;
+            if (_multiOn.value) {
+              _clearMulti();
+            } else {
+              _close();
             }
           },
           child: Scaffold(
@@ -1116,17 +1118,17 @@ class _ClipSnapshot {
   bool get isMain => type == ClipType.video || type == ClipType.image;
 
   @override
-  bool operator ==(Object o) =>
-      o is _ClipSnapshot &&
-      o.id == id &&
-      o.startMs == startMs &&
-      o.endMs == endMs &&
-      o.label == label &&
-      o.type == type &&
-      o.layer == layer &&
-      o.locked == locked &&
-      o.visible == visible &&
-      o.path == path;
+  bool operator ==(Object other) =>
+      other is _ClipSnapshot &&
+      other.id == id &&
+      other.startMs == startMs &&
+      other.endMs == endMs &&
+      other.label == label &&
+      other.type == type &&
+      other.layer == layer &&
+      other.locked == locked &&
+      other.visible == visible &&
+      other.path == path;
 
   @override
   int get hashCode =>
@@ -1170,12 +1172,12 @@ class _TimelineModel {
       );
 
   @override
-  bool operator ==(Object o) =>
-      o is _TimelineModel &&
-      o.zoom == zoom &&
-      o.selectedId == selectedId &&
-      o.totalMs == totalMs &&
-      _listEq(o.clips, clips);
+  bool operator ==(Object other) =>
+      other is _TimelineModel &&
+      other.zoom == zoom &&
+      other.selectedId == selectedId &&
+      other.totalMs == totalMs &&
+      _listEq(other.clips, clips);
 
   @override
   int get hashCode => Object.hash(zoom, selectedId, totalMs, clips.length);
@@ -1219,7 +1221,6 @@ class _TimelineState extends State<_Timeline> {
   final ValueNotifier<bool> _snap = ValueNotifier<bool>(true);
 
   bool _userScrolling = false;
-  bool _scrubbing = false;
   double? _scrubTime;
   int _pointers = 0;
   double _baseZoom = 1;
@@ -1374,7 +1375,7 @@ class _TimelineState extends State<_Timeline> {
         ),
       );
 
-  Widget _scrubCard(double half, double width, List<_ClipSnapshot> clips) {
+  Widget scrubCard(double half, double width, List<_ClipSnapshot> clips) {
     final double t = _scrubTime ?? 0;
     final _ClipSnapshot? clip = _clipAt(t, clips);
     final String? path = clip?.path;
@@ -1488,7 +1489,6 @@ class _TimelineState extends State<_Timeline> {
                             if (n is ScrollStartNotification &&
                                 n.dragDetails != null) {
                               _userScrolling = true;
-                              _scrubbing = true;
                               _scrubTime = n.metrics.pixels / pps;
                             } else if (n is ScrollUpdateNotification &&
                                 _userScrolling) {
@@ -1498,7 +1498,6 @@ class _TimelineState extends State<_Timeline> {
                               _seek(editor, t);
                             } else if (n is ScrollEndNotification) {
                               _userScrolling = false;
-                              _scrubbing = false;
                               _syncScroll();
                             }
                             return false;
@@ -1613,7 +1612,7 @@ class _TimelineState extends State<_Timeline> {
                                 Icons.align_horizontal_center_rounded,
                                 'Snap',
                                 snap,
-                                () => _snap.value = !_snap),
+                                () => _snap.value = !_snap.value),
                           ),
                           const SizedBox(width: 4),
                           _chip(Icons.remove_rounded, 'Zoom out', false,
@@ -2385,4 +2384,580 @@ class _Toolbar extends StatelessWidget {
   Widget _vDivider() => Container(
       width: 1, height: 26, margin: const EdgeInsets.symmetric(horizontal: 2),
       color: _divider);
+}
+
+// ----------------------------------------------------------------------------
+// Tool Sheet Implementations
+// ----------------------------------------------------------------------------
+
+class AudioToolsSheet extends StatelessWidget {
+  const AudioToolsSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+    final clip = editor.selectedClip;
+    final bool hasAudio = clip != null && (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
+    final double volume = clip?.volume ?? 1.0;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.music_note_rounded, color: _accent),
+          title: const Text('Add Audio Track', style: TextStyle(color: Colors.white, fontSize: 14)),
+          subtitle: const Text('Insert soundtrack clip to timeline', style: TextStyle(color: _muted, fontSize: 11)),
+          trailing: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+            onPressed: () {
+              _tap();
+              editor.addAudioTrack('Track ${editor.clips.where((c) => c.clipType == ClipType.audio).length + 1}');
+            },
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add'),
+          ),
+        ),
+        if (hasAudio) ...<Widget>[
+          const Divider(color: _divider, height: 24),
+          Row(
+            children: <Widget>[
+              const Text('Volume', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Text('${(volume * 100).round()}%', style: const TextStyle(color: _accent, fontSize: 12)),
+            ],
+          ),
+          Slider(
+            value: volume,
+            min: 0.0,
+            max: 2.0,
+            activeColor: _accent,
+            inactiveColor: _divider,
+            onChanged: (val) {
+              editor.updateAudioProperties(AudioProperties(volume: val, speed: clip.speed));
+            },
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class TextAnimationSheet extends StatefulWidget {
+  const TextAnimationSheet({super.key});
+
+  @override
+  State<TextAnimationSheet> createState() => _TextAnimationSheetState();
+}
+
+class _TextAnimationSheetState extends State<TextAnimationSheet> {
+  final TextEditingController _ctrl = TextEditingController(text: 'Sample Text');
+  String _selectedFont = 'Poppins';
+  TextAnimationStyle _anim = TextAnimationStyle.fadeIn;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        TextField(
+          controller: _ctrl,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: InputDecoration(
+            labelText: 'Text Content',
+            labelStyle: const TextStyle(color: _muted),
+            filled: true,
+            fillColor: Colors.white10,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: _selectedFont,
+                dropdownColor: _surface,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Font Family',
+                  labelStyle: const TextStyle(color: _muted),
+                  filled: true,
+                  fillColor: Colors.white10,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
+                items: const <String>['Poppins', 'Unbounded', 'Roboto', 'Arial']
+                    .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _selectedFont = v);
+                },
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: DropdownButtonFormField<TextAnimationStyle>(
+                initialValue: _anim,
+                dropdownColor: _surface,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Animation',
+                  labelStyle: const TextStyle(color: _muted),
+                  filled: true,
+                  fillColor: Colors.white10,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
+                items: TextAnimationStyle.values
+                    .map((a) => DropdownMenuItem(value: a, child: Text(a.name)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => _anim = v);
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black, minimumSize: const Size.fromHeight(44)),
+          onPressed: () {
+            _tap();
+            if (editor.selectedClip?.clipType == ClipType.text) {
+              editor.updateSelectedTextProperties(text: _ctrl.text, fontFamily: _selectedFont, textAnimationStyle: _anim);
+            } else {
+              editor.addTextOverlay(_ctrl.text.isEmpty ? 'Text' : _ctrl.text, fontFamily: _selectedFont, animationStyle: _anim);
+            }
+          },
+          icon: const Icon(Icons.add),
+          label: Text(editor.selectedClip?.clipType == ClipType.text ? 'Update Selected Text' : 'Add Text Clip'),
+        ),
+      ],
+    );
+  }
+}
+
+class StickersSheet extends StatelessWidget {
+  const StickersSheet({super.key});
+
+  static const List<String> _emojis = <String>['🔥', '✨', '⚡', '🎉', '❤️', '🌟', '🎬', '👏', '🚀', '💯'];
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.read<EditorController>();
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 5, crossAxisSpacing: 10, mainAxisSpacing: 10),
+      itemCount: _emojis.length,
+      itemBuilder: (context, index) {
+        final emoji = _emojis[index];
+        return InkWell(
+          onTap: () {
+            _tap();
+            editor.addTextOverlay(emoji, fontFamily: 'Poppins');
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(12)),
+            alignment: Alignment.center,
+            child: Text(emoji, style: const TextStyle(fontSize: 24)),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class EffectsSheet extends StatelessWidget {
+  const EffectsSheet({super.key, required this.isFilterMode});
+  final bool isFilterMode;
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+    final currentEffect = editor.selectedClip?.effect ?? VideoEffect.none;
+
+    return ListView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.all(16),
+      children: VideoEffect.values.map((fx) {
+        final selected = fx == currentEffect;
+        return Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: ChoiceChip(
+            selected: selected,
+            selectedColor: _accent,
+            backgroundColor: _surface,
+            labelStyle: TextStyle(color: selected ? Colors.black : Colors.white),
+            label: Text(fx.name.toUpperCase()),
+            onSelected: (_) {
+              _tap();
+              editor.applyEffect(fx);
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class ColorGradingSheet extends StatefulWidget {
+  const ColorGradingSheet({super.key});
+
+  @override
+  State<ColorGradingSheet> createState() => _ColorGradingSheetState();
+}
+
+class _ColorGradingSheetState extends State<ColorGradingSheet> {
+  double _brightness = 0.0;
+  double _contrast = 1.0;
+  double _saturation = 1.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        _sliderRow('Brightness', _brightness, -0.5, 0.5, (v) {
+          setState(() => _brightness = v);
+          editor.updateColorGrading(ColorGradingSettings(brightness: _brightness, contrast: _contrast, saturation: _saturation));
+        }),
+        _sliderRow('Contrast', _contrast, 0.5, 2.0, (v) {
+          setState(() => _contrast = v);
+          editor.updateColorGrading(ColorGradingSettings(brightness: _brightness, contrast: _contrast, saturation: _saturation));
+        }),
+        _sliderRow('Saturation', _saturation, 0.0, 2.0, (v) {
+          setState(() => _saturation = v);
+          editor.updateColorGrading(ColorGradingSettings(brightness: _brightness, contrast: _contrast, saturation: _saturation));
+        }),
+      ],
+    );
+  }
+
+  Widget _sliderRow(String label, double val, double min, double max, ValueChanged<double> onChanged) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 13)),
+            const Spacer(),
+            Text(val.toStringAsFixed(2), style: const TextStyle(color: _accent, fontSize: 12)),
+          ],
+        ),
+        Slider(value: val, min: min, max: max, activeColor: _accent, inactiveColor: _divider, onChanged: onChanged),
+      ],
+    );
+  }
+}
+
+class CropSheet extends StatelessWidget {
+  const CropSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.read<EditorController>();
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: <Widget>[
+        _ratioBtn(context, '16:9', () => editor.updateTranslation(scale: 1.0)),
+        _ratioBtn(context, '9:16', () => editor.updateTranslation(scale: 1.2)),
+        _ratioBtn(context, '1:1', () => editor.updateTranslation(scale: 1.1)),
+        _ratioBtn(context, '4:5', () => editor.updateTranslation(scale: 1.05)),
+      ],
+    );
+  }
+
+  Widget _ratioBtn(BuildContext context, String label, VoidCallback onTap) {
+    return ActionChip(
+      backgroundColor: Colors.white10,
+      label: Text(label, style: const TextStyle(color: Colors.white)),
+      onPressed: () {
+        _tap();
+        onTap();
+      },
+    );
+  }
+}
+
+class ElementsSheet extends StatelessWidget {
+  const ElementsSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.read<EditorController>();
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 12, mainAxisSpacing: 12),
+      itemCount: ElementShape.values.length,
+      itemBuilder: (context, index) {
+        final shape = ElementShape.values[index];
+        return InkWell(
+          onTap: () {
+            _tap();
+            editor.addElementClip(shape, label: shape.name, color: Colors.cyanAccent);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Icon(Icons.category_rounded, color: _accent, size: 24),
+                const SizedBox(height: 4),
+                Text(shape.name, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class VectorDrawingSheet extends StatefulWidget {
+  const VectorDrawingSheet({super.key});
+
+  @override
+  State<VectorDrawingSheet> createState() => _VectorDrawingSheetState();
+}
+
+class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
+  Color _color = Colors.cyanAccent;
+  double _width = 4.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            const Text('Stroke Width', style: TextStyle(color: Colors.white, fontSize: 13)),
+            Expanded(
+              child: Slider(
+                value: _width,
+                min: 1.0,
+                max: 20.0,
+                activeColor: _accent,
+                inactiveColor: _divider,
+                onChanged: (v) {
+                  setState(() => _width = v);
+                  editor.setStrokeWidth(v);
+                },
+              ),
+            ),
+          ],
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: <Color>[Colors.cyanAccent, Colors.redAccent, Colors.greenAccent, Colors.yellowAccent, Colors.white]
+              .map((c) => GestureDetector(
+                    onTap: () {
+                      setState(() => _color = c);
+                      editor.setDrawingColor(c);
+                    },
+                    child: CircleAvatar(
+                      backgroundColor: c,
+                      radius: 14,
+                      child: _color == c ? const Icon(Icons.check, size: 14, color: Colors.black) : null,
+                    ),
+                  ))
+              .toList(),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () {
+                  _tap();
+                  editor.clearActiveDrawing();
+                },
+                child: const Text('Clear', style: TextStyle(color: Colors.white70)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+                onPressed: () {
+                  _tap();
+                  editor.saveVectorDrawingAsClip();
+                },
+                child: const Text('Save Clip'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class MaskSheet extends StatelessWidget {
+  const MaskSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.read<EditorController>();
+
+    return ListView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.all(16),
+      children: MaskType.values.map((type) {
+        return Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: ActionChip(
+            backgroundColor: Colors.white10,
+            label: Text(type.name.toUpperCase(), style: const TextStyle(color: Colors.white)),
+            onPressed: () {
+              _tap();
+              editor.updateMaskProperties(MaskProperties(type: type, feather: 10.0));
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class KeyframeSheet extends StatelessWidget {
+  const KeyframeSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+    final keyframes = editor.selectedClip?.keyframes ?? <Keyframe>[];
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+          onPressed: () {
+            _tap();
+            editor.addKeyframe(Keyframe(
+              id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
+              time: editor.playhead,
+              property: KeyframeProperty.scale,
+              value: 1.0,
+            ));
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Add Keyframe at Playhead'),
+        ),
+        const SizedBox(height: 12),
+        ...keyframes.map((kf) => ListTile(
+              dense: true,
+              title: Text('${kf.property} @ ${_seconds(kf.time).toStringAsFixed(1)}s', style: const TextStyle(color: Colors.white)),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
+                onPressed: () => editor.removeKeyframe(kf.id),
+              ),
+            )),
+      ],
+    );
+  }
+}
+
+class CameraSettingsSheet extends StatelessWidget {
+  const CameraSettingsSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+    final props = editor.selectedClip?.cameraProperties ?? const CameraProperties();
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            const Text('Focal Length', style: TextStyle(color: Colors.white, fontSize: 13)),
+            Expanded(
+              child: Slider(
+                value: props.focalLength,
+                min: 10.0,
+                max: 200.0,
+                activeColor: _accent,
+                inactiveColor: _divider,
+                onChanged: (v) => editor.updateCameraProperties(props.copyWith(focalLength: v)),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class CameraTrackingPanel extends StatelessWidget {
+  const CameraTrackingPanel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.watch<EditorController>();
+    final tracking = editor.selectedClip?.trackingData;
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('Tracking Status: ${tracking?.isEnabled == true ? "Active" : "None"}', style: const TextStyle(color: Colors.white, fontSize: 13)),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+            onPressed: () {
+              _tap();
+              editor.updateTrackingData(const TrackingData(
+                isEnabled: true,
+                targetName: 'Subject',
+                rect: Rect.fromLTWH(0.2, 0.2, 0.6, 0.6),
+              ));
+            },
+            icon: const Icon(Icons.center_focus_strong),
+            label: const Text('Start Auto-Tracking'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PluginsSheet extends StatelessWidget {
+  const PluginsSheet({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final plugins = PluginManager().activePlugins;
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: plugins.length,
+      itemBuilder: (context, index) {
+        final p = plugins[index];
+        return ListTile(
+          leading: const Icon(Icons.extension_rounded, color: _accent),
+          title: Text(p.name, style: const TextStyle(color: Colors.white, fontSize: 13)),
+          subtitle: Text(p.version, style: const TextStyle(color: _muted, fontSize: 11)),
+        );
+      },
+    );
+  }
 }
