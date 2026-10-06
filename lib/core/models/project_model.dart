@@ -317,6 +317,34 @@ class DrawingStroke {
   final double strokeWidth;
 }
 
+class ChromaKeySettings {
+  const ChromaKeySettings({
+    this.isEnabled = false,
+    this.keyColor = const Color(0xFF00FF00), // Default Green Screen
+    this.similarity = 0.4,                    // 0.0 to 1.0
+    this.smoothness = 0.1,                    // 0.0 to 1.0
+  });
+
+  final bool isEnabled;
+  final Color keyColor;
+  final double similarity;
+  final double smoothness;
+
+  ChromaKeySettings copyWith({
+    bool? isEnabled,
+    Color? keyColor,
+    double? similarity,
+    double? smoothness,
+  }) {
+    return ChromaKeySettings(
+      isEnabled: isEnabled ?? this.isEnabled,
+      keyColor: keyColor ?? this.keyColor,
+      similarity: similarity ?? this.similarity,
+      smoothness: smoothness ?? this.smoothness,
+    );
+  }
+}
+
 class ColorGradingSettings {
   const ColorGradingSettings({
     this.brightness = 0.0, // -1.0 to 1.0
@@ -517,6 +545,7 @@ class TimelineClip {
     this.stickerAssetPath,
     this.fontFamily = 'Poppins',
     this.textAnimationStyle = TextAnimationStyle.none,
+    this.chromaKey = const ChromaKeySettings(),
     this.colorGrading = const ColorGradingSettings(),
     this.audioProperties = const AudioProperties(),
     this.elementProperties = const ElementProperties(),
@@ -556,6 +585,7 @@ class TimelineClip {
   final String? stickerAssetPath;
   final String fontFamily;
   final TextAnimationStyle textAnimationStyle;
+  final ChromaKeySettings chromaKey;
   final ColorGradingSettings colorGrading;
   final AudioProperties audioProperties;
   final ElementProperties elementProperties;
@@ -597,6 +627,7 @@ class TimelineClip {
     String? stickerAssetPath,
     String? fontFamily,
     TextAnimationStyle? textAnimationStyle,
+    ChromaKeySettings? chromaKey,
     ColorGradingSettings? colorGrading,
     AudioProperties? audioProperties,
     ElementProperties? elementProperties,
@@ -636,6 +667,7 @@ class TimelineClip {
       stickerAssetPath: stickerAssetPath ?? this.stickerAssetPath,
       fontFamily: fontFamily ?? this.fontFamily,
       textAnimationStyle: textAnimationStyle ?? this.textAnimationStyle,
+      chromaKey: chromaKey ?? this.chromaKey,
       colorGrading: colorGrading ?? this.colorGrading,
       audioProperties: audioProperties ?? this.audioProperties,
       elementProperties: elementProperties ?? this.elementProperties,
