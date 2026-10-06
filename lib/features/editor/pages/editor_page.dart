@@ -894,67 +894,81 @@ class _PreviewState extends State<_Preview> {
         ),
         _scrim(top: true),
         _scrim(top: false),
-        SafeArea(
-          child: SizedBox(
-            height: 48,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: Row(
-                children: <Widget>[
-                  _roundBtn(Icons.arrow_back_ios_new_rounded, 'Back',
-                      () => Navigator.of(context).maybePop()),
-                  const Spacer(),
-                  _roundBtn(
-                    _grid ? Icons.grid_on_rounded : Icons.grid_on_rounded,
-                    _grid ? 'Hide guides' : 'Show guides',
-                    () => setState(() => _grid = !_grid),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black38,
-                      borderRadius: BorderRadius.circular(7),
-                      border: Border.all(color: Colors.white24),
+        Positioned(
+  left: 0,
+  right: 0,
+  top: 0,
+  child: SafeArea(
+    bottom: false,
+    child: SizedBox(
+      height: 52,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            _roundBtn(Icons.arrow_back_ios_new_rounded, 'Back',
+                () => Navigator.of(context).maybePop(),
+                size: 36, iconSize: 17),
+            const Spacer(),
+            _roundBtn(
+              _grid ? Icons.grid_off_rounded : Icons.grid_on_rounded,
+              _grid ? 'Hide guides' : 'Show guides',
+              () => setState(() => _grid = !_grid),
+              size: 36, iconSize: 17,
+            ),
+            const SizedBox(width: 8),
+            Container(
+              height: 28,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.black38,
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: const Text('1080p',
+                  style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(width: 8),
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () {
+                  _tap();
+                  ExportModal.show(context);
+                },
+                child: const SizedBox(
+                  height: 36,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(Icons.ios_share_rounded, color: Colors.black, size: 15),
+                        SizedBox(width: 5),
+                        Text('Export',
+                            style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700)),
+                      ],
                     ),
-                    child: const Text('1080p',
-                        style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600)),
                   ),
-                  const SizedBox(width: 8),
-                  Material(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () {
-                        _tap();
-                        ExportModal.show(context);
-                      },
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            Icon(Icons.ios_share_rounded, color: Colors.black, size: 14),
-                            SizedBox(width: 5),
-                            Text('Export',
-                                style: TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
+      ),
+    ),
+  ),
+),
         Positioned(
           left: 10,
           right: 10,
