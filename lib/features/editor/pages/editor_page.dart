@@ -4,6 +4,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
@@ -11,6 +13,7 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
+import 'package:flutter_video_editor/features/editor/widgets/skeleton_grid.dart';
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
 
 // ----------------------------------------------------------------------------
@@ -159,25 +162,25 @@ Future<List<double>> _fallbackWave(String path, int bars) async {
 // Inline tools
 // ----------------------------------------------------------------------------
 enum _Tool {
-  audio('Audio', Icons.volume_up_rounded),
-  text('Text', Icons.title_rounded),
-  stickers('Stickers', Icons.emoji_emotions_rounded),
-  filters('Filters', Icons.filter_vintage_rounded),
-  effects('Effects', Icons.local_fire_department_rounded),
-  adjust('Adjust', Icons.layers_rounded),
-  crop('Crop', Icons.crop_rounded),
-  speed('Speed', Icons.speed_rounded),
-  elements('Elements', Icons.shape_line_rounded),
-  draw('Draw', Icons.brush_rounded),
-  mask('Mask', Icons.masks_rounded),
-  keyframes('Keyframes', Icons.diamond_rounded),
-  camera('Camera', Icons.camera_rounded),
-  track('Track', Icons.center_focus_strong_rounded),
-  plugins('Plug-ins', Icons.extension_rounded);
+  audio('Audio', HugeIcons.strokeRoundedVolumeHigh),
+  text('Text', HugeIcons.strokeRoundedTextFont),
+  stickers('Stickers', HugeIcons.strokeRoundedSmile),
+  filters('Filters', HugeIcons.strokeRoundedFilter),
+  effects('Effects', HugeIcons.strokeRoundedMagicWand01),
+  adjust('Adjust', HugeIcons.strokeRoundedLayers01),
+  crop('Crop', HugeIcons.strokeRoundedCrop),
+  speed('Speed', HugeIcons.strokeRoundedTime01),
+  elements('Elements', HugeIcons.strokeRoundedShapes),
+  draw('Draw', HugeIcons.strokeRoundedPencilEdit02),
+  mask('Mask', HugeIcons.strokeRoundedSquare),
+  keyframes('Keyframes', HugeIcons.strokeRoundedLocation01),
+  camera('Camera', HugeIcons.strokeRoundedCamera01),
+  track('Track', HugeIcons.strokeRoundedTarget01),
+  plugins('Plug-ins', HugeIcons.strokeRoundedGridView);
 
   const _Tool(this.title, this.icon);
   final String title;
-  final IconData icon;
+  final dynamic icon;
 
   Widget get body => switch (this) {
         _Tool.audio => const AudioToolsSheet(),
@@ -427,7 +430,11 @@ class _ToolPanel extends StatelessWidget {
                         child: Row(
                           children: <Widget>[
                             const SizedBox(width: 16),
-                            Icon(tool.icon, color: Colors.white70, size: 17),
+                            HugeIcon(
+                              icon: tool.icon,
+                              color: Colors.white70,
+                              size: 18,
+                            ),
                             const SizedBox(width: 8),
                             Text(tool.title,
                                 style: const TextStyle(
@@ -437,8 +444,11 @@ class _ToolPanel extends StatelessWidget {
                             const Spacer(),
                             IconButton(
                               tooltip: 'Done',
-                              icon: const Icon(Icons.check_rounded,
-                                  color: Colors.white, size: 22),
+                              icon: const HugeIcon(
+                                icon: HugeIcons.strokeRoundedTick01,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                               onPressed: () {
                                 _tap();
                                 onClose();
@@ -674,6 +684,25 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
       child = _placeholder(clip?.label ?? 'Add media to start editing');
     }
 
+    final cg = clip?.colorGrading;
+    if (cg != null) {
+      final b = cg.brightness;
+      final cont = cg.contrast;
+      final s = cg.saturation;
+      if (b != 0.0 || cont != 1.0 || s != 1.0) {
+        final List<double> matrix = <double>[
+          cont * s, 0, 0, 0, b * 255,
+          0, cont * s, 0, 0, b * 255,
+          0, 0, cont * s, 0, b * 255,
+          0, 0, 0, 1, 0,
+        ];
+        child = ColorFiltered(
+          colorFilter: ColorFilter.matrix(matrix),
+          child: child,
+        );
+      }
+    }
+
     return Container(
       color: const Color(0xFF07080B),
       child: Stack(
@@ -855,26 +884,55 @@ class _PreviewState extends State<_Preview> {
             final tracking = e.selectedClip?.trackingData;
             final TrackingBox? box =
                 (tracking != null) ? resolveTrackingBox?.call(tracking) : null;
-            return IgnorePointer(
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  if (_grid)
-                    const Positioned.fill(
-                      child: CustomPaint(painter: _GuidePainter()),
-                    ),
-                  if (e.activeDrawingStrokes.isNotEmpty)
-                    Positioned.fill(
-                      child: CustomPaint(
-                          painter: _DrawingPainter(strokes: e.activeDrawingStrokes)),
-                    ),
-                  if (box != null)
-                    Positioned.fill(
-                      child: _TrackingOverlay(
-                          box: box, label: tracking?.targetName ?? 'Target'),
-                    ),
-                ],
-              ),
+
+            final activeOverlays = e.clips.where((c) {
+              return c.isVisible &&
+                  c.clipType != ClipType.video &&
+                  c.clipType != ClipType.audio &&
+                  e.playhead >= c.start &&
+                  e.playhead <= c.end;
+            }).toList();
+
+            return Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                for (final clip in activeOverlays)
+                  _InteractiveOverlayClip(
+                    key: ValueKey<String>(clip.id),
+                    clip: clip,
+                    isSelected: clip.id == e.selectedClipId,
+                    onSelect: () => e.selectClip(clip.id),
+                    onUpdateTransform: (dx, dy, scaleDelta) {
+                      e.selectClip(clip.id);
+                      e.updateTranslation(
+                        positionX: clip.positionX + dx,
+                        positionY: clip.positionY + dy,
+                        scale: (clip.scale * scaleDelta).clamp(0.2, 5.0),
+                      );
+                    },
+                  ),
+                IgnorePointer(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      if (_grid)
+                        const Positioned.fill(
+                          child: CustomPaint(painter: _GuidePainter()),
+                        ),
+                      if (e.activeDrawingStrokes.isNotEmpty)
+                        Positioned.fill(
+                          child: CustomPaint(
+                              painter: _DrawingPainter(strokes: e.activeDrawingStrokes)),
+                        ),
+                      if (box != null)
+                        Positioned.fill(
+                          child: _TrackingOverlay(
+                              box: box, label: tracking?.targetName ?? 'Target'),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -896,6 +954,16 @@ class _PreviewState extends State<_Preview> {
             _roundBtn(Icons.arrow_back_ios_new_rounded, 'Back',
                 () => Navigator.of(context).maybePop(),
                 size: 36, iconSize: 17),
+            const SizedBox(width: 10),
+            Text(
+              'motionGr',
+              style: GoogleFonts.unbounded(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
             const Spacer(),
             _roundBtn(
               _grid ? Icons.grid_off_rounded : Icons.grid_on_rounded,
@@ -1036,6 +1104,90 @@ class _PreviewState extends State<_Preview> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _InteractiveOverlayClip extends StatelessWidget {
+  const _InteractiveOverlayClip({
+    super.key,
+    required this.clip,
+    required this.isSelected,
+    required this.onSelect,
+    required this.onUpdateTransform,
+  });
+
+  final TimelineClip clip;
+  final bool isSelected;
+  final VoidCallback onSelect;
+  final void Function(double dx, double dy, double scaleDelta) onUpdateTransform;
+
+  Widget _buildContent() {
+    switch (clip.clipType) {
+      case ClipType.text:
+      case ClipType.caption:
+      case ClipType.sticker:
+        return Text(
+          clip.label,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 24 * clip.scale,
+            fontFamily: clip.fontFamily,
+            fontWeight: FontWeight.bold,
+            shadows: const <Shadow>[
+              Shadow(blurRadius: 4, color: Colors.black, offset: Offset(1, 1)),
+            ],
+          ),
+        );
+      case ClipType.element:
+        return Container(
+          width: 80 * clip.scale,
+          height: 80 * clip.scale,
+          decoration: BoxDecoration(
+            color: clip.elementProperties.fillColor,
+            shape: clip.elementProperties.shape == ElementShape.circle
+                ? BoxShape.circle
+                : BoxShape.rectangle,
+            borderRadius: clip.elementProperties.shape == ElementShape.rectangle
+                ? BorderRadius.circular(8)
+                : null,
+          ),
+        );
+      case ClipType.drawing:
+        return CustomPaint(
+          size: Size(120 * clip.scale, 120 * clip.scale),
+          painter: _DrawingPainter(strokes: clip.strokes),
+        );
+      default:
+        return Text(
+          clip.label,
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: clip.positionX,
+      top: clip.positionY,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onSelect,
+        onPanUpdate: (details) {
+          onUpdateTransform(details.delta.dx, details.delta.dy, 1.0);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: isSelected
+              ? BoxDecoration(
+                  border: Border.all(color: _accent, width: 1.5),
+                  borderRadius: BorderRadius.circular(6),
+                )
+              : null,
+          child: _buildContent(),
+        ),
+      ),
     );
   }
 }
@@ -1636,7 +1788,7 @@ class _TimelineState extends State<_Timeline> {
   Widget _header(_Lane l, List<_ClipSnapshot> all) {
     final bool locked = l.clips.isNotEmpty && l.clips.every((c) => c.locked);
     final bool visible = l.clips.any((c) => c.visible);
-    Widget btn(IconData i, bool active, String tip, VoidCallback f) => Tooltip(
+    Widget btn(dynamic i, bool active, String tip, VoidCallback f) => Tooltip(
           message: tip,
           child: InkResponse(
             radius: 16,
@@ -1645,25 +1797,61 @@ class _TimelineState extends State<_Timeline> {
               f();
             },
             child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(i, size: 15, color: active ? Colors.white : Colors.white54),
+              padding: const EdgeInsets.all(2),
+              child: HugeIcon(
+                icon: i,
+                size: 14,
+                color: active ? Colors.white : Colors.white54,
+              ),
             ),
           ),
         );
+
+    final isTextLane = l.kind == _ClipKind.text && l.clips.isNotEmpty;
+
     final children = <Widget>[
-      btn(locked ? Icons.lock_rounded : Icons.lock_open_rounded, locked,
-          locked ? 'Unlock track' : 'Lock track', () {
-        for (final c in l.clips) {
-          if (c.locked == locked) editor.toggleClipLock(c.id);
-        }
-      }),
-      btn(visible ? Icons.visibility_rounded : Icons.visibility_off_rounded, !visible,
-          visible ? 'Hide track' : 'Show track', () {
-        for (final c in l.clips) {
-          if (c.visible == visible) editor.toggleClipVisibility(c.id);
-        }
-      }),
+      btn(
+        locked ? HugeIcons.strokeRoundedLock : HugeIcons.strokeRoundedLockKey,
+        locked,
+        locked ? 'Unlock track' : 'Lock track',
+        () {
+          for (final c in l.clips) {
+            if (c.locked == locked) editor.toggleClipLock(c.id);
+          }
+        },
+      ),
+      btn(
+        visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff,
+        !visible,
+        visible ? 'Hide track' : 'Show track',
+        () {
+          for (final c in l.clips) {
+            if (c.visible == visible) editor.toggleClipVisibility(c.id);
+          }
+        },
+      ),
+      if (isTextLane)
+        btn(
+          HugeIcons.strokeRoundedArrowUp01,
+          true,
+          'Move layer higher',
+          () {
+            final first = l.clips.first;
+            editor.reorderClipLayer(first.id, first.layer + 1);
+          },
+        ),
+      if (isTextLane && l.clips.first.layer > 2)
+        btn(
+          HugeIcons.strokeRoundedArrowDown01,
+          true,
+          'Move layer lower',
+          () {
+            final first = l.clips.first;
+            editor.reorderClipLayer(first.id, first.layer - 1);
+          },
+        ),
     ];
+
     return l.h >= 50
         ? Column(mainAxisAlignment: MainAxisAlignment.center, children: children)
         : Row(mainAxisAlignment: MainAxisAlignment.center, children: children);
@@ -2247,10 +2435,10 @@ class _Toolbar extends StatelessWidget {
     final bool selIsMain =
         sel != null && (sel.clipType == ClipType.video || sel.clipType == ClipType.image);
 
-    Widget item(IconData icon, String tip, VoidCallback? onTap, {Color? color}) {
+    Widget item(dynamic icon, String title, VoidCallback? onTap, {Color? color}) {
       final bool enabled = onTap != null;
       return Tooltip(
-        message: tip,
+        message: title,
         child: InkWell(
           onTap: enabled
               ? () {
@@ -2258,12 +2446,31 @@ class _Toolbar extends StatelessWidget {
                   onTap();
                 }
               : null,
-          customBorder: const CircleBorder(),
+          borderRadius: BorderRadius.circular(8),
           child: SizedBox(
-            width: 46,
-            height: 50,
-            child: Icon(icon,
-                size: 22, color: enabled ? (color ?? Colors.white) : Colors.white24),
+            width: 58,
+            height: 58,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                HugeIcon(
+                  icon: icon,
+                  size: 20,
+                  color: enabled ? (color ?? Colors.white) : Colors.white24,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: enabled ? (color ?? Colors.white70) : Colors.white24,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -2276,7 +2483,7 @@ class _Toolbar extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 54,
+          height: 64,
           child: Stack(
             children: <Widget>[
               ValueListenableBuilder<bool>(
@@ -2291,9 +2498,9 @@ class _Toolbar extends StatelessWidget {
                       child: Row(
                         children: <Widget>[
                           if (multiActive) ...<Widget>[
-                            item(Icons.check_rounded, 'Done', onClearMulti),
+                            item(HugeIcons.strokeRoundedTick01, 'Done', onClearMulti),
                             item(
-                              Icons.content_cut_rounded,
+                              HugeIcons.strokeRoundedScissors,
                               'Split selected',
                               multiSet.isEmpty
                                   ? null
@@ -2307,7 +2514,7 @@ class _Toolbar extends StatelessWidget {
                                     },
                             ),
                             item(
-                              Icons.delete_rounded,
+                              HugeIcons.strokeRoundedDelete02,
                               'Delete selected',
                               multiSet.isEmpty
                                   ? null
@@ -2324,21 +2531,21 @@ class _Toolbar extends StatelessWidget {
                             _vDivider(),
                           ] else ...<Widget>[
                             item(
-                              Icons.content_cut_rounded,
+                              HugeIcons.strokeRoundedScissors,
                               'Split all tracks',
                               canSplit ? () => _splitAllTracks(editor) : null,
                             ),
-                            item(Icons.delete_rounded, 'Delete',
+                            item(HugeIcons.strokeRoundedDelete02, 'Delete',
                                 sel != null ? editor.deleteSelectedClip : null,
                                 color: Colors.redAccent),
-                            item(Icons.delete_sweep_rounded, 'Ripple delete',
+                            item(HugeIcons.strokeRoundedDelete01, 'Ripple delete',
                                 selIsMain ? () => _rippleDelete(editor) : null,
                                 color: Colors.redAccent),
                             _vDivider(),
                           ],
                           tool(_Tool.audio),
                           tool(_Tool.text),
-                          item(Icons.subtitles_rounded, 'Auto captions',
+                          item(HugeIcons.strokeRoundedTextFont, 'Auto captions',
                               editor.generateAutoCaptions),
                           tool(_Tool.stickers),
                           tool(_Tool.filters),
@@ -2403,39 +2610,60 @@ class AudioToolsSheet extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.music_note_rounded, color: _accent),
-          title: const Text('Add Audio Track', style: TextStyle(color: Colors.white, fontSize: 14)),
-          subtitle: const Text('Insert soundtrack clip to timeline', style: TextStyle(color: _muted, fontSize: 11)),
-          trailing: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
-            onPressed: () {
-              _tap();
-              editor.addAudioTrack('Track ${editor.clips.where((c) => c.clipType == ClipType.audio).length + 1}');
-            },
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add'),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: <Widget>[
+              const HugeIcon(icon: HugeIcons.strokeRoundedMusicNote01, color: _accent, size: 22),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('Add Audio Track', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text('Insert soundtrack clip to timeline', style: TextStyle(color: _muted, fontSize: 11)),
+                  ],
+                ),
+              ),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+                onPressed: () {
+                  _tap();
+                  editor.addAudioTrack('Track ${editor.clips.where((c) => c.clipType == ClipType.audio).length + 1}');
+                },
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, color: Colors.black, size: 16),
+                label: const Text('Add'),
+              ),
+            ],
           ),
         ),
         if (hasAudio) ...<Widget>[
-          const Divider(color: _divider, height: 24),
-          Row(
-            children: <Widget>[
-              const Text('Volume', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-              const Spacer(),
-              Text('${(volume * 100).round()}%', style: const TextStyle(color: _accent, fontSize: 12)),
-            ],
-          ),
-          Slider(
-            value: volume,
-            min: 0.0,
-            max: 2.0,
-            activeColor: _accent,
-            inactiveColor: _divider,
-            onChanged: (val) {
-              editor.updateAudioProperties(AudioProperties(volume: val, speed: clip.speed));
-            },
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    const Text('Volume', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text('${(volume * 100).round()}%', style: const TextStyle(color: _accent, fontSize: 12)),
+                  ],
+                ),
+                Slider(
+                  value: volume,
+                  min: 0.0,
+                  max: 2.0,
+                  activeColor: _accent,
+                  inactiveColor: _divider,
+                  onChanged: (val) {
+                    editor.updateAudioProperties(AudioProperties(volume: val, speed: clip.speed));
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ],
@@ -2453,7 +2681,18 @@ class TextAnimationSheet extends StatefulWidget {
 class _TextAnimationSheetState extends State<TextAnimationSheet> {
   final TextEditingController _ctrl = TextEditingController(text: 'Sample Text');
   String _selectedFont = 'Poppins';
-  TextAnimationStyle _anim = TextAnimationStyle.fadeIn;
+  final TextAnimationStyle _anim = TextAnimationStyle.fadeIn;
+  bool _loading = true;
+
+  static const List<String> _fonts = <String>['Poppins', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'];
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _loading = false);
+    });
+  }
 
   @override
   void dispose() {
@@ -2465,97 +2704,120 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
   Widget build(BuildContext context) {
     final editor = context.watch<EditorController>();
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    return Column(
       children: <Widget>[
-        TextField(
-          controller: _ctrl,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: InputDecoration(
-            labelText: 'Text Content',
-            labelStyle: const TextStyle(color: _muted),
-            filled: true,
-            fillColor: Colors.white10,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: TextField(
+            controller: _ctrl,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            decoration: InputDecoration(
+              labelText: 'Text Content',
+              labelStyle: const TextStyle(color: _muted),
+              filled: true,
+              fillColor: const Color(0xFF232327),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: _selectedFont,
-                dropdownColor: _surface,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-                decoration: InputDecoration(
-                  labelText: 'Font Family',
-                  labelStyle: const TextStyle(color: _muted),
-                  filled: true,
-                  fillColor: Colors.white10,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+        Expanded(
+          child: _loading
+              ? const SkeletonGrid(itemCount: 6, crossAxisCount: 3, childAspectRatio: 2.2)
+              : GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 2.2,
+                  ),
+                  itemCount: _fonts.length,
+                  itemBuilder: (context, index) {
+                    final font = _fonts[index];
+                    final bool selected = font == _selectedFont;
+                    return InkWell(
+                      onTap: () {
+                        _tap();
+                        setState(() => _selectedFont = font);
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: selected ? _accent.withValues(alpha: 0.2) : const Color(0xFF232327),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: selected ? _accent : Colors.transparent),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          font,
+                          style: TextStyle(
+                            color: selected ? _accent : Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                items: const <String>['Poppins', 'Unbounded', 'Roboto', 'Arial']
-                    .map((f) => DropdownMenuItem(value: f, child: Text(f)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _selectedFont = v);
-                },
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: DropdownButtonFormField<TextAnimationStyle>(
-                initialValue: _anim,
-                dropdownColor: _surface,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
-                decoration: InputDecoration(
-                  labelText: 'Animation',
-                  labelStyle: const TextStyle(color: _muted),
-                  filled: true,
-                  fillColor: Colors.white10,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                ),
-                items: TextAnimationStyle.values
-                    .map((a) => DropdownMenuItem(value: a, child: Text(a.name)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) setState(() => _anim = v);
-                },
-              ),
-            ),
-          ],
         ),
-        const SizedBox(height: 16),
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black, minimumSize: const Size.fromHeight(44)),
-          onPressed: () {
-            _tap();
-            if (editor.selectedClip?.clipType == ClipType.text) {
-              editor.updateSelectedTextProperties(text: _ctrl.text, fontFamily: _selectedFont, textAnimationStyle: _anim);
-            } else {
-              editor.addTextOverlay(_ctrl.text.isEmpty ? 'Text' : _ctrl.text, fontFamily: _selectedFont, animationStyle: _anim);
-            }
-          },
-          icon: const Icon(Icons.add),
-          label: Text(editor.selectedClip?.clipType == ClipType.text ? 'Update Selected Text' : 'Add Text Clip'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+              onPressed: () {
+                _tap();
+                if (editor.selectedClip?.clipType == ClipType.text) {
+                  editor.updateSelectedTextProperties(text: _ctrl.text, fontFamily: _selectedFont, textAnimationStyle: _anim);
+                } else {
+                  editor.addTextOverlay(_ctrl.text.isEmpty ? 'Text' : _ctrl.text, fontFamily: _selectedFont, animationStyle: _anim);
+                }
+              },
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, color: Colors.black, size: 18),
+              label: Text(editor.selectedClip?.clipType == ClipType.text ? 'Update Selected Text' : 'Add Text Clip'),
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-class StickersSheet extends StatelessWidget {
+class StickersSheet extends StatefulWidget {
   const StickersSheet({super.key});
 
-  static const List<String> _emojis = <String>['🔥', '✨', '⚡', '🎉', '❤️', '🌟', '🎬', '👏', '🚀', '💯'];
+  @override
+  State<StickersSheet> createState() => _StickersSheetState();
+}
+
+class _StickersSheetState extends State<StickersSheet> {
+  bool _loading = true;
+  static const List<String> _emojis = <String>['🔥', '✨', '⚡', '🎉', '❤️', '🌟', '🎬', '👏', '🚀', '💯', '💥', '⭐', '🎈', '🏆', '💎'];
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _loading = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
 
+    if (_loading) return const SkeletonGrid(itemCount: 10, crossAxisCount: 5);
+
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 5, crossAxisSpacing: 10, mainAxisSpacing: 10),
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 5,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
       itemCount: _emojis.length,
       itemBuilder: (context, index) {
         final emoji = _emojis[index];
@@ -2564,11 +2826,14 @@ class StickersSheet extends StatelessWidget {
             _tap();
             editor.addTextOverlay(emoji, fontFamily: 'Poppins');
           },
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           child: Container(
-            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: const Color(0xFF232327),
+              borderRadius: BorderRadius.circular(10),
+            ),
             alignment: Alignment.center,
-            child: Text(emoji, style: const TextStyle(fontSize: 24)),
+            child: Text(emoji, style: const TextStyle(fontSize: 22)),
           ),
         );
       },
@@ -2576,35 +2841,69 @@ class StickersSheet extends StatelessWidget {
   }
 }
 
-class EffectsSheet extends StatelessWidget {
+class EffectsSheet extends StatefulWidget {
   const EffectsSheet({super.key, required this.isFilterMode});
   final bool isFilterMode;
+
+  @override
+  State<EffectsSheet> createState() => _EffectsSheetState();
+}
+
+class _EffectsSheetState extends State<EffectsSheet> {
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _loading = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.watch<EditorController>();
     final currentEffect = editor.selectedClip?.effect ?? VideoEffect.none;
 
-    return ListView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.all(16),
-      children: VideoEffect.values.map((fx) {
+    if (_loading) return const SkeletonGrid(itemCount: 6, crossAxisCount: 3, childAspectRatio: 1.8);
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 1.8,
+      ),
+      itemCount: VideoEffect.values.length,
+      itemBuilder: (context, index) {
+        final fx = VideoEffect.values[index];
         final selected = fx == currentEffect;
-        return Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: ChoiceChip(
-            selected: selected,
-            selectedColor: _accent,
-            backgroundColor: _surface,
-            labelStyle: TextStyle(color: selected ? Colors.black : Colors.white),
-            label: Text(fx.name.toUpperCase()),
-            onSelected: (_) {
-              _tap();
-              editor.applyEffect(fx);
-            },
+        return InkWell(
+          onTap: () {
+            _tap();
+            editor.applyEffect(fx);
+          },
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: selected ? _accent.withValues(alpha: 0.2) : const Color(0xFF232327),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: selected ? _accent : Colors.transparent),
+            ),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              fx.name.toUpperCase(),
+              style: TextStyle(
+                color: selected ? _accent : Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         );
-      }).toList(),
+      },
     );
   }
 }
@@ -2628,15 +2927,17 @@ class _ColorGradingSheetState extends State<ColorGradingSheet> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        _sliderRow('Brightness', _brightness, -0.5, 0.5, (v) {
+        _cardSlider('Brightness', _brightness, -0.5, 0.5, (v) {
           setState(() => _brightness = v);
           editor.updateColorGrading(ColorGradingSettings(brightness: _brightness, contrast: _contrast, saturation: _saturation));
         }),
-        _sliderRow('Contrast', _contrast, 0.5, 2.0, (v) {
+        const SizedBox(height: 10),
+        _cardSlider('Contrast', _contrast, 0.5, 2.0, (v) {
           setState(() => _contrast = v);
           editor.updateColorGrading(ColorGradingSettings(brightness: _brightness, contrast: _contrast, saturation: _saturation));
         }),
-        _sliderRow('Saturation', _saturation, 0.0, 2.0, (v) {
+        const SizedBox(height: 10),
+        _cardSlider('Saturation', _saturation, 0.0, 2.0, (v) {
           setState(() => _saturation = v);
           editor.updateColorGrading(ColorGradingSettings(brightness: _brightness, contrast: _contrast, saturation: _saturation));
         }),
@@ -2644,19 +2945,23 @@ class _ColorGradingSheetState extends State<ColorGradingSheet> {
     );
   }
 
-  Widget _sliderRow(String label, double val, double min, double max, ValueChanged<double> onChanged) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 13)),
-            const Spacer(),
-            Text(val.toStringAsFixed(2), style: const TextStyle(color: _accent, fontSize: 12)),
-          ],
-        ),
-        Slider(value: val, min: min, max: max, activeColor: _accent, inactiveColor: _divider, onChanged: onChanged),
-      ],
+  Widget _cardSlider(String label, double val, double min, double max, ValueChanged<double> onChanged) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+      decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Text(label, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              Text(val.toStringAsFixed(2), style: const TextStyle(color: _accent, fontSize: 12)),
+            ],
+          ),
+          Slider(value: val, min: min, max: max, activeColor: _accent, inactiveColor: _divider, onChanged: onChanged),
+        ],
+      ),
     );
   }
 }
@@ -2668,39 +2973,65 @@ class CropSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: <Widget>[
-        _ratioBtn(context, '16:9', () => editor.updateTranslation(scale: 1.0)),
-        _ratioBtn(context, '9:16', () => editor.updateTranslation(scale: 1.2)),
-        _ratioBtn(context, '1:1', () => editor.updateTranslation(scale: 1.1)),
-        _ratioBtn(context, '4:5', () => editor.updateTranslation(scale: 1.05)),
-      ],
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: <Widget>[
+          _ratioBtn(context, '16:9', () => editor.updateTranslation(scale: 1.0)),
+          _ratioBtn(context, '9:16', () => editor.updateTranslation(scale: 1.2)),
+          _ratioBtn(context, '1:1', () => editor.updateTranslation(scale: 1.1)),
+          _ratioBtn(context, '4:5', () => editor.updateTranslation(scale: 1.05)),
+        ],
+      ),
     );
   }
 
   Widget _ratioBtn(BuildContext context, String label, VoidCallback onTap) {
-    return ActionChip(
-      backgroundColor: Colors.white10,
-      label: Text(label, style: const TextStyle(color: Colors.white)),
-      onPressed: () {
+    return InkWell(
+      onTap: () {
         _tap();
         onTap();
       },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 64,
+        height: 48,
+        decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(10)),
+        alignment: Alignment.center,
+        child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+      ),
     );
   }
 }
 
-class ElementsSheet extends StatelessWidget {
+class ElementsSheet extends StatefulWidget {
   const ElementsSheet({super.key});
+
+  @override
+  State<ElementsSheet> createState() => _ElementsSheetState();
+}
+
+class _ElementsSheetState extends State<ElementsSheet> {
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _loading = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
 
+    if (_loading) return const SkeletonGrid(itemCount: 4, crossAxisCount: 4);
+
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 12, mainAxisSpacing: 12),
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 4, crossAxisSpacing: 8, mainAxisSpacing: 8),
       itemCount: ElementShape.values.length,
       itemBuilder: (context, index) {
         final shape = ElementShape.values[index];
@@ -2709,13 +3040,13 @@ class ElementsSheet extends StatelessWidget {
             _tap();
             editor.addElementClip(shape, label: shape.name, color: Colors.cyanAccent);
           },
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           child: Container(
-            decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(10)),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                const Icon(Icons.category_rounded, color: _accent, size: 24),
+                const HugeIcon(icon: HugeIcons.strokeRoundedShapes, color: _accent, size: 22),
                 const SizedBox(height: 4),
                 Text(shape.name, style: const TextStyle(color: Colors.white70, fontSize: 10)),
               ],
@@ -2745,24 +3076,29 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        Row(
-          children: <Widget>[
-            const Text('Stroke Width', style: TextStyle(color: Colors.white, fontSize: 13)),
-            Expanded(
-              child: Slider(
-                value: _width,
-                min: 1.0,
-                max: 20.0,
-                activeColor: _accent,
-                inactiveColor: _divider,
-                onChanged: (v) {
-                  setState(() => _width = v);
-                  editor.setStrokeWidth(v);
-                },
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: <Widget>[
+              const Text('Stroke Width', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Slider(
+                  value: _width,
+                  min: 1.0,
+                  max: 20.0,
+                  activeColor: _accent,
+                  inactiveColor: _divider,
+                  onChanged: (v) {
+                    setState(() => _width = v);
+                    editor.setStrokeWidth(v);
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+        const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: <Color>[Colors.cyanAccent, Colors.redAccent, Colors.greenAccent, Colors.yellowAccent, Colors.white]
@@ -2774,7 +3110,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
                     child: CircleAvatar(
                       backgroundColor: c,
                       radius: 14,
-                      child: _color == c ? const Icon(Icons.check, size: 14, color: Colors.black) : null,
+                      child: _color == c ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 14, color: Colors.black) : null,
                     ),
                   ))
               .toList(),
@@ -2784,6 +3120,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
           children: <Widget>[
             Expanded(
               child: OutlinedButton(
+                style: OutlinedButton.styleFrom(side: const BorderSide(color: _divider)),
                 onPressed: () {
                   _tap();
                   editor.clearActiveDrawing();
@@ -2816,22 +3153,25 @@ class MaskSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
 
-    return ListView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.all(16),
-      children: MaskType.values.map((type) {
-        return Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: ActionChip(
-            backgroundColor: Colors.white10,
-            label: Text(type.name.toUpperCase(), style: const TextStyle(color: Colors.white)),
-            onPressed: () {
-              _tap();
-              editor.updateMaskProperties(MaskProperties(type: type, feather: 10.0));
-            },
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 2.2),
+      itemCount: MaskType.values.length,
+      itemBuilder: (context, index) {
+        final type = MaskType.values[index];
+        return InkWell(
+          onTap: () {
+            _tap();
+            editor.updateMaskProperties(MaskProperties(type: type, feather: 10.0));
+          },
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(10)),
+            alignment: Alignment.center,
+            child: Text(type.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
         );
-      }).toList(),
+      },
     );
   }
 }
@@ -2847,27 +3187,34 @@ class KeyframeSheet extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        ElevatedButton.icon(
-          style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
-          onPressed: () {
-            _tap();
-            editor.addKeyframe(Keyframe(
-              id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
-              time: editor.playhead,
-              property: KeyframeProperty.scale,
-              value: 1.0,
-            ));
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Add Keyframe at Playhead'),
+        SizedBox(
+          height: 42,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+            onPressed: () {
+              _tap();
+              editor.addKeyframe(Keyframe(
+                id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
+                time: editor.playhead,
+                property: KeyframeProperty.scale,
+                value: 1.0,
+              ));
+            },
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, color: Colors.black, size: 18),
+            label: const Text('Add Keyframe at Playhead'),
+          ),
         ),
         const SizedBox(height: 12),
-        ...keyframes.map((kf) => ListTile(
-              dense: true,
-              title: Text('${kf.property} @ ${_seconds(kf.time).toStringAsFixed(1)}s', style: const TextStyle(color: Colors.white)),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
-                onPressed: () => editor.removeKeyframe(kf.id),
+        ...keyframes.map((kf) => Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(10)),
+              child: ListTile(
+                dense: true,
+                title: Text('${kf.property} @ ${_seconds(kf.time).toStringAsFixed(1)}s', style: const TextStyle(color: Colors.white, fontSize: 13)),
+                trailing: IconButton(
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete02, color: Colors.redAccent, size: 18),
+                  onPressed: () => editor.removeKeyframe(kf.id),
+                ),
               ),
             )),
       ],
@@ -2886,20 +3233,24 @@ class CameraSettingsSheet extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        Row(
-          children: <Widget>[
-            const Text('Focal Length', style: TextStyle(color: Colors.white, fontSize: 13)),
-            Expanded(
-              child: Slider(
-                value: props.focalLength,
-                min: 10.0,
-                max: 200.0,
-                activeColor: _accent,
-                inactiveColor: _divider,
-                onChanged: (v) => editor.updateCameraProperties(props.copyWith(focalLength: v)),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+          decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: <Widget>[
+              const Text('Focal Length', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Slider(
+                  value: props.focalLength,
+                  min: 10.0,
+                  max: 200.0,
+                  activeColor: _accent,
+                  inactiveColor: _divider,
+                  onChanged: (v) => editor.updateCameraProperties(props.copyWith(focalLength: v)),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );
@@ -2921,18 +3272,22 @@ class CameraTrackingPanel extends StatelessWidget {
         children: <Widget>[
           Text('Tracking Status: ${tracking?.isEnabled == true ? "Active" : "None"}', style: const TextStyle(color: Colors.white, fontSize: 13)),
           const SizedBox(height: 12),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
-            onPressed: () {
-              _tap();
-              editor.updateTrackingData(const TrackingData(
-                isEnabled: true,
-                targetName: 'Subject',
-                rect: Rect.fromLTWH(0.2, 0.2, 0.6, 0.6),
-              ));
-            },
-            icon: const Icon(Icons.center_focus_strong),
-            label: const Text('Start Auto-Tracking'),
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+              onPressed: () {
+                _tap();
+                editor.updateTrackingData(const TrackingData(
+                  isEnabled: true,
+                  targetName: 'Subject',
+                  rect: Rect.fromLTWH(0.2, 0.2, 0.6, 0.6),
+                ));
+              },
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedTarget01, color: Colors.black, size: 18),
+              label: const Text('Start Auto-Tracking'),
+            ),
           ),
         ],
       ),
@@ -2952,10 +3307,14 @@ class PluginsSheet extends StatelessWidget {
       itemCount: plugins.length,
       itemBuilder: (context, index) {
         final p = plugins[index];
-        return ListTile(
-          leading: const Icon(Icons.extension_rounded, color: _accent),
-          title: Text(p.name, style: const TextStyle(color: Colors.white, fontSize: 13)),
-          subtitle: Text(p.version, style: const TextStyle(color: _muted, fontSize: 11)),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(color: const Color(0xFF232327), borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: const HugeIcon(icon: HugeIcons.strokeRoundedGridView, color: _accent, size: 20),
+            title: Text(p.name, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+            subtitle: Text(p.version, style: const TextStyle(color: _muted, fontSize: 11)),
+          ),
         );
       },
     );

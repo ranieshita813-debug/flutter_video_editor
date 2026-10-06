@@ -1,26 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
-import 'package:flutter_video_editor/core/widgets/auth_sheet.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 import 'package:flutter_video_editor/features/media_picker/pages/media_picker_page.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
-
-// -----------------------------------------------------------------------------
-// Tokens (monochrome)
-// -----------------------------------------------------------------------------
-
-const Color _bg = Color(0xFF000000);
-const Color _surface = Color(0xFF111111);
-const Color _elevated = Color(0xFF1C1C1C);
-const Color _border = Color(0xFF2A2A2A);
-const Color _text = Color(0xFFFFFFFF);
-const Color _muted = Color(0xFF8C8C8C);
-const Color _faint = Color(0xFF5A5A5A);
-const Color _onWhite = Color(0xFF000000);
 
 const List<String> _months = <String>[
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -37,10 +25,6 @@ String _fmtDate(DateTime d) => '${_months[d.month - 1]} ${d.day}';
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  // ---------------------------------------------------------------------------
-  // Actions
-  // ---------------------------------------------------------------------------
-
   void _createNewProject(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => const MediaPickerPage()),
@@ -52,48 +36,17 @@ class HomePage extends StatelessWidget {
     Navigator.of(context).pushNamed('/editor');
   }
 
-  void _openAccount(BuildContext context) => AuthSheet.show(context);
+  void _openAccount(BuildContext context) {
+    Navigator.of(context).pushNamed('/auth');
+  }
+
+  void _openSettings(BuildContext context) {
+    Navigator.of(context).pushNamed('/settings');
+  }
 
   RoundedRectangleBorder get _sheetShape => const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       );
-
-  void _openSettings(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: _surface,
-      showDragHandle: true,
-      shape: _sheetShape,
-      builder: (BuildContext ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            _tile(Icons.account_circle_outlined, 'Account', 'Sign in or view profile',
-                onTap: () {
-              Navigator.pop(ctx);
-              _openAccount(context);
-            }),
-            _tile(Icons.hd_outlined, 'Default resolution', '1080p (Full HD)'),
-            _tile(Icons.speed_rounded, 'Default frame rate', '30 FPS'),
-            _tile(Icons.info_outline_rounded, 'About motionGr', 'Version 1.0.0'),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _tile(IconData icon, String title, String subtitle, {VoidCallback? onTap}) {
-    return ListTile(
-      leading: Icon(icon, color: _text),
-      title: Text(title, style: const TextStyle(color: _text, fontSize: 15)),
-      subtitle: Text(subtitle, style: const TextStyle(color: _muted, fontSize: 12)),
-      trailing: onTap == null
-          ? null
-          : const Icon(Icons.chevron_right_rounded, color: _muted),
-      onTap: onTap,
-    );
-  }
 
   void _showProjectActions(
     BuildContext context,
@@ -102,7 +55,7 @@ class HomePage extends StatelessWidget {
   ) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: _surface,
+      backgroundColor: EditorTokens.surface,
       showDragHandle: true,
       shape: _sheetShape,
       builder: (BuildContext ctx) => SafeArea(
@@ -122,12 +75,15 @@ class HomePage extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700, color: _text),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: EditorTokens.text),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '${_fmt(project.duration)} · ${_fmtDate(project.updatedAt)}',
-                          style: const TextStyle(fontSize: 12, color: _muted),
+                          style: const TextStyle(
+                              fontSize: 12, color: EditorTokens.muted),
                         ),
                       ],
                     ),
@@ -135,26 +91,38 @@ class HomePage extends StatelessWidget {
                 ],
               ),
             ),
-            const Divider(height: 1, color: _border),
+            const Divider(height: 1, color: EditorTokens.border),
             ListTile(
-              leading: const Icon(Icons.edit_outlined, color: _text),
-              title: const Text('Rename', style: TextStyle(color: _text)),
+              leading: const HugeIcon(
+                icon: HugeIcons.strokeRoundedEdit02,
+                color: EditorTokens.text,
+                size: 20,
+              ),
+              title: const Text('Rename', style: TextStyle(color: EditorTokens.text)),
               onTap: () {
                 Navigator.pop(ctx);
                 _showRenameDialog(context, project);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.copy_outlined, color: _text),
-              title: const Text('Duplicate', style: TextStyle(color: _text)),
+              leading: const HugeIcon(
+                icon: HugeIcons.strokeRoundedCopy01,
+                color: EditorTokens.text,
+                size: 20,
+              ),
+              title: const Text('Duplicate', style: TextStyle(color: EditorTokens.text)),
               onTap: () {
                 Navigator.pop(ctx);
                 controller.duplicateProject(project.id);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline_rounded, color: _text),
-              title: const Text('Delete', style: TextStyle(color: _text)),
+              leading: const HugeIcon(
+                icon: HugeIcons.strokeRoundedDelete02,
+                color: Colors.redAccent,
+                size: 20,
+              ),
+              title: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
               onTap: () {
                 Navigator.pop(ctx);
                 _confirmDelete(context, project, controller);
@@ -175,16 +143,19 @@ class HomePage extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
-        backgroundColor: _surface,
+        backgroundColor: EditorTokens.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Text('Delete project',
-            style: TextStyle(color: _text, fontSize: 17, fontWeight: FontWeight.w700)),
+            style: TextStyle(
+                color: EditorTokens.text,
+                fontSize: 17,
+                fontWeight: FontWeight.w700)),
         content: Text('"${project.name}" will be removed from your projects.',
-            style: const TextStyle(color: _muted, fontSize: 14)),
+            style: const TextStyle(color: EditorTokens.muted, fontSize: 14)),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: _muted)),
+            child: const Text('Cancel', style: TextStyle(color: EditorTokens.muted)),
           ),
           TextButton(
             onPressed: () {
@@ -192,7 +163,8 @@ class HomePage extends StatelessWidget {
               controller.deleteProject(project.id);
             },
             child: const Text('Delete',
-                style: TextStyle(color: _text, fontWeight: FontWeight.w700)),
+                style: TextStyle(
+                    color: Colors.redAccent, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -214,42 +186,44 @@ class HomePage extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
-        backgroundColor: _surface,
+        backgroundColor: EditorTokens.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Text('Rename project',
-            style: TextStyle(color: _text, fontSize: 17, fontWeight: FontWeight.w700)),
+            style: TextStyle(
+                color: EditorTokens.text,
+                fontSize: 17,
+                fontWeight: FontWeight.w700)),
         content: TextField(
           controller: input,
           autofocus: true,
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => submit(ctx),
-          style: const TextStyle(color: _text),
-          cursorColor: _text,
+          style: const TextStyle(color: EditorTokens.text),
+          cursorColor: EditorTokens.text,
           decoration: const InputDecoration(
             hintText: 'Project name',
-            hintStyle: TextStyle(color: _faint),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: _border)),
-            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: _text)),
+            hintStyle: TextStyle(color: EditorTokens.faint),
+            enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: EditorTokens.border)),
+            focusedBorder: UnderlineInputBorder(
+                borderSide: BorderSide(color: EditorTokens.text)),
           ),
         ),
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: _muted)),
+            child: const Text('Cancel', style: TextStyle(color: EditorTokens.muted)),
           ),
           TextButton(
             onPressed: () => submit(ctx),
             child: const Text('Rename',
-                style: TextStyle(color: _text, fontWeight: FontWeight.w700)),
+                style: TextStyle(
+                    color: EditorTokens.text, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
     ).whenComplete(input.dispose);
   }
-
-  // ---------------------------------------------------------------------------
-  // Build
-  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -258,7 +232,7 @@ class HomePage extends StatelessWidget {
     final List<Project> projects = projectsController.projects;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: EditorTokens.bg,
       body: SafeArea(
         child: CustomScrollView(
           slivers: <Widget>[
@@ -310,7 +284,7 @@ class HomePage extends StatelessWidget {
             child: Text(
               'motionGr',
               style: GoogleFonts.unbounded(
-                color: _text,
+                color: EditorTokens.text,
                 fontSize: 24,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.5,
@@ -322,18 +296,22 @@ class HomePage extends StatelessWidget {
             onPressed: () => _openAccount(context),
             icon: CircleAvatar(
               radius: 14,
-              backgroundColor: _text,
+              backgroundColor: EditorTokens.accent,
               child: Text(
                 initial,
                 style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w800, color: _onWhite),
+                    fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black),
               ),
             ),
           ),
           IconButton(
             tooltip: 'Settings',
             onPressed: () => _openSettings(context),
-            icon: const Icon(Icons.settings_outlined, color: _text, size: 24),
+            icon: const HugeIcon(
+              icon: HugeIcons.strokeRoundedSettings02,
+              color: EditorTokens.text,
+              size: 22,
+            ),
           ),
         ],
       ),
@@ -348,11 +326,15 @@ class HomePage extends StatelessWidget {
         height: 54,
         child: ElevatedButton.icon(
           onPressed: () => _createNewProject(context),
-          icon: const Icon(Icons.add_rounded, size: 26),
+          icon: const HugeIcon(
+            icon: HugeIcons.strokeRoundedAdd01,
+            color: Colors.black,
+            size: 22,
+          ),
           label: const Text('New project'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _text,
-            foregroundColor: _onWhite,
+            backgroundColor: EditorTokens.text,
+            foregroundColor: Colors.black,
             elevation: 0,
             shape: const StadiumBorder(),
             textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
@@ -370,9 +352,13 @@ class HomePage extends StatelessWidget {
         textBaseline: TextBaseline.alphabetic,
         children: <Widget>[
           const Text('Your projects',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _text)),
+              style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: EditorTokens.text)),
           const SizedBox(width: 8),
-          Text('$count', style: const TextStyle(fontSize: 13, color: _muted)),
+          Text('$count',
+              style: const TextStyle(fontSize: 13, color: EditorTokens.muted)),
         ],
       ),
     );
@@ -384,22 +370,29 @@ class HomePage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          const Icon(Icons.video_library_outlined, size: 56, color: _faint),
+          const HugeIcon(
+            icon: HugeIcons.strokeRoundedVideo01,
+            color: EditorTokens.faint,
+            size: 48,
+          ),
           const SizedBox(height: 16),
           const Text('Start your first project',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: _text)),
+              style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: EditorTokens.text)),
           const SizedBox(height: 8),
           const Text(
             'Import videos and photos, then trim, add text, and export.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, height: 1.4, color: _muted),
+            style: TextStyle(fontSize: 13, height: 1.4, color: EditorTokens.muted),
           ),
           const SizedBox(height: 20),
           OutlinedButton(
             onPressed: () => _createNewProject(context),
             style: OutlinedButton.styleFrom(
-              foregroundColor: _text,
-              side: const BorderSide(color: _border),
+              foregroundColor: EditorTokens.text,
+              side: const BorderSide(color: EditorTokens.border),
               shape: const StadiumBorder(),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
@@ -417,8 +410,6 @@ class HomePage extends StatelessWidget {
     Project project,
     ProjectsController controller,
   ) {
-    final bool isPortrait = project.aspectRatio == AspectRatioPreset.nineSixteen;
-
     return GestureDetector(
       onTap: () => _openProject(context, project),
       onLongPress: () => _showProjectActions(context, project, controller),
@@ -432,14 +423,12 @@ class HomePage extends StatelessWidget {
                 fit: StackFit.expand,
                 children: <Widget>[
                   Container(
-                    color: _elevated,
-                    child: Center(
-                      child: Icon(
-                        isPortrait
-                            ? Icons.stay_current_portrait_rounded
-                            : Icons.movie_outlined,
-                        size: 30,
-                        color: _faint,
+                    color: EditorTokens.elevated,
+                    child: const Center(
+                      child: HugeIcon(
+                        icon: HugeIcons.strokeRoundedPlay,
+                        size: 28,
+                        color: EditorTokens.faint,
                       ),
                     ),
                   ),
@@ -447,15 +436,18 @@ class HomePage extends StatelessWidget {
                     left: 5,
                     bottom: 5,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.black.withAlpha(170),
+                        color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         _fmt(project.duration),
                         style: const TextStyle(
-                            color: _text, fontSize: 10, fontWeight: FontWeight.w600),
+                            color: EditorTokens.text,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
@@ -469,11 +461,14 @@ class HomePage extends StatelessWidget {
                         width: 28,
                         height: 28,
                         decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(150),
+                          color: Colors.black.withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.more_horiz_rounded,
-                            size: 16, color: _text),
+                        child: const HugeIcon(
+                          icon: HugeIcons.strokeRoundedMoreHorizontal,
+                          size: 16,
+                          color: EditorTokens.text,
+                        ),
                       ),
                     ),
                   ),
@@ -487,13 +482,15 @@ class HomePage extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w600, color: _text),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: EditorTokens.text),
           ),
           const SizedBox(height: 1),
           Text(
             _fmtDate(project.updatedAt),
             maxLines: 1,
-            style: const TextStyle(fontSize: 10, color: _muted),
+            style: const TextStyle(fontSize: 10, color: EditorTokens.muted),
           ),
         ],
       ),
