@@ -4,12 +4,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/widgets/editor_toolbar.dart';
@@ -36,11 +38,8 @@ const Color _divider = Color(0xFF1E1E22);
 
 const double _playheadFrac = 0.42;
 
-// TODO(project): drive from project settings instead of a constant.
 const int _fps = 30;
 
-/// Overlay clip coordinates are interpreted in a 360-unit-wide design space
-/// that scales with the canvas, so layouts look identical on every device.
 const double _designW = 360;
 
 // ----------------------------------------------------------------------------
@@ -57,7 +56,7 @@ int _cols(double width, double tile, {int min = 2, int max = 8}) =>
     (width / tile).floor().clamp(min, max);
 
 // ----------------------------------------------------------------------------
-// Canvas aspect ratio (shared between the Canvas tool and the preview)
+// Canvas aspect ratio
 // ----------------------------------------------------------------------------
 enum _CanvasRatio {
   r16x9('16:9', 16 / 9),
@@ -110,7 +109,6 @@ bool _isImagePath(String p) {
 
 void _tap() => HapticFeedback.selectionClick();
 
-/// True while a text field has focus, so keyboard shortcuts don't hijack typing.
 bool _typing() {
   final BuildContext? c = FocusManager.instance.primaryFocus?.context;
   if (c == null) return false;
@@ -124,17 +122,6 @@ VoidCallback _guard(VoidCallback f) => () {
 
 // ----------------------------------------------------------------------------
 // Pluggable media pipelines
-//
-// Wire these once in main() to unlock real thumbnails / real waveforms:
-//
-//   thumbGenerator = (path, timeMs, maxW) => VideoThumbnail.thumbnailData(
-//         video: path, timeMs: timeMs,
-//         imageFormat: ImageFormat.JPEG, maxWidth: maxW, quality: 55);
-//
-//   waveformDecoder = (path, bars) => MyFFmpegWaveform.decode(path, bars);
-//
-// Without a generator the UI degrades gracefully (stripes / content-derived
-// bars), so this file never hard-depends on extra packages.
 // ----------------------------------------------------------------------------
 typedef ThumbGenerator = Future<Uint8List?> Function(String path, int timeMs, int maxWidth);
 ThumbGenerator? thumbGenerator;
@@ -187,8 +174,6 @@ Future<List<double>> _waveFuture(String path, int bars) =>
       return _fallbackWave(path, bars);
     });
 
-// Deterministic, content-derived fallback: hashes real file bytes (first 48KB)
-// so different audio files look different. Plug `waveformDecoder` for true PCM.
 Future<List<double>> _fallbackWave(String path, int bars) async {
   const double flat = 0.4;
   try {
@@ -264,9 +249,6 @@ enum _Tool {
       };
 }
 
-// ----------------------------------------------------------------------------
-// Shared timeline ops
-// ----------------------------------------------------------------------------
 void _splitAllTracks(EditorController editor) {
   final Duration ph = editor.playhead;
   final List<TimelineClip> targets = editor.project.clips
@@ -274,14 +256,11 @@ void _splitAllTracks(EditorController editor) {
       .toList();
   if (targets.isEmpty) return;
   _tap();
-  // TODO(controller): a native splitAllAtPlayhead() would make this a single
-  // undo step. Until then we select + split each clip.
   for (final c in targets) {
     editor.selectClip(c.id);
     editor.splitSelectedClip();
   }
 }
-
 
 // ----------------------------------------------------------------------------
 // Page
@@ -299,7 +278,6 @@ class _EditorPageState extends State<EditorPage> {
   double _splitAdj = 0, _minAdj = -400, _maxAdj = 400;
   bool _dragging = false;
 
-  // Multi-select lives here so both the timeline and the toolbar can share it.
   final ValueNotifier<bool> _multiOn = ValueNotifier<bool>(false);
   final ValueNotifier<Set<String>> _multi = ValueNotifier<Set<String>>(<String>{});
 
@@ -445,13 +423,12 @@ class _EditorPageState extends State<EditorPage> {
                             ? c.maxWidth - (_tool != null ? sideW : 0)
                             : c.maxWidth;
                         final double topH = 52 * s + safe.top;
-                        final double transportH = 52 * s + 16; // transport + divider
+                        final double transportH = 52 * s + 16;
                         final double barH = (64 * s).clamp(60.0, 80.0).toDouble();
                         final double bottomH =
                             ((wide || _tool == null) ? barH : panelH) + safe.bottom;
                         final double tlMin = (_isShort(size) ? 90 : 120) * s;
                         final double tlMax = 240 * s;
-                        // Canvas height = canvas width / ratio (plus chrome).
                         final double desired =
                             topH + (colW - 2 * pad) / ratio.value + 2 * pad;
                         final double maxP =
@@ -525,7 +502,6 @@ class _EditorPageState extends State<EditorPage> {
 
                 if (!wide) return main;
 
-                // Wide layouts (tablet / desktop / landscape): tools dock on the right.
                 return Row(
                   children: <Widget>[
                     Expanded(child: main),
@@ -751,7 +727,6 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
     final c = _vc;
     if (!mounted || c == null || !c.value.isInitialized || _loading) return;
 
-    // Playhead is in a gap between clips: make sure we aren't still playing.
     if (clip == null) {
       if (c.value.isPlaying) await c.pause();
       return;
@@ -865,6 +840,126 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
     );
   }
 
+  Widget _applyVideoEffectPreset(Widget child, VideoEffect fx, Duration playhead) {
+    switch (fx) {
+      case VideoEffect.warm:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            1.2, 0, 0, 0, 10,
+            0, 1.1, 0, 0, 5,
+            0, 0, 0.9, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+      case VideoEffect.cinematic:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            1.1, 0, 0, 0, -10,
+            0, 1.2, 0, 0, 0,
+            0, 0, 1.3, 0, 10,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+      case VideoEffect.noir:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            0.2126, 0.7152, 0.0722, 0, 0,
+            0.2126, 0.7152, 0.0722, 0, 0,
+            0.2126, 0.7152, 0.0722, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+      case VideoEffect.vibrant:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            1.3, -0.1, -0.1, 0, 0,
+            -0.1, 1.3, -0.1, 0, 0,
+            -0.1, -0.1, 1.3, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+      case VideoEffect.vintage:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            0.9, 0.1, 0.1, 0, 15,
+            0.1, 0.8, 0.1, 0, 10,
+            0.1, 0.1, 0.6, 0, 5,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+      case VideoEffect.glitch:
+        return FlutterShaderPreviewRenderer.applyShaderEffect(
+          child: child,
+          clip: const ShaderEffectClip(
+            id: 'fx_glitch',
+            effectId: 'glitch',
+            parameterValues: {'distortionAmount': 0.8, 'speed': 2.0},
+          ),
+          parameters: const {'distortionAmount': 0.8, 'speed': 2.0},
+          playheadTime: playhead,
+        );
+      case VideoEffect.blur:
+        return FlutterShaderPreviewRenderer.applyShaderEffect(
+          child: child,
+          clip: const ShaderEffectClip(
+            id: 'fx_blur',
+            effectId: 'blur',
+            parameterValues: {'blurAmount': 1.5},
+          ),
+          parameters: const {'blurAmount': 1.5},
+          playheadTime: playhead,
+        );
+      case VideoEffect.glow:
+        return FlutterShaderPreviewRenderer.applyShaderEffect(
+          child: child,
+          clip: const ShaderEffectClip(
+            id: 'fx_glow',
+            effectId: 'glow',
+            parameterValues: {'glowStrength': 1.2},
+          ),
+          parameters: const {'glowStrength': 1.2},
+          playheadTime: playhead,
+        );
+      case VideoEffect.retro:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            0.8, 0.2, 0.1, 0, 20,
+            0.1, 0.7, 0.2, 0, 15,
+            0.1, 0.1, 0.5, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+      case VideoEffect.matrix:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            0.1, 0.8, 0.1, 0, 0,
+            0.1, 1.2, 0.1, 0, 20,
+            0.1, 0.8, 0.1, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+      case VideoEffect.flame:
+        return ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            1.4, 0, 0, 0, 30,
+            0.2, 0.8, 0, 0, 10,
+            0, 0, 0.5, 0, 0,
+            0, 0, 0, 1, 0,
+          ]),
+          child: child,
+        );
+      case VideoEffect.none:
+        return child;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final clip = _e.activeVideoClip;
@@ -903,7 +998,6 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
       child = _placeholder(clip?.label ?? 'Add media to start editing');
     }
 
-    // Clip transform (scale only; position belongs to overlays).
     if (clip != null && (_isImg || ready)) {
       final double sc = (clip.scale).clamp(0.2, 5.0).toDouble();
       if (sc != 1.0) child = Transform.scale(scale: sc, child: child);
@@ -926,6 +1020,11 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
         ];
         child = ColorFiltered(colorFilter: ColorFilter.matrix(matrix), child: child);
       }
+    }
+
+    final fxPreset = clip?.effect ?? VideoEffect.none;
+    if (fxPreset != VideoEffect.none && clip != null) {
+      child = _applyVideoEffectPreset(child, fxPreset, _e.playhead);
     }
 
     final shaderEffects = clip?.shaderEffects ?? const [];
@@ -960,14 +1059,11 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
 }
 
 // ----------------------------------------------------------------------------
-// Tracking overlay (normalized coordinates)
-//
-// Optional: wire `resolveTrackingBox` in main() for a custom mapping. If it is
-// not set, the overlay falls back to `trackingData.rect` (normalized 0..1).
+// Tracking overlay
 // ----------------------------------------------------------------------------
 class TrackingBox {
   const TrackingBox(this.x, this.y, this.w, this.h);
-  final double x, y, w, h; // normalized 0..1
+  final double x, y, w, h;
 }
 
 typedef TrackingBoxResolver = TrackingBox? Function(dynamic tracking);
@@ -1130,7 +1226,6 @@ class _PreviewState extends State<_Preview> {
                   ),
                 ],
                 const Spacer(),
-                // Resolution Badge '1080p'
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
                   decoration: BoxDecoration(
@@ -1441,7 +1536,7 @@ class _PaneDivider extends StatelessWidget {
 }
 
 // ----------------------------------------------------------------------------
-// Transport bar (timecode, frame step, play, undo/redo)
+// Transport bar
 // ----------------------------------------------------------------------------
 class _Transport extends StatelessWidget {
   const _Transport({required this.editor});
@@ -1548,14 +1643,14 @@ class _Transport extends StatelessWidget {
 }
 
 // ----------------------------------------------------------------------------
-// Smart snapping: canvas center/edges/thirds/safe margins + other objects
+// Smart snapping
 // ----------------------------------------------------------------------------
 enum _SnapKind { center, edge, third, safe, object }
 
 class _SnapLine {
   const _SnapLine(this.vertical, this.pos, this.kind);
   final bool vertical;
-  final double pos; // design units
+  final double pos;
   final _SnapKind kind;
 
   @override
@@ -1579,7 +1674,6 @@ class _GuideState {
   int get hashCode => Object.hash(dragging, lines.length);
 }
 
-/// Approximate bounds (design units) of an overlay clip, used as snap targets.
 Rect _overlayRect(TimelineClip c) {
   double w, h;
   switch (c.clipType) {
@@ -1733,7 +1827,7 @@ class _SnapGuidePainter extends CustomPainter {
 }
 
 // ----------------------------------------------------------------------------
-// Overlay clip (text / sticker / element / drawing): drag + pinch + snapping
+// Overlay clip
 // ----------------------------------------------------------------------------
 class _OverlayClip extends StatefulWidget {
   const _OverlayClip({
@@ -1766,7 +1860,7 @@ class _OverlayClip extends StatefulWidget {
 class _OverlayClipState extends State<_OverlayClip> {
   final GlobalKey _k = GlobalKey();
   double _baseScale = 1;
-  double _rx = 0, _ry = 0; // raw (unsnapped) position so snapping never "sticks"
+  double _rx = 0, _ry = 0;
   List<double> _ox = <double>[], _oy = <double>[];
   String _sig = '';
 
@@ -1851,19 +1945,35 @@ class _OverlayClipState extends State<_OverlayClip> {
 
         return _applyAnimations(textWidget, clip);
       case ClipType.element:
-        final elWidget = Container(
-          width: 80 * clip.scale * u,
-          height: 80 * clip.scale * u,
-          decoration: BoxDecoration(
-            color: clip.elementProperties.fillColor,
-            shape: clip.elementProperties.shape == ElementShape.circle
-                ? BoxShape.circle
-                : BoxShape.rectangle,
-            borderRadius: clip.elementProperties.shape == ElementShape.rectangle
-                ? BorderRadius.circular(8 * u)
-                : null,
-          ),
-        );
+        Widget elWidget;
+        final svgPath = clip.elementProperties.svgPath ?? clip.sourcePath;
+        if (svgPath != null && svgPath.isNotEmpty && File(svgPath).existsSync()) {
+          elWidget = SizedBox(
+            width: 100 * clip.scale * u,
+            height: 100 * clip.scale * u,
+            child: SvgPicture.file(
+              File(svgPath),
+              fit: BoxFit.contain,
+              colorFilter: clip.elementProperties.fillColor != Colors.white
+                  ? ColorFilter.mode(clip.elementProperties.fillColor, BlendMode.srcIn)
+                  : null,
+            ),
+          );
+        } else {
+          elWidget = Container(
+            width: 80 * clip.scale * u,
+            height: 80 * clip.scale * u,
+            decoration: BoxDecoration(
+              color: clip.elementProperties.fillColor,
+              shape: clip.elementProperties.shape == ElementShape.circle
+                  ? BoxShape.circle
+                  : BoxShape.rectangle,
+              borderRadius: clip.elementProperties.shape == ElementShape.rectangle
+                  ? BorderRadius.circular(8 * u)
+                  : null,
+            ),
+          );
+        }
         return _applyAnimations(elWidget, clip);
       case ClipType.drawing:
         final drWidget = CustomPaint(
@@ -1980,7 +2090,7 @@ class _OverlayClipState extends State<_OverlayClip> {
           final Size? sz = _k.currentContext?.size;
           final double w = (sz?.width ?? 0) / u;
           final double h = (sz?.height ?? 0) / u;
-          final double th = 8 / u; // 8 screen px of magnetic pull
+          final double th = 8 / u;
           final (double x, List<_SnapLine> lx) = _snapAxis(_rx, w, _designW, true, _ox, th);
           final (double y, List<_SnapLine> ly) =
               _snapAxis(_ry, h, widget.designH, false, _oy, th);
@@ -2021,7 +2131,6 @@ class _GuidePainter extends CustomPainter {
       canvas.drawLine(Offset(size.width * f, 0), Offset(size.width * f, size.height), p);
       canvas.drawLine(Offset(0, size.height * f), Offset(size.width, size.height * f), p);
     }
-    // Title-safe area (90%).
     final Rect safe = Rect.fromCenter(
         center: size.center(Offset.zero),
         width: size.width * 0.9,
@@ -2065,11 +2174,7 @@ class _DrawingPainter extends CustomPainter {
 }
 
 // ----------------------------------------------------------------------------
-// Timeline — immutable snapshot model
-//
-// The whole lane tree only rebuilds when clips/zoom/selection actually change.
-// Playhead ticks (30/s during playback) only move the scroll offset — no
-// widget rebuilds.
+// Timeline
 // ----------------------------------------------------------------------------
 class _ClipSnapshot {
   const _ClipSnapshot({
@@ -2194,9 +2299,8 @@ class _Timeline extends StatefulWidget {
 }
 
 class _TimelineState extends State<_Timeline> {
-  static const double _gap = 6;
+  static const double _gap = 14;
 
-  // Device scale, refreshed in build().
   double _s = 1;
   double get _rulerH => 30 * _s;
   double get _textH => 34 * _s;
@@ -2238,7 +2342,6 @@ class _TimelineState extends State<_Timeline> {
     super.dispose();
   }
 
-  // Playhead-follow: pure scroll, no setState → zero widget rebuilds.
   void _syncScroll() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _userScrolling || _pointers >= 2 || !_sc.hasClients) return;
@@ -2263,7 +2366,7 @@ class _TimelineState extends State<_Timeline> {
       for (final l in layers.reversed)
         _Lane(_textH, _ClipKind.text,
             clips.where((c) => _isOverlay(c) && c.layer == l).toList()),
-      _Lane(_videoH, _ClipKind.video, main, add: true),
+      _Lane(_videoH, _ClipKind.video, main, add: false),
       if (audio.isNotEmpty) _Lane(_audioH, _ClipKind.audio, audio),
     ];
   }
@@ -2296,7 +2399,6 @@ class _TimelineState extends State<_Timeline> {
     return best;
   }
 
-  // Neighbour clamp + snap for clip MOVE on the main lane.
   double _constrainMove(_ClipSnapshot clip, double desired, double pps,
       List<_ClipSnapshot> mainClips) {
     double s = _snapTime(desired, pps, mainClips, excludeId: clip.id);
@@ -2315,8 +2417,6 @@ class _TimelineState extends State<_Timeline> {
 
   void _setZoom(double z) => editor.setZoom(z.clamp(0.5, 8.0).toDouble());
 
-  // Zoom anchored at `anchorX` (viewport px) so the content under the finger
-  // (or the playhead, for the buttons) stays put.
   void _applyZoom(double newZoom, double anchorX, double half) {
     final double oldPps = 28.0 * editor.zoom;
     final double total = math.max(_seconds(editor.project.totalDuration), 1.0);
@@ -2539,7 +2639,6 @@ class _TimelineState extends State<_Timeline> {
                         ),
                       ),
                     ),
-                    // Lane headers
                     Positioned(
                       left: 0,
                       top: 0,
@@ -2570,7 +2669,6 @@ class _TimelineState extends State<_Timeline> {
                         ),
                       ),
                     ),
-                    // Playhead (time pill + line)
                     Positioned(
                       left: half - 32,
                       top: 0,
@@ -2610,7 +2708,6 @@ class _TimelineState extends State<_Timeline> {
                         ),
                       ),
                     ),
-                    // Snap + zoom
                     Positioned(
                       right: 6,
                       bottom: 4,
@@ -2767,7 +2864,6 @@ class _TimelineState extends State<_Timeline> {
                   ),
                 ),
               ),
-              // Transition picker between main-track clips.
               if (l.kind == _ClipKind.video && i < list.length - 1)
                 Positioned(
                   left: half + list[i].endSec * pps - 14 * _s,
@@ -2827,24 +2923,20 @@ class _ClipBlock extends StatefulWidget {
 
 class _ClipBlockState extends State<_ClipBlock> {
   double _originStart = 0;
-  double _accum = 0;
 
   void _startMove() {
     widget.editor.selectClip(widget.clip.id);
     _originStart = widget.clip.startSec;
-    _accum = 0;
   }
 
-  void _updateMove(double dx) {
-    _accum += dx / widget.pps;
-    final double s = widget.moveClamp(_originStart + _accum);
+  void _updateMove(double deltaX) {
+    final double s = widget.moveClamp(_originStart + deltaX / widget.pps);
     widget.editor.trimSelectedClip(
       Duration(milliseconds: (s * 1000).round()),
       Duration(milliseconds: ((s + widget.clip.durSec) * 1000).round()),
     );
   }
 
-  // Trim handles live INSIDE the block so they are actually hit-testable.
   Widget _trimHandle({required bool left}) {
     final clip = widget.clip;
     return Positioned(
@@ -2993,8 +3085,6 @@ class _ClipBlockState extends State<_ClipBlock> {
       builder: (context, _) {
         final bool multiActive = widget.multiOn.value;
         final bool inMulti = widget.multi.value.contains(clip.id);
-        // Drag-to-move only on an already selected clip; otherwise the drag
-        // scrolls the timeline like everywhere else.
         final bool canMove = !locked && !multiActive && widget.selected;
 
         return GestureDetector(
@@ -3008,13 +3098,9 @@ class _ClipBlockState extends State<_ClipBlock> {
               widget.editor.selectClip(clip.id);
             }
           },
-          onLongPress: () {
-            _tap();
-            widget.multiOn.value = true;
-            widget.multi.value = <String>{clip.id};
-          },
-          onHorizontalDragStart: canMove ? (_) => _startMove() : null,
-          onHorizontalDragUpdate: canMove ? (d) => _updateMove(d.delta.dx) : null,
+          onLongPressStart: canMove ? (_) => _startMove() : null,
+          onLongPressMoveUpdate:
+              canMove ? (d) => _updateMove(d.offsetFromOrigin.dx) : null,
           child: AnimatedOpacity(
             duration: const Duration(milliseconds: 150),
             opacity: clip.visible ? 1 : 0.35,
@@ -3057,7 +3143,7 @@ class _Handle extends StatelessWidget {
 }
 
 // ----------------------------------------------------------------------------
-// Filmstrip thumbnails (async, cached; stripes until a generator is wired)
+// Filmstrip thumbnails
 // ----------------------------------------------------------------------------
 class _Stripes extends StatelessWidget {
   const _Stripes();
@@ -3125,7 +3211,7 @@ class _FilmPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
+  bool shouldRepaint(covariant _FilmPainter old) => false;
 }
 
 class _WaveformLoader extends StatelessWidget {
@@ -3193,12 +3279,10 @@ class _RulerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Strip background + bottom hairline.
     canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF0B0B0E));
     canvas.drawLine(Offset(0, size.height - 0.5), Offset(size.width, size.height - 0.5),
         Paint()..color = const Color(0xFF26262C));
 
-    // Everything past the project end is dimmed, with an accent end marker.
     final double endX = leftPad + totalSec * pps;
     if (endX < size.width) {
       canvas.drawRect(Rect.fromLTRB(endX, 0, size.width, size.height),
@@ -3240,7 +3324,6 @@ class _RulerPainter extends CustomPainter {
       )..layout();
       tp.paint(canvas, Offset(x + 4, 4));
 
-      // 3 minor ticks between majors (the middle one is taller).
       for (int j = 1; j < 4; j++) {
         final double mx = x + j * step * pps / 4;
         canvas.drawLine(
@@ -3258,9 +3341,7 @@ class _RulerPainter extends CustomPainter {
 }
 
 // ----------------------------------------------------------------------------
-// Transition picker (join icon)
-// TODO(controller): persist the chosen transition on the clip (e.g.
-// editor.setTransition(leftClipId, type)).
+// Transition picker
 // ----------------------------------------------------------------------------
 enum _TransitionType { none, fade, slide, zoom, blur }
 
@@ -3291,7 +3372,6 @@ void _showTransitionSheet(BuildContext context) {
                       behavior: HitTestBehavior.opaque,
                       onTap: () {
                         _tap();
-                        // TODO(controller): apply `t` to the clip pair.
                         Navigator.of(context).pop();
                       },
                       child: Column(
@@ -3329,7 +3409,6 @@ void _showTransitionSheet(BuildContext context) {
     ),
   );
 }
-
 
 // ----------------------------------------------------------------------------
 // Shared sheet widgets
@@ -3415,7 +3494,6 @@ Widget _primaryBtn(dynamic icon, String label, VoidCallback? onPressed) => Sized
       ),
     );
 
-/// Responsive grid: column count adapts to the available width.
 class _ResponsiveGrid extends StatefulWidget {
   const _ResponsiveGrid({
     required this.itemCount,
@@ -3753,7 +3831,6 @@ class ColorGradingSheet extends StatelessWidget {
   }
 }
 
-/// "Canvas" tool: canvas aspect ratio + zoom of the selected clip.
 class CropSheet extends StatelessWidget {
   const CropSheet({super.key});
 

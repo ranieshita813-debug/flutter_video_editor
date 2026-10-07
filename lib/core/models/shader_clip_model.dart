@@ -179,18 +179,17 @@ class KeyframeAnimation {
 }
 
 class ShaderEffectClip {
-  ShaderEffectClip({
+  const ShaderEffectClip({
     required this.id,
     required this.effectId,
-    required this.name,
-    required this.start,
-    required this.end,
+    this.name = '',
+    this.start = Duration.zero,
+    this.end = const Duration(hours: 10),
     this.isEnabled = true,
     this.zIndex = 0,
-    Map<String, dynamic>? parameterValues,
-    List<KeyframeAnimation>? keyframeAnimations,
-  })  : parameterValues = parameterValues ?? <String, dynamic>{},
-        keyframeAnimations = keyframeAnimations ?? <KeyframeAnimation>[];
+    this.parameterValues = const <String, dynamic>{},
+    this.keyframeAnimations = const <KeyframeAnimation>[],
+  });
 
   final String id;
   final String effectId;
