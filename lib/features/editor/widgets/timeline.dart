@@ -112,11 +112,12 @@ class _TimelineModel {
 enum _ClipKind { text, video, audio }
 
 class _Lane {
-  const _Lane(this.h, this.kind, this.clips, {this.add = false});
+  const _Lane(this.h, this.kind, this.clips, {this.add = false, this.name = ''});
   final double h;
   final _ClipKind kind;
   final List<_ClipSnapshot> clips;
   final bool add;
+  final String name;
 }
 
 // ----------------------------------------------------------------------------
@@ -148,10 +149,10 @@ class _TimelineWidgetState extends State<TimelineWidget> {
 
   double _s = 1;
   double get _rulerH => 30 * _s;
-  double get _textH => 34 * _s;
+  double get _textH => 40 * _s;
   double get _videoH => 52 * _s;
-  double get _audioH => 40 * _s;
-  double get _hdrW => 44 * _s;
+  double get _audioH => 44 * _s;
+  double get _hdrW => 76 * _s;
 
   final ScrollController _sc = ScrollController();
   final ScrollController _vc = ScrollController();
@@ -225,6 +226,15 @@ class _TimelineWidgetState extends State<TimelineWidget> {
   bool _isOverlay(_ClipSnapshot c) =>
       c.type != ClipType.audio && c.type != ClipType.video && c.type != ClipType.image;
 
+  /// Track name for an overlay lane, based on what it contains.
+  String _overlayName(List<_ClipSnapshot> cs) {
+    if (cs.isEmpty) return 'Text';
+    final ClipType t = cs.first.type;
+    if (t == ClipType.sticker || t == ClipType.element) return 'Sticker';
+    if (t == ClipType.drawing) return 'Drawing';
+    return 'Text';
+  }
+
   List<_Lane> _lanes(List<_ClipSnapshot> clips) {
     final main = clips.where((c) => c.isMain).toList()
       ..sort((a, b) => a.startMs.compareTo(b.startMs));
@@ -247,12 +257,34 @@ class _TimelineWidgetState extends State<TimelineWidget> {
       }
     }
 
-    return <_Lane>[
+    // Overlay lanes (top layer first), named Text / Sticker / Drawing and
+    // numbered only when more than one lane shares the same name.
+    final List<List<_ClipSnapshot>> groups = <List<_ClipSnapshot>>[
       for (final l in layers.reversed)
-        _Lane(_textH, _ClipKind.text,
-            clips.where((c) => _isOverlay(c) && c.layer == l).toList()),
-      _Lane(_videoH, _ClipKind.video, main, add: true),
-      for (final row in audioRows) _Lane(_audioH, _ClipKind.audio, row),
+        clips.where((c) => _isOverlay(c) && c.layer == l).toList(),
+    ];
+    final Map<String, int> totals = <String, int>{};
+    for (final g in groups) {
+      final String n = _overlayName(g);
+      totals[n] = (totals[n] ?? 0) + 1;
+    }
+    final Map<String, int> seen = <String, int>{};
+    final List<_Lane> overlayLanes = <_Lane>[];
+    for (final g in groups) {
+      final String base = _overlayName(g);
+      final int n = (seen[base] ?? 0) + 1;
+      seen[base] = n;
+      final int total = totals[base]!;
+      overlayLanes.add(_Lane(_textH, _ClipKind.text, g,
+          name: total > 1 ? '$base ${total - n + 1}' : base));
+    }
+
+    return <_Lane>[
+      ...overlayLanes,
+      _Lane(_videoH, _ClipKind.video, main, add: true, name: 'Video'),
+      for (int i = 0; i < audioRows.length; i++)
+        _Lane(_audioH, _ClipKind.audio, audioRows[i],
+            name: audioRows.length > 1 ? 'Audio ${i + 1}' : 'Audio'),
     ];
   }
 
@@ -447,7 +479,8 @@ class _TimelineWidgetState extends State<TimelineWidget> {
       ),
       child: LayoutBuilder(
         builder: (context, c) {
-          final double half = c.maxWidth * playheadFracToken;
+          // Keep the playhead (and clip origin) clear of the track header.
+          final double half = math.max(c.maxWidth * playheadFracToken, _hdrW + 12);
           return Selector<EditorController, _TimelineModel>(
             selector: (_, e) => _TimelineModel.from(e),
             builder: (context, model, _) {
@@ -657,51 +690,46 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     );
   }
 
+  /// Track header: name (Video / Audio / Text ...) plus visibility and layer
+  /// controls. No lock control here.
   Widget _header(_Lane l) {
-    final bool locked = l.clips.isNotEmpty && l.clips.every((c) => c.locked);
-    final bool visible = l.clips.any((c) => c.visible);
+    final bool empty = l.clips.isEmpty;
+    // An empty lane has nothing to hide, so never show the "hidden" state.
+    final bool visible = empty || l.clips.any((c) => c.visible);
+
     Widget btn(dynamic i, bool active, String tip, VoidCallback f) => Tooltip(
           message: tip,
           child: InkResponse(
-            radius: 16,
+            radius: 18,
             onTap: () {
               tapFeedback();
               f();
             },
             child: Padding(
-              padding: const EdgeInsets.all(2),
+              padding: const EdgeInsets.all(3),
               child: HugeIcon(
                 icon: i,
-                size: 14 * _s,
-                color: active ? Colors.white : Colors.white54,
+                size: 16 * _s,
+                color: active ? Colors.white : Colors.white70,
               ),
             ),
           ),
         );
 
-    final bool isTextLane = l.kind == _ClipKind.text && l.clips.isNotEmpty;
+    final bool isTextLane = l.kind == _ClipKind.text && !empty;
 
-    final List<Widget> children = <Widget>[
-      btn(
-        locked ? HugeIcons.strokeRoundedLock : HugeIcons.strokeRoundedLockKey,
-        locked,
-        locked ? 'Unlock track' : 'Lock track',
-        () {
-          for (final c in l.clips) {
-            if (c.locked == locked) editor.toggleClipLock(c.id);
-          }
-        },
-      ),
-      btn(
-        visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff,
-        !visible,
-        visible ? 'Hide track' : 'Show track',
-        () {
-          for (final c in l.clips) {
-            if (c.visible == visible) editor.toggleClipVisibility(c.id);
-          }
-        },
-      ),
+    final List<Widget> icons = <Widget>[
+      if (!empty)
+        btn(
+          visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff,
+          !visible,
+          visible ? 'Hide track' : 'Show track',
+          () {
+            for (final c in l.clips) {
+              if (c.visible == visible) editor.toggleClipVisibility(c.id);
+            }
+          },
+        ),
       if (isTextLane)
         btn(HugeIcons.strokeRoundedArrowUp01, true, 'Move layer higher', () {
           final first = l.clips.first;
@@ -714,11 +742,32 @@ class _TimelineWidgetState extends State<TimelineWidget> {
         }),
     ];
 
-    // FittedBox prevents RenderFlex overflow when 3-4 buttons share a 44px header.
-    final Widget group = l.h >= 50
-        ? Column(mainAxisSize: MainAxisSize.min, children: children)
-        : Row(mainAxisSize: MainAxisSize.min, children: children);
-    return Center(child: FittedBox(fit: BoxFit.scaleDown, child: group));
+    // FittedBox prevents RenderFlex overflow regardless of lane height/scale.
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4 * _s),
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(
+                l.name,
+                maxLines: 1,
+                style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600),
+              ),
+              if (icons.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 2),
+                Row(mainAxisSize: MainAxisSize.min, children: icons),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _addButton(double left, double h) => Positioned(
@@ -1045,12 +1094,6 @@ class _ClipBlockState extends State<_ClipBlock> {
               clipBehavior: Clip.none,
               children: <Widget>[
                 Positioned.fill(child: _buildBody()),
-                if (locked)
-                  const Positioned(
-                    top: 4,
-                    right: 6,
-                    child: Icon(Icons.lock_rounded, size: 11, color: Colors.white70),
-                  ),
                 if (inMulti)
                   const Positioned(
                     top: 4,
