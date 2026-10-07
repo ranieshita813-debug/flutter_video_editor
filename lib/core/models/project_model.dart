@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 
 enum ClipType {
   video,
@@ -854,6 +855,7 @@ class TimelineClip {
     this.cameraProperties = const CameraProperties(),
     this.maskProperties = const MaskProperties(),
     this.keyframes = const <Keyframe>[],
+    this.shaderEffects = const <ShaderEffectClip>[],
     this.inAnimation = ClipAnimation.none,
     this.outAnimation = ClipAnimation.none,
     this.loopAnimation = ClipAnimation.none,
@@ -894,6 +896,7 @@ class TimelineClip {
   final CameraProperties cameraProperties;
   final MaskProperties maskProperties;
   final List<Keyframe> keyframes;
+  final List<ShaderEffectClip> shaderEffects;
   final ClipAnimation inAnimation;
   final ClipAnimation outAnimation;
   final ClipAnimation loopAnimation;
@@ -936,6 +939,7 @@ class TimelineClip {
     CameraProperties? cameraProperties,
     MaskProperties? maskProperties,
     List<Keyframe>? keyframes,
+    List<ShaderEffectClip>? shaderEffects,
     ClipAnimation? inAnimation,
     ClipAnimation? outAnimation,
     ClipAnimation? loopAnimation,
@@ -976,6 +980,7 @@ class TimelineClip {
       cameraProperties: cameraProperties ?? this.cameraProperties,
       maskProperties: maskProperties ?? this.maskProperties,
       keyframes: keyframes ?? this.keyframes,
+      shaderEffects: shaderEffects ?? this.shaderEffects,
       inAnimation: inAnimation ?? this.inAnimation,
       outAnimation: outAnimation ?? this.outAnimation,
       loopAnimation: loopAnimation ?? this.loopAnimation,
@@ -1019,6 +1024,7 @@ class TimelineClip {
       'cameraProperties': cameraProperties.toJson(),
       'maskProperties': maskProperties.toJson(),
       'keyframes': keyframes.map((k) => k.toJson()).toList(),
+      'shaderEffects': shaderEffects.map((e) => e.toJson()).toList(),
       'inAnimation': inAnimation.name,
       'outAnimation': outAnimation.name,
       'loopAnimation': loopAnimation.name,
@@ -1086,6 +1092,10 @@ class TimelineClip {
               ?.map((e) => Keyframe.fromJson(Map<String, dynamic>.from(e as Map)))
               .toList() ??
           <Keyframe>[],
+      shaderEffects: (json['shaderEffects'] as List<dynamic>?)
+              ?.map((e) => ShaderEffectClip.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          <ShaderEffectClip>[],
       inAnimation: ClipAnimation.values.firstWhere(
         (e) => e.name == json['inAnimation'],
         orElse: () => ClipAnimation.none,
