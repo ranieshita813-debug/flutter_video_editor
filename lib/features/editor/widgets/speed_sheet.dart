@@ -1,4 +1,11 @@
 // lib/features/editor/widgets/speed_sheet.dart
+//
+// Speed tool, CapCut x Premiere Pro hybrid (same language as AdjustSheet).
+//  - CapCut: dark compact sheet, underline tabs, preset chips/tiles,
+//    ✕ / title / ✓ footer.
+//  - Premiere: boxed numeric fields, diamond keyframes on the speed graph,
+//    triangle playhead on the ruler, hairline section bars.
+// Logic, public API and apply/discard behaviour are unchanged.
 
 import 'dart:math' as math;
 
@@ -12,7 +19,9 @@ import 'package:flutter_video_editor/features/editor/controllers/editor_controll
 
 const Color _sheet = Color(0xFF121214);
 const Color _card = Color(0xFF232327);
-const Color _track = Color(0xFF3A3A40);
+const Color _field = Color(0xFF18181B);
+const Color _line = Color(0xFF2C2C31);
+const Color _track = Color(0xFF45454C);
 const Color _text = Color(0xFFFFFFFF);
 const Color _muted = Color(0xFF8E8E96);
 const Color _accent = Color(0xFF2DE2E6);
@@ -249,7 +258,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
     final List<Widget> content = <Widget>[
       const SizedBox(height: 14),
       _tabs(),
-      const SizedBox(height: 18),
+      const SizedBox(height: 16),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: _curve ? _curveView() : _normalView(),
@@ -259,6 +268,8 @@ class _SpeedSheetState extends State<SpeedSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: _durationRow(out),
       ),
+      const SizedBox(height: 14),
+      _sectionBar('Options'),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(children: <Widget>[
@@ -306,7 +317,8 @@ class _SpeedSheetState extends State<SpeedSheet> {
     return Container(
       height: 52,
       decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFF222226))),
+        color: Color(0xFF0E0E10),
+        border: Border(top: BorderSide(color: _line)),
       ),
       child: Row(
         children: <Widget>[
@@ -380,41 +392,115 @@ class _SpeedSheetState extends State<SpeedSheet> {
     );
   }
 
+  // ---- Shared building blocks -----------------------------------------------
+
+  /// Premiere-style hairline section bar.
+  Widget _sectionBar(String title) => Container(
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        alignment: Alignment.centerLeft,
+        decoration: const BoxDecoration(
+          color: _card,
+          border: Border(top: BorderSide(color: _line), bottom: BorderSide(color: _line)),
+        ),
+        child: Text(title,
+            style: const TextStyle(
+                color: _text, fontSize: 12.5, fontWeight: FontWeight.w600)),
+      );
+
+  /// Boxed readout, like Premiere's numeric fields.
+  Widget _box(String value, {String? label, bool hot = false}) => Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: _field,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: hot ? _accent.withAlpha(120) : _line),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (label != null) ...<Widget>[
+              Text(label, style: const TextStyle(color: _muted, fontSize: 11)),
+              const SizedBox(width: 6),
+            ],
+            Text(value,
+                style: TextStyle(
+                    color: hot ? _accent : _text,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const <FontFeature>[FontFeature.tabularFigures()])),
+          ],
+        ),
+      );
+
+  Widget _stepBtn(IconData icon, String tip, VoidCallback? f) => Semantics(
+        button: true,
+        label: tip,
+        enabled: f != null,
+        child: GestureDetector(
+          onTap: f,
+          child: Opacity(
+            opacity: f == null ? 0.35 : 1,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                  color: _card, borderRadius: BorderRadius.circular(8)),
+              child: Icon(icon, color: _text, size: 20),
+            ),
+          ),
+        ),
+      );
+
   // ---- Normal tab -----------------------------------------------------------
 
   Widget _normalView() {
+    final bool changed = (_s.speed - 1).abs() > 0.004;
     return Column(
       children: <Widget>[
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            IconButton(
-              tooltip: 'Slower',
-              icon: const Icon(Icons.remove_rounded, color: _text),
-              onPressed: _s.speed <= kMinSpeed ? null : () => _setSpeed(_s.speed - 0.1),
+            _stepBtn(Icons.remove_rounded, 'Slower',
+                _s.speed <= kMinSpeed ? null : () => _setSpeed(_s.speed - 0.1)),
+            const SizedBox(width: 12),
+            // Drag the value to scrub (log scale), double-tap to return to 1x.
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTap: () {
+                HapticFeedback.selectionClick();
+                _setSpeed(1);
+              },
+              onHorizontalDragUpdate: (d) =>
+                  _setSpeed(_fromT((_toT(_s.speed) + d.delta.dx * 0.004).clamp(0.0, 1.0))),
+              child: Container(
+                width: 112,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _field,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: changed ? _accent.withAlpha(120) : _line),
+                ),
+                child: Text(_fmtSpeed(_s.speed),
+                    style: TextStyle(
+                        color: changed ? _accent : _text,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()])),
+              ),
             ),
-            Container(
-              constraints: const BoxConstraints(minWidth: 84),
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-              decoration:
-                  BoxDecoration(color: _card, borderRadius: BorderRadius.circular(8)),
-              child: Text(_fmtSpeed(_s.speed),
-                  style: const TextStyle(
-                      color: _accent,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      fontFeatures: <FontFeature>[FontFeature.tabularFigures()])),
-            ),
-            IconButton(
-              tooltip: 'Faster',
-              icon: const Icon(Icons.add_rounded, color: _text),
-              onPressed: _s.speed >= kMaxSpeed ? null : () => _setSpeed(_s.speed + 0.1),
-            ),
+            const SizedBox(width: 12),
+            _stepBtn(Icons.add_rounded, 'Faster',
+                _s.speed >= kMaxSpeed ? null : () => _setSpeed(_s.speed + 0.1)),
           ],
         ),
+        const SizedBox(height: 4),
         _Ruler(speed: _s.speed, onChanged: _setSpeed),
-        const SizedBox(height: 14),
+        const Text('Drag the ruler or the value · double-tap value for 1x',
+            style: TextStyle(color: _muted, fontSize: 11)),
+        const SizedBox(height: 12),
         SizedBox(
           height: 34,
           child: ListView(
@@ -445,7 +531,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
                 color: on ? _accent.withAlpha(30) : _card,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: on ? _accent : Colors.transparent, width: 1.2),
               ),
               child: Text(label,
@@ -478,7 +564,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
         ),
         const SizedBox(height: 12),
         LayoutBuilder(builder: (context, box) {
-          final Size size = Size(box.maxWidth, 170);
+          final Size size = Size(box.maxWidth, 176);
           Offset toPx(SpeedPoint p) =>
               Offset(p.x * size.width, size.height * (1 - _toT(p.speed)));
           int? nearest(Offset o) {
@@ -547,10 +633,13 @@ class _SpeedSheetState extends State<SpeedSheet> {
               label: 'Speed curve editor with ${pts.length} points',
               child: Container(
                 height: size.height,
-                decoration:
-                    BoxDecoration(color: _card, borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: _field,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _line),
+                ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   child: CustomPaint(
                     size: size,
                     painter: _CurvePainter(pts: pts, selected: sel),
@@ -564,20 +653,29 @@ class _SpeedSheetState extends State<SpeedSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            _pill(Icons.add_rounded, 'Add point', pts.length < kMaxCurvePoints, _addPoint),
+            _pill(Icons.add_rounded, 'Add keyframe', pts.length < kMaxCurvePoints, _addPoint),
             const SizedBox(width: 10),
             _pill(Icons.remove_rounded, 'Delete', _canDelete, _deleteSelected),
           ],
         ),
         Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Text(
-            sel != null
-                ? 'Point ${sel + 1}  ·  ${_fmtSpeed(pts[sel].speed)}'
-                : 'Tap the graph to add a point',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: _muted, fontSize: 12),
-          ),
+          padding: const EdgeInsets.only(top: 10),
+          child: sel != null
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: <Widget>[
+                    _box('${sel + 1}/${pts.length}', label: 'Keyframe'),
+                    const SizedBox(width: 8),
+                    _box(_fmtSpeed(pts[sel].speed), label: 'Speed', hot: true),
+                    const SizedBox(width: 8),
+                    _box('${(pts[sel].x * 100).round()}%', label: 'Time'),
+                  ],
+                )
+              : const Text(
+                  'Tap the graph to add a keyframe · long-press one to delete',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: _muted, fontSize: 12),
+                ),
         ),
       ],
     );
@@ -637,9 +735,9 @@ class _SpeedSheetState extends State<SpeedSheet> {
         child: Opacity(
           opacity: enabled ? 1 : 0.4,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration:
-                BoxDecoration(color: _card, borderRadius: BorderRadius.circular(8)),
+                BoxDecoration(color: _card, borderRadius: BorderRadius.circular(6)),
             child: Row(mainAxisSize: MainAxisSize.min, children: <Widget>[
               Icon(icon, size: 16, color: _text),
               const SizedBox(width: 4),
@@ -653,23 +751,23 @@ class _SpeedSheetState extends State<SpeedSheet> {
     );
   }
 
-  // ---- Shared bits ----------------------------------------------------------
+  // ---- Duration + options ---------------------------------------------------
 
   Widget _durationRow(double out) {
+    final bool changed = (out - _srcSeconds).abs() > 0.05;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        const Icon(Icons.timer_outlined, size: 15, color: _muted),
-        const SizedBox(width: 6),
-        Text(
-          '${_fmtTime(_srcSeconds)}  →  ${_fmtTime(out)}'
-          '${_curve ? '  ·  avg ${_fmtSpeed(_s.averageSpeed)}' : ''}',
-          style: const TextStyle(
-              color: _muted,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()]),
+        _box(_fmtTime(_srcSeconds), label: 'Duration'),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8),
+          child: Icon(Icons.arrow_forward_rounded, size: 16, color: _muted),
         ),
+        _box(_fmtTime(out), hot: changed),
+        if (_curve) ...<Widget>[
+          const SizedBox(width: 8),
+          _box(_fmtSpeed(_s.averageSpeed), label: 'avg'),
+        ],
       ],
     );
   }
@@ -692,15 +790,15 @@ class _SpeedSheetState extends State<SpeedSheet> {
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(5),
                   color: value ? _accent : Colors.transparent,
                   border: Border.all(color: value ? _accent : _track, width: 1.6),
                 ),
                 child: value
-                    ? const Icon(Icons.check_rounded, size: 14, color: Colors.black)
+                    ? const Icon(Icons.check_rounded, size: 15, color: Colors.black)
                     : null,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Text(title,
                   style: const TextStyle(
                       color: _text, fontSize: 13.5, fontWeight: FontWeight.w500)),
@@ -759,7 +857,7 @@ class _RulerState extends State<_Ruler> {
           onHorizontalDragEnd: (_) => _raw = null,
           onHorizontalDragCancel: () => _raw = null,
           child: SizedBox(
-            height: 56,
+            height: 58,
             width: w,
             child: CustomPaint(painter: _RulerPainter(_toT(widget.speed))),
           ),
@@ -785,25 +883,37 @@ class _RulerPainter extends CustomPainter {
       ..color = _muted
       ..strokeWidth = 1.6;
 
+    // Labels on top, ticks below (Premiere timeline-ruler layout).
     for (int k = 0; k <= 40; k++) {
       final double x = px(k / 40);
       if (x < -4 || x > size.width + 4) continue;
-      canvas.drawLine(Offset(x, 14), Offset(x, 26), minor);
+      canvas.drawLine(Offset(x, 22), Offset(x, 32), minor);
     }
     for (final double v in <double>[0.1, 0.2, 0.5, 1, 2, 5, 10]) {
       final double x = px(_toT(v));
       if (x < -20 || x > size.width + 20) continue;
-      canvas.drawLine(Offset(x, 10), Offset(x, 32), major);
+      canvas.drawLine(Offset(x, 18), Offset(x, 36), major);
       final tp = TextPainter(
         text: TextSpan(text: '${v}x', style: const TextStyle(color: _muted, fontSize: 10.5)),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(canvas, Offset(x - tp.width / 2, 36));
+      tp.paint(canvas, Offset(x - tp.width / 2, 2));
     }
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset(cx, 22), width: 3, height: 30),
-          const Radius.circular(2)),
+
+    // Playhead: line through the ticks + upward triangle thumb.
+    canvas.drawLine(
+      Offset(cx, 16),
+      Offset(cx, 40),
+      Paint()
+        ..color = _accent
+        ..strokeWidth = 2,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(cx, 40)
+        ..lineTo(cx - 7, 54)
+        ..lineTo(cx + 7, 54)
+        ..close(),
       Paint()..color = _accent,
     );
   }
@@ -850,8 +960,25 @@ class _CurvePainter extends CustomPainter {
   Offset _px(SpeedPoint p, Size s) =>
       Offset(p.x * s.width, s.height * (1 - _toT(p.speed)));
 
+  Path _diamond(Offset c, double r) => Path()
+    ..moveTo(c.dx, c.dy - r)
+    ..lineTo(c.dx + r, c.dy)
+    ..lineTo(c.dx, c.dy + r)
+    ..lineTo(c.dx - r, c.dy)
+    ..close();
+
   @override
   void paint(Canvas canvas, Size size) {
+    final Paint grid = Paint()
+      ..color = _track.withAlpha(90)
+      ..strokeWidth = 1;
+
+    // Vertical time grid (25 / 50 / 75 %).
+    for (final double f in <double>[.25, .5, .75]) {
+      canvas.drawLine(Offset(f * size.width, 0), Offset(f * size.width, size.height), grid);
+    }
+
+    // Horizontal speed grid, with 1x emphasised.
     for (final double v in <double>[0.1, 0.3, 1, 3, 10]) {
       final double y = size.height * (1 - _toT(v));
       canvas.drawLine(
@@ -888,25 +1015,40 @@ class _CurvePainter extends CustomPainter {
     fill
       ..lineTo(size.width, size.height)
       ..close();
-    canvas.drawPath(fill, Paint()..color = _accent.withAlpha(28));
+    canvas.drawPath(fill, Paint()..color = _accent.withAlpha(26));
     canvas.drawPath(
         line,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.5
+          ..strokeWidth = 2.2
           ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
           ..color = _accent);
 
+    // Guide through the selected keyframe.
+    if (selected != null) {
+      final Offset o = _px(pts[selected!], size);
+      canvas.drawLine(
+        Offset(o.dx, 0),
+        Offset(o.dx, size.height),
+        Paint()
+          ..color = _accent.withAlpha(70)
+          ..strokeWidth = 1,
+      );
+    }
+
+    // Premiere-style diamond keyframes.
     for (int i = 0; i < pts.length; i++) {
       final Offset o = _px(pts[i], size);
       final bool sel = i == selected;
-      canvas.drawCircle(o, sel ? 8 : 6, Paint()..color = sel ? _accent : _sheet);
-      canvas.drawCircle(
-          o,
-          sel ? 8 : 6,
+      final Path d = _diamond(o, sel ? 9 : 7);
+      canvas.drawPath(d, Paint()..color = sel ? _accent : _sheet);
+      canvas.drawPath(
+          d,
           Paint()
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2
+            ..strokeJoin = StrokeJoin.round
             ..color = _accent);
     }
   }
