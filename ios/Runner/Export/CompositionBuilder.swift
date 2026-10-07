@@ -52,7 +52,7 @@ class CompositionBuilder {
         videoComposition.frameDuration = CMTime(value: 1, timescale: Int32(timeline.settings.fps))
 
         let instruction = AVMutableVideoCompositionInstruction()
-        instruction.timeRange = CMTimeRange(start: .zero, duration: composition.duration)
+        instruction.timeRange = CMTimeRange(start: .zero, duration: composition.duration.seconds > 0 ? composition.duration : CMTime(seconds: 5, preferredTimescale: 600))
 
         if let track = composition.tracks(withMediaType: .video).first {
             let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: track)

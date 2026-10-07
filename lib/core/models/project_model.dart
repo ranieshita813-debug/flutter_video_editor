@@ -115,6 +115,32 @@ class Keyframe {
       curveType: curveType ?? this.curveType,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'timeMs': time.inMilliseconds,
+      'property': property.name,
+      'value': value,
+      'curveType': curveType.name,
+    };
+  }
+
+  factory Keyframe.fromJson(Map<String, dynamic> json) {
+    return Keyframe(
+      id: json['id'] as String? ?? '',
+      time: Duration(milliseconds: json['timeMs'] as int? ?? 0),
+      property: KeyframeProperty.values.firstWhere(
+        (e) => e.name == json['property'],
+        orElse: () => KeyframeProperty.positionX,
+      ),
+      value: (json['value'] as num?)?.toDouble() ?? 0.0,
+      curveType: CurveType.values.firstWhere(
+        (e) => e.name == json['curveType'],
+        orElse: () => CurveType.linear,
+      ),
+    );
+  }
 }
 
 class TextStyleProperties {
@@ -179,6 +205,45 @@ class TextStyleProperties {
       textAlign: textAlign ?? this.textAlign,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'fontSize': fontSize,
+      'lineHeight': lineHeight,
+      'textColor': textColor.toARGB32(),
+      'textEffect': textEffect,
+      'strokeColor': strokeColor.toARGB32(),
+      'strokeWidth': strokeWidth,
+      'shadowColor': shadowColor.toARGB32(),
+      'shadowBlurRadius': shadowBlurRadius,
+      'shadowOffsetX': shadowOffsetX,
+      'shadowOffsetY': shadowOffsetY,
+      'backgroundColor': backgroundColor.toARGB32(),
+      'backgroundPadding': backgroundPadding,
+      'textAlign': textAlign.name,
+    };
+  }
+
+  factory TextStyleProperties.fromJson(Map<String, dynamic> json) {
+    return TextStyleProperties(
+      fontSize: (json['fontSize'] as num?)?.toDouble() ?? 28.0,
+      lineHeight: (json['lineHeight'] as num?)?.toDouble() ?? 1.2,
+      textColor: Color(json['textColor'] as int? ?? 0xFFFFFFFF),
+      textEffect: json['textEffect'] as String? ?? 'none',
+      strokeColor: Color(json['strokeColor'] as int? ?? 0x00000000),
+      strokeWidth: (json['strokeWidth'] as num?)?.toDouble() ?? 0.0,
+      shadowColor: Color(json['shadowColor'] as int? ?? 0x00000000),
+      shadowBlurRadius: (json['shadowBlurRadius'] as num?)?.toDouble() ?? 0.0,
+      shadowOffsetX: (json['shadowOffsetX'] as num?)?.toDouble() ?? 0.0,
+      shadowOffsetY: (json['shadowOffsetY'] as num?)?.toDouble() ?? 0.0,
+      backgroundColor: Color(json['backgroundColor'] as int? ?? 0x00000000),
+      backgroundPadding: (json['backgroundPadding'] as num?)?.toDouble() ?? 8.0,
+      textAlign: TextAlign.values.firstWhere(
+        (e) => e.name == json['textAlign'],
+        orElse: () => TextAlign.center,
+      ),
+    );
+  }
 }
 
 class ElementProperties {
@@ -209,6 +274,29 @@ class ElementProperties {
       strokeColor: strokeColor ?? this.strokeColor,
       strokeWidth: strokeWidth ?? this.strokeWidth,
       size: size ?? this.size,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'shape': shape.name,
+      'fillColor': fillColor.toARGB32(),
+      'strokeColor': strokeColor.toARGB32(),
+      'strokeWidth': strokeWidth,
+      'size': size,
+    };
+  }
+
+  factory ElementProperties.fromJson(Map<String, dynamic> json) {
+    return ElementProperties(
+      shape: ElementShape.values.firstWhere(
+        (e) => e.name == json['shape'],
+        orElse: () => ElementShape.rectangle,
+      ),
+      fillColor: Color(json['fillColor'] as int? ?? 0xFFFFFFFF),
+      strokeColor: Color(json['strokeColor'] as int? ?? 0x00000000),
+      strokeWidth: (json['strokeWidth'] as num?)?.toDouble() ?? 2.0,
+      size: (json['size'] as num?)?.toDouble() ?? 100.0,
     );
   }
 }
@@ -267,6 +355,38 @@ class CameraProperties {
       positionZ: positionZ ?? this.positionZ,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'fov': fov,
+      'focalLength': focalLength,
+      'iso': iso,
+      'shutterSpeed': shutterSpeed,
+      'aperture': aperture,
+      'whiteBalance': whiteBalance,
+      'zoom': zoom,
+      'pan': pan,
+      'tilt': tilt,
+      'roll': roll,
+      'positionZ': positionZ,
+    };
+  }
+
+  factory CameraProperties.fromJson(Map<String, dynamic> json) {
+    return CameraProperties(
+      fov: (json['fov'] as num?)?.toDouble() ?? 60.0,
+      focalLength: (json['focalLength'] as num?)?.toDouble() ?? 35.0,
+      iso: json['iso'] as int? ?? 400,
+      shutterSpeed: (json['shutterSpeed'] as num?)?.toDouble() ?? 0.02,
+      aperture: (json['aperture'] as num?)?.toDouble() ?? 2.8,
+      whiteBalance: json['whiteBalance'] as int? ?? 5600,
+      zoom: (json['zoom'] as num?)?.toDouble() ?? 1.0,
+      pan: (json['pan'] as num?)?.toDouble() ?? 0.0,
+      tilt: (json['tilt'] as num?)?.toDouble() ?? 0.0,
+      roll: (json['roll'] as num?)?.toDouble() ?? 0.0,
+      positionZ: (json['positionZ'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
 }
 
 class MaskProperties {
@@ -309,6 +429,35 @@ class MaskProperties {
       rotation: rotation ?? this.rotation,
       feather: feather ?? this.feather,
       isInverted: isInverted ?? this.isInverted,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'type': type.name,
+      'positionX': positionX,
+      'positionY': positionY,
+      'width': width,
+      'height': height,
+      'rotation': rotation,
+      'feather': feather,
+      'isInverted': isInverted,
+    };
+  }
+
+  factory MaskProperties.fromJson(Map<String, dynamic> json) {
+    return MaskProperties(
+      type: MaskType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => MaskType.none,
+      ),
+      positionX: (json['positionX'] as num?)?.toDouble() ?? 0.0,
+      positionY: (json['positionY'] as num?)?.toDouble() ?? 0.0,
+      width: (json['width'] as num?)?.toDouble() ?? 100.0,
+      height: (json['height'] as num?)?.toDouble() ?? 100.0,
+      rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
+      feather: (json['feather'] as num?)?.toDouble() ?? 0.0,
+      isInverted: json['isInverted'] as bool? ?? false,
     );
   }
 }
@@ -379,6 +528,29 @@ class DrawingStroke {
   final List<Offset> points;
   final Color color;
   final double strokeWidth;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'color': color.toARGB32(),
+      'strokeWidth': strokeWidth,
+      'points': points.map((p) => <String, double>{'x': p.dx, 'y': p.dy}).toList(),
+    };
+  }
+
+  factory DrawingStroke.fromJson(Map<String, dynamic> json) {
+    final pts = (json['points'] as List<dynamic>?)?.map((p) {
+          final m = Map<String, dynamic>.from(p as Map);
+          return Offset((m['x'] as num).toDouble(), (m['y'] as num).toDouble());
+        }).toList() ??
+        <Offset>[];
+    return DrawingStroke(
+      id: json['id'] as String? ?? '',
+      color: Color(json['color'] as int? ?? 0xFFFFFFFF),
+      strokeWidth: (json['strokeWidth'] as num?)?.toDouble() ?? 4.0,
+      points: pts,
+    );
+  }
 }
 
 class ColorGradingSettings {
@@ -417,6 +589,30 @@ class ColorGradingSettings {
       tint: tint ?? this.tint,
       exposure: exposure ?? this.exposure,
       vignette: vignette ?? this.vignette,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'brightness': brightness,
+      'contrast': contrast,
+      'saturation': saturation,
+      'temperature': temperature,
+      'tint': tint,
+      'exposure': exposure,
+      'vignette': vignette,
+    };
+  }
+
+  factory ColorGradingSettings.fromJson(Map<String, dynamic> json) {
+    return ColorGradingSettings(
+      brightness: (json['brightness'] as num?)?.toDouble() ?? 0.0,
+      contrast: (json['contrast'] as num?)?.toDouble() ?? 1.0,
+      saturation: (json['saturation'] as num?)?.toDouble() ?? 1.0,
+      temperature: (json['temperature'] as num?)?.toDouble() ?? 0.0,
+      tint: (json['tint'] as num?)?.toDouble() ?? 0.0,
+      exposure: (json['exposure'] as num?)?.toDouble() ?? 0.0,
+      vignette: (json['vignette'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -463,6 +659,32 @@ class AudioProperties {
       voiceEffect: voiceEffect ?? this.voiceEffect,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'volume': volume,
+      'speed': speed,
+      'pitch': pitch,
+      'fadeInMs': fadeIn.inMilliseconds,
+      'fadeOutMs': fadeOut.inMilliseconds,
+      'equalizerPreset': equalizerPreset,
+      'noiseReduction': noiseReduction,
+      'voiceEffect': voiceEffect,
+    };
+  }
+
+  factory AudioProperties.fromJson(Map<String, dynamic> json) {
+    return AudioProperties(
+      volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
+      speed: (json['speed'] as num?)?.toDouble() ?? 1.0,
+      pitch: (json['pitch'] as num?)?.toDouble() ?? 1.0,
+      fadeIn: Duration(milliseconds: json['fadeInMs'] as int? ?? 0),
+      fadeOut: Duration(milliseconds: json['fadeOutMs'] as int? ?? 0),
+      equalizerPreset: json['equalizerPreset'] as String? ?? 'Flat',
+      noiseReduction: (json['noiseReduction'] as num?)?.toDouble() ?? 0.0,
+      voiceEffect: json['voiceEffect'] as String? ?? 'Normal',
+    );
+  }
 }
 
 class CaptionCue {
@@ -491,6 +713,24 @@ class CaptionCue {
       text: text ?? this.text,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'startMs': start.inMilliseconds,
+      'endMs': end.inMilliseconds,
+      'text': text,
+    };
+  }
+
+  factory CaptionCue.fromJson(Map<String, dynamic> json) {
+    return CaptionCue(
+      id: json['id'] as String? ?? '',
+      start: Duration(milliseconds: json['startMs'] as int? ?? 0),
+      end: Duration(milliseconds: json['endMs'] as int? ?? 0),
+      text: json['text'] as String? ?? '',
+    );
+  }
 }
 
 class TrackingData {
@@ -517,6 +757,32 @@ class TrackingData {
       targetName: targetName ?? this.targetName,
       rect: rect ?? this.rect,
       smoothness: smoothness ?? this.smoothness,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'isEnabled': isEnabled,
+      'targetName': targetName,
+      'left': rect.left,
+      'top': rect.top,
+      'width': rect.width,
+      'height': rect.height,
+      'smoothness': smoothness,
+    };
+  }
+
+  factory TrackingData.fromJson(Map<String, dynamic> json) {
+    return TrackingData(
+      isEnabled: json['isEnabled'] as bool? ?? false,
+      targetName: json['targetName'] as String? ?? 'Face',
+      rect: Rect.fromLTWH(
+        (json['left'] as num?)?.toDouble() ?? 0.3,
+        (json['top'] as num?)?.toDouble() ?? 0.3,
+        (json['width'] as num?)?.toDouble() ?? 0.4,
+        (json['height'] as num?)?.toDouble() ?? 0.4,
+      ),
+      smoothness: (json['smoothness'] as num?)?.toDouble() ?? 0.8,
     );
   }
 }
@@ -719,6 +985,130 @@ class TimelineClip {
       thumbnails: thumbnails ?? this.thumbnails,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'label': label,
+      'startMs': start.inMilliseconds,
+      'endMs': end.inMilliseconds,
+      'clipType': clipType.name,
+      'layerIndex': layerIndex,
+      'isVisible': isVisible,
+      'isLocked': isLocked,
+      'trimInMs': trimIn.inMilliseconds,
+      'trimOutMs': trimOut.inMilliseconds,
+      'speed': speed,
+      'volume': volume,
+      'opacity': opacity,
+      'scale': scale,
+      'rotation': rotation,
+      'positionX': positionX,
+      'positionY': positionY,
+      'anchorX': anchorX,
+      'anchorY': anchorY,
+      'effect': effect.name,
+      'sourcePath': sourcePath,
+      'stickerAssetPath': stickerAssetPath,
+      'fontFamily': fontFamily,
+      'textAnimationStyle': textAnimationStyle.name,
+      'textStyle': textStyle.toJson(),
+      'colorGrading': colorGrading.toJson(),
+      'audioProperties': audioProperties.toJson(),
+      'elementProperties': elementProperties.toJson(),
+      'cameraProperties': cameraProperties.toJson(),
+      'maskProperties': maskProperties.toJson(),
+      'keyframes': keyframes.map((k) => k.toJson()).toList(),
+      'inAnimation': inAnimation.name,
+      'outAnimation': outAnimation.name,
+      'loopAnimation': loopAnimation.name,
+      'strokes': strokes.map((s) => s.toJson()).toList(),
+      'trackingData': trackingData.toJson(),
+      'waveform': waveform,
+      'thumbnails': thumbnails,
+    };
+  }
+
+  factory TimelineClip.fromJson(Map<String, dynamic> json) {
+    return TimelineClip(
+      id: json['id'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      start: Duration(milliseconds: json['startMs'] as int? ?? 0),
+      end: Duration(milliseconds: json['endMs'] as int? ?? 0),
+      clipType: ClipType.values.firstWhere(
+        (e) => e.name == json['clipType'],
+        orElse: () => ClipType.video,
+      ),
+      layerIndex: json['layerIndex'] as int? ?? 0,
+      isVisible: json['isVisible'] as bool? ?? true,
+      isLocked: json['isLocked'] as bool? ?? false,
+      trimIn: Duration(milliseconds: json['trimInMs'] as int? ?? 0),
+      trimOut: Duration(milliseconds: json['trimOutMs'] as int? ?? 0),
+      speed: (json['speed'] as num?)?.toDouble() ?? 1.0,
+      volume: (json['volume'] as num?)?.toDouble() ?? 1.0,
+      opacity: (json['opacity'] as num?)?.toDouble() ?? 1.0,
+      scale: (json['scale'] as num?)?.toDouble() ?? 1.0,
+      rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
+      positionX: (json['positionX'] as num?)?.toDouble() ?? 0.0,
+      positionY: (json['positionY'] as num?)?.toDouble() ?? 0.0,
+      anchorX: (json['anchorX'] as num?)?.toDouble() ?? 0.5,
+      anchorY: (json['anchorY'] as num?)?.toDouble() ?? 0.5,
+      effect: VideoEffect.values.firstWhere(
+        (e) => e.name == json['effect'],
+        orElse: () => VideoEffect.none,
+      ),
+      sourcePath: json['sourcePath'] as String?,
+      stickerAssetPath: json['stickerAssetPath'] as String?,
+      fontFamily: json['fontFamily'] as String? ?? 'Poppins',
+      textAnimationStyle: TextAnimationStyle.values.firstWhere(
+        (e) => e.name == json['textAnimationStyle'],
+        orElse: () => TextAnimationStyle.none,
+      ),
+      textStyle: json['textStyle'] != null
+          ? TextStyleProperties.fromJson(Map<String, dynamic>.from(json['textStyle'] as Map))
+          : const TextStyleProperties(),
+      colorGrading: json['colorGrading'] != null
+          ? ColorGradingSettings.fromJson(Map<String, dynamic>.from(json['colorGrading'] as Map))
+          : const ColorGradingSettings(),
+      audioProperties: json['audioProperties'] != null
+          ? AudioProperties.fromJson(Map<String, dynamic>.from(json['audioProperties'] as Map))
+          : const AudioProperties(),
+      elementProperties: json['elementProperties'] != null
+          ? ElementProperties.fromJson(Map<String, dynamic>.from(json['elementProperties'] as Map))
+          : const ElementProperties(),
+      cameraProperties: json['cameraProperties'] != null
+          ? CameraProperties.fromJson(Map<String, dynamic>.from(json['cameraProperties'] as Map))
+          : const CameraProperties(),
+      maskProperties: json['maskProperties'] != null
+          ? MaskProperties.fromJson(Map<String, dynamic>.from(json['maskProperties'] as Map))
+          : const MaskProperties(),
+      keyframes: (json['keyframes'] as List<dynamic>?)
+              ?.map((e) => Keyframe.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          <Keyframe>[],
+      inAnimation: ClipAnimation.values.firstWhere(
+        (e) => e.name == json['inAnimation'],
+        orElse: () => ClipAnimation.none,
+      ),
+      outAnimation: ClipAnimation.values.firstWhere(
+        (e) => e.name == json['outAnimation'],
+        orElse: () => ClipAnimation.none,
+      ),
+      loopAnimation: ClipAnimation.values.firstWhere(
+        (e) => e.name == json['loopAnimation'],
+        orElse: () => ClipAnimation.none,
+      ),
+      strokes: (json['strokes'] as List<dynamic>?)
+              ?.map((e) => DrawingStroke.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          <DrawingStroke>[],
+      trackingData: json['trackingData'] != null
+          ? TrackingData.fromJson(Map<String, dynamic>.from(json['trackingData'] as Map))
+          : const TrackingData(),
+      waveform: (json['waveform'] as List<dynamic>?)?.map((e) => (e as num).toDouble()).toList(),
+      thumbnails: (json['thumbnails'] as List<dynamic>?)?.cast<String>(),
+    );
+  }
 }
 
 class Project {
@@ -808,6 +1198,48 @@ class Project {
       thumbnail: thumbnail ?? this.thumbnail,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'name': name,
+      'aspectRatio': aspectRatio.name,
+      'resolution': resolution.name,
+      'clips': clips.map((c) => c.toJson()).toList(),
+      'captions': captions.map((c) => c.toJson()).toList(),
+      'customFonts': customFonts,
+      'thumbnail': thumbnail,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+    };
+  }
+
+  factory Project.fromJson(Map<String, dynamic> json) {
+    return Project(
+      id: json['id'] as String? ?? 'proj_${DateTime.now().millisecondsSinceEpoch}',
+      name: json['name'] as String? ?? 'Untitled Project',
+      aspectRatio: AspectRatioPreset.values.firstWhere(
+        (e) => e.name == json['aspectRatio'],
+        orElse: () => AspectRatioPreset.nineSixteen,
+      ),
+      resolution: ExportResolution.values.firstWhere(
+        (e) => e.name == json['resolution'],
+        orElse: () => ExportResolution.res1080p,
+      ),
+      clips: (json['clips'] as List<dynamic>?)
+              ?.map((e) => TimelineClip.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          <TimelineClip>[],
+      captions: (json['captions'] as List<dynamic>?)
+              ?.map((e) => CaptionCue.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          <CaptionCue>[],
+      customFonts: (json['customFonts'] as List<dynamic>?)?.cast<String>(),
+      thumbnail: json['thumbnail'] as String? ?? 'assets/placeholder.png',
+      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
+      updatedAt: json['updatedAt'] != null ? DateTime.parse(json['updatedAt'] as String) : null,
     );
   }
 }

@@ -2,6 +2,8 @@ package com.example.flutter_video_editor.export
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.net.Uri
 import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
@@ -18,14 +20,29 @@ import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
 import com.google.common.collect.ImmutableList
 import java.io.File
+import java.io.FileOutputStream
 
 object CompositionBuilder {
+
+    private fun createPlaceholderFile(context: Context, width: Int, height: Int): File {
+        val file = File(context.cacheDir, "placeholder_blank.png")
+        if (!file.exists()) {
+            val bitmap = Bitmap.createBitmap(maxOf(width, 100), maxOf(height, 100), Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            canvas.drawColor(Color.BLACK)
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+        }
+        return file
+    }
 
     fun buildComposition(
         context: Context,
         timeline: TimelineSpec
     ): Composition {
         val videoItems = mutableListOf<EditedMediaItem>()
+        val placeholderFile = createPlaceholderFile(context, timeline.settings.width, timeline.settings.height)
 
         for (clip in timeline.clips) {
             if (!clip.isVisible) continue
@@ -83,7 +100,7 @@ object CompositionBuilder {
             val sourceUri = if (clip.sourcePath != null && File(clip.sourcePath).exists()) {
                 Uri.fromFile(File(clip.sourcePath))
             } else {
-                Uri.parse("file:///android_asset/placeholder.mp4")
+                Uri.fromFile(placeholderFile)
             }
 
             val mediaItemBuilder = MediaItem.Builder().setUri(sourceUri)
@@ -116,6 +133,13 @@ object CompositionBuilder {
                 .build()
 
             videoItems.add(editedMediaItem)
+        }
+
+        if (videoItems.isEmpty()) {
+            // Add at least one default black clip item
+            val mediaItem = MediaItem.Builder().setUri(Uri.fromFile(placeholderFile)).build()
+            val defaultItem = EditedMediaItem.Builder(mediaItem).build()
+            videoItems.add(defaultItem)
         }
 
         val sequenceBuilder = EditedMediaItemSequence.Builder()
