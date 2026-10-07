@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
+import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
@@ -50,6 +51,181 @@ class EditorController extends ChangeNotifier {
     _isPlaying = false;
     _undoStack.clear();
     _redoStack.clear();
+    _autosave();
+    notifyListeners();
+  }
+
+  // Shader Effects System Integration
+  void addShaderEffectToSelectedClip(ShaderEffectClip shaderEffect) {
+    if (_selectedClipId == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    final updatedList = List<ShaderEffectClip>.from(_project.clips[index].shaderEffects)
+      ..add(shaderEffect);
+
+    _project.clips[index] = _project.clips[index].copyWith(
+      shaderEffects: updatedList,
+    );
+    _autosave();
+    notifyListeners();
+  }
+
+  void removeShaderEffectFromSelectedClip(String shaderEffectId) {
+    if (_selectedClipId == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    final updatedList = List<ShaderEffectClip>.from(_project.clips[index].shaderEffects)
+      ..removeWhere((e) => e.id == shaderEffectId);
+
+    _project.clips[index] = _project.clips[index].copyWith(
+      shaderEffects: updatedList,
+    );
+    _autosave();
+    notifyListeners();
+  }
+
+  void updateShaderEffectParameters(String shaderEffectId, Map<String, dynamic> parameterValues) {
+    if (_selectedClipId == null) return;
+
+    final clipIndex = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (clipIndex == -1) return;
+
+    final effectIndex = _project.clips[clipIndex].shaderEffects.indexWhere((e) => e.id == shaderEffectId);
+    if (effectIndex == -1) return;
+
+    _saveState();
+    final currentEffect = _project.clips[clipIndex].shaderEffects[effectIndex];
+    final newValues = Map<String, dynamic>.from(currentEffect.parameterValues)
+      ..addAll(parameterValues);
+
+    final updatedEffect = currentEffect.copyWith(parameterValues: newValues);
+    final updatedEffectsList = List<ShaderEffectClip>.from(_project.clips[clipIndex].shaderEffects);
+    updatedEffectsList[effectIndex] = updatedEffect;
+
+    _project.clips[clipIndex] = _project.clips[clipIndex].copyWith(
+      shaderEffects: updatedEffectsList,
+    );
+    _autosave();
+    notifyListeners();
+  }
+
+  void toggleShaderEffectEnabled(String shaderEffectId) {
+    if (_selectedClipId == null) return;
+
+    final clipIndex = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (clipIndex == -1) return;
+
+    final effectIndex = _project.clips[clipIndex].shaderEffects.indexWhere((e) => e.id == shaderEffectId);
+    if (effectIndex == -1) return;
+
+    _saveState();
+    final currentEffect = _project.clips[clipIndex].shaderEffects[effectIndex];
+    final updatedEffect = currentEffect.copyWith(isEnabled: !currentEffect.isEnabled);
+
+    final updatedEffectsList = List<ShaderEffectClip>.from(_project.clips[clipIndex].shaderEffects);
+    updatedEffectsList[effectIndex] = updatedEffect;
+
+    _project.clips[clipIndex] = _project.clips[clipIndex].copyWith(
+      shaderEffects: updatedEffectsList,
+    );
+    _autosave();
+    notifyListeners();
+  }
+
+  void addShaderKeyframeToSelectedClip(
+    String shaderEffectId,
+    String parameterId,
+    dynamic value,
+    AnimationEasing easing,
+  ) {
+    if (_selectedClipId == null) return;
+
+    final clipIndex = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (clipIndex == -1) return;
+
+    final clip = _project.clips[clipIndex];
+    final effectIndex = clip.shaderEffects.indexWhere((e) => e.id == shaderEffectId);
+    if (effectIndex == -1) return;
+
+    _saveState();
+    final shaderFx = clip.shaderEffects[effectIndex];
+    final relativeTime = playhead - clip.start;
+
+    final newKeyframe = ShaderKeyframe(
+      id: 'skf_${DateTime.now().millisecondsSinceEpoch}',
+      time: relativeTime,
+      value: value,
+      easing: easing,
+    );
+
+    final updatedAnimations = List<KeyframeAnimation>.from(shaderFx.keyframeAnimations);
+    final animIndex = updatedAnimations.indexWhere((a) => a.parameterId == parameterId);
+
+    if (animIndex != -1) {
+      final existingAnim = updatedAnimations[animIndex];
+      final newKfs = List<ShaderKeyframe>.from(existingAnim.keyframes)
+        ..removeWhere((k) => (k.time - relativeTime).abs() < const Duration(milliseconds: 50))
+        ..add(newKeyframe);
+      updatedAnimations[animIndex] = existingAnim.copyWith(keyframes: newKfs);
+    } else {
+      updatedAnimations.add(KeyframeAnimation(
+        id: 'kanim_${DateTime.now().millisecondsSinceEpoch}',
+        parameterId: parameterId,
+        keyframes: <ShaderKeyframe>[newKeyframe],
+      ));
+    }
+
+    final updatedShaderFx = shaderFx.copyWith(keyframeAnimations: updatedAnimations);
+    final updatedShaderList = List<ShaderEffectClip>.from(clip.shaderEffects);
+    updatedShaderList[effectIndex] = updatedShaderFx;
+
+    _project.clips[clipIndex] = clip.copyWith(shaderEffects: updatedShaderList);
+    _autosave();
+    notifyListeners();
+  }
+
+  void removeShaderKeyframeFromSelectedClip(
+    String shaderEffectId,
+    String parameterId,
+    String keyframeId,
+  ) {
+    if (_selectedClipId == null) return;
+
+    final clipIndex = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (clipIndex == -1) return;
+
+    final clip = _project.clips[clipIndex];
+    final effectIndex = clip.shaderEffects.indexWhere((e) => e.id == shaderEffectId);
+    if (effectIndex == -1) return;
+
+    _saveState();
+    final shaderFx = clip.shaderEffects[effectIndex];
+    final updatedAnimations = List<KeyframeAnimation>.from(shaderFx.keyframeAnimations);
+    final animIndex = updatedAnimations.indexWhere((a) => a.parameterId == parameterId);
+
+    if (animIndex != -1) {
+      final existingAnim = updatedAnimations[animIndex];
+      final newKfs = List<ShaderKeyframe>.from(existingAnim.keyframes)
+        ..removeWhere((k) => k.id == keyframeId);
+
+      if (newKfs.isEmpty) {
+        updatedAnimations.removeAt(animIndex);
+      } else {
+        updatedAnimations[animIndex] = existingAnim.copyWith(keyframes: newKfs);
+      }
+    }
+
+    final updatedShaderFx = shaderFx.copyWith(keyframeAnimations: updatedAnimations);
+    final updatedShaderList = List<ShaderEffectClip>.from(clip.shaderEffects);
+    updatedShaderList[effectIndex] = updatedShaderFx;
+
+    _project.clips[clipIndex] = clip.copyWith(shaderEffects: updatedShaderList);
     _autosave();
     notifyListeners();
   }

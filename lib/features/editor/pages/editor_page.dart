@@ -18,6 +18,7 @@ import 'package:flutter_video_editor/features/editor/widgets/skeleton_grid.dart'
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_style_sheet.dart';
+import 'package:flutter_video_editor/features/effects/services/effect_preview_service.dart';
 
 // ----------------------------------------------------------------------------
 // Tokens
@@ -924,6 +925,20 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
           0, 0, 0, 1, 0,
         ];
         child = ColorFiltered(colorFilter: ColorFilter.matrix(matrix), child: child);
+      }
+    }
+
+    final shaderEffects = clip?.shaderEffects ?? const [];
+    for (final fx in shaderEffects) {
+      if (fx.isEnabled && clip != null) {
+        final relTime = _e.playhead - clip.start;
+        final activeParams = fx.getInterpolatedParameters(relTime);
+        child = FlutterShaderPreviewRenderer.applyShaderEffect(
+          child: child,
+          clip: fx,
+          parameters: activeParams,
+          playheadTime: _e.playhead,
+        );
       }
     }
 
