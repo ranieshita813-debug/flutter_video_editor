@@ -14,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -248,7 +249,7 @@ class WavePainter extends CustomPainter {
         );
         final Paint clip = Paint()..color = _clip;
         for (int i = 0; i < count; i++) {
-          if (pk[i] * volume > 1) {
+          if (pk[i] * volume > 1.0) {
             canvas.drawRect(Rect.fromLTWH(xs[i], mid - amp - 1, step, 3), clip);
             canvas.drawRect(Rect.fromLTWH(xs[i], mid + amp - 2, step, 3), clip);
           }
@@ -300,11 +301,14 @@ class AudioClipBody extends StatefulWidget {
     required this.startMs,
     required this.endMs,
     required this.volume,
+    this.fadeInMs = 0,
+    this.fadeOutMs = 0,
     required this.selected,
     required this.locked,
     required this.border,
     required this.background,
     required this.waveColor,
+    this.isVoiceover = false,
   });
 
   final EditorController editor;
@@ -313,11 +317,14 @@ class AudioClipBody extends StatefulWidget {
   final int startMs;
   final int endMs;
   final double volume;
+  final int fadeInMs;
+  final int fadeOutMs;
   final bool selected;
   final bool locked;
   final Color border;
   final Color background;
   final Color waveColor;
+  final bool isVoiceover;
 
   @override
   State<AudioClipBody> createState() => _AudioClipBodyState();
@@ -332,7 +339,14 @@ class _AudioClipBodyState extends State<AudioClipBody> {
   void _commit(double v) {
     final sc = widget.editor.selectedClip;
     if (sc == null) return;
-    widget.editor.updateAudioProperties(AudioProperties(volume: v, speed: sc.speed));
+    widget.editor.updateAudioProperties(
+      AudioProperties(
+        volume: v,
+        speed: sc.speed,
+        fadeIn: Duration(milliseconds: widget.fadeInMs),
+        fadeOut: Duration(milliseconds: widget.fadeOutMs),
+      ),
+    );
   }
 
   String _db(double v) {
@@ -344,7 +358,8 @@ class _AudioClipBodyState extends State<AudioClipBody> {
   @override
   Widget build(BuildContext context) {
     final double v = _vol;
-    final double durSec = math.max(0.1, (widget.endMs - widget.startMs) / 1000.0);
+    final int durMs = math.max(1, widget.endMs - widget.startMs);
+    final double durSec = durMs / 1000.0;
 
     return Container(
       decoration: BoxDecoration(
@@ -368,21 +383,33 @@ class _AudioClipBodyState extends State<AudioClipBody> {
                   volume: v,
                 ),
               ),
-              Positioned.fill(
-                child: _PlayedDim(
-                  editor: widget.editor,
-                  startMs: widget.startMs,
-                  endMs: widget.endMs,
-                ),
+              ValueListenableBuilder<WaveStyle>(
+                valueListenable: waveStyle,
+                builder: (context, style, _) {
+                  return Positioned.fill(
+                    child: _PlayedDim(
+                      editor: widget.editor,
+                      startMs: widget.startMs,
+                      endMs: widget.endMs,
+                      style: style,
+                    ),
+                  );
+                },
               ),
               Positioned.fill(
                 child: IgnorePointer(
                   child: CustomPaint(
-                    painter: _VolumeLinePainter(volume: v, emphasised: widget.selected),
+                    painter: _VolumeLinePainter(
+                      volume: v,
+                      fadeInMs: widget.fadeInMs,
+                      fadeOutMs: widget.fadeOutMs,
+                      durationMs: durMs,
+                      emphasised: widget.selected,
+                    ),
                   ),
                 ),
               ),
-              if (w >= 64)
+              if (w >= 50)
                 Positioned(
                   left: 8,
                   top: 4,
@@ -390,7 +417,7 @@ class _AudioClipBodyState extends State<AudioClipBody> {
                     child: ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: math.max(20.0, w - 16)),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                         decoration: BoxDecoration(
                           color: const Color(0x73000000),
                           borderRadius: BorderRadius.circular(6),
@@ -398,7 +425,13 @@ class _AudioClipBodyState extends State<AudioClipBody> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            const Icon(Icons.music_note_rounded, size: 11, color: Colors.white),
+                            HugeIcon(
+                              icon: widget.isVoiceover
+                                  ? HugeIcons.strokeRoundedMic01
+                                  : HugeIcons.strokeRoundedMusicNote01,
+                              size: 11,
+                              color: Colors.white,
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -406,9 +439,10 @@ class _AudioClipBodyState extends State<AudioClipBody> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500),
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
                           ],
@@ -417,7 +451,7 @@ class _AudioClipBodyState extends State<AudioClipBody> {
                     ),
                   ),
                 ),
-              if (widget.selected && !widget.locked && w >= 90)
+              if (widget.selected && !widget.locked && w >= 80)
                 Positioned(
                   left: 14,
                   top: ny - 16,
@@ -434,7 +468,7 @@ class _AudioClipBodyState extends State<AudioClipBody> {
                       _dragY += d.delta.dy;
                       double nv = ((0.9 - _dragY / h) / 0.76) * 2;
                       nv = nv.clamp(0.0, 2.0).toDouble();
-                      if ((nv - 1).abs() < 0.05) {
+                      if ((nv - 1.0).abs() < 0.05) {
                         if (_dragVol != 1.0) HapticFeedback.selectionClick();
                         nv = 1.0;
                       }
@@ -467,7 +501,7 @@ class _AudioClipBodyState extends State<AudioClipBody> {
                   top: math.max(2.0, ny - 20),
                   child: IgnorePointer(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                       decoration: BoxDecoration(
                         color: const Color(0xA6000000),
                         borderRadius: BorderRadius.circular(6),
@@ -475,10 +509,11 @@ class _AudioClipBodyState extends State<AudioClipBody> {
                       child: Text(
                         _db(_dragVol!),
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            fontFeatures: <FontFeature>[FontFeature.tabularFigures()]),
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
                   ),
@@ -493,13 +528,23 @@ class _AudioClipBodyState extends State<AudioClipBody> {
 
 /// Dims the part of the clip that is still ahead of the playhead.
 class _PlayedDim extends StatelessWidget {
-  const _PlayedDim({required this.editor, required this.startMs, required this.endMs});
+  const _PlayedDim({
+    required this.editor,
+    required this.startMs,
+    required this.endMs,
+    required this.style,
+  });
+
   final EditorController editor;
   final int startMs;
   final int endMs;
+  final WaveStyle style;
 
   @override
   Widget build(BuildContext context) {
+    if (style == WaveStyle.bars) {
+      return const SizedBox.shrink();
+    }
     return IgnorePointer(
       child: Selector<EditorController, Duration>(
         selector: (_, e) => e.playhead,
@@ -524,25 +569,62 @@ class _PlayedDim extends StatelessWidget {
 }
 
 class _VolumeLinePainter extends CustomPainter {
-  _VolumeLinePainter({required this.volume, required this.emphasised});
+  _VolumeLinePainter({
+    required this.volume,
+    required this.fadeInMs,
+    required this.fadeOutMs,
+    required this.durationMs,
+    required this.emphasised,
+  });
+
   final double volume;
+  final int fadeInMs;
+  final int fadeOutMs;
+  final int durationMs;
   final bool emphasised;
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Unselected clips at unity gain stay clean.
-    if (!emphasised && (volume - 1).abs() < 0.005) return;
+    if (!emphasised && (volume - 1).abs() < 0.005 && fadeInMs == 0 && fadeOutMs == 0) return;
     final double y = _volumeY(volume, size.height);
-    canvas.drawLine(
-      Offset(0, y),
-      Offset(size.width, y),
-      Paint()
-        ..color = Colors.white.withAlpha(emphasised ? 217 : 90)
-        ..strokeWidth = 1.5,
-    );
+    final double w = size.width;
+    final double h = size.height;
+
+    final double inFrac = (fadeInMs / math.max(1, durationMs)).clamp(0.0, 0.5);
+    final double outFrac = (fadeOutMs / math.max(1, durationMs)).clamp(0.0, 0.5);
+
+    final double inX = w * inFrac;
+    final double outX = w * (1.0 - outFrac);
+
+    final Path path = Path();
+    if (inFrac > 0) {
+      path.moveTo(0, h);
+      path.lineTo(inX, y);
+    } else {
+      path.moveTo(0, y);
+    }
+
+    path.lineTo(outX, y);
+
+    if (outFrac > 0) {
+      path.lineTo(w, h);
+    } else {
+      path.lineTo(w, y);
+    }
+
+    final Paint paint = Paint()
+      ..color = Colors.white.withAlpha(emphasised ? 217 : 90)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawPath(path, paint);
   }
 
   @override
   bool shouldRepaint(covariant _VolumeLinePainter old) =>
-      old.volume != volume || old.emphasised != emphasised;
+      old.volume != volume ||
+      old.fadeInMs != fadeInMs ||
+      old.fadeOutMs != fadeOutMs ||
+      old.durationMs != durationMs ||
+      old.emphasised != emphasised;
 }

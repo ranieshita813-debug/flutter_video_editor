@@ -4,9 +4,60 @@ import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
+import 'package:flutter_video_editor/features/editor/widgets/audio_waveform.dart';
 
 class AudioToolsSheet extends StatelessWidget {
   const AudioToolsSheet({super.key});
+
+  Widget _styleOption(
+    BuildContext context, {
+    required WaveStyle style,
+    required String label,
+    required dynamic icon,
+    required bool isSelected,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          waveStyle.value = style;
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? EditorTokens.text : EditorTokens.elevated,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? EditorTokens.text : EditorTokens.border,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              HugeIcon(
+                icon: icon,
+                color: isSelected ? EditorTokens.bg : EditorTokens.text,
+                size: 18,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isSelected ? EditorTokens.bg : EditorTokens.text,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +70,49 @@ class AudioToolsSheet extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        const Text(
+          'Waveform Style',
+          style: TextStyle(
+            color: EditorTokens.text,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Poppins',
+          ),
+        ),
+        const SizedBox(height: 8),
+        ValueListenableBuilder<WaveStyle>(
+          valueListenable: waveStyle,
+          builder: (context, currentStyle, _) {
+            return Row(
+              children: [
+                _styleOption(
+                  context,
+                  style: WaveStyle.peakRms,
+                  label: 'Peak + RMS',
+                  icon: HugeIcons.strokeRoundedAudioWave01,
+                  isSelected: currentStyle == WaveStyle.peakRms,
+                ),
+                const SizedBox(width: 8),
+                _styleOption(
+                  context,
+                  style: WaveStyle.classic,
+                  label: 'Classic',
+                  icon: HugeIcons.strokeRoundedAudioLines,
+                  isSelected: currentStyle == WaveStyle.classic,
+                ),
+                const SizedBox(width: 8),
+                _styleOption(
+                  context,
+                  style: WaveStyle.bars,
+                  label: 'Bars',
+                  icon: HugeIcons.strokeRoundedAudioWave02,
+                  isSelected: currentStyle == WaveStyle.bars,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -130,7 +224,12 @@ class AudioToolsSheet extends StatelessWidget {
                     max: 2.0,
                     onChanged: (val) {
                       editor.updateAudioProperties(
-                        AudioProperties(volume: val, speed: clip.speed),
+                        AudioProperties(
+                          volume: val,
+                          speed: clip.speed,
+                          fadeIn: clip.audioProperties.fadeIn,
+                          fadeOut: clip.audioProperties.fadeOut,
+                        ),
                       );
                     },
                   ),

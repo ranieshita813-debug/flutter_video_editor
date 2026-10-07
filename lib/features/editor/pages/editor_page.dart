@@ -14,6 +14,7 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/widgets/audio_waveform.dart';
 import 'package:flutter_video_editor/features/editor/widgets/editor_toolbar.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
 import 'package:flutter_video_editor/features/editor/widgets/skeleton_grid.dart';
@@ -32,7 +33,6 @@ const Color _muted = Color(0xFF9A9AA3);
 const Color _textTrack = Color(0xFF2A2440);
 const Color _fxTrack = Color(0xFF3A2C1C);
 const Color _drawTrack = Color(0xFF1C3A30);
-const Color _audioTrack = Color(0xFF23333A);
 const Color _accent = Color(0xFF5B8CFF);
 const Color _divider = Color(0xFF1E1E22);
 
@@ -160,49 +160,6 @@ class ThumbCache {
   }
 }
 
-final Map<String, Future<List<double>>> _waveCache = <String, Future<List<double>>>{};
-
-Future<List<double>> _waveFuture(String path, int bars) =>
-    _waveCache.putIfAbsent('$path|$bars', () async {
-      final dec = waveformDecoder;
-      if (dec != null) {
-        try {
-          final List<double> r = await dec(path, bars);
-          if (r.isNotEmpty) return r;
-        } catch (_) {}
-      }
-      return _fallbackWave(path, bars);
-    });
-
-Future<List<double>> _fallbackWave(String path, int bars) async {
-  const double flat = 0.4;
-  try {
-    final RandomAccessFile raf = await File(path).open();
-    final List<int> bytes = <int>[];
-    int remaining = 48 * 1024;
-    while (remaining > 0) {
-      final Uint8List b = await raf.read(math.min(remaining, 4096));
-      if (b.isEmpty) break;
-      bytes.addAll(b);
-      remaining -= b.length;
-    }
-    await raf.close();
-    if (bytes.isEmpty) return List<double>.filled(bars, flat);
-    final List<double> out = List<double>.filled(bars, flat);
-    final int per = math.max(1, bytes.length ~/ bars);
-    for (int i = 0; i < bars; i++) {
-      int h = 0;
-      final int end = math.min(bytes.length, (i + 1) * per);
-      for (int j = i * per; j < end; j++) {
-        h = (h * 31 + bytes[j]) & 0x7fffffff;
-      }
-      out[i] = 0.2 + 0.8 * ((h % 997) / 997.0);
-    }
-    return out;
-  } catch (_) {
-    return List<double>.filled(bars, flat);
-  }
-}
 
 // ----------------------------------------------------------------------------
 // Inline tools
@@ -813,7 +770,7 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
     await _swap(c);
   }
 
-  Widget _placeholder(String text, {IconData icon = Icons.movie_rounded}) {
+  Widget _placeholder(String text, {dynamic icon = HugeIcons.strokeRoundedVideo01}) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -827,7 +784,7 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
               )
             else
-              Icon(icon, size: 40, color: Colors.white24),
+              HugeIcon(icon: icon, size: 40, color: Colors.white24),
             const SizedBox(height: 10),
             Text(text,
                 textAlign: TextAlign.center,
@@ -976,7 +933,7 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
           fit: fit,
           gaplessPlayback: true,
           errorBuilder: (_, __, ___) =>
-              _placeholder("Can't open this image", icon: Icons.broken_image_rounded),
+              _placeholder("Can't open this image", icon: HugeIcons.strokeRoundedImage01),
         ),
       );
     } else if (ready) {
@@ -993,7 +950,7 @@ class _VideoPlayerPreviewState extends State<_VideoPlayerPreview> {
         ),
       );
     } else if (_failed) {
-      child = _placeholder("Can't play this file", icon: Icons.error_rounded);
+      child = _placeholder("Can't play this file", icon: HugeIcons.strokeRoundedAlertCircle);
     } else {
       child = _placeholder(clip?.label ?? 'Add media to start editing');
     }
@@ -1542,12 +1499,12 @@ class _Transport extends StatelessWidget {
   const _Transport({required this.editor});
   final EditorController editor;
 
-  Widget _icon(IconData i, String tip, VoidCallback onTap, double s) => IconButton(
+  Widget _icon(dynamic i, String tip, VoidCallback onTap, double s) => IconButton(
         tooltip: tip,
         visualDensity: VisualDensity.compact,
         padding: EdgeInsets.zero,
         constraints: BoxConstraints.tightFor(width: 40 * s, height: 40 * s),
-        icon: Icon(i, color: Colors.white, size: 22 * s),
+        icon: HugeIcon(icon: i, color: Colors.white, size: 22 * s),
         onPressed: () {
           _tap();
           onTap();
@@ -1592,7 +1549,7 @@ class _Transport extends StatelessWidget {
               ),
             ),
           ),
-          _icon(Icons.skip_previous_rounded, 'Previous frame',
+          _icon(HugeIcons.strokeRoundedPrevious, 'Previous frame',
               () => _seek(editor, _seconds(editor.playhead) - 1 / _fps), s),
           Selector<EditorController, bool>(
             selector: (_, e) => e.isPlaying,
@@ -1612,8 +1569,8 @@ class _Transport extends StatelessWidget {
                   alignment: Alignment.center,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 150),
-                    child: Icon(
-                        playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    child: HugeIcon(
+                        icon: playing ? HugeIcons.strokeRoundedPause : HugeIcons.strokeRoundedPlay,
                         key: ValueKey<bool>(playing),
                         color: Colors.white,
                         size: 38 * s),
@@ -1622,7 +1579,7 @@ class _Transport extends StatelessWidget {
               ),
             ),
           ),
-          _icon(Icons.skip_next_rounded, 'Next frame',
+          _icon(HugeIcons.strokeRoundedNext, 'Next frame',
               () => _seek(editor, _seconds(editor.playhead) + 1 / _fps), s),
           Expanded(
             child: Align(
@@ -1630,8 +1587,8 @@ class _Transport extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  _icon(Icons.undo_rounded, 'Undo', editor.undo, s),
-                  _icon(Icons.redo_rounded, 'Redo', editor.redo, s),
+                  _icon(HugeIcons.strokeRoundedUndo, 'Undo', editor.undo, s),
+                  _icon(HugeIcons.strokeRoundedRedo, 'Redo', editor.redo, s),
                 ],
               ),
             ),
@@ -2278,7 +2235,7 @@ class _Lane {
   final bool add;
 }
 
-enum _ClipKind { text, video, audio }
+enum _ClipKind { text, video, music, voice }
 
 class _Timeline extends StatefulWidget {
   const _Timeline({
@@ -2359,7 +2316,16 @@ class _TimelineState extends State<_Timeline> {
   List<_Lane> _lanes(List<_ClipSnapshot> clips) {
     final main = clips.where((c) => c.isMain).toList()
       ..sort((a, b) => a.startMs.compareTo(b.startMs));
-    final audio = clips.where((c) => c.type == ClipType.audio).toList();
+    final musicClips = clips
+        .where((c) =>
+            c.type == ClipType.audio &&
+            !c.label.toLowerCase().contains('voice'))
+        .toList();
+    final voiceClips = clips
+        .where((c) =>
+            c.type == ClipType.audio &&
+            c.label.toLowerCase().contains('voice'))
+        .toList();
     final layers =
         clips.where(_isOverlay).map<int>((c) => c.layer).toSet().toList()..sort();
     return <_Lane>[
@@ -2367,7 +2333,8 @@ class _TimelineState extends State<_Timeline> {
         _Lane(_textH, _ClipKind.text,
             clips.where((c) => _isOverlay(c) && c.layer == l).toList()),
       _Lane(_videoH, _ClipKind.video, main, add: false),
-      if (audio.isNotEmpty) _Lane(_audioH, _ClipKind.audio, audio),
+      _Lane(_audioH, _ClipKind.music, musicClips, add: true),
+      _Lane(_audioH, _ClipKind.voice, voiceClips, add: true),
     ];
   }
 
@@ -2440,7 +2407,7 @@ class _TimelineState extends State<_Timeline> {
     return null;
   }
 
-  Widget _chip(IconData icon, String tip, bool on, VoidCallback onTap) => Semantics(
+  Widget _chip(dynamic icon, String tip, bool on, VoidCallback onTap) => Semantics(
         button: true,
         label: tip,
         child: Tooltip(
@@ -2460,7 +2427,13 @@ class _TimelineState extends State<_Timeline> {
                   color: on ? Colors.white : const Color(0xFF26262C),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 16 * _s, color: on ? Colors.black : Colors.white),
+                child: Center(
+                  child: HugeIcon(
+                    icon: icon,
+                    size: 16 * _s,
+                    color: on ? Colors.black : Colors.white,
+                  ),
+                ),
               ),
             ),
           ),
@@ -2722,14 +2695,14 @@ class _TimelineState extends State<_Timeline> {
                             ValueListenableBuilder<bool>(
                               valueListenable: _snap,
                               builder: (_, snap, __) => _chip(
-                                  Icons.align_horizontal_center_rounded,
+                                  HugeIcons.strokeRoundedTarget01,
                                   'Snap',
                                   snap,
                                   () => _snap.value = !_snap.value),
                             ),
-                            _chip(Icons.remove_rounded, 'Zoom out', false,
+                            _chip(HugeIcons.strokeRoundedMinusSign, 'Zoom out', false,
                                 () => _applyZoom(model.zoom - 0.5, half, half)),
-                            _chip(Icons.add_rounded, 'Zoom in', false,
+                            _chip(HugeIcons.strokeRoundedAdd01, 'Zoom in', false,
                                 () => _applyZoom(model.zoom + 0.5, half, half)),
                           ],
                         ),
@@ -2750,6 +2723,10 @@ class _TimelineState extends State<_Timeline> {
   Widget _header(_Lane l, List<_ClipSnapshot> all) {
     final bool locked = l.clips.isNotEmpty && l.clips.every((c) => c.locked);
     final bool visible = l.clips.any((c) => c.visible);
+    final bool isAudioLane = l.kind == _ClipKind.music || l.kind == _ClipKind.voice;
+    final bool muted = l.clips.isNotEmpty &&
+        l.clips.every((c) => editor.project.clips.any((cl) => cl.id == c.id && cl.volume == 0));
+
     Widget btn(dynamic i, bool active, String tip, VoidCallback f) => Tooltip(
           message: tip,
           child: InkResponse(
@@ -2782,16 +2759,36 @@ class _TimelineState extends State<_Timeline> {
           }
         },
       ),
-      btn(
-        visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff,
-        !visible,
-        visible ? 'Hide track' : 'Show track',
-        () {
-          for (final c in l.clips) {
-            if (c.visible == visible) editor.toggleClipVisibility(c.id);
-          }
-        },
-      ),
+      if (isAudioLane)
+        btn(
+          muted ? HugeIcons.strokeRoundedVolumeOff : HugeIcons.strokeRoundedVolumeHigh,
+          muted,
+          muted ? 'Unmute track' : 'Mute track',
+          () {
+            final double targetVol = muted ? 1.0 : 0.0;
+            for (final c in l.clips) {
+              editor.selectClip(c.id);
+              editor.updateAudioProperties(
+                AudioProperties(
+                  volume: targetVol,
+                  fadeIn: editor.selectedClip?.audioProperties.fadeIn ?? Duration.zero,
+                  fadeOut: editor.selectedClip?.audioProperties.fadeOut ?? Duration.zero,
+                ),
+              );
+            }
+          },
+        )
+      else
+        btn(
+          visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff,
+          !visible,
+          visible ? 'Hide track' : 'Show track',
+          () {
+            for (final c in l.clips) {
+              if (c.visible == visible) editor.toggleClipVisibility(c.id);
+            }
+          },
+        ),
       if (isTextLane)
         btn(HugeIcons.strokeRoundedArrowUp01, true, 'Move layer higher', () {
           final first = l.clips.first;
@@ -2804,7 +2801,7 @@ class _TimelineState extends State<_Timeline> {
         }),
     ];
 
-    return l.h >= 50
+    return l.h >= 46
         ? Column(mainAxisAlignment: MainAxisAlignment.center, children: children)
         : Row(mainAxisAlignment: MainAxisAlignment.center, children: children);
   }
@@ -2826,7 +2823,13 @@ class _TimelineState extends State<_Timeline> {
               height: 30 * _s,
               decoration:
                   const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: Icon(Icons.add_rounded, size: 19 * _s, color: Colors.black),
+              child: Center(
+                child: HugeIcon(
+                  icon: HugeIcons.strokeRoundedAdd01,
+                  size: 19 * _s,
+                  color: Colors.black,
+                ),
+              ),
             ),
           ),
         ),
@@ -2879,7 +2882,8 @@ class _TimelineState extends State<_Timeline> {
                       height: 24 * _s,
                       decoration: const BoxDecoration(
                           color: Colors.white, shape: BoxShape.circle),
-                      child: Icon(Icons.join_inner_rounded,
+                      child: HugeIcon(
+                          icon: HugeIcons.strokeRoundedShuffle,
                           size: 14 * _s, color: Colors.black),
                     ),
                   ),
@@ -2989,9 +2993,9 @@ class _ClipBlockState extends State<_ClipBlock> {
             clip.type == ClipType.sticker || clip.type == ClipType.element;
         final bool drawing = clip.type == ClipType.drawing;
         final Color bg = drawing ? _drawTrack : (sticker ? _fxTrack : _textTrack);
-        final IconData icon = drawing
-            ? Icons.brush_rounded
-            : (sticker ? Icons.emoji_emotions_rounded : Icons.title_rounded);
+        final dynamic icon = drawing
+            ? HugeIcons.strokeRoundedPencilEdit02
+            : (sticker ? HugeIcons.strokeRoundedSmile : HugeIcons.strokeRoundedTextFont);
         body = Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
@@ -3000,7 +3004,7 @@ class _ClipBlockState extends State<_ClipBlock> {
             border: Border.all(color: border, width: 2),
           ),
           child: Row(children: <Widget>[
-            Icon(icon, size: 15, color: Colors.white70),
+            HugeIcon(icon: icon, size: 15, color: Colors.white70),
             const SizedBox(width: 6),
             Expanded(
               child: Text(clip.label,
@@ -3047,19 +3051,29 @@ class _ClipBlockState extends State<_ClipBlock> {
             ),
           ),
         );
-      case _ClipKind.audio:
-        body = Container(
-          decoration: BoxDecoration(
-            color: _audioTrack,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: border, width: 2),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: (clip.path != null)
-                ? _WaveformLoader(path: clip.path!)
-                : const SizedBox.expand(),
-          ),
+      case _ClipKind.music:
+      case _ClipKind.voice:
+        final bool isVoice = widget.kind == _ClipKind.voice;
+        final TimelineClip? actualClip = widget.editor.project.clips
+            .cast<TimelineClip?>()
+            .firstWhere((c) => c?.id == clip.id, orElse: () => null);
+        final audioProps = actualClip?.audioProperties ?? const AudioProperties();
+
+        body = AudioClipBody(
+          editor: widget.editor,
+          path: clip.path ?? '',
+          label: clip.label,
+          startMs: clip.startMs,
+          endMs: clip.endMs,
+          volume: actualClip?.volume ?? 1.0,
+          fadeInMs: audioProps.fadeIn.inMilliseconds,
+          fadeOutMs: audioProps.fadeOut.inMilliseconds,
+          selected: widget.selected,
+          locked: locked,
+          border: border,
+          background: isVoice ? const Color(0x33FFB703) : const Color(0x3300E5FF),
+          waveColor: isVoice ? const Color(0xFFFFB703) : const Color(0xFF00E5FF),
+          isVoiceover: isVoice,
         );
     }
 
@@ -3112,13 +3126,13 @@ class _ClipBlockState extends State<_ClipBlock> {
                   const Positioned(
                     top: 4,
                     right: 6,
-                    child: Icon(Icons.lock_rounded, size: 11, color: Colors.white70),
+                    child: HugeIcon(icon: HugeIcons.strokeRoundedLock, size: 11, color: Colors.white70),
                   ),
                 if (inMulti)
                   const Positioned(
                     top: 4,
                     left: 6,
-                    child: Icon(Icons.check_circle_rounded, size: 14, color: _accent),
+                    child: HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 14, color: _accent),
                   ),
               ],
             ),
@@ -3214,49 +3228,6 @@ class _FilmPainter extends CustomPainter {
   bool shouldRepaint(covariant _FilmPainter old) => false;
 }
 
-class _WaveformLoader extends StatelessWidget {
-  const _WaveformLoader({required this.path});
-  final String path;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, c) {
-        final int bars = math.max(8, (c.maxWidth / 5).floor());
-        return FutureBuilder<List<double>>(
-          future: _waveFuture(path, bars),
-          builder: (_, s) => CustomPaint(
-            painter: _WavePainter(amps: s.data ?? List<double>.filled(bars, 0.4)),
-            child: const SizedBox.expand(),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _WavePainter extends CustomPainter {
-  _WavePainter({required this.amps});
-  final List<double> amps;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint p = Paint()
-      ..color = const Color(0xFF7FD6E8)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    final double gap = size.width / amps.length;
-    for (int i = 0; i < amps.length; i++) {
-      final double x = gap * (i + 0.5);
-      final double h = math.max(3.0, amps[i] * (size.height - 8));
-      canvas.drawLine(
-          Offset(x, size.height / 2 - h / 2), Offset(x, size.height / 2 + h / 2), p);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _WavePainter old) => old.amps != amps;
-}
 
 class _RulerPainter extends CustomPainter {
   _RulerPainter({
@@ -3383,13 +3354,13 @@ void _showTransitionSheet(BuildContext context) {
                               color: const Color(0xFF26262C),
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            child: Icon(
-                                switch (t) {
-                                  _TransitionType.none => Icons.block_rounded,
-                                  _TransitionType.fade => Icons.blur_on_rounded,
-                                  _TransitionType.slide => Icons.swipe_rounded,
-                                  _TransitionType.zoom => Icons.zoom_in_rounded,
-                                  _TransitionType.blur => Icons.blur_circular_rounded,
+                            child: HugeIcon(
+                                icon: switch (t) {
+                                  _TransitionType.none => HugeIcons.strokeRoundedCancel01,
+                                  _TransitionType.fade => HugeIcons.strokeRoundedFilter,
+                                  _TransitionType.slide => HugeIcons.strokeRoundedArrowRight01,
+                                  _TransitionType.zoom => HugeIcons.strokeRoundedZoomIn,
+                                  _TransitionType.blur => HugeIcons.strokeRoundedMagicWand01,
                                 },
                                 color: Colors.white70,
                                 size: 20),
@@ -4139,7 +4110,14 @@ class CameraTrackingPanel extends StatelessWidget {
         _Card(
           child: Row(
             children: <Widget>[
-              Icon(Icons.circle, size: 10, color: active ? Colors.greenAccent : Colors.white24),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: active ? Colors.greenAccent : Colors.white24,
+                  shape: BoxShape.circle,
+                ),
+              ),
               const SizedBox(width: 8),
               Text('Tracking status: ${active ? "Active" : "None"}',
                   style: const TextStyle(color: Colors.white, fontSize: 13)),
