@@ -105,8 +105,11 @@ class _TimelineModel {
       _listEq(other.clips, clips);
 
   @override
-  int get hashCode => Object.hash(zoom, selectedId, totalMs, clips.length);
+  int get hashCode =>
+      Object.hash(zoom, selectedId, totalMs, Object.hashAll(clips));
 }
+
+enum _ClipKind { text, video, audio }
 
 class _Lane {
   const _Lane(this.h, this.kind, this.clips, {this.add = false});
@@ -115,8 +118,6 @@ class _Lane {
   final List<_ClipSnapshot> clips;
   final bool add;
 }
-
-enum _ClipKind { text, video, audio }
 
 // ----------------------------------------------------------------------------
 // Main Timeline Widget
@@ -143,6 +144,7 @@ class TimelineWidget extends StatefulWidget {
 
 class _TimelineWidgetState extends State<TimelineWidget> {
   static const double _gap = 14;
+  static const double _minClipW = 48; // two 24px trim handles
 
   double _s = 1;
   double get _rulerH => 30 * _s;
@@ -157,12 +159,15 @@ class _TimelineWidgetState extends State<TimelineWidget> {
   final ValueNotifier<bool> _snap = ValueNotifier<bool>(true);
 
   bool _userScrolling = false;
+  bool _programmatic = false; // true while WE call jumpTo
   double? _scrubTime;
   int _pointers = 0;
   double _baseZoom = 1;
   double? _lastSnap;
 
   EditorController get editor => widget.editor;
+
+  void _onEditorChanged() => _syncScroll();
 
   @override
   void initState() {
@@ -172,12 +177,21 @@ class _TimelineWidgetState extends State<TimelineWidget> {
         _hc.jumpTo(_vc.offset.clamp(0.0, _hc.position.maxScrollExtent).toDouble());
       }
     });
-    editor.addListener(_syncScroll);
+    editor.addListener(_onEditorChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant TimelineWidget old) {
+    super.didUpdateWidget(old);
+    if (old.editor != widget.editor) {
+      old.editor.removeListener(_onEditorChanged);
+      widget.editor.addListener(_onEditorChanged);
+    }
   }
 
   @override
   void dispose() {
-    editor.removeListener(_syncScroll);
+    editor.removeListener(_onEditorChanged);
     _snap.dispose();
     _sc.dispose();
     _vc.dispose();
@@ -185,14 +199,26 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     super.dispose();
   }
 
-  void _syncScroll() {
+  /// Programmatic jumps fire Start/Update/End scroll notifications. Flag them
+  /// so they are never mistaken for the user scrubbing.
+  void _jump(double target) {
+    _programmatic = true;
+    try {
+      _sc.jumpTo(target);
+    } finally {
+      _programmatic = false;
+    }
+  }
+
+  void _syncScroll({bool force = false}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _userScrolling || _pointers >= 2 || !_sc.hasClients) return;
+      if (!mounted || !_sc.hasClients) return;
+      if (!force && (_userScrolling || _pointers >= 2)) return;
       final double pps = 28.0 * editor.zoom;
       final double target = (secondsOf(editor.playhead) * pps)
           .clamp(0.0, _sc.position.maxScrollExtent)
           .toDouble();
-      if ((_sc.offset - target).abs() > 0.5) _sc.jumpTo(target);
+      if ((_sc.offset - target).abs() > 0.5) _jump(target);
     });
   }
 
@@ -202,78 +228,116 @@ class _TimelineWidgetState extends State<TimelineWidget> {
   List<_Lane> _lanes(List<_ClipSnapshot> clips) {
     final main = clips.where((c) => c.isMain).toList()
       ..sort((a, b) => a.startMs.compareTo(b.startMs));
-    final audio = clips.where((c) => c.type == ClipType.audio).toList();
+    final audio = clips.where((c) => c.type == ClipType.audio).toList()
+      ..sort((a, b) => a.startMs.compareTo(b.startMs));
     final layers =
         clips.where(_isOverlay).map<int>((c) => c.layer).toSet().toList()..sort();
+
+    // Pack overlapping audio clips into separate rows so they never overdraw.
+    final List<List<_ClipSnapshot>> audioRows = <List<_ClipSnapshot>>[];
+    final List<int> rowEnds = <int>[];
+    for (final c in audio) {
+      final int r = rowEnds.indexWhere((e) => e <= c.startMs);
+      if (r < 0) {
+        rowEnds.add(c.endMs);
+        audioRows.add(<_ClipSnapshot>[c]);
+      } else {
+        rowEnds[r] = c.endMs;
+        audioRows[r].add(c);
+      }
+    }
+
     return <_Lane>[
       for (final l in layers.reversed)
         _Lane(_textH, _ClipKind.text,
             clips.where((c) => _isOverlay(c) && c.layer == l).toList()),
-      _Lane(_videoH, _ClipKind.video, main, add: false),
-      if (audio.isNotEmpty) _Lane(_audioH, _ClipKind.audio, audio),
+      _Lane(_videoH, _ClipKind.video, main, add: true),
+      for (final row in audioRows) _Lane(_audioH, _ClipKind.audio, row),
     ];
   }
 
-  double _snapTime(double t, double pps, List<_ClipSnapshot> clips,
-      {String? excludeId}) {
-    if (!_snap.value) return t;
-    double best = t;
+  // ---- Snapping -----------------------------------------------------------
+  double? _nearest(double t, double pps, List<_ClipSnapshot> clips, String? excludeId) {
+    double? best;
     double bd = 8 / pps;
-    final double ph = secondsOf(editor.playhead);
-    for (final double e in <double>[ph, 0.0]) {
+    void test(double e) {
       final double d = (e - t).abs();
       if (d < bd) {
         bd = d;
         best = e;
       }
     }
+
+    test(secondsOf(editor.playhead));
+    test(0.0);
     for (final c in clips) {
       if (c.id == excludeId) continue;
-      for (final double e in <double>[c.startSec, c.endSec]) {
-        final double d = (e - t).abs();
-        if (d < bd) {
-          bd = d;
-          best = e;
-        }
-      }
+      test(c.startSec);
+      test(c.endSec);
     }
-    if (best != t && _lastSnap != best) tapFeedback();
-    _lastSnap = best != t ? best : null;
     return best;
+  }
+
+  void _snapFeedback(double? target) {
+    if (target != null && _lastSnap != target) tapFeedback();
+    _lastSnap = target;
+  }
+
+  double _snapTime(double t, double pps, List<_ClipSnapshot> clips,
+      {String? excludeId}) {
+    if (!_snap.value) return t;
+    final double? b = _nearest(t, pps, clips, excludeId);
+    _snapFeedback(b);
+    return b ?? t;
+  }
+
+  /// Snap a moving clip by either its start or its end edge.
+  double _snapSpan(double start, double dur, double pps, List<_ClipSnapshot> clips,
+      {String? excludeId}) {
+    if (!_snap.value) return start;
+    final double? a = _nearest(start, pps, clips, excludeId);
+    final double? b = _nearest(start + dur, pps, clips, excludeId);
+    double? res;
+    if (a != null && (b == null || (a - start).abs() <= (b - (start + dur)).abs())) {
+      res = a;
+    } else if (b != null) {
+      res = b - dur;
+    }
+    _snapFeedback(res);
+    return res ?? start;
   }
 
   double _constrainMove(_ClipSnapshot clip, double desired, double pps,
       List<_ClipSnapshot> mainClips) {
-    double s = _snapTime(desired, pps, mainClips, excludeId: clip.id);
-    double lo = 0;
-    double hi = double.infinity;
-    for (final c in mainClips) {
-      if (c.id == clip.id) continue;
-      if (c.endSec <= clip.startSec + 1e-6) lo = math.max(lo, c.endSec);
-      if (c.startSec >= clip.endSec - 1e-6) hi = math.min(hi, c.startSec);
-    }
+    double s = _snapSpan(desired, clip.durSec, pps, mainClips, excludeId: clip.id);
+    final List<double> b = _neighbors(clip, mainClips);
+    final double lo = b[0];
+    final double hi = b[1];
     final double maxS = math.max(lo, hi - clip.durSec);
     if (s < lo) s = lo;
     if (s > maxS) s = maxS;
     return s;
   }
 
+  /// [lo, hi] free space around [clip] among non-overlapping neighbours.
+  List<double> _neighbors(_ClipSnapshot clip, List<_ClipSnapshot> list) {
+    double lo = 0;
+    double hi = double.infinity;
+    for (final c in list) {
+      if (c.id == clip.id) continue;
+      if (c.endSec <= clip.startSec + 1e-6) lo = math.max(lo, c.endSec);
+      if (c.startSec >= clip.endSec - 1e-6) hi = math.min(hi, c.startSec);
+    }
+    return <double>[lo, hi];
+  }
+
   void _setZoom(double z) => editor.setZoom(z.clamp(0.5, 8.0).toDouble());
 
-  void _applyZoom(double newZoom, double anchorX, double half) {
-    final double oldPps = 28.0 * editor.zoom;
-    final double total = math.max(secondsOf(editor.project.totalDuration), 1.0);
-    final double t =
-        ((_sc.offset + anchorX - half) / oldPps).clamp(0.0, total).toDouble();
+  /// The playhead is fixed on screen, so zoom always anchors on it and the
+  /// scroll offset is re-derived from the playhead after the new layout.
+  void _applyZoom(double newZoom) {
     _setZoom(newZoom);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_sc.hasClients) return;
-      final double pps = 28.0 * editor.zoom;
-      final double target = (t * pps + half - anchorX)
-          .clamp(0.0, _sc.position.maxScrollExtent)
-          .toDouble();
-      _sc.jumpTo(target);
-    });
+    _syncScroll(force: true);
   }
 
   _ClipSnapshot? _clipAt(double t, List<_ClipSnapshot> clips) {
@@ -315,11 +379,13 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     final _ClipSnapshot? clip = _clipAt(t, clips);
     final String? path = clip?.path;
     Widget thumb;
-    if (path != null && isImagePath(path)) {
+    if (clip != null && path != null && isImagePath(path)) {
       thumb = Image.file(File(path),
-          fit: BoxFit.cover, errorBuilder: (_, __, ___) => const _Stripes());
-    } else if (path != null && thumbGenerator != null) {
-      final int localMs = ((t - clip!.startSec).clamp(0.0, clip.durSec) * 1000).round();
+          fit: BoxFit.cover,
+          cacheWidth: 320,
+          errorBuilder: (_, __, ___) => const _Stripes());
+    } else if (clip != null && path != null && thumbGenerator != null) {
+      final int localMs = ((t - clip.startSec).clamp(0.0, clip.durSec) * 1000).round();
       thumb = FutureBuilder<Uint8List?>(
         future: ThumbCache.get(path, localMs, 160),
         builder: (_, s) {
@@ -370,7 +436,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
   @override
   Widget build(BuildContext context) {
     final Size size = MediaQuery.sizeOf(context);
-    _s = scaleOf(size);
+    _s = scaleOf(size) * (widget.compact ? 0.85 : 1.0);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
@@ -410,21 +476,16 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                       },
                       onPointerCancel: (_) {
                         _pointers = math.max(0, _pointers - 1);
-                        setState(() {});
+                        if (_pointers < 2) setState(() {});
                       },
                       child: GestureDetector(
                         onScaleStart: (_) => _baseZoom = model.zoom,
                         onScaleUpdate: (d) {
-                          if (d.pointerCount >= 2) {
-                            final box = context.findRenderObject();
-                            final double ax = box is RenderBox
-                                ? box.globalToLocal(d.focalPoint).dx
-                                : half;
-                            _applyZoom(_baseZoom * d.scale, ax, half);
-                          }
+                          if (d.pointerCount >= 2) _applyZoom(_baseZoom * d.scale);
                         },
                         child: NotificationListener<ScrollNotification>(
                           onNotification: (n) {
+                            if (_programmatic) return false;
                             if (n.metrics.axis != Axis.horizontal) return false;
                             if (n is ScrollStartNotification && n.dragDetails != null) {
                               _userScrolling = true;
@@ -434,7 +495,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                                   _snapTime(n.metrics.pixels / pps, pps, model.clips);
                               setState(() => _scrubTime = t);
                               seekPlayhead(editor, t);
-                            } else if (n is ScrollEndNotification) {
+                            } else if (n is ScrollEndNotification && _userScrolling) {
                               _userScrolling = false;
                               setState(() => _scrubTime = null);
                               _syncScroll();
@@ -460,14 +521,21 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                                         behavior: HitTestBehavior.opaque,
                                         onTapDown: (d) {
                                           widget.onClearMulti();
-                                          seekPlayhead(editor, (d.localPosition.dx - half) / pps);
+                                          seekPlayhead(
+                                              editor,
+                                              ((d.localPosition.dx - half) / pps)
+                                                  .clamp(0.0, total)
+                                                  .toDouble());
                                         },
                                         child: SizedBox(
                                           height: _rulerH,
                                           width: contentW,
                                           child: CustomPaint(
                                             painter: _RulerPainter(
-                                                pps: pps, seconds: total + 5, leftPad: half, totalSec: total),
+                                                pps: pps,
+                                                seconds: total + 5,
+                                                leftPad: half,
+                                                totalSec: total),
                                           ),
                                         ),
                                       ),
@@ -503,8 +571,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                                 for (final l in lanes)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: _gap),
-                                    child: SizedBox(
-                                        height: l.h, child: _header(l, model.clips)),
+                                    child: SizedBox(height: l.h, child: _header(l)),
                                   ),
                               ],
                             ),
@@ -571,9 +638,9 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                                   () => _snap.value = !_snap.value),
                             ),
                             _chip(Icons.remove_rounded, 'Zoom out', false,
-                                () => _applyZoom(model.zoom - 0.5, half, half)),
+                                () => _applyZoom(model.zoom - 0.5)),
                             _chip(Icons.add_rounded, 'Zoom in', false,
-                                () => _applyZoom(model.zoom + 0.5, half, half)),
+                                () => _applyZoom(model.zoom + 0.5)),
                           ],
                         ),
                       ),
@@ -590,7 +657,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     );
   }
 
-  Widget _header(_Lane l, List<_ClipSnapshot> all) {
+  Widget _header(_Lane l) {
     final bool locked = l.clips.isNotEmpty && l.clips.every((c) => c.locked);
     final bool visible = l.clips.any((c) => c.visible);
     Widget btn(dynamic i, bool active, String tip, VoidCallback f) => Tooltip(
@@ -612,9 +679,9 @@ class _TimelineWidgetState extends State<TimelineWidget> {
           ),
         );
 
-    final isTextLane = l.kind == _ClipKind.text && l.clips.isNotEmpty;
+    final bool isTextLane = l.kind == _ClipKind.text && l.clips.isNotEmpty;
 
-    final children = <Widget>[
+    final List<Widget> children = <Widget>[
       btn(
         locked ? HugeIcons.strokeRoundedLock : HugeIcons.strokeRoundedLockKey,
         locked,
@@ -647,9 +714,11 @@ class _TimelineWidgetState extends State<TimelineWidget> {
         }),
     ];
 
-    return l.h >= 50
-        ? Column(mainAxisAlignment: MainAxisAlignment.center, children: children)
-        : Row(mainAxisAlignment: MainAxisAlignment.center, children: children);
+    // FittedBox prevents RenderFlex overflow when 3-4 buttons share a 44px header.
+    final Widget group = l.h >= 50
+        ? Column(mainAxisSize: MainAxisSize.min, children: children)
+        : Row(mainAxisSize: MainAxisSize.min, children: children);
+    return Center(child: FittedBox(fit: BoxFit.scaleDown, child: group));
   }
 
   Widget _addButton(double left, double h) => Positioned(
@@ -676,7 +745,8 @@ class _TimelineWidgetState extends State<TimelineWidget> {
       );
 
   Widget _lane(_Lane l, double contentW, double pps, double half, _TimelineModel m) {
-    final list = l.clips;
+    final List<_ClipSnapshot> list = l.clips;
+    final bool isVideo = l.kind == _ClipKind.video;
     return Padding(
       padding: const EdgeInsets.only(bottom: _gap),
       child: SizedBox(
@@ -687,34 +757,44 @@ class _TimelineWidgetState extends State<TimelineWidget> {
           children: <Widget>[
             for (int i = 0; i < list.length; i++) ...<Widget>[
               Positioned(
+                key: ValueKey<String>('clip_${list[i].id}'),
                 left: half + list[i].startSec * pps,
                 top: 0,
                 bottom: 0,
-                width: math.max(44.0, list[i].durSec * pps - 4),
+                width: math.max(_minClipW, list[i].durSec * pps - 4),
                 child: RepaintBoundary(
                   child: _ClipBlock(
-                    editor: editor,
+                    editor: widget.editor,
                     clip: list[i],
                     kind: l.kind,
                     pps: pps,
                     selected: m.selectedId == list[i].id,
                     multiOn: widget.multiOn,
                     multi: widget.multi,
-                    moveClamp: l.kind == _ClipKind.video
+                    trimLo: isVideo ? _neighbors(list[i], list)[0] : 0.0,
+                    trimHi: isVideo ? _neighbors(list[i], list)[1] : 86400.0,
+                    trimSnap: (t) =>
+                        _snapTime(t, pps, m.clips, excludeId: list[i].id),
+                    moveClamp: isVideo
                         ? (desired) => _constrainMove(list[i], desired, pps, list)
                         : (desired) => math.max(
-                            0.0, _snapTime(desired, pps, m.clips, excludeId: list[i].id)),
+                            0.0,
+                            _snapSpan(desired, list[i].durSec, pps, m.clips,
+                                excludeId: list[i].id)),
                   ),
                 ),
               ),
-              if (l.kind == _ClipKind.video && i < list.length - 1)
+              if (isVideo && i < list.length - 1)
                 Positioned(
+                  key: ValueKey<String>('tr_${list[i].id}'),
                   left: half + list[i].endSec * pps - 14 * _s,
                   top: l.h / 2 - 12 * _s,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       tapFeedback();
+                      // Select the clip first so the sheet knows which cut it edits.
+                      editor.selectClip(list[i].id);
                       showTransitionSheet(context);
                     },
                     child: Container(
@@ -750,6 +830,9 @@ class _ClipBlock extends StatefulWidget {
     required this.multiOn,
     required this.multi,
     required this.moveClamp,
+    required this.trimSnap,
+    required this.trimLo,
+    required this.trimHi,
   });
   final EditorController editor;
   final _ClipSnapshot clip;
@@ -759,6 +842,9 @@ class _ClipBlock extends StatefulWidget {
   final ValueNotifier<bool> multiOn;
   final ValueNotifier<Set<String>> multi;
   final double Function(double desiredStart) moveClamp;
+  final double Function(double t) trimSnap;
+  final double trimLo;
+  final double trimHi;
 
   @override
   State<_ClipBlock> createState() => _ClipBlockState();
@@ -766,6 +852,7 @@ class _ClipBlock extends StatefulWidget {
 
 class _ClipBlockState extends State<_ClipBlock> {
   double _originStart = 0;
+  double _rawEdge = 0; // un-snapped edge accumulated during a trim drag
 
   void _startMove() {
     widget.editor.selectClip(widget.clip.id);
@@ -781,7 +868,6 @@ class _ClipBlockState extends State<_ClipBlock> {
   }
 
   Widget _trimHandle({required bool left}) {
-    final clip = widget.clip;
     return Positioned(
       left: left ? 0 : null,
       right: left ? null : 0,
@@ -790,19 +876,26 @@ class _ClipBlockState extends State<_ClipBlock> {
       width: 24,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
+        onHorizontalDragStart: (_) {
+          _rawEdge = left ? widget.clip.startSec : widget.clip.endSec;
+        },
         onHorizontalDragUpdate: (d) {
+          // Accumulate locally: widget.clip can be stale between rebuilds.
+          _rawEdge += d.delta.dx / widget.pps;
+          final clip = widget.clip;
+          final double snapped = widget.trimSnap(_rawEdge);
           if (left) {
-            final double newStart = (clip.startSec + d.delta.dx / widget.pps)
-                .clamp(0.0, math.max(0.0, clip.endSec - 0.2))
-                .toDouble();
+            final double hiLimit = math.max(widget.trimLo, clip.endSec - 0.2);
+            final double newStart =
+                snapped.clamp(widget.trimLo, hiLimit).toDouble();
             widget.editor.trimSelectedClip(
               Duration(milliseconds: (newStart * 1000).round()),
               Duration(milliseconds: (clip.endSec * 1000).round()),
             );
           } else {
-            final double newEnd = (clip.endSec + d.delta.dx / widget.pps)
-                .clamp(clip.startSec + 0.2, 86400.0)
-                .toDouble();
+            final double loLimit = clip.startSec + 0.2;
+            final double newEnd =
+                snapped.clamp(loLimit, math.max(loLimit, widget.trimHi)).toDouble();
             widget.editor.trimSelectedClip(
               Duration(milliseconds: (clip.startSec * 1000).round()),
               Duration(milliseconds: (newEnd * 1000).round()),
@@ -864,8 +957,9 @@ class _ClipBlockState extends State<_ClipBlock> {
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
+                // Locked clips keep their thumbnails (only editing is disabled).
                 LayoutBuilder(
-                  builder: (context, c) => (clip.path != null && !locked)
+                  builder: (context, c) => clip.path != null
                       ? _Filmstrip(
                           key: ValueKey<String>(
                               '${clip.id}|${widget.pps.toStringAsFixed(2)}'),
@@ -906,7 +1000,7 @@ class _ClipBlockState extends State<_ClipBlock> {
         );
     }
 
-    if (widget.selected && !locked) {
+    if (widget.selected && !locked && !widget.multiOn.value) {
       body = Stack(
         children: <Widget>[
           Positioned.fill(child: body),
@@ -1001,7 +1095,7 @@ class _Stripes extends StatelessWidget {
   }
 }
 
-class _Filmstrip extends StatelessWidget {
+class _Filmstrip extends StatefulWidget {
   const _Filmstrip({
     super.key,
     required this.path,
@@ -1013,25 +1107,72 @@ class _Filmstrip extends StatelessWidget {
   final double width;
 
   @override
+  State<_Filmstrip> createState() => _FilmstripState();
+}
+
+class _FilmstripState extends State<_Filmstrip> {
+  List<Future<Uint8List?>> _futures = const <Future<Uint8List?>>[];
+  int _n = 1;
+
+  int _count(double w) => (w / 48).ceil().clamp(1, 24).toInt();
+
+  bool get _isImage => isImagePath(widget.path);
+
+  void _load() {
+    _n = _count(widget.width);
+    if (_isImage || thumbGenerator == null) {
+      _futures = const <Future<Uint8List?>>[];
+      return;
+    }
+    final double step = widget.durationSec / _n;
+    // Futures are created once per (path, count, duration), not on every build.
+    _futures = <Future<Uint8List?>>[
+      for (int i = 0; i < _n; i++) ThumbCache.get(widget.path, (i * step * 1000).round(), 96),
+    ];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _Filmstrip old) {
+    super.didUpdateWidget(old);
+    if (old.path != widget.path ||
+        old.durationSec != widget.durationSec ||
+        _count(widget.width) != _n) {
+      _load();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final int n = (width / 48).ceil().clamp(1, 24);
-    final double step = durationSec / n;
-    final double cellW = width / n;
+    final double cellW = widget.width / _n;
     return ClipRect(
       child: Row(
         children: <Widget>[
-          for (int i = 0; i < n; i++)
+          for (int i = 0; i < _n; i++)
             SizedBox(
               width: cellW,
               height: double.infinity,
-              child: FutureBuilder<Uint8List?>(
-                future: ThumbCache.get(path, (i * step * 1000).round(), 96),
-                builder: (_, s) {
-                  final Uint8List? b = s.data;
-                  if (b == null) return const _Stripes();
-                  return Image.memory(b, fit: BoxFit.cover, gaplessPlayback: true);
-                },
-              ),
+              child: _isImage
+                  ? Image.file(File(widget.path),
+                      fit: BoxFit.cover,
+                      cacheWidth: 96,
+                      errorBuilder: (_, __, ___) => const _Stripes())
+                  : (_futures.isEmpty
+                      ? const _Stripes()
+                      : FutureBuilder<Uint8List?>(
+                          future: _futures[i],
+                          builder: (_, s) {
+                            final Uint8List? b = s.data;
+                            if (b == null) return const _Stripes();
+                            return Image.memory(b,
+                                fit: BoxFit.cover, gaplessPlayback: true);
+                          },
+                        )),
             ),
         ],
       ),
@@ -1057,17 +1198,32 @@ class _FilmPainter extends CustomPainter {
   bool shouldRepaint(covariant _FilmPainter old) => false;
 }
 
-class _WaveformLoader extends StatelessWidget {
+class _WaveformLoader extends StatefulWidget {
   const _WaveformLoader({required this.path});
   final String path;
+
+  @override
+  State<_WaveformLoader> createState() => _WaveformLoaderState();
+}
+
+class _WaveformLoaderState extends State<_WaveformLoader> {
+  Future<List<double>>? _future;
+  String? _path;
+  int _bars = 0;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, c) {
         final int bars = math.max(8, (c.maxWidth / 5).floor());
+        // Re-request only when the inputs actually change.
+        if (_future == null || _path != widget.path || _bars != bars) {
+          _path = widget.path;
+          _bars = bars;
+          _future = waveFuture(widget.path, bars);
+        }
         return FutureBuilder<List<double>>(
-          future: waveFuture(path, bars),
+          future: _future,
           builder: (_, s) => CustomPaint(
             painter: _WavePainter(amps: s.data ?? List<double>.filled(bars, 0.4)),
             child: const SizedBox.expand(),
@@ -1084,6 +1240,7 @@ class _WavePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (amps.isEmpty) return;
     final Paint p = Paint()
       ..color = const Color(0xFF7FD6E8)
       ..strokeWidth = 2
@@ -1091,14 +1248,14 @@ class _WavePainter extends CustomPainter {
     final double gap = size.width / amps.length;
     for (int i = 0; i < amps.length; i++) {
       final double x = gap * (i + 0.5);
-      final double h = math.max(3.0, amps[i] * (size.height - 8));
+      final double h = math.max(3.0, amps[i].clamp(0.0, 1.0) * (size.height - 8));
       canvas.drawLine(
           Offset(x, size.height / 2 - h / 2), Offset(x, size.height / 2 + h / 2), p);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _WavePainter old) => old.amps != amps;
+  bool shouldRepaint(covariant _WavePainter old) => !_listEq(old.amps, amps);
 }
 
 class _RulerPainter extends CustomPainter {
@@ -1131,7 +1288,9 @@ class _RulerPainter extends CustomPainter {
       canvas.drawRect(Rect.fromLTRB(endX, 0, size.width, size.height),
           Paint()..color = Colors.white.withValues(alpha: 0.04));
     }
-    canvas.drawLine(Offset(endX, 0), Offset(endX, size.height),
+    canvas.drawLine(
+        Offset(endX, 0),
+        Offset(endX, size.height),
         Paint()
           ..color = accentToken.withValues(alpha: 0.7)
           ..strokeWidth = 1);
@@ -1166,6 +1325,7 @@ class _RulerPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       )..layout();
       tp.paint(canvas, Offset(x + 4, 4));
+      tp.dispose();
 
       for (int j = 1; j < 4; j++) {
         final double mx = x + j * step * pps / 4;
