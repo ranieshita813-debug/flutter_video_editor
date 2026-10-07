@@ -83,15 +83,15 @@ void main() {
 
   group('ShaderEffectClip Keyframe Animation & Interpolation Unit Tests', () {
     test('Interpolates scalar parameter value over time between keyframes', () {
-      final clip = ShaderEffectClip(
+      const clip = ShaderEffectClip(
         id: 'clip_fx_1',
         effectId: 'neon_glow',
         name: 'Neon Glow',
         start: Duration.zero,
-        end: const Duration(seconds: 4),
+        end: Duration(seconds: 4),
         parameterValues: {'intensity': 0.0},
         keyframeAnimations: [
-          const KeyframeAnimation(
+          KeyframeAnimation(
             id: 'anim_1',
             parameterId: 'intensity',
             keyframes: [
@@ -123,15 +123,15 @@ void main() {
     });
 
     test('Color parameter interpolation works smoothly with lerp', () {
-      final clip = ShaderEffectClip(
+      const clip = ShaderEffectClip(
         id: 'clip_fx_2',
         effectId: 'warm_sunset',
         name: 'Warm Sunset',
         start: Duration.zero,
-        end: const Duration(seconds: 4),
-        parameterValues: {'tintColor': const Color(0xFF000000)},
+        end: Duration(seconds: 4),
+        parameterValues: {'tintColor': Color(0xFF000000)},
         keyframeAnimations: [
-          const KeyframeAnimation(
+          KeyframeAnimation(
             id: 'anim_color',
             parameterId: 'tintColor',
             keyframes: [
@@ -209,12 +209,12 @@ void main() {
       controller.addClip(clip);
       controller.selectClip('test_clip_1');
 
-      final shaderFx = ShaderEffectClip(
+      const shaderFx = ShaderEffectClip(
         id: 'shader_fx_1',
         effectId: 'neon_glow',
         name: 'Neon Glow',
         start: Duration.zero,
-        end: const Duration(seconds: 5),
+        end: Duration(seconds: 5),
         parameterValues: {'intensity': 0.5},
       );
 

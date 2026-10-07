@@ -27,12 +27,12 @@ void main() {
     ],
   );
 
-  final testClip = ShaderEffectClip(
+  const testClip = ShaderEffectClip(
     id: 'clip_fx_1',
     effectId: 'neon_glow',
     name: 'Neon Glow',
     start: Duration.zero,
-    end: const Duration(seconds: 5),
+    end: Duration(seconds: 5),
     parameterValues: {'intensity': 0.8},
   );
 

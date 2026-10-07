@@ -254,6 +254,7 @@ class ElementProperties {
     this.strokeColor = Colors.transparent,
     this.strokeWidth = 2.0,
     this.size = 100.0,
+    this.svgPath,
   });
 
   final ElementShape shape;
@@ -261,6 +262,7 @@ class ElementProperties {
   final Color strokeColor;
   final double strokeWidth;
   final double size;
+  final String? svgPath;
 
   ElementProperties copyWith({
     ElementShape? shape,
@@ -268,6 +270,7 @@ class ElementProperties {
     Color? strokeColor,
     double? strokeWidth,
     double? size,
+    String? svgPath,
   }) {
     return ElementProperties(
       shape: shape ?? this.shape,
@@ -275,6 +278,7 @@ class ElementProperties {
       strokeColor: strokeColor ?? this.strokeColor,
       strokeWidth: strokeWidth ?? this.strokeWidth,
       size: size ?? this.size,
+      svgPath: svgPath ?? this.svgPath,
     );
   }
 
@@ -285,6 +289,7 @@ class ElementProperties {
       'strokeColor': strokeColor.toARGB32(),
       'strokeWidth': strokeWidth,
       'size': size,
+      'svgPath': svgPath,
     };
   }
 
@@ -298,6 +303,7 @@ class ElementProperties {
       strokeColor: Color(json['strokeColor'] as int? ?? 0x00000000),
       strokeWidth: (json['strokeWidth'] as num?)?.toDouble() ?? 2.0,
       size: (json['size'] as num?)?.toDouble() ?? 100.0,
+      svgPath: json['svgPath'] as String?,
     );
   }
 }
