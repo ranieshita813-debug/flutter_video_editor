@@ -1,12 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/services/project_storage_service.dart';
 
 class ProjectsController extends ChangeNotifier {
-  ProjectsController();
+  ProjectsController() {
+    _loadProjectsFromStorage();
+  }
 
   final List<Project> _projects = <Project>[];
+  bool _isLoading = false;
 
   List<Project> get projects => List<Project>.unmodifiable(_projects);
+  bool get isLoading => _isLoading;
+
+  Future<void> _loadProjectsFromStorage() async {
+    _isLoading = true;
+    notifyListeners();
+    final loaded = await ProjectStorageService.instance.loadAllProjects();
+    _projects.clear();
+    _projects.addAll(loaded);
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> refresh() async {
+    await _loadProjectsFromStorage();
+  }
 
   Project createProject({
     String? name,
@@ -16,13 +35,14 @@ class ProjectsController extends ChangeNotifier {
     final id = 'proj_${DateTime.now().millisecondsSinceEpoch}';
     final project = Project(
       id: id,
-      name: name ?? 'New Project ${projects.length + 1}',
+      name: name ?? 'New Project ${_projects.length + 1}',
       aspectRatio: aspectRatio,
       clips: clips,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
     _projects.insert(0, project);
+    ProjectStorageService.instance.saveProject(project);
     notifyListeners();
     return project;
   }
@@ -30,10 +50,12 @@ class ProjectsController extends ChangeNotifier {
   void renameProject(String id, String newName) {
     final index = _projects.indexWhere((p) => p.id == id);
     if (index != -1) {
-      _projects[index] = _projects[index].copyWith(
+      final updated = _projects[index].copyWith(
         name: newName,
         updatedAt: DateTime.now(),
       );
+      _projects[index] = updated;
+      ProjectStorageService.instance.saveProject(updated);
       notifyListeners();
     }
   }
@@ -49,6 +71,7 @@ class ProjectsController extends ChangeNotifier {
         updatedAt: DateTime.now(),
       );
       _projects.insert(index + 1, duplicated);
+      ProjectStorageService.instance.saveProject(duplicated);
       notifyListeners();
       return duplicated;
     }
@@ -57,16 +80,19 @@ class ProjectsController extends ChangeNotifier {
 
   void deleteProject(String id) {
     _projects.removeWhere((p) => p.id == id);
+    ProjectStorageService.instance.deleteProject(id);
     notifyListeners();
   }
 
   void saveProject(Project updatedProject) {
-    final index = _projects.indexWhere((p) => p.id == updatedProject.id);
+    final updated = updatedProject.copyWith(updatedAt: DateTime.now());
+    final index = _projects.indexWhere((p) => p.id == updated.id);
     if (index != -1) {
-      _projects[index] = updatedProject.copyWith(updatedAt: DateTime.now());
+      _projects[index] = updated;
     } else {
-      _projects.insert(0, updatedProject.copyWith(updatedAt: DateTime.now()));
+      _projects.insert(0, updated);
     }
+    ProjectStorageService.instance.saveProject(updated);
     notifyListeners();
   }
 

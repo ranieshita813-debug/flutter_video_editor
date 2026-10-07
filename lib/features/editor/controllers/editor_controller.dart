@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
+import 'package:flutter_video_editor/core/services/project_storage_service.dart';
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
 import 'package:flutter_video_editor/features/export/services/export_service.dart';
@@ -49,7 +50,22 @@ class EditorController extends ChangeNotifier {
     _isPlaying = false;
     _undoStack.clear();
     _redoStack.clear();
+    _autosave();
     notifyListeners();
+  }
+
+  Future<bool> tryRestoreRecoverySession() async {
+    final recovered = await ProjectStorageService.instance.loadRecoveryState();
+    if (recovered != null && recovered.clips.isNotEmpty) {
+      loadProject(recovered);
+      return true;
+    }
+    return false;
+  }
+
+  void _autosave() {
+    ProjectStorageService.instance.saveProject(_project);
+    ProjectStorageService.instance.saveRecoveryState(_project);
   }
 
   Duration get playhead => _playhead;
@@ -104,6 +120,7 @@ class EditorController extends ChangeNotifier {
     final previous = _undoStack.removeLast();
     _project.clips.clear();
     _project.clips.addAll(previous);
+    _autosave();
     notifyListeners();
   }
 
@@ -113,6 +130,7 @@ class EditorController extends ChangeNotifier {
     final next = _redoStack.removeLast();
     _project.clips.clear();
     _project.clips.addAll(next);
+    _autosave();
     notifyListeners();
   }
 
@@ -120,6 +138,7 @@ class EditorController extends ChangeNotifier {
     _saveState();
     _project.addClip(clip);
     _selectedClipId = clip.id;
+    _autosave();
     notifyListeners();
   }
 
@@ -207,6 +226,7 @@ class EditorController extends ChangeNotifier {
       ..insertAll(index, <TimelineClip>[left, right]);
 
     _selectedClipId = right.id;
+    _autosave();
     notifyListeners();
   }
 
@@ -215,6 +235,7 @@ class EditorController extends ChangeNotifier {
     _saveState();
     _project.removeClip(_selectedClipId!);
     _selectedClipId = _project.clips.isNotEmpty ? _project.clips.first.id : null;
+    _autosave();
     notifyListeners();
   }
 
@@ -233,6 +254,7 @@ class EditorController extends ChangeNotifier {
     );
     _project.addClip(copy);
     _selectedClipId = copy.id;
+    _autosave();
     notifyListeners();
   }
 
@@ -254,6 +276,7 @@ class EditorController extends ChangeNotifier {
     );
     _project.addClip(clip);
     _selectedClipId = clip.id;
+    _autosave();
     notifyListeners();
   }
 
@@ -270,6 +293,7 @@ class EditorController extends ChangeNotifier {
       start: trimStart,
       end: trimEnd,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -287,6 +311,7 @@ class EditorController extends ChangeNotifier {
     _project.clips[index] = _project.clips[index].copyWith(
       isVisible: !_project.clips[index].isVisible,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -296,6 +321,7 @@ class EditorController extends ChangeNotifier {
     _project.clips[index] = _project.clips[index].copyWith(
       isLocked: !_project.clips[index].isLocked,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -320,6 +346,7 @@ class EditorController extends ChangeNotifier {
 
     _project.addClip(clip);
     _selectedClipId = clip.id;
+    _autosave();
     notifyListeners();
   }
 
@@ -347,6 +374,7 @@ class EditorController extends ChangeNotifier {
       _project.clips[index] = _project.clips[index].copyWith(
         textStyle: properties,
       );
+      _autosave();
       notifyListeners();
     }
   }
@@ -361,6 +389,7 @@ class EditorController extends ChangeNotifier {
       _project.clips[index] = _project.clips[index].copyWith(
         fontFamily: fontFamily,
       );
+      _autosave();
       notifyListeners();
     }
   }
@@ -382,12 +411,14 @@ class EditorController extends ChangeNotifier {
       textAnimationStyle: textAnimationStyle ?? current.textAnimationStyle,
       textStyle: textStyle ?? current.textStyle,
     );
+    _autosave();
     notifyListeners();
   }
 
   void uploadCustomFont(String fontName) {
     if (!_project.customFonts.contains(fontName)) {
       _project.customFonts.add(fontName);
+      _autosave();
       notifyListeners();
     }
   }
@@ -414,6 +445,7 @@ class EditorController extends ChangeNotifier {
 
     _project.addClip(clip);
     _selectedClipId = clip.id;
+    _autosave();
     notifyListeners();
   }
 
@@ -426,6 +458,7 @@ class EditorController extends ChangeNotifier {
     _project.clips[index] = _project.clips[index].copyWith(
       elementProperties: elementProperties,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -439,6 +472,7 @@ class EditorController extends ChangeNotifier {
     _project.clips[index] = _project.clips[index].copyWith(
       cameraProperties: cameraProperties,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -452,6 +486,7 @@ class EditorController extends ChangeNotifier {
     _project.clips[index] = _project.clips[index].copyWith(
       maskProperties: maskProperties,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -469,6 +504,7 @@ class EditorController extends ChangeNotifier {
     _project.clips[index] = _project.clips[index].copyWith(
       keyframes: updatedKeyframes,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -484,6 +520,7 @@ class EditorController extends ChangeNotifier {
     _project.clips[index] = _project.clips[index].copyWith(
       keyframes: updatedKeyframes,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -511,6 +548,7 @@ class EditorController extends ChangeNotifier {
       anchorX: anchorX ?? _project.clips[index].anchorX,
       anchorY: anchorY ?? _project.clips[index].anchorY,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -530,6 +568,7 @@ class EditorController extends ChangeNotifier {
       outAnimation: outAnimation ?? _project.clips[index].outAnimation,
       loopAnimation: loopAnimation ?? _project.clips[index].loopAnimation,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -542,6 +581,7 @@ class EditorController extends ChangeNotifier {
     _project.clips[index] = _project.clips[index].copyWith(
       layerIndex: newLayerIndex,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -556,6 +596,7 @@ class EditorController extends ChangeNotifier {
 
     _saveState();
     _project.clips[index] = _project.clips[index].copyWith(effect: effect);
+    _autosave();
     notifyListeners();
   }
 
@@ -570,6 +611,7 @@ class EditorController extends ChangeNotifier {
     _saveState();
     _project.clips[index] =
         _project.clips[index].copyWith(colorGrading: colorGrading);
+    _autosave();
     notifyListeners();
   }
 
@@ -589,6 +631,7 @@ class EditorController extends ChangeNotifier {
 
     _project.addClip(clip);
     _selectedClipId = clip.id;
+    _autosave();
     notifyListeners();
   }
 
@@ -606,6 +649,7 @@ class EditorController extends ChangeNotifier {
       volume: audioProperties.volume,
       speed: audioProperties.speed,
     );
+    _autosave();
     notifyListeners();
   }
 
@@ -648,6 +692,7 @@ class EditorController extends ChangeNotifier {
     _project.addClip(clip);
     _activeDrawingStrokes = <DrawingStroke>[];
     _selectedClipId = clip.id;
+    _autosave();
     notifyListeners();
   }
 
@@ -663,6 +708,7 @@ class EditorController extends ChangeNotifier {
     _saveState();
     _project.clips[index] =
         _project.clips[index].copyWith(trackingData: trackingData);
+    _autosave();
     notifyListeners();
   }
 
@@ -678,6 +724,7 @@ class EditorController extends ChangeNotifier {
         .toList();
 
     if (mediaClips.isEmpty) {
+      _autosave();
       notifyListeners();
       return;
     }
@@ -709,6 +756,7 @@ class EditorController extends ChangeNotifier {
       _project.addClip(clip);
     }
 
+    _autosave();
     notifyListeners();
   }
 

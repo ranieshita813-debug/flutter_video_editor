@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
+import 'package:flutter_video_editor/core/services/permission_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
@@ -276,7 +277,17 @@ class _ExportModalState extends State<ExportModal> {
           icon: const Icon(Icons.ios_share_rounded, size: 20),
           label: const Text('Export',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          onPressed: () {
+          onPressed: () async {
+            final hasPerm = await PermissionService.instance.requestMediaPermissions();
+            if (!mounted) return;
+            if (!hasPerm) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Storage permission is required to export videos.'),
+                ),
+              );
+              return;
+            }
             final newSettings = ExportSettings(
               resolution: selectedResolution,
               fps: selectedFps,

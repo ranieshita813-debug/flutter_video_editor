@@ -3,6 +3,8 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('ProjectsController Unit Tests', () {
     late ProjectsController controller;
 
