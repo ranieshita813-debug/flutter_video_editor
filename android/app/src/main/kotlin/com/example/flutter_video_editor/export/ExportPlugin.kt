@@ -9,6 +9,7 @@ import android.media.MediaCodecList
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
+import androidx.media3.transformer.AudioEncoderSettings
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -783,16 +784,7 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
             val settingsMap = timelineMap["settings"] as? Map<*, *>
             val bitrate = (settingsMap?.get("bitrate") as? Number)?.toInt() ?: 0
 
-            val encoderFactory = DefaultEncoderFactory.Builder(ctx)
-                .apply {
-                    if (bitrate > 0) {
-                        setRequestedVideoEncoderSettings(
-                            VideoEncoderSettings.Builder().setBitrate(bitrate).build()
-                        )
-                    }
-                }
-                .setEnableFallback(true) // e.g. HEVC unsupported -> H.264
-                .build()
+            val encoderFactory = DefaultEncoderFactory.Builder(ctx).setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(timeline.settings.bitrateKbps * 1000).build()).setRequestedAudioEncoderSettings(AudioEncoderSettings.Builder().setBitrate(timeline.settings.audioBitrateKbps * 1000).build()).setEnableFallback(true).build()
 
             val listener = object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
