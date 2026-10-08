@@ -279,10 +279,12 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   /// or for files outside the media library.
   Future<void> _browseFiles() async {
     try {
-      final List<PlatformFile> files = await FilePicker.pickFiles(
+      final FilePickerResult? res = await FilePicker.platform.pickFiles(
         type: FileType.any,
+        allowMultiple: true,
       );
-      if (files.isEmpty) return;
+      if (res == null || res.files.isEmpty) return;
+      final List<PlatformFile> files = res.files;
       setState(() {
         for (final PlatformFile file in files) {
           final String ext = file.extension?.toLowerCase() ?? '';
