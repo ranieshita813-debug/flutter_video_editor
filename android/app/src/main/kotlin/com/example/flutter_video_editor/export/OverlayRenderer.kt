@@ -5,10 +5,41 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.content.Context
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.net.Uri
+import java.io.File
 
 object OverlayRenderer {
+
+    fun loadBitmap(context: Context, path: String, width: Int, height: Int): Bitmap? {
+        return try {
+            val inputStream = when {
+                path.startsWith("content://") -> context.contentResolver.openInputStream(Uri.parse(path))
+                path.startsWith("assets/") || path.startsWith("asset/") || path.startsWith("asset://") || path.startsWith("file:///android_asset/") -> {
+                    var ap = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/")
+                    if (ap.startsWith("/")) ap = ap.substring(1)
+                    if (!ap.startsWith("flutter_assets/")) ap = "flutter_assets/$ap"
+                    try {
+                        context.assets.open(ap)
+                    } catch (_: Exception) {
+                        val rawP = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/").removePrefix("/")
+                        context.assets.open(rawP)
+                    }
+                }
+                else -> File(path.removePrefix("file://")).inputStream()
+            }
+            inputStream?.use { stream ->
+                val raw = android.graphics.BitmapFactory.decodeStream(stream) ?: return null
+                val scaled = Bitmap.createScaledBitmap(raw, width, height, true)
+                if (scaled != raw) raw.recycle()
+                scaled
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     fun renderTextOverlay(
         text: String,

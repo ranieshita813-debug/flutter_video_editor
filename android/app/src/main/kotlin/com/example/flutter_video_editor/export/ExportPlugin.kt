@@ -262,9 +262,37 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
     // Helpers: sources, cache
     // ------------------------------------------------------------------------------------------
 
-    private fun isUri(path: String) = path.startsWith("content://") || path.startsWith("file://")
+    private fun isAssetPath(path: String): Boolean =
+        path.startsWith("assets/") || path.startsWith("asset/") || path.startsWith("asset://") || path.startsWith("file:///android_asset/")
+
+    private fun toAssetPath(path: String): String {
+        var p = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/")
+        if (p.startsWith("/")) p = p.substring(1)
+        if (!p.startsWith("flutter_assets/")) {
+            p = "flutter_assets/$p"
+        }
+        return p
+    }
+
+    private fun isUri(path: String) = path.startsWith("content://") || path.startsWith("file://") || isAssetPath(path)
 
     private fun requireSource(path: String) {
+        if (isAssetPath(path)) {
+            val ctx = context ?: return
+            val ap = toAssetPath(path)
+            try {
+                ctx.assets.open(ap).close()
+                return
+            } catch (_: Exception) {
+                val rawP = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/").removePrefix("/")
+                try {
+                    ctx.assets.open(rawP).close()
+                    return
+                } catch (_: Exception) {
+                    throw FileNotFoundException("Asset not found: $path")
+                }
+            }
+        }
         if (!isUri(path) && !File(path).let { it.exists() && it.isFile }) {
             throw FileNotFoundException("File not found: $path")
         }
@@ -272,12 +300,44 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
 
     private fun MediaMetadataRetriever.source(path: String) {
         requireSource(path)
-        if (isUri(path)) setDataSource(context, Uri.parse(path)) else setDataSource(path)
+        val ctx = context
+        if (isAssetPath(path) && ctx != null) {
+            val ap = toAssetPath(path)
+            try {
+                val afd = ctx.assets.openFd(ap)
+                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                afd.close()
+                return
+            } catch (_: Exception) {
+                val rawP = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/").removePrefix("/")
+                val afd = ctx.assets.openFd(rawP)
+                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                afd.close()
+                return
+            }
+        }
+        if (isUri(path)) setDataSource(ctx, Uri.parse(path)) else setDataSource(path)
     }
 
     private fun MediaExtractor.source(path: String) {
         requireSource(path)
-        if (isUri(path)) setDataSource(context!!, Uri.parse(path), null) else setDataSource(path)
+        val ctx = context!!
+        if (isAssetPath(path)) {
+            val ap = toAssetPath(path)
+            try {
+                val afd = ctx.assets.openFd(ap)
+                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                afd.close()
+                return
+            } catch (_: Exception) {
+                val rawP = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/").removePrefix("/")
+                val afd = ctx.assets.openFd(rawP)
+                setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                afd.close()
+                return
+            }
+        }
+        if (isUri(path)) setDataSource(ctx, Uri.parse(path), null) else setDataSource(path)
     }
 
     /** Stable cache key: path + size + modified time (invalidates when file changes, no hashCode collisions). */

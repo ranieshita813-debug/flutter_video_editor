@@ -3,7 +3,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/order_tool_view.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/elements_sheet.dart'
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/elements_sheet.dart';
 
 import 'package:flutter_video_editor/features/editor/widgets/adjustments_sheet.dart';
 
@@ -48,7 +48,7 @@ enum EditorTool {
           ),
         EditorTool.crop => const CropSheet(),
         EditorTool.speed => const SpeedSheet(),
-        EditorTool.elements => ElementsSheet(),
+        EditorTool.elements => const ElementsSheet(),
         EditorTool.draw => const VectorDrawingSheet(),
         EditorTool.mask => const MaskSheet(),
         EditorTool.camera => const CameraSettingsSheet(),
