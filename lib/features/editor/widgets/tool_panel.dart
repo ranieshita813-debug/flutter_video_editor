@@ -3,6 +3,9 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/order_tool_view.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/color_grading_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/adjustments_sheet.dart';
+
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_style_sheet.dart';
@@ -39,7 +42,7 @@ enum EditorTool {
         EditorTool.stickers => const StickersSheet(),
         EditorTool.filters => const EffectsSheet(isFilterMode: true),
         EditorTool.effects => const EffectsSheet(isFilterMode: false),
-        EditorTool.adjust => const ColorGradingSheet(),
+        EditorTool.adjust => const AdjustSheet(),
         EditorTool.crop => const CropSheet(),
         EditorTool.speed => const SpeedSheet(),
         EditorTool.elements => const ElementsSheet(),
@@ -126,7 +129,7 @@ class ToolPanel extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: surfaceToken,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        
         border: Border(top: BorderSide(color: dividerToken)),
       ),
       child: SafeArea(
