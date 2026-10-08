@@ -58,11 +58,48 @@ object CompositionBuilder {
 
     private fun isContentUri(path: String) = path.startsWith("content://")
 
-    private fun sourceExists(path: String): Boolean =
-        isContentUri(path) || File(path.removePrefix("file://")).exists()
+    private fun isAssetPath(path: String): Boolean =
+        path.startsWith("assets/") || path.startsWith("asset/") || path.startsWith("asset://") || path.startsWith("file:///android_asset/")
 
-    private fun toUri(path: String): Uri =
-        if (isContentUri(path)) Uri.parse(path) else Uri.fromFile(File(path.removePrefix("file://")))
+    private fun toAssetPath(path: String): String {
+        var p = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/")
+        if (p.startsWith("/")) p = p.substring(1)
+        if (!p.startsWith("flutter_assets/")) {
+            p = "flutter_assets/$p"
+        }
+        return p
+    }
+
+    private fun sourceExists(context: Context, path: String): Boolean {
+        if (isContentUri(path) || path.startsWith("http://") || path.startsWith("https://")) return true
+        if (isAssetPath(path)) {
+            val ap = toAssetPath(path)
+            return try {
+                context.assets.open(ap).close()
+                true
+            } catch (_: Exception) {
+                val rawP = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/").removePrefix("/")
+                try {
+                    context.assets.open(rawP).close()
+                    true
+                } catch (_: Exception) {
+                    false
+                }
+            }
+        }
+        return File(path.removePrefix("file://")).exists()
+    }
+
+    private fun toUri(context: Context, path: String): Uri {
+        if (isContentUri(path) || path.startsWith("http://") || path.startsWith("https://")) {
+            return Uri.parse(path)
+        }
+        if (isAssetPath(path)) {
+            val ap = toAssetPath(path)
+            return Uri.parse("asset:///$ap")
+        }
+        return Uri.fromFile(File(path.removePrefix("file://")))
+    }
 
     private fun extensionOf(path: String): String =
         if (isContentUri(path)) "" else path.substringAfterLast('.', "").lowercase()
@@ -115,8 +152,11 @@ object CompositionBuilder {
 
         val visibleClips = timeline.clips.filter { it.isVisible }
 
-        // Fail loudly instead of silently exporting a black video for a missing file.
-        val missing = visibleClips.mapNotNull { it.sourcePath }.filter { !sourceExists(it) }
+        // Only require source files for media clips (video, image, audio) that have a sourcePath
+        val missing = visibleClips
+            .filter { it.clipType !in OVERLAY_TYPES && !it.sourcePath.isNullOrEmpty() }
+            .mapNotNull { it.sourcePath }
+            .filter { !sourceExists(context, it) }
         require(missing.isEmpty()) { "Source file(s) not found: ${missing.joinToString()}" }
 
         val videoItems = mutableListOf<EditedMediaItem>()
@@ -136,7 +176,7 @@ object CompositionBuilder {
 
             // ---------------- audio-only clip (music, voice-over) ----------------
             if (isAudioOnly) {
-                val builder = MediaItem.Builder().setUri(toUri(src!!))
+                val builder = MediaItem.Builder().setUri(toUri(context, src!!))
                 if (clip.sourceOutMs > clip.sourceInMs) {
                     builder.setClippingConfiguration(
                         MediaItem.ClippingConfiguration.Builder()
@@ -177,6 +217,33 @@ object CompositionBuilder {
                             OverlayRenderer.renderDrawingOverlay(clip.strokes, width, height)
                         )
                     }
+                } else if (clip.clipType == "sticker" && (!clip.stickerAssetPath.isNullOrEmpty() || !clip.sourcePath.isNullOrEmpty())) {
+                    val path = clip.stickerAssetPath ?: clip.sourcePath
+                    val bmp = path?.let { OverlayRenderer.loadBitmap(context, it, width, height) }
+                    if (bmp != null) {
+                        videoEffects += overlayEffect(bmp)
+                    } else {
+                        val ts = clip.textStyle
+                        videoEffects += overlayEffect(
+                            OverlayRenderer.renderTextOverlay(
+                                text = clip.label,
+                                width = width,
+                                height = height,
+                                fontSizeSp = ts.fontSize.toFloat(),
+                                fontFamily = clip.fontFamily,
+                                textColorInt = ts.textColor.toInt(),
+                                strokeColorInt = ts.strokeColor.toInt(),
+                                strokeWidthPx = ts.strokeWidth.toFloat(),
+                                shadowColorInt = ts.shadowColor.toInt(),
+                                shadowBlurPx = ts.shadowBlurRadius.toFloat(),
+                                shadowOffsetX = ts.shadowOffsetX.toFloat(),
+                                shadowOffsetY = ts.shadowOffsetY.toFloat(),
+                                bgColorInt = ts.backgroundColor.toInt(),
+                                bgPaddingPx = ts.backgroundPadding.toFloat(),
+                                textAlignStr = ts.textAlign
+                            )
+                        )
+                    }
                 } else {
                     val ts = clip.textStyle
                     videoEffects += overlayEffect(
@@ -201,7 +268,7 @@ object CompositionBuilder {
                 }
             }
 
-            val uri = if (src != null) toUri(src) else Uri.fromFile(blackFrame(context, width, height))
+            val uri = if (src != null) toUri(context, src) else Uri.fromFile(blackFrame(context, width, height))
             val mediaItemBuilder = MediaItem.Builder().setUri(uri)
 
             // Trimming only makes sense for real video; images / cards use a duration instead.

@@ -578,38 +578,6 @@ class CropSheet extends StatelessWidget {
   }
 }
 
-class ElementsSheet extends StatelessWidget {
-  const ElementsSheet({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final editor = context.read<EditorController>();
-    return _ResponsiveGrid(
-      fakeLoad: true,
-      itemCount: ElementShape.values.length,
-      minTile: 80,
-      itemBuilder: (context, i) {
-        final shape = ElementShape.values[i];
-        return _tile(
-          onTap: () =>
-              editor.addElementClip(shape, label: shape.name, color: Colors.cyanAccent),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              const HugeIcon(icon: HugeIcons.strokeRoundedShapes, color: accentToken, size: 22),
-              const SizedBox(height: 4),
-              Text(shape.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 10)),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
 class VectorDrawingSheet extends StatefulWidget {
   const VectorDrawingSheet({super.key});
 
