@@ -14,6 +14,7 @@ import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.BitmapOverlay
 import androidx.media3.effect.OverlayEffect
+import androidx.media3.effect.TextureOverlay
 import androidx.media3.effect.Presentation
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.effect.SpeedChangeEffect
@@ -98,7 +99,7 @@ object CompositionBuilder {
     }
 
     private fun overlayEffect(bitmap: Bitmap): Effect =
-        OverlayEffect(ImmutableList.of(BitmapOverlay.createStaticBitmapOverlay(bitmap)))
+        OverlayEffect(ImmutableList.of<TextureOverlay>(BitmapOverlay.createStaticBitmapOverlay(bitmap)))
 
     // ---------------------------------------------------------------------------------------
     // Main entry
