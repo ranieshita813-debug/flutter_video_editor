@@ -7,13 +7,6 @@ import android.util.Log
 import androidx.core.content.res.ResourcesCompat
 import java.io.File
 
-// ড্রয়িং স্ট্রোকের জন্য ডেটা ক্লাস
-data class DrawingStrokeSpec(
-    val points: List<PointF>,
-    val color: Long, // Android color Int (0xAARRGGBB)
-    val strokeWidth: Float // ডিভাইস-স্বাধীন ইউনিট (0.0-1.0 স্কেল)
-)
-
 object OverlayRenderer {
 
     private const val TAG = "OverlayRenderer"
