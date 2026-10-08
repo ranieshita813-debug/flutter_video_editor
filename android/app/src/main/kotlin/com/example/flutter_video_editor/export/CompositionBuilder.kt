@@ -17,6 +17,7 @@ import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.Presentation
 import androidx.media3.effect.ScaleAndRotateTransformation
 import androidx.media3.effect.SpeedChangeEffect
+import androidx.media3.effect.TextureOverlay
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
@@ -98,7 +99,11 @@ object CompositionBuilder {
     }
 
     private fun overlayEffect(bitmap: Bitmap): Effect =
-        OverlayEffect(ImmutableList.of(BitmapOverlay.createStaticBitmapOverlay(bitmap)))
+        OverlayEffect(
+            ImmutableList.builder<TextureOverlay>()
+                .add(BitmapOverlay.createStaticBitmapOverlay(bitmap))
+                .build()
+        )
 
     // ---------------------------------------------------------------------------------------
     // Main entry
@@ -232,7 +237,7 @@ object CompositionBuilder {
 
         // Add "motionGr" watermark overlay to video items
         val watermarkEffect = overlayEffect(OverlayRenderer.renderWatermarkOverlay(width, height, "motionGr"))
-        videoItems = videoItems.map { editedItem ->
+        val videoItemsWithWatermark = videoItems.map { editedItem ->
             val existingEffects = editedItem.effects
             val newVideoEffects = ImmutableList.builder<Effect>()
                 .addAll(existingEffects.videoEffects)
@@ -243,13 +248,13 @@ object CompositionBuilder {
                 .build()
         }.toMutableList()
 
-        require(videoItems.isNotEmpty() || audioItems.isNotEmpty()) {
+        require(videoItemsWithWatermark.isNotEmpty() || audioItems.isNotEmpty()) {
             "Timeline is empty: add at least one visible clip before exporting"
         }
 
         val sequences = mutableListOf<EditedMediaItemSequence>()
-        if (videoItems.isNotEmpty()) {
-            sequences += EditedMediaItemSequence.Builder().apply { videoItems.forEach { addItem(it) } }.build()
+        if (videoItemsWithWatermark.isNotEmpty()) {
+            sequences += EditedMediaItemSequence.Builder().apply { videoItemsWithWatermark.forEach { addItem(it) } }.build()
         }
         if (audioItems.isNotEmpty()) {
             sequences += EditedMediaItemSequence.Builder().apply { audioItems.forEach { addItem(it) } }.build()
