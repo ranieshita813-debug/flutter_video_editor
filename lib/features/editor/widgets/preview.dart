@@ -1374,16 +1374,13 @@ class _OverlayClipState extends State<_OverlayClip> {
           widget.onGuides(_GuideState(dragging: true, lines: lines));
         },
         onScaleEnd: (_) => widget.onGuides(const _GuideState()),
-        child: Container(
+        child: CustomPaint(
           key: _k,
-          padding: EdgeInsets.all(6 * u),
-          decoration: widget.isSelected
-              ? BoxDecoration(
-                  border: Border.all(color: accentToken, width: 1.5),
-                  borderRadius: BorderRadius.circular(6),
-                )
-              : null,
-          child: _content(),
+          foregroundPainter: widget.isSelected ? const _DashedRectPainter() : null,
+          child: Padding(
+            padding: EdgeInsets.all(6 * u),
+            child: _content(),
+          ),
         ),
       ),
     );
@@ -1415,6 +1412,42 @@ class _GuidePainter extends CustomPainter {
     final Offset c = size.center(Offset.zero);
     canvas.drawLine(c.translate(-8, 0), c.translate(8, 0), p);
     canvas.drawLine(c.translate(0, -8), c.translate(0, 8), p);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+class _DashedRectPainter extends CustomPainter {
+  const _DashedRectPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint p = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke;
+
+    final Rect r = Offset.zero & size;
+    const double dashWidth = 5.0;
+    const double dashSpace = 4.0;
+
+    void drawDashedLine(Offset p1, Offset p2) {
+      final double distance = (p2 - p1).distance;
+      if (distance <= 0) return;
+      final Offset dir = (p2 - p1) / distance;
+      double start = 0;
+      while (start < distance) {
+        final double end = math.min(start + dashWidth, distance);
+        canvas.drawLine(p1 + dir * start, p1 + dir * end, p);
+        start += dashWidth + dashSpace;
+      }
+    }
+
+    drawDashedLine(r.topLeft, r.topRight);
+    drawDashedLine(r.topRight, r.bottomRight);
+    drawDashedLine(r.bottomRight, r.bottomLeft);
+    drawDashedLine(r.bottomLeft, r.topLeft);
   }
 
   @override

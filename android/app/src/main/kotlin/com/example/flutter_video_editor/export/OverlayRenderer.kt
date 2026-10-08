@@ -98,6 +98,29 @@ object OverlayRenderer {
         return bitmap
     }
 
+    fun renderWatermarkOverlay(
+        width: Int,
+        height: Int,
+        text: String = "motionGr"
+    ): Bitmap {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val scale = height / 720f
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(180, 255, 255, 255)
+            textSize = 24f * scale
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.RIGHT
+            setShadowLayer(4f * scale, 1f * scale, 1f * scale, Color.argb(150, 0, 0, 0))
+        }
+
+        val x = width - (24f * scale)
+        val y = height - (24f * scale)
+        canvas.drawText(text, x, y, paint)
+        return bitmap
+    }
+
     fun renderDrawingOverlay(
         strokes: List<DrawingStrokeSpec>,
         width: Int,

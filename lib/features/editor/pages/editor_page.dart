@@ -53,7 +53,6 @@ class _EditorPageState extends State<EditorPage> {
       case 'mask': target = EditorTool.mask; break;
       case 'camera': target = EditorTool.camera; break;
       case 'track': target = EditorTool.track; break;
-      case 'plugins': target = EditorTool.plugins; break;
       case 'text_style': target = EditorTool.textStyle; break;
       case 'animation': target = EditorTool.animation; break;
       case 'order': target = EditorTool.order; break;

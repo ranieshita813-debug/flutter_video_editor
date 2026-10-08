@@ -230,6 +230,19 @@ object CompositionBuilder {
             videoItems += editedBuilder.build()
         }
 
+        // Add "motionGr" watermark overlay to video items
+        val watermarkEffect = overlayEffect(OverlayRenderer.renderWatermarkOverlay(width, height, "motionGr"))
+        videoItems = videoItems.map { editedItem ->
+            val existingEffects = editedItem.effects
+            val newVideoEffects = ImmutableList.builder<Effect>()
+                .addAll(existingEffects.videoEffects)
+                .add(watermarkEffect)
+                .build()
+            editedItem.buildUpon()
+                .setEffects(Effects(existingEffects.audioProcessors, newVideoEffects))
+                .build()
+        }.toMutableList()
+
         require(videoItems.isNotEmpty() || audioItems.isNotEmpty()) {
             "Timeline is empty: add at least one visible clip before exporting"
         }
