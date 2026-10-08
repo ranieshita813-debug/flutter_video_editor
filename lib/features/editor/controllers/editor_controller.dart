@@ -75,6 +75,26 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addSvgElementClip(String svgContent, String label) {
+    _saveState();
+    final Duration start = _playhead;
+    final Duration end = _playhead + const Duration(seconds: 5);
+    final clip = TimelineClip(
+      id: 'svg_${DateTime.now().millisecondsSinceEpoch}',
+      label: label,
+      start: start,
+      end: end,
+      clipType: ClipType.element,
+      layerIndex: _freeOverlayLayer(3, start, end),
+      elementProperties: ElementProperties(svgPath: svgContent),
+    );
+
+    _project.addClip(clip);
+    _selectedClipId = clip.id;
+    _autosave();
+    notifyListeners();
+  }
+
   // ---------------------------------------------------------------------------
   // Shader Effects System Integration
   // ---------------------------------------------------------------------------

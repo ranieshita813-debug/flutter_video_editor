@@ -45,7 +45,7 @@ object CompositionBuilder {
     private const val MAX_SPEED = 8.0
     private const val MAX_VOLUME = 4.0
 
-    private val OVERLAY_TYPES = setOf("text", "caption", "drawing")
+    private val OVERLAY_TYPES = setOf("text", "caption", "drawing", "element", "sticker")
     private val IMAGE_EXT = setOf("jpg", "jpeg", "png", "webp", "heic", "heif", "bmp")
     private val AUDIO_EXT = setOf("mp3", "m4a", "aac", "wav", "ogg", "oga", "opus", "flac", "amr")
 

@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:path_drawing/path_drawing.dart';
+import 'package:path_parsing/path_parsing.dart';
+import 'package:vector_math/vector_math_64.dart' hide Colors;
 import 'package:xml/xml.dart';
 
 // ───────────────────────── SVG DOCUMENT MODEL ─────────────────────────
@@ -101,9 +103,13 @@ class SvgDoc {
 
     final nodes = <SvgNode>[];
     for (final e in root.descendantElements) {
-      if (!_shapes.contains(e.name.local)) continue;
+      if (!_shapes.contains(e.name.local)) {
+        continue;
+      }
       final anc = e.ancestorElements.where((a) => a != root).toList().reversed.toList(); // outer first
-      if (anc.any((a) => _skip.contains(a.name.local))) continue;
+      if (anc.any((a) => _skip.contains(a.name.local))) {
+        continue;
+      }
       final attrs = <String, String>{};
       final transforms = <String>[];
       void read(XmlElement x, bool all) {
@@ -117,11 +123,15 @@ class SvgDoc {
         }
         for (final decl in (x.getAttribute('style') ?? '').split(';')) {
           final p = decl.split(':');
-          if (p.length == 2 && (all || _inherit.contains(p[0].trim()))) attrs[p[0].trim()] = p[1].trim();
+          if (p.length == 2 && (all || _inherit.contains(p[0].trim()))) {
+            attrs[p[0].trim()] = p[1].trim();
+          }
         }
       }
 
-      for (final a in anc) read(a, false);
+      for (final a in anc) {
+        read(a, false);
+      }
       read(e, true);
       if (transforms.isNotEmpty) attrs['transform'] = transforms.join(' ');
       nodes.add(SvgNode(e.name.local, attrs, attrs['id'] ?? '${e.name.local} ${nodes.length + 1}'));
@@ -334,16 +344,16 @@ Matrix4 parseTransform(String? s) {
     double g(int i, [double d = 0]) => i < v.length ? v[i] : d;
     switch (x.group(1)) {
       case 'translate':
-        m.translate(g(0), g(1));
+        m.translateByVector3(Vector3(g(0), g(1), 0.0));
         break;
       case 'scale':
-        m.scale(g(0), g(1, g(0)), 1.0);
+        m.scaleByVector3(Vector3(g(0), g(1, g(0)), 1.0));
         break;
       case 'rotate':
         m
-          ..translate(g(1), g(2))
+          ..translateByVector3(Vector3(g(1), g(2), 0.0))
           ..rotateZ(g(0) * math.pi / 180)
-          ..translate(-g(1), -g(2));
+          ..translateByVector3(Vector3(-g(1), -g(2), 0.0));
         break;
       case 'matrix':
         m.multiply(Matrix4(g(0), g(1), 0, 0, g(2), g(3), 0, 0, 0, 0, 1, 0, g(4), g(5), 0, 1));
@@ -363,10 +373,10 @@ extension SvgNodePath on SvgNode {
   Matrix4 get gMatrix {
     final c = box?.center ?? Offset.zero;
     return Matrix4.translationValues(dx, dy, 0)
-      ..translate(c.dx, c.dy)
+      ..translateByVector3(Vector3(c.dx, c.dy, 0.0))
       ..rotateZ(rot * math.pi / 180)
-      ..scale(scale, scale, 1.0)
-      ..translate(-c.dx, -c.dy);
+      ..scaleByVector3(Vector3(scale, scale, 1.0))
+      ..translateByVector3(Vector3(-c.dx, -c.dy, 0.0));
   }
 
   bool get hasEditTransform => dx != 0 || dy != 0 || rot != 0 || scale != 1 || attrs.containsKey('transform');

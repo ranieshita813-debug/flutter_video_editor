@@ -87,7 +87,8 @@ data class ClipSpec(
     val outAnimation: String,
     val strokes: List<DrawingStrokeSpec>,
     val stickerAssetPath: String?,
-    val effect: String
+    val effect: String,
+    val svgPath: String? = null
 )
 
 data class TimelineSpec(
@@ -219,7 +220,8 @@ object TimelineParser {
                         outAnimation = clipObj.optString("outAnimation", "none"),
                         strokes = strokes,
                         stickerAssetPath = if (clipObj.has("stickerAssetPath") && !clipObj.isNull("stickerAssetPath")) clipObj.getString("stickerAssetPath") else null,
-                        effect = clipObj.optString("effect", "none")
+                        effect = clipObj.optString("effect", "none"),
+                        svgPath = if (clipObj.has("svgPath") && !clipObj.isNull("svgPath")) clipObj.getString("svgPath") else null
                     )
                 )
             }

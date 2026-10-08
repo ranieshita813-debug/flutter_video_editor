@@ -1217,19 +1217,47 @@ class _OverlayClipState extends State<_OverlayClip> {
         return _applyAnimations(textWidget, clip);
       case ClipType.element:
         Widget elWidget;
-        final svgPath = clip.elementProperties.svgPath ?? clip.sourcePath;
-        if (svgPath != null && svgPath.isNotEmpty && File(svgPath).existsSync()) {
-          elWidget = SizedBox(
-            width: 100 * clip.scale * u,
-            height: 100 * clip.scale * u,
-            child: SvgPicture.file(
-              File(svgPath),
-              fit: BoxFit.contain,
-              colorFilter: clip.elementProperties.fillColor != Colors.white
-                  ? ColorFilter.mode(clip.elementProperties.fillColor, BlendMode.srcIn)
-                  : null,
-            ),
-          );
+        final svgStr = clip.elementProperties.svgPath ?? clip.sourcePath;
+        if (svgStr != null && svgStr.isNotEmpty) {
+          if (svgStr.trim().startsWith('<')) {
+            elWidget = SizedBox(
+              width: 100 * clip.scale * u,
+              height: 100 * clip.scale * u,
+              child: SvgPicture.string(
+                svgStr,
+                fit: BoxFit.contain,
+                colorFilter: clip.elementProperties.fillColor != Colors.white
+                    ? ColorFilter.mode(clip.elementProperties.fillColor, BlendMode.srcIn)
+                    : null,
+              ),
+            );
+          } else if (File(svgStr).existsSync()) {
+            elWidget = SizedBox(
+              width: 100 * clip.scale * u,
+              height: 100 * clip.scale * u,
+              child: SvgPicture.file(
+                File(svgStr),
+                fit: BoxFit.contain,
+                colorFilter: clip.elementProperties.fillColor != Colors.white
+                    ? ColorFilter.mode(clip.elementProperties.fillColor, BlendMode.srcIn)
+                    : null,
+              ),
+            );
+          } else {
+            elWidget = Container(
+              width: 80 * clip.scale * u,
+              height: 80 * clip.scale * u,
+              decoration: BoxDecoration(
+                color: clip.elementProperties.fillColor,
+                shape: clip.elementProperties.shape == ElementShape.circle
+                    ? BoxShape.circle
+                    : BoxShape.rectangle,
+                borderRadius: clip.elementProperties.shape == ElementShape.rectangle
+                    ? BorderRadius.circular(8 * u)
+                    : null,
+              ),
+            );
+          }
         } else {
           elWidget = Container(
             width: 80 * clip.scale * u,
