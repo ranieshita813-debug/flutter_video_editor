@@ -6,12 +6,13 @@ version: 1.0.0+1
 environment:
   sdk: '>=3.3.0 <4.0.0'
 dependencies:
-  file_picker: ^13.1.0
+  file_picker: ^8.0.0
   flutter:
     sdk: flutter
   flutter_svg: ^2.3.0
   google_fonts: ^8.2.1
   hugeicons: ^1.2.0
+  path: ^1.9.0
   path_provider: ^2.1.6
   permission_handler: ^11.3.1
   photo_manager: ^3.11.0
