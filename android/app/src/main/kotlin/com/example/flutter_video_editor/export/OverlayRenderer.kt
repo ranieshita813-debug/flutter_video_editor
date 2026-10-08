@@ -129,6 +129,46 @@ object OverlayRenderer {
         return bitmap
     }
 
+    fun renderElementOverlay(
+        context: Context,
+        svgOrPathStr: String?,
+        label: String,
+        width: Int,
+        height: Int
+    ): Bitmap {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val scale = height / 720f
+
+        if (!svgOrPathStr.isNullOrEmpty()) {
+            if (svgOrPathStr.startsWith("file://") || svgOrPathStr.startsWith("assets/") || svgOrPathStr.startsWith("content://")) {
+                val loadedBmp = loadBitmap(context, svgOrPathStr, width, height)
+                if (loadedBmp != null) {
+                    canvas.drawBitmap(loadedBmp, 0f, 0f, null)
+                    return bitmap
+                }
+            }
+        }
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.FILL
+        }
+        val rect = RectF(width * 0.35f, height * 0.35f, width * 0.65f, height * 0.65f)
+        canvas.drawRoundRect(rect, 16f * scale, 16f * scale, paint)
+
+        val displayText = if (label.isNotEmpty()) label else "Element"
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.BLACK
+            textSize = 24f * scale
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText(displayText, width / 2f, height / 2f + 8f * scale, textPaint)
+
+        return bitmap
+    }
+
     fun renderWatermarkOverlay(
         width: Int,
         height: Int,
