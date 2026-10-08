@@ -783,6 +783,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
     final n = doc.nodes.length;
     return ReorderableListView.builder(
       itemCount: n,
+      // ignore: deprecated_member_use
       onReorder: (o, nw) {
         if (nw > o) nw--;
         edit(() {
