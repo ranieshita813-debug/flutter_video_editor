@@ -81,6 +81,7 @@ class ClipDto {
     required this.strokes,
     required this.stickerAssetPath,
     required this.effect,
+    this.svgPath,
   });
 
   final String id;
@@ -110,6 +111,7 @@ class ClipDto {
   final List<Map<String, dynamic>> strokes;
   final String? stickerAssetPath;
   final String effect;
+  final String? svgPath;
 
   factory ClipDto.fromTimelineClip(TimelineClip clip) {
     return ClipDto(
@@ -181,6 +183,7 @@ class ClipDto {
           .toList(),
       stickerAssetPath: clip.stickerAssetPath,
       effect: clip.effect.name,
+      svgPath: clip.elementProperties.svgPath ?? clip.sourcePath,
     );
   }
 
@@ -213,6 +216,7 @@ class ClipDto {
       'strokes': strokes,
       'stickerAssetPath': stickerAssetPath,
       'effect': effect,
+      'svgPath': svgPath,
     };
   }
 
@@ -248,6 +252,7 @@ class ClipDto {
           <Map<String, dynamic>>[],
       stickerAssetPath: json['stickerAssetPath'] as String?,
       effect: json['effect'] as String? ?? 'none',
+      svgPath: json['svgPath'] as String?,
     );
   }
 }

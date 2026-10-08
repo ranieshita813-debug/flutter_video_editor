@@ -4,7 +4,7 @@ import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import 'svg_model.dart';
+import 'package:flutter_video_editor/core/models/svg_model.dart';
 
 const _accent = Color(0xFF9999FF);
 const _panel = Color(0xFF232323);
@@ -715,7 +715,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
               thumbColor: _accent,
               inactiveTrackColor: Colors.white12,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-              overlayShape: SliderComponentOverlayShape.noOverlay),
+              overlayShape: SliderComponentShape.noOverlay),
           child: Slider(value: v.clamp(mn, mx), min: mn, max: mx, onChangeStart: (_) => snap(), onChanged: on),
         )),
         SizedBox(width: 44, child: Text(fmt?.call(v) ?? v.toStringAsFixed(1), textAlign: TextAlign.end, style: _lbl)),
@@ -756,7 +756,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
                   child: Container(
                     width: 22,
                     margin: const EdgeInsets.only(right: 6),
-                    decoration: BoxDecoration(color: Color(s), borderRadius: BorderRadius.circular(4), border: Border.all(color: c?.value == s ? _accent : Colors.white24, width: 1.5)),
+                    decoration: BoxDecoration(color: Color(s), borderRadius: BorderRadius.circular(4), border: Border.all(color: c?.toARGB32() == s ? _accent : Colors.white24, width: 1.5)),
                   ),
                 ),
             ]),
@@ -798,7 +798,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
         final fill = _parse(node.attrs['fill'] ?? '#000000') ?? _parse(node.attrs['stroke'] ?? '') ?? Colors.white24;
         return Container(
           key: ValueKey('${node.hashCode}$idx'),
-          color: idx == sel ? _accent.withOpacity(.18) : Colors.transparent,
+          color: idx == sel ? _accent.withValues(alpha: .18) : Colors.transparent,
           child: ListTile(
             dense: true,
             visualDensity: VisualDensity.compact,
