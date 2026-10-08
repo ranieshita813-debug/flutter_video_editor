@@ -200,6 +200,16 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     super.dispose();
   }
 
+  /// Tapping empty timeline space clears the current selection. In multi-select
+  /// mode only the picked set is cleared; the mode itself stays on.
+  void _deselectAll() {
+    if (widget.multiOn.value) {
+      widget.multi.value = <String>{};
+    } else {
+      editor.clearSelection();
+    }
+  }
+
   /// Programmatic jumps fire Start/Update/End scroll notifications. Flag them
   /// so they are never mistaken for the user scrubbing.
   void _jump(double target) {
@@ -487,8 +497,9 @@ class _TimelineWidgetState extends State<TimelineWidget> {
               final double total = math.max(model.totalMs / 1000.0, 1.0);
               final double pps = 28.0 * model.zoom;
               final List<_Lane> lanes = _lanes(model.clips);
+              // Extra bottom room so the snap / zoom chips never cover a lane.
               final double contentH =
-                  _rulerH + lanes.fold<double>(0, (s, l) => s + l.h + _gap) + 16;
+                  _rulerH + lanes.fold<double>(0, (s, l) => s + l.h + _gap) + 48 * _s;
               final double h = c.maxHeight.isFinite
                   ? c.maxHeight
                   : math.min(contentH, 240.0 * _s);
@@ -545,36 +556,43 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                               width: contentW,
                               child: SingleChildScrollView(
                                 controller: _vc,
-                                child: SizedBox(
-                                  height: contentH,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      GestureDetector(
-                                        behavior: HitTestBehavior.opaque,
-                                        onTapDown: (d) {
-                                          widget.onClearMulti();
-                                          seekPlayhead(
-                                              editor,
-                                              ((d.localPosition.dx - half) / pps)
-                                                  .clamp(0.0, total)
-                                                  .toDouble());
-                                        },
-                                        child: SizedBox(
-                                          height: _rulerH,
-                                          width: contentW,
-                                          child: CustomPaint(
-                                            painter: _RulerPainter(
-                                                pps: pps,
-                                                seconds: total + 5,
-                                                leftPad: half,
-                                                totalSec: total),
+                                child: GestureDetector(
+                                  // Empty timeline space: deselect everything.
+                                  // Clips and the ruler have their own gestures
+                                  // and win the arena when tapped.
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: _deselectAll,
+                                  child: SizedBox(
+                                    height: math.max(contentH, h),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onTapDown: (d) {
+                                            widget.onClearMulti();
+                                            seekPlayhead(
+                                                editor,
+                                                ((d.localPosition.dx - half) / pps)
+                                                    .clamp(0.0, total)
+                                                    .toDouble());
+                                          },
+                                          child: SizedBox(
+                                            height: _rulerH,
+                                            width: contentW,
+                                            child: CustomPaint(
+                                              painter: _RulerPainter(
+                                                  pps: pps,
+                                                  seconds: total + 5,
+                                                  leftPad: half,
+                                                  totalSec: total),
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                      for (final l in lanes)
-                                        _lane(l, contentW, pps, half, model),
-                                    ],
+                                        for (final l in lanes)
+                                          _lane(l, contentW, pps, half, model),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -690,8 +708,8 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     );
   }
 
-  /// Track header: name (Video / Audio / Text ...) plus visibility and layer
-  /// controls. No lock control here.
+  /// Track header: name (Video / Audio / Text ...) plus the visibility toggle.
+  /// Layer ordering lives in the toolbar's "Order" tool, not here.
   Widget _header(_Lane l) {
     final bool empty = l.clips.isEmpty;
     // An empty lane has nothing to hide, so never show the "hidden" state.
@@ -716,8 +734,6 @@ class _TimelineWidgetState extends State<TimelineWidget> {
           ),
         );
 
-    final bool isTextLane = l.kind == _ClipKind.text && !empty;
-
     final List<Widget> icons = <Widget>[
       if (!empty)
         btn(
@@ -730,16 +746,6 @@ class _TimelineWidgetState extends State<TimelineWidget> {
             }
           },
         ),
-      if (isTextLane)
-        btn(HugeIcons.strokeRoundedArrowUp01, true, 'Move layer higher', () {
-          final first = l.clips.first;
-          editor.reorderClipLayer(first.id, first.layer + 1);
-        }),
-      if (isTextLane && l.clips.first.layer > 2)
-        btn(HugeIcons.strokeRoundedArrowDown01, true, 'Move layer lower', () {
-          final first = l.clips.first;
-          editor.reorderClipLayer(first.id, first.layer - 1);
-        }),
     ];
 
     // FittedBox prevents RenderFlex overflow regardless of lane height/scale.
@@ -770,6 +776,15 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     );
   }
 
+  /// Opens the media picker and adds the returned file to the timeline,
+  /// exactly like the toolbar's add-media action.
+  Future<void> _pickAndAddMedia() async {
+    final NavigatorState nav = Navigator.of(context);
+    final Object? result = await nav.pushNamed('/media_picker');
+    if (!mounted) return;
+    if (result is String) editor.addMediaClip(result);
+  }
+
   Widget _addButton(double left, double h) => Positioned(
         left: left,
         top: h / 2 - 15 * _s,
@@ -780,7 +795,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
             behavior: HitTestBehavior.opaque,
             onTap: () {
               tapFeedback();
-              Navigator.of(context).pushNamed('/media_picker');
+              _pickAndAddMedia();
             },
             child: Container(
               width: 30 * _s,
@@ -916,13 +931,16 @@ class _ClipBlockState extends State<_ClipBlock> {
     );
   }
 
-  Widget _trimHandle({required bool left}) {
+  /// Handle width shrinks on very short clips (down to 14px) so the clip body
+  /// always keeps a tappable / long-pressable middle.
+  Widget _trimHandle({required bool left, required double clipW}) {
+    final double hw = (clipW / 3).clamp(14.0, 24.0).toDouble();
     return Positioned(
       left: left ? 0 : null,
       right: left ? null : 0,
       top: 0,
       bottom: 0,
-      width: 24,
+      width: hw,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onHorizontalDragStart: (_) {
@@ -962,7 +980,7 @@ class _ClipBlockState extends State<_ClipBlock> {
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(double clipW) {
     final clip = widget.clip;
     final bool locked = clip.locked;
     final Color border = widget.selected ? Colors.white : Colors.transparent;
@@ -1053,8 +1071,8 @@ class _ClipBlockState extends State<_ClipBlock> {
       body = Stack(
         children: <Widget>[
           Positioned.fill(child: body),
-          _trimHandle(left: true),
-          _trimHandle(left: false),
+          _trimHandle(left: true, clipW: clipW),
+          _trimHandle(left: false, clipW: clipW),
         ],
       );
     }
@@ -1093,7 +1111,11 @@ class _ClipBlockState extends State<_ClipBlock> {
             child: Stack(
               clipBehavior: Clip.none,
               children: <Widget>[
-                Positioned.fill(child: _buildBody()),
+                Positioned.fill(
+                  child: LayoutBuilder(
+                    builder: (context, c) => _buildBody(c.maxWidth),
+                  ),
+                ),
                 if (inMulti)
                   const Positioned(
                     top: 4,

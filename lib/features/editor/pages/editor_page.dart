@@ -56,6 +56,7 @@ class _EditorPageState extends State<EditorPage> {
       case 'plugins': target = EditorTool.plugins; break;
       case 'text_style': target = EditorTool.textStyle; break;
       case 'animation': target = EditorTool.animation; break;
+      case 'order': target = EditorTool.order; break;
     }
     if (target != null) {
       _open(target);
@@ -139,9 +140,10 @@ class _EditorPageState extends State<EditorPage> {
               backgroundColor: bgToken,
               resizeToAvoidBottomInset: true,
               body: LayoutBuilder(builder: (context, c) {
-                final double panelH = math
-                    .min(c.maxHeight * _frac, c.maxHeight * 0.6)
-                    .clamp(160.0, 520.0)
+                // The panel never takes more than half of what is left, so an
+                // open keyboard cannot squeeze the preview down to nothing.
+                final double panelH = (c.maxHeight * _frac)
+                    .clamp(160.0, math.max(160.0, c.maxHeight * 0.5))
                     .toDouble();
                 final double sideW =
                     (c.maxWidth * 0.3).clamp(320.0, 440.0).toDouble();
@@ -181,7 +183,6 @@ class _EditorPageState extends State<EditorPage> {
                         }
                         final double s = scaleOf(size);
                         final EdgeInsets safe = MediaQuery.paddingOf(context);
-                        final double pad = 10 * s;
                         final double colW = wide
                             ? c.maxWidth - (_tool != null ? sideW : 0)
                             : c.maxWidth;
@@ -192,8 +193,9 @@ class _EditorPageState extends State<EditorPage> {
                             ((wide || _tool == null) ? barH : panelH) + safe.bottom;
                         final double tlMin = (isShort(size) ? 90 : 120) * s;
                         final double tlMax = 240 * s;
-                        final double desired =
-                            topH + (colW - 2 * pad) / ratio.value + 2 * pad;
+                        // Canvas is full width with square corners, so the
+                        // wanted height is simply width / ratio (no padding).
+                        final double desired = topH + colW / ratio.value;
                         final double maxP =
                             math.max(80.0, c.maxHeight - transportH - bottomH - tlMin);
                         final double minP = math.min(

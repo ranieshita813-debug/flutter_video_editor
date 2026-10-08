@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
-
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/order_tool_view.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
@@ -26,7 +26,8 @@ enum EditorTool {
   track('Track', HugeIcons.strokeRoundedTarget01),
   plugins('Plug-ins', HugeIcons.strokeRoundedGridView),
   textStyle('Text Style', HugeIcons.strokeRoundedTextFont),
-  animation('Animation', HugeIcons.strokeRoundedPlay);
+  animation('Animation', HugeIcons.strokeRoundedPlay),
+  order('Order', HugeIcons.strokeRoundedArrowUpDown);
 
   const EditorTool(this.title, this.icon);
   final String title;
@@ -49,6 +50,7 @@ enum EditorTool {
         EditorTool.plugins => const PluginsSheet(),
         EditorTool.textStyle => const TextStyleSheet(),
         EditorTool.animation => const ClipAnimationSheet(),
+        EditorTool.order => const OrderToolView(),
       };
 }
 
