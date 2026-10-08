@@ -34,11 +34,11 @@ import kotlin.math.max
 import kotlin.math.pow
 
 /**
- * Builds a Media3 [Composition] from the Flutter timeline.
+ * বিল্ড করে একটি Media3 [Composition] ফ্লাটার টাইমলাইন থেকে।
  *
- * Throws [IllegalArgumentException] with a readable message for invalid timelines.
- * Requires Media3 >= 1.4.0 (EditedMediaItemSequence.Builder.addGap /
- * experimentalSetForceAudioTrack; in 1.5+ rename it to setForceAudioTrack).
+ * অবৈধ টাইমলাইনের জন্য [IllegalArgumentException] ছুঁড়ে দেয় একটি পড়ার যোগ্য বার্তা সহ।
+ * Media3 >= 1.4.0 প্রয়োজন (EditedMediaItemSequence.Builder.addGap /
+ * experimentalSetForceAudioTrack; 1.5+ এ এটির নাম পরিবর্তন করে setForceAudioTrack করা হয়েছে)।
  */
 @UnstableApi
 object CompositionBuilder {
@@ -57,19 +57,23 @@ object CompositionBuilder {
     private enum class Kind { VIDEO, IMAGE, AUDIO }
 
     // ---------------------------------------------------------------------------------------
-    // Helpers
+    // হেল্পার ফাংশন
     // ---------------------------------------------------------------------------------------
 
-    /** H.264/H.265 encoders require even dimensions. */
+    /** H.264/H.265 এনকোডারের জন্য জোড় সংখ্যার ডাইমেনশন প্রয়োজন। */
     private fun even(v: Int): Int = max(v, 2) and 1.inv()
 
     private fun isContentUri(path: String) = path.startsWith("content://")
 
     private fun isAssetPath(path: String): Boolean =
-        path.startsWith("assets/") || path.startsWith("asset/") || path.startsWith("asset://") || path.startsWith("file:///android_asset/")
+        path.startsWith("assets/") || path.startsWith("asset/") || 
+        path.startsWith("asset://") || path.startsWith("file:///android_asset/")
 
     private fun rawAssetPath(path: String): String =
-        path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/").removePrefix("/")
+        path.removePrefix("asset:///")
+            .removePrefix("asset://")
+            .removePrefix("file:///android_asset/")
+            .removePrefix("/")
 
     private fun toAssetPath(path: String): String {
         val p = rawAssetPath(path)
@@ -81,9 +85,10 @@ object CompositionBuilder {
         if (isAssetPath(path)) {
             for (candidate in listOf(toAssetPath(path), rawAssetPath(path))) {
                 try {
-                    context.assets.open(candidate).close()
+                    context.assets.open(candidate).use { it.close() }
                     return true
                 } catch (_: Exception) {
+                    // ফাইল না থাকলে পরের ক্যান্ডিডেট চেষ্টা করুন
                 }
             }
             return false
@@ -92,12 +97,16 @@ object CompositionBuilder {
     }
 
     private fun toUri(path: String): Uri {
-        if (isContentUri(path) || path.startsWith("http://") || path.startsWith("https://")) return Uri.parse(path)
-        if (isAssetPath(path)) return Uri.parse("asset:///${toAssetPath(path)}")
+        if (isContentUri(path) || path.startsWith("http://") || path.startsWith("https://")) {
+            return Uri.parse(path)
+        }
+        if (isAssetPath(path)) {
+            return Uri.parse("asset:///${toAssetPath(path)}")
+        }
         return Uri.fromFile(File(path.removePrefix("file://")))
     }
 
-    /** content:// URIs have no extension, so ask the resolver for the MIME type. */
+    /** content:// URI-এর এক্সটেনশন নেই, তাই MIME টাইপ জিজ্ঞাসা করুন। */
     private fun kindOf(context: Context, path: String): Kind {
         if (isContentUri(path)) {
             val mime = try {
@@ -119,15 +128,24 @@ object CompositionBuilder {
         }
     }
 
-    /** Black image used as the background of text / drawing / sticker "cards". */
+    /** টেক্সট/ড্রয়িং/স্টিকার "কার্ড"-এর ব্যাকগ্রাউন্ড হিসেবে ব্যবহৃত কালো ইমেজ। */
     private fun blackFrame(context: Context, width: Int, height: Int): File {
-        val file = File(context.cacheDir, "black_${width}x$height.png")
-        if (!file.exists() || file.length() == 0L) {
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            try {
-                Canvas(bitmap).drawColor(Color.BLACK)
-                FileOutputStream(file).use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            } finally {
+        val fileName = "black_${width}x$height.png"
+        val file = File(context.cacheDir, fileName)
+        
+        // ফাইল আগে থেকে থাকলে এবং অকার্যকর না হলে পুনরায় তৈরি করবেন না
+        if (file.exists() && file.length() > 0L) {
+            return file
+        }
+
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        try {
+            Canvas(bitmap).drawColor(Color.BLACK)
+            FileOutputStream(file).use { 
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) 
+            }
+        } finally {
+            if (!bitmap.isRecycled) {
                 bitmap.recycle()
             }
         }
@@ -137,13 +155,17 @@ object CompositionBuilder {
     private fun audioProcessors(speed: Double, pitch: Double, volume: Double): List<AudioProcessor> {
         val list = mutableListOf<AudioProcessor>()
         val pitchChanged = abs(pitch - 1.0) > EPS
+        
         if (abs(speed - 1.0) > EPS || pitchChanged) {
             list += SonicAudioProcessor().apply {
                 setSpeed(speed.toFloat())
-                if (pitchChanged) setPitch(pitch.coerceIn(0.5, 2.0).toFloat())
+                if (pitchChanged) {
+                    setPitch(pitch.coerceIn(0.5, 2.0).toFloat())
+                }
             }
         }
-        // volume == 0 is handled by removing the audio track; here only real gain changes.
+        
+        // volume == 0 হ্যান্ডেল করা হয় অডিও ট্র্যাক সরিয়ে; এখানে শুধু রিয়েল গেইন পরিবর্তন।
         if (volume > 0.0 && abs(volume - 1.0) > EPS) {
             val gain = volume.toFloat()
             list += ChannelMixingAudioProcessor().apply {
@@ -155,26 +177,37 @@ object CompositionBuilder {
     }
 
     /**
-     * Real color grading (the old ColorGradingEffect returned an identity matrix = no-op).
-     * Assumed ranges: brightness -1..1, contrast 1.0 = neutral, saturation 1.0 = neutral,
-     * temperature/tint -1..1, exposure in EV stops. Vignette is not supported (needs a custom shader).
+     * রিয়েল কালার গ্রেডিং (পুরনো ColorGradingEffect একটি আইডেন্টিটি ম্যাট্রিক্স রিটার্ন করত = নো-অপ)।
+     * অনুমানকৃত রেঞ্জ: brightness -1..1, contrast 1.0 = নিউট্রাল, saturation 1.0 = নিউট্রাল,
+     * temperature/tint -1..1, exposure EV স্টপে। Vignette সমর্থিত নয় (কাস্টম শেডার প্রয়োজন)।
      */
     private fun colorEffects(cg: ColorGradingSpec): List<Effect> {
         val out = mutableListOf<Effect>()
-        if (abs(cg.brightness) > EPS) out += Brightness(cg.brightness.coerceIn(-1.0, 1.0).toFloat())
-        if (abs(cg.contrast - 1.0) > EPS) out += Contrast((cg.contrast - 1.0).coerceIn(-1.0, 1.0).toFloat())
+        
+        if (abs(cg.brightness) > EPS) {
+            out += Brightness(cg.brightness.coerceIn(-1.0, 1.0).toFloat())
+        }
+        
+        if (abs(cg.contrast - 1.0) > EPS) {
+            out += Contrast((cg.contrast - 1.0).coerceIn(-1.0, 1.0).toFloat())
+        }
+        
         if (abs(cg.saturation - 1.0) > EPS) {
             out += HslAdjustment.Builder()
                 .adjustSaturation(((cg.saturation - 1.0) * 100.0).coerceIn(-100.0, 100.0).toFloat())
                 .build()
         }
+        
         val gain = 2.0.pow(cg.exposure)
         val r = (gain * (1.0 + 0.25 * cg.temperature)).coerceAtLeast(0.0)
         val g = (gain * (1.0 - 0.25 * cg.tint)).coerceAtLeast(0.0)
         val b = (gain * (1.0 - 0.25 * cg.temperature)).coerceAtLeast(0.0)
+        
         if (abs(r - 1.0) > EPS || abs(g - 1.0) > EPS || abs(b - 1.0) > EPS) {
             out += RgbAdjustment.Builder()
-                .setRedScale(r.toFloat()).setGreenScale(g.toFloat()).setBlueScale(b.toFloat())
+                .setRedScale(r.toFloat())
+                .setGreenScale(g.toFloat())
+                .setBlueScale(b.toFloat())
                 .build()
         }
         return out
@@ -187,10 +220,11 @@ object CompositionBuilder {
                 .build()
         )
 
-    private fun textOverlay(clip: ClipSpec, width: Int, height: Int): Effect {
+    private fun textOverlay(clip: ClipSpec, width: Int, height: Int, context: Context): Effect {
         val ts = clip.textStyle
         return overlayEffect(
             OverlayRenderer.renderTextOverlay(
+                context = context,
                 text = clip.label,
                 width = width,
                 height = height,
@@ -210,7 +244,7 @@ object CompositionBuilder {
         )
     }
 
-    /** Duration of a clip on the timeline (after speed), 0 if unknown. */
+    /** টাইমলাইনে একটি ক্লিপের ডিউরেশন (স্পিডের পরে), 0 যদি অজানা হয়। */
     private fun clipDurationMs(c: ClipSpec, speed: Double): Long = when {
         c.timelineDurationMs > 0 -> c.timelineDurationMs
         c.sourceOutMs > c.sourceInMs -> ((c.sourceOutMs - c.sourceInMs) / speed).toLong()
@@ -223,28 +257,33 @@ object CompositionBuilder {
             .setEndPositionMs(clip.sourceOutMs)
             .build()
 
-    /** One audio "lane" = one sequence. Overlapping audio clips need separate lanes. */
+    /** একটি অডিও "লেন" = একটি সিকোয়েন্স। ওভারল্যাপিং অডিও ক্লিপের জন্য আলাদা লেন প্রয়োজন। */
     private class AudioLane {
         var cursorMs = 0L
         val parts = mutableListOf<Pair<Long, EditedMediaItem>>() // (gapBeforeUs, item)
     }
 
     // ---------------------------------------------------------------------------------------
-    // Main entry
+    // মূল এন্ট্রি পয়েন্ট
     // ---------------------------------------------------------------------------------------
 
     fun buildComposition(context: Context, timeline: TimelineSpec): Composition {
         val width = even(timeline.settings.width)
         val height = even(timeline.settings.height)
 
-        // Clips must be played in timeline order, not in list order.
-        val visibleClips = timeline.clips.filter { it.isVisible }.sortedBy { it.timelineStartMs }
+        // ক্লিপগুলো টাইমলাইন অর্ডারে প্লে করতে হবে, লিস্ট অর্ডারে নয়।
+        val visibleClips = timeline.clips
+            .filter { it.isVisible }
+            .sortedBy { it.timelineStartMs }
 
         val missing = visibleClips
             .filter { it.clipType !in OVERLAY_TYPES && !it.sourcePath.isNullOrEmpty() }
             .mapNotNull { it.sourcePath }
             .filter { !sourceExists(context, it) }
-        require(missing.isEmpty()) { "Source file(s) not found: ${missing.joinToString()}" }
+        
+        require(missing.isEmpty()) { 
+            "সোর্স ফাইল(গুলো) পাওয়া যায়নি: ${missing.joinToString()}" 
+        }
 
         val videoItems = mutableListOf<EditedMediaItem>()
         val audioLanes = mutableListOf<AudioLane>()
@@ -255,8 +294,8 @@ object CompositionBuilder {
             val kind = if (src != null && !isOverlayClip) kindOf(context, src) else Kind.VIDEO
             val isAudioOnly = src != null && !isOverlayClip && kind == Kind.AUDIO
             val isImage = src != null && !isOverlayClip && kind == Kind.IMAGE
-            // Overlay clips (text/drawing/sticker) are ALWAYS rendered on a black card; their
-            // sourcePath (e.g. a sticker png) is drawn as an overlay, never used as the base media.
+            // ওভারলে ক্লিপ (টেক্সট/ড্রয়িং/স্টিকার) সর্বদা কালো কার্ডে রেন্ডার করা হয়;
+            // তাদের sourcePath (যেমন একটি স্টিকার png) একটি ওভারলে হিসেবে আঁকা হয়, কখনোই বেস মিডিয়া হিসেবে ব্যবহৃত হয় না।
             val isCard = isOverlayClip || src == null
 
             val speed = clip.speed.coerceIn(MIN_SPEED, MAX_SPEED)
@@ -264,33 +303,49 @@ object CompositionBuilder {
             val pitch = clip.audioProperties.pitch
             val speedChanged = abs(speed - 1.0) > EPS
 
-            // ---------------- audio-only clip (music, voice-over) ----------------
+            // ---------------- অডিও-শুধুমাত্র ক্লিপ (মিউজিক, ভয়েস-ওভার) ----------------
             if (isAudioOnly) {
                 if (volume <= 0.0) continue
+                
                 val builder = MediaItem.Builder().setUri(toUri(src!!))
-                if (clip.sourceOutMs > clip.sourceInMs) builder.setClippingConfiguration(clipping(clip))
+                if (clip.sourceOutMs > clip.sourceInMs) {
+                    builder.setClippingConfiguration(clipping(clip))
+                }
+                
                 val item = EditedMediaItem.Builder(builder.build())
-                    .setEffects(Effects(ImmutableList.copyOf(audioProcessors(speed, pitch, volume)), ImmutableList.of()))
+                    .setEffects(
+                        Effects(
+                            ImmutableList.copyOf(audioProcessors(speed, pitch, volume)),
+                            ImmutableList.of()
+                        )
+                    )
                     .build()
 
                 val lane = audioLanes.firstOrNull { it.cursorMs <= clip.timelineStartMs }
                     ?: AudioLane().also { audioLanes += it }
+                
                 val gapMs = (clip.timelineStartMs - lane.cursorMs).coerceAtLeast(0L)
                 lane.parts += (gapMs * 1000L) to item
                 lane.cursorMs = clip.timelineStartMs + clipDurationMs(clip, speed)
                 continue
             }
 
-            // ---------------- video / image / card clip ----------------
+            // ---------------- ভিডিও / ইমেজ / কার্ড ক্লিপ ----------------
             val videoEffects = mutableListOf<Effect>()
 
             if (speedChanged && !isImage && !isCard) {
                 videoEffects += SpeedChangeEffect(speed.toFloat())
             }
 
-            videoEffects += Presentation.createForWidthAndHeight(width, height, Presentation.LAYOUT_SCALE_TO_FIT)
+            videoEffects += Presentation.createForWidthAndHeight(
+                width, 
+                height, 
+                Presentation.LAYOUT_SCALE_TO_FIT
+            )
 
-            if (!isCard) videoEffects += colorEffects(clip.colorGrading)
+            if (!isCard) {
+                videoEffects += colorEffects(clip.colorGrading)
+            }
 
             if (!isCard && clip.scale > 0.0 && (clip.scale != 1.0 || clip.rotation != 0.0)) {
                 videoEffects += ScaleAndRotateTransformation.Builder()
@@ -301,25 +356,44 @@ object CompositionBuilder {
 
             if (isOverlayClip) {
                 when (clip.clipType) {
-                    "drawing" -> if (clip.strokes.isNotEmpty()) {
-                        videoEffects += overlayEffect(OverlayRenderer.renderDrawingOverlay(clip.strokes, width, height))
+                    "drawing" -> {
+                        if (clip.strokes.isNotEmpty()) {
+                            videoEffects += overlayEffect(
+                                OverlayRenderer.renderDrawingOverlay(clip.strokes, width, height)
+                            )
+                        }
                     }
-
                     "sticker" -> {
                         val path = clip.stickerAssetPath?.takeIf { it.isNotEmpty() } ?: src
-                        val bmp = path?.let { OverlayRenderer.loadBitmap(context, it, width, height) }
-                        videoEffects += if (bmp != null) overlayEffect(bmp) else textOverlay(clip, width, height)
+                        val bmp = path?.let { 
+                            OverlayRenderer.loadBitmap(context, it, width, height) 
+                        }
+                        videoEffects += if (bmp != null) {
+                            overlayEffect(bmp)
+                        } else {
+                            textOverlay(clip, width, height, context)
+                        }
                     }
-
-                    else -> videoEffects += textOverlay(clip, width, height)
+                    else -> {
+                        videoEffects += textOverlay(clip, width, height, context)
+                    }
                 }
             }
 
-            // Watermark: a NEW effect/bitmap per item (a shared OverlayEffect instance breaks across items).
-            videoEffects += overlayEffect(OverlayRenderer.renderWatermarkOverlay(width, height, "motionGr"))
+            // ওয়াটারমার্ক: প্রতিটি আইটেমের জন্য একটি নতুন ইফেক্ট/বিটম্যাপ 
+            // (একটি শেয়ার করা OverlayEffect ইন্সট্যান্স আইটেম জুড়ে ভেঙে যায়)।
+            videoEffects += overlayEffect(
+                OverlayRenderer.renderWatermarkOverlay(width, height, "motionGr")
+            )
 
-            val uri = if (isCard) Uri.fromFile(blackFrame(context, width, height)) else toUri(src!!)
+            val uri = if (isCard) {
+                Uri.fromFile(blackFrame(context, width, height))
+            } else {
+                toUri(src!!)
+            }
+            
             val mediaItemBuilder = MediaItem.Builder().setUri(uri)
+            
             if (!isImage && !isCard && clip.sourceOutMs > clip.sourceInMs) {
                 mediaItemBuilder.setClippingConfiguration(clipping(clip))
             }
@@ -334,11 +408,12 @@ object CompositionBuilder {
                 .setRemoveAudio(volume <= 0.0 || isImage || isCard)
 
             if (isImage || isCard) {
-                // Still images have no intrinsic duration -> Transformer fails without these two values.
+                // স্টিল ইমেজের কোনো অন্তর্নিহিত ডিউরেশন নেই -> এই দুটি মান ছাড়া Transformer ব্যর্থ হয়।
                 val durationMs = (if (isCard) clip.timelineDurationMs else clipDurationMs(clip, 1.0))
                     .takeIf { it > 0 }
                     ?: clipDurationMs(clip, 1.0).takeIf { it > 0 }
                     ?: DEFAULT_CARD_DURATION_MS
+                    
                 editedBuilder
                     .setDurationUs(durationMs * 1000L)
                     .setFrameRate(DEFAULT_FPS)
@@ -348,17 +423,21 @@ object CompositionBuilder {
         }
 
         require(videoItems.isNotEmpty() || audioLanes.isNotEmpty()) {
-            "Timeline is empty: add at least one visible clip before exporting"
+            "টাইমলাইন খালি: এক্সপোর্ট করার আগে অন্তত একটি দৃশ্যমান ক্লিপ যোগ করুন"
         }
 
         val sequences = mutableListOf<EditedMediaItemSequence>()
+        
         if (videoItems.isNotEmpty()) {
             sequences += EditedMediaItemSequence.Builder()
-                // Mixed items (images/cards have no audio) otherwise drop or break the audio track.
+                // মিক্সড আইটেম (ইমেজ/কার্ডে অডিও নেই) অন্যথায় অডিও ট্র্যাক ড্রপ বা ভেঙে যায়।
                 .experimentalSetForceAudioTrack(true)
-                .apply { videoItems.forEach { addItem(it) } }
+                .apply { 
+                    videoItems.forEach { addItem(it) } 
+                }
                 .build()
         }
+        
         for (lane in audioLanes) {
             sequences += EditedMediaItemSequence.Builder().apply {
                 for ((gapUs, item) in lane.parts) {

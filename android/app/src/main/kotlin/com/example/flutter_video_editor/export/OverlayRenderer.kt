@@ -1,47 +1,93 @@
 package com.example.flutter_video_editor.export
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Path
 import android.content.Context
-import android.graphics.RectF
-import android.graphics.Typeface
+import android.graphics.*
 import android.net.Uri
+import android.util.Log
+import androidx.core.content.res.ResourcesCompat
 import java.io.File
+
+// ড্রয়িং স্ট্রোকের জন্য ডেটা ক্লাস
+data class DrawingStrokeSpec(
+    val points: List<PointF>,
+    val color: Long, // Android color Int (0xAARRGGBB)
+    val strokeWidth: Float // ডিভাইস-স্বাধীন ইউনিট (0.0-1.0 স্কেল)
+)
 
 object OverlayRenderer {
 
+    private const val TAG = "OverlayRenderer"
+
+    /**
+     * বিটম্যাপ লোড করে নির্দিষ্ট সাইজে রিসাইজ করে
+     */
     fun loadBitmap(context: Context, path: String, width: Int, height: Int): Bitmap? {
         return try {
             val inputStream = when {
-                path.startsWith("content://") -> context.contentResolver.openInputStream(Uri.parse(path))
-                path.startsWith("assets/") || path.startsWith("asset/") || path.startsWith("asset://") || path.startsWith("file:///android_asset/") -> {
-                    var ap = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/")
-                    if (ap.startsWith("/")) ap = ap.substring(1)
-                    if (!ap.startsWith("flutter_assets/")) ap = "flutter_assets/$ap"
-                    try {
-                        context.assets.open(ap)
-                    } catch (_: Exception) {
-                        val rawP = path.removePrefix("asset:///").removePrefix("asset://").removePrefix("file:///android_asset/").removePrefix("/")
-                        context.assets.open(rawP)
-                    }
+                // কন্টেন্ট URI (গ্যালারি/ক্যামেরা)
+                path.startsWith("content://") ->
+                    context.contentResolver.openInputStream(Uri.parse(path))
+
+                // অ্যাসেট পাথ (ফ্লাটার অ্যাসেট)
+                path.startsWith("asset://") || path.startsWith("assets://") ||
+                        path.startsWith("asset/") || path.startsWith("assets/") ||
+                        path.startsWith("file:///android_asset/") -> {
+                    val assetPath = normalizeAssetPath(path)
+                    context.assets.open(assetPath)
                 }
+
+                // ফাইল সিস্টেম পাথ
                 else -> File(path.removePrefix("file://")).inputStream()
             }
+
             inputStream?.use { stream ->
-                val raw = android.graphics.BitmapFactory.decodeStream(stream) ?: return null
+                val options = BitmapFactory.Options().apply {
+                    inPreferredConfig = Bitmap.Config.ARGB_8888
+                }
+
+                val raw = BitmapFactory.decodeStream(stream, null, options) ?: return null
+
+                // ইতিমধ্যে কাঙ্ক্ষিত সাইজ হলে রিসাইজ করবেন না
+                if (raw.width == width && raw.height == height) {
+                    return raw
+                }
+
                 val scaled = Bitmap.createScaledBitmap(raw, width, height, true)
-                if (scaled != raw) raw.recycle()
+                if (scaled != raw) {
+                    raw.recycle()
+                }
                 scaled
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load bitmap from path: $path", e)
             null
         }
     }
 
+    /**
+     * অ্যাসেট পাথ নরমালাইজ করে
+     */
+    private fun normalizeAssetPath(path: String): String {
+        var ap = path
+            .removePrefix("asset://")
+            .removePrefix("assets://")
+            .removePrefix("asset/")
+            .removePrefix("assets/")
+            .removePrefix("file:///android_asset/")
+            .removePrefix("/")
+
+        if (!ap.startsWith("flutter_assets/")) {
+            ap = "flutter_assets/$ap"
+        }
+
+        return ap
+    }
+
+    /**
+     * টেক্সট ওভারলে বিটম্যাপ তৈরি করে
+     */
     fun renderTextOverlay(
+        context: Context,
         text: String,
         width: Int,
         height: Int,
@@ -70,18 +116,28 @@ object OverlayRenderer {
             else -> Paint.Align.CENTER
         }
 
+        // ফন্ট লোডিং (অ্যাসেট থেকে অথবা ডিফল্ট)
+        val typeface = loadTypeface(context, fontFamily)
+
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = textColorInt
             textSize = textSizeCalculated
-            typeface = Typeface.create(fontFamily, Typeface.BOLD)
+            this.typeface = typeface
             textAlign = align
+
+            // শ্যাডো শুধুমাত্র ইউজার দিলেই যোগ হবে
             if (shadowColorInt != Color.TRANSPARENT && shadowBlurPx > 0f) {
-                setShadowLayer(shadowBlurPx * scale, shadowOffsetX * scale, shadowOffsetY * scale, shadowColorInt)
-            } else {
-                setShadowLayer(8f * scale, 0f, 4f * scale, Color.BLACK)
+                setShadowLayer(
+                    shadowBlurPx * scale,
+                    shadowOffsetX * scale,
+                    shadowOffsetY * scale,
+                    shadowColorInt
+                )
             }
+            // অন্যথায় কোনো শ্যাডো নেই (ডিফল্ট কালো শ্যাডো সরানো হয়েছে)
         }
 
+        // টেক্সট পজিশন
         val x = when (align) {
             Paint.Align.LEFT -> width * 0.1f
             Paint.Align.RIGHT -> width * 0.9f
@@ -89,35 +145,39 @@ object OverlayRenderer {
         }
         val y = height * 0.8f
 
-        // Optional background box
+        // ব্যাকগ্রাউন্ড বক্স (ঐচ্ছিক)
         if (bgColorInt != Color.TRANSPARENT) {
             val textWidth = textPaint.measureText(text)
             val fontMetrics = textPaint.fontMetrics
             val pad = bgPaddingPx * scale
+
             val left = when (align) {
                 Paint.Align.LEFT -> x - pad
                 Paint.Align.RIGHT -> x - textWidth - pad
                 else -> x - (textWidth / 2f) - pad
             }
+
             val bgRect = RectF(
                 left,
                 y + fontMetrics.top - pad,
                 left + textWidth + (pad * 2f),
                 y + fontMetrics.bottom + pad
             )
+
             val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = bgColorInt
                 style = Paint.Style.FILL
             }
+
             canvas.drawRoundRect(bgRect, 8f * scale, 8f * scale, bgPaint)
         }
 
-        // Stroke rendering
+        // স্ট্রোক রেন্ডারিং (ঐচ্ছিক)
         if (strokeColorInt != Color.TRANSPARENT && strokeWidthPx > 0f) {
             val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = strokeColorInt
                 textSize = textSizeCalculated
-                typeface = Typeface.create(fontFamily, Typeface.BOLD)
+                this.typeface = typeface
                 textAlign = align
                 style = Paint.Style.STROKE
                 strokeWidth = strokeWidthPx * scale
@@ -125,10 +185,29 @@ object OverlayRenderer {
             canvas.drawText(text, x, y, strokePaint)
         }
 
+        // মূল টেক্সট রেন্ডার
         canvas.drawText(text, x, y, textPaint)
+
         return bitmap
     }
 
+    /**
+     * ফন্ট লোড করে (অ্যাসেট থেকে অথবা ডিফল্ট)
+     */
+    private fun loadTypeface(context: Context, fontFamily: String): Typeface {
+        return try {
+            // অ্যাসেট থেকে ফন্ট লোড করার চেষ্টা (fonts/ ফোল্ডারে থাকতে হবে)
+            val assetPath = "fonts/${fontFamily}-Bold.ttf"
+            Typeface.createFromAsset(context.assets, assetPath)
+        } catch (e: Exception) {
+            Log.w(TAG, "Font '$fontFamily' not found in assets, using default bold", e)
+            Typeface.DEFAULT_BOLD
+        }
+    }
+
+    /**
+     * ওয়াটারমার্ক ওভারলে বিটম্যাপ তৈরি করে
+     */
     fun renderWatermarkOverlay(
         width: Int,
         height: Int,
@@ -141,17 +220,27 @@ object OverlayRenderer {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.argb(180, 255, 255, 255)
             textSize = 24f * scale
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.RIGHT
-            setShadowLayer(4f * scale, 1f * scale, 1f * scale, Color.argb(150, 0, 0, 0))
+            // শ্যাডো (ঐচ্ছিক)
+            setShadowLayer(
+                4f * scale,
+                1f * scale,
+                1f * scale,
+                Color.argb(150, 0, 0, 0)
+            )
         }
 
         val x = width - (24f * scale)
         val y = height - (24f * scale)
         canvas.drawText(text, x, y, paint)
+
         return bitmap
     }
 
+    /**
+     * ড্রয়িং স্ট্রোক ওভারলে বিটম্যাপ তৈরি করে
+     */
     fun renderDrawingOverlay(
         strokes: List<DrawingStrokeSpec>,
         width: Int,
@@ -164,6 +253,7 @@ object OverlayRenderer {
             if (stroke.points.size < 2) continue
 
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                // Long থেকে Int-এ কনভার্ট (Android color format)
                 color = stroke.color.toInt()
                 strokeWidth = (stroke.strokeWidth * (height / 720f)).toFloat()
                 style = Paint.Style.STROKE
