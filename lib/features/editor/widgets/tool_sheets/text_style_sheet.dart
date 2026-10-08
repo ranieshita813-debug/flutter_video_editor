@@ -6,22 +6,254 @@
 //    tiles for fonts and effect presets, round color swatches.
 //  - Premiere: hairline section bars, boxed scrubbable value fields,
 //    triangle-thumb sliders, joined icon segmented control.
-// All editor calls and behaviour are unchanged; edits apply live.
+//
+// Font tab: filter chips (All / Imported / Sans / Serif / Display / Script /
+// Mono) and an "Import" tile that loads a .ttf / .otf from the device.
+// Search has been removed.
+//
+// New dependencies (pubspec.yaml):
+//   file_picker: ^8.0.0
+//   path_provider: ^2.1.0
+//   path: ^1.9.0
 
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
-import 'package:flutter_video_editor/features/editor/widgets/tool_search_header.dart';
 
 const Color _card = Color(0xFF232327);
 const Color _field = Color(0xFF18181B);
 const Color _line = Color(0xFF2C2C31);
 const Color _track = Color(0xFF45454C);
 const Color _accent = Color(0xFF2DE2E6);
+
+// ----------------------------------------------------------------------------
+// Imported font library
+// ----------------------------------------------------------------------------
+
+@immutable
+class ImportedFont {
+  const ImportedFont({required this.name, required this.path});
+  final String name;
+  final String path;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{'name': name, 'path': path};
+
+  static ImportedFont? fromJson(Object? j) {
+    if (j is! Map) return null;
+    final Object? n = j['name'];
+    final Object? f = j['path'];
+    if (n is String && f is String) return ImportedFont(name: n, path: f);
+    return null;
+  }
+}
+
+/// Keeps fonts the user imported from local storage.
+///
+/// Files are copied into `<documents>/imported_fonts/`, registered with the
+/// engine through [FontLoader] (so `TextStyle(fontFamily: name)` works
+/// everywhere, including the preview), and listed in `index.json` so they
+/// survive restarts. Use [pathFor] when exporting with FFmpeg's drawtext
+/// (`fontfile=`).
+class FontLibrary extends ChangeNotifier {
+  FontLibrary._();
+  static final FontLibrary instance = FontLibrary._();
+
+  final List<ImportedFont> _fonts = <ImportedFont>[];
+  Future<void>? _init;
+
+  List<ImportedFont> get fonts => List<ImportedFont>.unmodifiable(_fonts);
+  bool has(String name) => _fonts.any((f) => f.name == name);
+  String? pathFor(String name) {
+    for (final f in _fonts) {
+      if (f.name == name) return f.path;
+    }
+    return null;
+  }
+
+  Future<Directory> _dir() async {
+    final Directory root = await getApplicationDocumentsDirectory();
+    final Directory d = Directory(p.join(root.path, 'imported_fonts'));
+    if (!await d.exists()) await d.create(recursive: true);
+    return d;
+  }
+
+  Future<void> init() => _init ??= _load();
+
+  Future<void> _load() async {
+    try {
+      final Directory d = await _dir();
+      final File index = File(p.join(d.path, 'index.json'));
+      if (!await index.exists()) return;
+      final Object? raw = jsonDecode(await index.readAsString());
+      if (raw is! List) return;
+      for (final Object? e in raw) {
+        final ImportedFont? f = ImportedFont.fromJson(e);
+        if (f == null || !await File(f.path).exists()) continue;
+        try {
+          await _register(f.name, f.path);
+          _fonts.add(f);
+        } catch (e) {
+          debugPrint('Skipping broken font ${f.name}: $e');
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Font library load failed: $e');
+    }
+  }
+
+  Future<void> _register(String name, String path) async {
+    final Uint8List bytes = await File(path).readAsBytes();
+    final FontLoader loader = FontLoader(name)
+      ..addFont(Future<ByteData>.value(ByteData.sublistView(bytes)));
+    await loader.load();
+  }
+
+  Future<void> _save() async {
+    final Directory d = await _dir();
+    await File(p.join(d.path, 'index.json')).writeAsString(
+      jsonEncode(_fonts.map((f) => f.toJson()).toList()),
+    );
+  }
+
+  /// Opens the system file picker. Returns the imported font, or null when
+  /// the user cancelled. Throws [FormatException] with a readable message
+  /// when the file can't be used.
+  Future<ImportedFont?> importFromDevice({
+    required Set<String> takenNames,
+  }) async {
+    await init();
+    final FilePickerResult? res = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const <String>['ttf', 'otf'],
+    );
+    final String? src = res?.files.single.path;
+    if (src == null) return null;
+
+    final String ext = p.extension(src).toLowerCase();
+    String base = p
+        .basenameWithoutExtension(src)
+        .replaceAll(RegExp(r'[^A-Za-z0-9 _-]'), '_')
+        .trim();
+    if (base.isEmpty) base = 'Imported font';
+
+    String name = base;
+    int n = 2;
+    while (takenNames.contains(name) || has(name)) {
+      name = '$base ($n)';
+      n++;
+    }
+
+    final Directory d = await _dir();
+    final String dest = p.join(d.path, '${name.replaceAll(' ', '_')}$ext');
+    await File(src).copy(dest);
+    try {
+      await _register(name, dest);
+    } catch (_) {
+      await File(dest).delete();
+      throw const FormatException("That file isn't a valid font");
+    }
+
+    final ImportedFont f = ImportedFont(name: name, path: dest);
+    _fonts.add(f);
+    await _save();
+    notifyListeners();
+    return f;
+  }
+
+  /// Removes the file and the list entry. The engine can't unregister a
+  /// family until the app restarts, so clips already using it keep rendering
+  /// for this session.
+  Future<void> remove(String name) async {
+    final int i = _fonts.indexWhere((f) => f.name == name);
+    if (i < 0) return;
+    final ImportedFont f = _fonts.removeAt(i);
+    try {
+      final File file = File(f.path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+    await _save();
+    notifyListeners();
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Font filters
+// ----------------------------------------------------------------------------
+
+enum _FontFilter {
+  all('All'),
+  imported('Imported'),
+  sans('Sans'),
+  serif('Serif'),
+  display('Display'),
+  script('Script'),
+  mono('Mono');
+
+  const _FontFilter(this.label);
+  final String label;
+}
+
+/// Category for the fonts that ship with the app. Names not listed here
+/// still show up under "All".
+const Map<String, _FontFilter> _categories = <String, _FontFilter>{
+  'poppins': _FontFilter.sans,
+  'roboto': _FontFilter.sans,
+  'raleway': _FontFilter.sans,
+  'montserrat': _FontFilter.sans,
+  'inter': _FontFilter.sans,
+  'open sans': _FontFilter.sans,
+  'lato': _FontFilter.sans,
+  'nunito': _FontFilter.sans,
+  'playfair display': _FontFilter.serif,
+  'playfair': _FontFilter.serif,
+  'merriweather': _FontFilter.serif,
+  'lora': _FontFilter.serif,
+  'times new roman': _FontFilter.serif,
+  'oswald': _FontFilter.display,
+  'anton': _FontFilter.display,
+  'bebas neue': _FontFilter.display,
+  'bebas': _FontFilter.display,
+  'impact': _FontFilter.display,
+  'lobster': _FontFilter.script,
+  'pacifico': _FontFilter.script,
+  'caveat': _FontFilter.script,
+  'dancing script': _FontFilter.script,
+  'courier': _FontFilter.mono,
+  'courier new': _FontFilter.mono,
+  'roboto mono': _FontFilter.mono,
+  'space mono': _FontFilter.mono,
+  'fira code': _FontFilter.mono,
+};
+
+@immutable
+class _FontEntry {
+  const _FontEntry(this.name, this.category, this.imported);
+  final String name;
+  final _FontFilter? category;
+  final bool imported;
+
+  bool matches(_FontFilter f) => switch (f) {
+        _FontFilter.all => true,
+        _FontFilter.imported => imported,
+        _ => category == f,
+      };
+}
+
+// ----------------------------------------------------------------------------
+// Sheet
+// ----------------------------------------------------------------------------
 
 enum _Tab {
   font('Font'),
@@ -41,9 +273,11 @@ class TextStyleSheet extends StatefulWidget {
 }
 
 class _TextStyleSheetState extends State<TextStyleSheet> {
-  String _searchQuery = '';
-  String _selectedTag = 'All';
   _Tab _tab = _Tab.font;
+  _FontFilter _filter = _FontFilter.all;
+  bool _importing = false;
+
+  final FontLibrary _library = FontLibrary.instance;
 
   final List<Color> _colors = const [
     Colors.white,
@@ -69,6 +303,61 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _library.addListener(_onLibrary);
+    _library.init();
+  }
+
+  @override
+  void dispose() {
+    _library.removeListener(_onLibrary);
+    super.dispose();
+  }
+
+  void _onLibrary() {
+    if (mounted) setState(() {});
+  }
+
+  // ---- Fonts ----------------------------------------------------------------
+
+  List<_FontEntry> _allFonts(EditorController editor) {
+    final Set<String> imported = _library.fonts.map((f) => f.name).toSet();
+    return <_FontEntry>[
+      for (final String n in editor.availableFonts)
+        if (!imported.contains(n)) _FontEntry(n, _categories[n.toLowerCase()], false),
+      for (final ImportedFont f in _library.fonts) _FontEntry(f.name, null, true),
+    ];
+  }
+
+  void _toast(String msg) {
+    ScaffoldMessenger.maybeOf(context)
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _import(EditorController editor) async {
+    if (_importing) return;
+    setState(() => _importing = true);
+    try {
+      final ImportedFont? f = await _library.importFromDevice(
+        takenNames: editor.availableFonts.toSet(),
+      );
+      if (f == null || !mounted) return;
+      editor.updateSelectedClipFont(f.name);
+      setState(() => _filter = _FontFilter.imported);
+    } on FormatException catch (e) {
+      _toast(e.message);
+    } catch (_) {
+      _toast("Couldn't import that font. Try another file");
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
+
+  // ---- Build ----------------------------------------------------------------
+
+  @override
   Widget build(BuildContext context) {
     final editor = context.watch<EditorController>();
     final clip = editor.selectedClip;
@@ -84,12 +373,9 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
     }
 
     final ts = clip.textStyle;
-    final fonts = editor.availableFonts
-        .where((f) => f.toLowerCase().contains(_searchQuery.toLowerCase()))
-        .toList();
 
     final Widget body = switch (_tab) {
-      _Tab.font => _fontTab(editor, clip, fonts),
+      _Tab.font => _fontTab(editor, clip),
       _Tab.effects => _effectsTab(editor, ts),
       _Tab.color => _colorTab(editor, ts),
       _Tab.layout => _layoutTab(editor, ts),
@@ -97,15 +383,6 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
 
     return Column(
       children: [
-        ToolSearchHeader(
-          onSearchChanged: (q) => setState(() {
-            _searchQuery = q;
-            if (q.isNotEmpty) _tab = _Tab.font; // searching means fonts
-          }),
-          onTagSelected: (t) => setState(() => _selectedTag = t),
-          selectedTag: _selectedTag,
-          placeholder: 'Search fonts & styles...',
-        ),
         _tabBar(),
         Expanded(
           child: SingleChildScrollView(
@@ -195,39 +472,179 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
 
   // ---- Font tab -------------------------------------------------------------
 
-  Widget _fontTab(EditorController editor, dynamic clip, List<String> fonts) {
-    if (fonts.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(32),
-        child: Center(
-          child: Text('No fonts match your search',
-              style: TextStyle(color: EditorTokens.muted, fontSize: 12, fontFamily: 'Poppins')),
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-      child: LayoutBuilder(builder: (context, box) {
-        const int cols = 4;
-        const double gap = 8;
-        final double w = (box.maxWidth - gap * (cols - 1)) / cols;
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
-          children: [
-            for (final font in fonts)
-              _fontTile(font, w, clip.fontFamily == font, () => editor.updateSelectedClipFont(font)),
-          ],
-        );
-      }),
+  Widget _fontTab(EditorController editor, dynamic clip) {
+    final List<_FontEntry> all = _allFonts(editor);
+    final List<_FontEntry> shown = all.where((f) => f.matches(_filter)).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _filterChips(),
+        if (shown.isEmpty)
+          _emptyState(editor)
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: LayoutBuilder(builder: (context, box) {
+              const int cols = 4;
+              const double gap = 8;
+              final double w = (box.maxWidth - gap * (cols - 1)) / cols;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  _importTile(editor, w),
+                  for (final _FontEntry font in shown)
+                    _fontTile(
+                      font,
+                      w,
+                      clip.fontFamily == font.name,
+                      () => editor.updateSelectedClipFont(font.name),
+                    ),
+                ],
+              );
+            }),
+          ),
+      ],
     );
   }
 
-  Widget _fontTile(String font, double w, bool on, VoidCallback f) {
+  Widget _filterChips() {
+    return SizedBox(
+      height: 30,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _FontFilter.values.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final _FontFilter f = _FontFilter.values[i];
+          final bool on = f == _filter;
+          return Semantics(
+            button: true,
+            selected: on,
+            label: '${f.label} fonts',
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _filter = f);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 13),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: on ? _accent.withAlpha(30) : _card,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: on ? _accent : Colors.transparent),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (f == _FontFilter.imported) ...[
+                      Icon(Icons.file_upload_outlined,
+                          size: 14, color: on ? _accent : EditorTokens.muted),
+                      const SizedBox(width: 5),
+                    ],
+                    Text(
+                      f.label,
+                      style: TextStyle(
+                        color: on ? _accent : EditorTokens.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ).withTopPadding(12);
+  }
+
+  Widget _emptyState(EditorController editor) {
+    final bool imp = _filter == _FontFilter.imported;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 32, 16, 0),
+      child: Column(
+        children: [
+          Text(
+            imp
+                ? 'Import a .ttf or .otf from your device to use it in your text.'
+                : 'No fonts in this category',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: EditorTokens.muted, fontSize: 12, fontFamily: 'Poppins'),
+          ),
+          if (imp) ...[
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: _importing ? null : () => _import(editor),
+              icon: const Icon(Icons.file_upload_outlined, size: 18),
+              label: const Text('Import font'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _accent,
+                side: const BorderSide(color: _accent),
+                backgroundColor: _card,
+                minimumSize: const Size(0, 40),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Dashed "Import" tile, always the first item in the grid.
+  Widget _importTile(EditorController editor, double w) {
+    return Semantics(
+      button: true,
+      label: 'Import font from device',
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          _import(editor);
+        },
+        child: CustomPaint(
+          painter: _DashedRRectPainter(color: _track, radius: 8),
+          child: SizedBox(
+            width: w,
+            height: 68,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_importing)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: _accent),
+                  )
+                else
+                  const Icon(Icons.note_add_outlined, size: 22, color: _accent),
+                const SizedBox(height: 6),
+                const Text('Import',
+                    style: TextStyle(
+                        color: _accent,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Poppins')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _fontTile(_FontEntry font, double w, bool on, VoidCallback f) {
     return Semantics(
       button: true,
       selected: on,
-      label: font,
+      label: font.name,
       child: GestureDetector(
         onTap: () {
           HapticFeedback.selectionClick();
@@ -241,25 +658,51 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: on ? _accent : Colors.transparent, width: 1.4),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
             children: [
-              Text('Aa',
-                  style: TextStyle(
-                      color: on ? _accent : EditorTokens.text,
-                      fontSize: 22,
-                      fontFamily: font)),
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(font,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: on ? _accent : EditorTokens.muted,
-                        fontSize: 9.5,
-                        fontFamily: 'Poppins')),
+              Positioned.fill(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Aa',
+                        style: TextStyle(
+                            color: on ? _accent : EditorTokens.text,
+                            fontSize: 22,
+                            fontFamily: font.name)),
+                    const SizedBox(height: 4),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(font.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: on ? _accent : EditorTokens.muted,
+                              fontSize: 9.5,
+                              fontFamily: 'Poppins')),
+                    ),
+                  ],
+                ),
               ),
+              if (font.imported)
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: Semantics(
+                    button: true,
+                    label: 'Remove ${font.name}',
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        _library.remove(font.name);
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(5),
+                        child: Icon(Icons.close_rounded, size: 13, color: EditorTokens.muted),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -395,7 +838,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                effect == 'none' ? 'Ab' : 'Ab',
+                'Ab',
                 style: TextStyle(
                   color: effect == 'neon' ? cyan : Colors.white,
                   fontSize: 24,
@@ -572,6 +1015,42 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
       ),
     );
   }
+}
+
+extension on Widget {
+  Widget withTopPadding(double v) => Padding(padding: EdgeInsets.only(top: v), child: this);
+}
+
+/// Dashed rounded-rect outline for the Import tile.
+class _DashedRRectPainter extends CustomPainter {
+  _DashedRRectPainter({required this.color, required this.radius});
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Path path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+        Offset.zero & size,
+        Radius.circular(radius),
+      ));
+    final Paint paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    const double dash = 5, gap = 4;
+    for (final metric in path.computeMetrics()) {
+      double d = 0;
+      while (d < metric.length) {
+        canvas.drawPath(metric.extractPath(d, d + dash), paint);
+        d += dash + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRRectPainter old) =>
+      old.color != color || old.radius != radius;
 }
 
 // ---- Premiere-style parameter row ---------------------------------------------

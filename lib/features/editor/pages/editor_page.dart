@@ -92,7 +92,6 @@ class _EditorPageState extends State<EditorPage> {
     final editor = context.read<EditorController>();
     final Size size = MediaQuery.sizeOf(context);
     final bool wide = isWide(size);
-    final bool keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
@@ -146,7 +145,10 @@ class _EditorPageState extends State<EditorPage> {
                     .toDouble();
                 final double sideW =
                     (c.maxWidth * 0.3).clamp(320.0, 440.0).toDouble();
-                final bool hideTimeline = keyboard && _tool != null && !wide;
+
+                // On phones, an open tool sheet hides the timeline, divider
+                // and transport bar so the preview gets all the space.
+                final bool hideTimeline = _tool != null && !wide;
 
                 final Widget toolbar = EditorToolbar(
                   key: const ValueKey('bar'),
@@ -166,7 +168,17 @@ class _EditorPageState extends State<EditorPage> {
                       valueListenable: canvasRatioNotifier,
                       builder: (context, ratio, _) {
                         final Widget pv = PreviewCanvas(editor: editor);
-                        if (hideTimeline) return Expanded(child: pv);
+                        if (hideTimeline) {
+                          // No transport bar here, so tap the preview to
+                          // play / pause while tweaking a tool.
+                          return Expanded(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: editor.togglePlayback,
+                              child: pv,
+                            ),
+                          );
+                        }
                         final double s = scaleOf(size);
                         final EdgeInsets safe = MediaQuery.paddingOf(context);
                         final double pad = 10 * s;
@@ -198,7 +210,7 @@ class _EditorPageState extends State<EditorPage> {
                         return SizedBox(height: hgt, child: pv);
                       },
                     ),
-                    TransportBar(editor: editor),
+                    if (!hideTimeline) TransportBar(editor: editor),
                     if (!hideTimeline)
                       PaneDivider(
                         onDrag: (dy) => setState(() => _splitAdj =
@@ -209,7 +221,7 @@ class _EditorPageState extends State<EditorPage> {
                       Expanded(
                         child: TimelineWidget(
                           editor: editor,
-                          compact: _tool != null && !wide,
+                          compact: false,
                           multiOn: _multiOn,
                           multi: _multi,
                           onClearMulti: _clearMulti,
