@@ -35,7 +35,7 @@ enum WaveStyle {
 }
 
 /// Change at runtime (e.g. from a settings sheet): `waveStyle.value = WaveStyle.bars`.
-final ValueNotifier<WaveStyle> waveStyle = ValueNotifier<WaveStyle>(WaveStyle.peakRms);
+final ValueNotifier<WaveStyle> waveStyle = ValueNotifier<WaveStyle>(WaveStyle.bars);
 
 /// Normalised 0..1 amplitude envelopes, same length.
 class WaveData {

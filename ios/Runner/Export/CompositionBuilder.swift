@@ -61,6 +61,33 @@ class CompositionBuilder {
 
         videoComposition.instructions = [instruction]
 
+        // Add "motionGr" watermark text layer to videoComposition
+        let videoSize = CGSize(width: timeline.settings.width, height: timeline.settings.height)
+        let watermarkLayer = CATextLayer()
+        watermarkLayer.string = "motionGr"
+        watermarkLayer.font = CTFontCreateWithName("Helvetica-Bold" as CFString, 24 * (videoSize.height / 720.0), nil)
+        watermarkLayer.fontSize = 24 * (videoSize.height / 720.0)
+        watermarkLayer.foregroundColor = UIColor.white.withAlphaComponent(0.7).cgColor
+        watermarkLayer.alignmentMode = .right
+        watermarkLayer.frame = CGRect(
+            x: 0,
+            y: 20 * (videoSize.height / 720.0),
+            width: videoSize.width - 24 * (videoSize.height / 720.0),
+            height: 40 * (videoSize.height / 720.0)
+        )
+
+        let parentLayer = CALayer()
+        let videoLayer = CALayer()
+        parentLayer.frame = CGRect(origin: .zero, size: videoSize)
+        videoLayer.frame = CGRect(origin: .zero, size: videoSize)
+        parentLayer.addSublayer(videoLayer)
+        parentLayer.addSublayer(watermarkLayer)
+
+        videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(
+            postProcessingAsVideoLayer: videoLayer,
+            in: parentLayer
+        )
+
         return BuiltComposition(
             composition: composition,
             videoComposition: videoComposition,

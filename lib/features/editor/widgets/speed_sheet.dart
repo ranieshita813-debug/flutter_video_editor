@@ -202,30 +202,8 @@ class _SpeedSheetState extends State<SpeedSheet> {
     }
   }
 
-  Future<void> _close() async {
-    if (!_dirty) {
-      _dismiss();
-      return;
-    }
-    final bool? discard = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _card,
-        title: const Text('Discard changes?',
-            style: TextStyle(color: _text, fontSize: 17)),
-        content: const Text('Your speed changes haven\'t been applied.',
-            style: TextStyle(color: _muted, fontSize: 14)),
-        actions: <Widget>[
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Keep editing', style: TextStyle(color: _accent))),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Discard', style: TextStyle(color: _muted))),
-        ],
-      ),
-    );
-    if (discard == true && mounted) _dismiss();
+  void _close() {
+    _dismiss();
   }
 
   void _confirm(EditorController c) {

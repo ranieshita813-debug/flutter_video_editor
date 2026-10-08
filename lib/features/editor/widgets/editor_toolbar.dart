@@ -161,12 +161,6 @@ class EditorToolbar extends StatelessWidget {
           icon: HugeIcons.strokeRoundedTarget01,
           onTap: () => onSelectToolSheet('track'),
         ),
-        EditorToolbarItem(
-          id: 'plugins',
-          title: 'Plug-ins',
-          icon: HugeIcons.strokeRoundedGridView,
-          onTap: () => onSelectToolSheet('plugins'),
-        ),
       ];
     }
 

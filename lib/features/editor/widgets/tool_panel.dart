@@ -3,7 +3,6 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/order_tool_view.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
-import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/color_grading_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/adjustments_sheet.dart';
 
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
@@ -27,7 +26,6 @@ enum EditorTool {
   mask('Mask', HugeIcons.strokeRoundedSquare),
   camera('Camera', HugeIcons.strokeRoundedCamera01),
   track('Track', HugeIcons.strokeRoundedTarget01),
-  plugins('Plug-ins', HugeIcons.strokeRoundedGridView),
   textStyle('Text Style', HugeIcons.strokeRoundedTextFont),
   animation('Animation', HugeIcons.strokeRoundedPlay),
   order('Order', HugeIcons.strokeRoundedArrowUpDown);
@@ -42,7 +40,10 @@ enum EditorTool {
         EditorTool.stickers => const StickersSheet(),
         EditorTool.filters => const EffectsSheet(isFilterMode: true),
         EditorTool.effects => const EffectsSheet(isFilterMode: false),
-        EditorTool.adjust => const AdjustSheet(),
+        EditorTool.adjust => AdjustSheet(
+            onApply: (_) {},
+            onClose: () {},
+          ),
         EditorTool.crop => const CropSheet(),
         EditorTool.speed => const SpeedSheet(),
         EditorTool.elements => const ElementsSheet(),
@@ -50,7 +51,6 @@ enum EditorTool {
         EditorTool.mask => const MaskSheet(),
         EditorTool.camera => const CameraSettingsSheet(),
         EditorTool.track => const CameraTrackingPanel(),
-        EditorTool.plugins => const PluginsSheet(),
         EditorTool.textStyle => const TextStyleSheet(),
         EditorTool.animation => const ClipAnimationSheet(),
         EditorTool.order => const OrderToolView(),
