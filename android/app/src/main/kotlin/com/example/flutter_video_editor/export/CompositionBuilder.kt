@@ -96,7 +96,7 @@ object CompositionBuilder {
         }
         if (isAssetPath(path)) {
             val ap = toAssetPath(path)
-            return Uri.parse("asset:///$ap")
+            return Uri.parse("file:///android_asset/$ap")
         }
         return Uri.fromFile(File(path.removePrefix("file://")))
     }
@@ -244,6 +244,10 @@ object CompositionBuilder {
                             )
                         )
                     }
+                } else if (clip.clipType == "element") {
+                    val svgStr = clip.svgPath ?: clip.sourcePath
+                    val bmp = OverlayRenderer.renderElementOverlay(context, svgStr, clip.label, width, height)
+                    videoEffects += overlayEffect(bmp)
                 } else {
                     val ts = clip.textStyle
                     videoEffects += overlayEffect(
@@ -268,7 +272,7 @@ object CompositionBuilder {
                 }
             }
 
-            val uri = if (src != null) toUri(context, src) else Uri.fromFile(blackFrame(context, width, height))
+            val uri = if (!isOverlayClip && src != null) toUri(context, src) else Uri.fromFile(blackFrame(context, width, height))
             val mediaItemBuilder = MediaItem.Builder().setUri(uri)
 
             // Trimming only makes sense for real video; images / cards use a duration instead.

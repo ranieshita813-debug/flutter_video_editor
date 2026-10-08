@@ -82,27 +82,72 @@ class ToolPanel extends StatelessWidget {
           HugeIcon(icon: tool.icon, color: Colors.white70, size: 18),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(tool.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+            child: Text(
+              tool.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Poppins',
+              ),
+            ),
           ),
-          IconButton(
-            tooltip: 'Done',
-            icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedTick01, color: Colors.white, size: 22),
-            onPressed: () {
-              tapFeedback();
-              onClose();
-            },
-          ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 16),
         ],
+      );
+
+  Widget _footer() => Container(
+        height: 52,
+        decoration: const BoxDecoration(
+          color: surfaceToken,
+          border: Border(top: BorderSide(color: dividerToken, width: 0.5)),
+        ),
+        child: Row(
+          children: <Widget>[
+            IconButton(
+              tooltip: 'Cancel',
+              icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedCancel01,
+                color: Colors.white70,
+                size: 20.0,
+              ),
+              onPressed: () {
+                tapFeedback();
+                onClose();
+              },
+            ),
+            const Spacer(),
+            Text(
+              tool.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              tooltip: 'Apply',
+              icon: const HugeIcon(
+                icon: HugeIcons.strokeRoundedTick01,
+                color: Colors.white,
+                size: 22.0,
+              ),
+              onPressed: () {
+                tapFeedback();
+                onClose();
+              },
+            ),
+          ],
+        ),
       );
 
   @override
   Widget build(BuildContext context) {
+    final bool hasSelfFooter = tool == EditorTool.adjust || tool == EditorTool.speed;
     final Widget body = Expanded(
       child: ClipRect(
         child: Material(type: MaterialType.transparency, child: tool.body),
@@ -122,6 +167,7 @@ class ToolPanel extends StatelessWidget {
               SizedBox(height: 52, child: _header()),
               const Divider(height: 1, thickness: 0.5, color: dividerToken),
               body,
+              if (!hasSelfFooter) _footer(),
             ],
           ),
         ),
@@ -131,7 +177,6 @@ class ToolPanel extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: surfaceToken,
-        
         border: Border(top: BorderSide(color: dividerToken)),
       ),
       child: SafeArea(
@@ -165,6 +210,7 @@ class ToolPanel extends StatelessWidget {
               ),
               const Divider(height: 1, thickness: 0.5, color: dividerToken),
               body,
+              if (!hasSelfFooter) _footer(),
             ],
           ),
         ),
