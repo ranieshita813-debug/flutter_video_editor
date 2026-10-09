@@ -1014,6 +1014,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
               buildDefaultDragHandles: false,
               padding: const EdgeInsets.only(right: 12),
               itemCount: _selected.length,
+              // ignore: deprecated_member_use
               onReorder: _reorder,
               proxyDecorator:
                   (Widget child, int index, Animation<double> animation) =>
