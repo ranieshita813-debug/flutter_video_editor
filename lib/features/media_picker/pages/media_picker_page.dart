@@ -27,6 +27,16 @@ String _fmt(Duration d) {
   return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
 }
 
+class MediaPickerArgs {
+  const MediaPickerArgs({
+    this.appendToCurrent = false,
+    this.isOverlay = false,
+  });
+
+  final bool appendToCurrent;
+  final bool isOverlay;
+}
+
 /// Kept for compatibility with other files that may import it.
 class MediaAsset {
   MediaAsset({
@@ -323,6 +333,31 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     setState(() => _adding = true);
 
     try {
+      final Object? routeArgs = ModalRoute.of(context)?.settings.arguments;
+      final MediaPickerArgs? pickerArgs =
+          routeArgs is MediaPickerArgs ? routeArgs : null;
+
+      final EditorController editor =
+          Provider.of<EditorController>(context, listen: false);
+
+      if (pickerArgs != null && pickerArgs.appendToCurrent) {
+        for (int i = 0; i < _selected.length; i++) {
+          final _Picked p = _selected[i];
+          final String? path = p.path ?? (await p.entity?.file)?.path;
+          if (path != null && path.isNotEmpty) {
+            if (pickerArgs.isOverlay) {
+              editor.addOverlayClip(path);
+            } else {
+              editor.addMediaClip(path);
+            }
+          }
+        }
+        if (mounted) {
+          Navigator.of(context).pop(_selected.first.path ?? (await _selected.first.entity?.file)?.path);
+        }
+        return;
+      }
+
       final List<TimelineClip> clips = <TimelineClip>[];
       Duration offset = Duration.zero;
       final int stamp = DateTime.now().millisecondsSinceEpoch;
@@ -360,8 +395,6 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       if (!mounted) return;
       final ProjectsController projects =
           Provider.of<ProjectsController>(context, listen: false);
-      final EditorController editor =
-          Provider.of<EditorController>(context, listen: false);
 
       final newProj = projects.createProject(
         name: _selected.first.name,

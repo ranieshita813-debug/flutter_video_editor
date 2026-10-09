@@ -404,9 +404,9 @@ class EditorController extends ChangeNotifier {
   // Layer helpers
   // ---------------------------------------------------------------------------
   bool _isOverlay(TimelineClip c) =>
-      c.clipType != ClipType.video &&
-      c.clipType != ClipType.image &&
-      c.clipType != ClipType.audio;
+      c.clipType != ClipType.audio &&
+      (c.layerIndex > 0 ||
+          (c.clipType != ClipType.video && c.clipType != ClipType.image));
 
   /// First overlay layer at or above [base] with no time overlap against
   /// [start]..[end], so two clips playing together never share one lane.
@@ -444,6 +444,35 @@ class EditorController extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   void addClip(TimelineClip clip) {
     _saveState();
+    _project.addClip(clip);
+    _selectedClipId = clip.id;
+    _autosave();
+    notifyListeners();
+  }
+
+  void addOverlayClip(String path) {
+    _saveState();
+    final lower = path.toLowerCase();
+    final isVideo = lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.3gp') ||
+        lower.endsWith('.mkv') ||
+        lower.endsWith('.avi') ||
+        lower.endsWith('.webm');
+
+    final Duration start = _playhead;
+    final Duration end = _playhead + const Duration(seconds: 5);
+    final clip = TimelineClip(
+      id: 'overlay_${DateTime.now().millisecondsSinceEpoch}',
+      label: path.split(RegExp(r'[\\/]')).last,
+      start: start,
+      end: end,
+      clipType: isVideo ? ClipType.video : ClipType.image,
+      layerIndex: _freeOverlayLayer(1, start, end),
+      sourcePath: path,
+    );
+
     _project.addClip(clip);
     _selectedClipId = clip.id;
     _autosave();

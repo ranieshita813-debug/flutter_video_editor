@@ -24,10 +24,12 @@ class EditorToolbar extends StatelessWidget {
     super.key,
     required this.onSelectToolSheet,
     required this.onAddMedia,
+    required this.onAddOverlay,
   });
 
   final ValueChanged<String> onSelectToolSheet;
   final VoidCallback onAddMedia;
+  final VoidCallback onAddOverlay;
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +96,12 @@ class EditorToolbar extends StatelessWidget {
           title: 'Add Media',
           icon: HugeIcons.strokeRoundedAdd01,
           onTap: onAddMedia,
+        ),
+        EditorToolbarItem(
+          id: 'overlay',
+          title: 'Overlay',
+          icon: HugeIcons.strokeRoundedLayers01,
+          onTap: onAddOverlay,
         ),
         EditorToolbarItem(
           id: 'text',

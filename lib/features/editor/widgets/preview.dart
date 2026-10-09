@@ -753,12 +753,14 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
 
                     final activeOverlays = e.clips.where((c) {
                       return c.isVisible &&
-                          c.clipType != ClipType.video &&
-                          c.clipType != ClipType.image &&
                           c.clipType != ClipType.audio &&
+                          (c.layerIndex > 0 ||
+                              (c.clipType != ClipType.video &&
+                                  c.clipType != ClipType.image)) &&
                           e.playhead >= c.start &&
                           e.playhead <= c.end;
-                    }).toList();
+                    }).toList()
+                      ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
 
                     return Stack(
                       fit: StackFit.expand,
@@ -1152,6 +1154,41 @@ class _OverlayClipState extends State<_OverlayClip> {
     final clip = widget.clip;
     final double u = widget.unit;
     switch (clip.clipType) {
+      case ClipType.video:
+      case ClipType.image:
+        final path = clip.sourcePath;
+        final bool isImg = clip.clipType == ClipType.image ||
+            (path != null && isImagePath(path));
+        Widget mediaWidget;
+        if (isImg && path != null && File(path).existsSync()) {
+          Widget img = Image.file(
+            File(path),
+            fit: BoxFit.contain,
+          );
+          if (clip.chromaKey.enabled) {
+            img = ChromaKeyPreview(
+              chroma: clip.chromaKey,
+              child: img,
+            );
+          }
+          mediaWidget = SizedBox(
+            width: 150 * clip.scale * u,
+            height: 150 * clip.scale * u,
+            child: img,
+          );
+        } else if (!isImg && path != null && File(path).existsSync()) {
+          mediaWidget = _OverlayVideoPlayer(
+            clip: clip,
+            unit: u,
+            editor: context.read<EditorController>(),
+          );
+        } else {
+          mediaWidget = Text(
+            clip.label,
+            style: TextStyle(color: Colors.white, fontSize: 16 * u),
+          );
+        }
+        return _applyAnimations(mediaWidget, clip);
       case ClipType.text:
       case ClipType.caption:
       case ClipType.sticker:
@@ -1425,6 +1462,146 @@ class _OverlayClipState extends State<_OverlayClip> {
         ),
       ),
     );
+  }
+}
+
+class _OverlayVideoPlayer extends StatefulWidget {
+  const _OverlayVideoPlayer({
+    required this.clip,
+    required this.unit,
+    required this.editor,
+  });
+
+  final TimelineClip clip;
+  final double unit;
+  final EditorController editor;
+
+  @override
+  State<_OverlayVideoPlayer> createState() => _OverlayVideoPlayerState();
+}
+
+class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
+  VideoPlayerController? _vc;
+  bool _failed = false;
+
+  EditorController get _e => widget.editor;
+
+  @override
+  void initState() {
+    super.initState();
+    _e.addListener(_onEditor);
+    _load(widget.clip.sourcePath);
+  }
+
+  @override
+  void didUpdateWidget(covariant _OverlayVideoPlayer old) {
+    super.didUpdateWidget(old);
+    if (old.clip.sourcePath != widget.clip.sourcePath) {
+      _load(widget.clip.sourcePath);
+    }
+  }
+
+  @override
+  void dispose() {
+    _e.removeListener(_onEditor);
+    _vc?.dispose();
+    super.dispose();
+  }
+
+  void _onEditor() {
+    final c = _vc;
+    if (!mounted || c == null || !c.value.isInitialized) return;
+
+    Duration local = _e.playhead - widget.clip.start;
+    if (local.isNegative) local = Duration.zero;
+    final Duration dur = c.value.duration;
+    if (local > dur) local = dur;
+
+    final Duration drift = (c.value.position - local).abs();
+
+    if (_e.isPlaying) {
+      if (!c.value.isPlaying) {
+        c.seekTo(local).then((_) => c.play());
+      } else if (drift > const Duration(milliseconds: 400)) {
+        c.seekTo(local);
+      }
+    } else {
+      if (c.value.isPlaying) c.pause();
+      if (drift > const Duration(milliseconds: 40)) c.seekTo(local);
+    }
+  }
+
+  Future<void> _load(String? path) async {
+    if (path == null || path.isEmpty) return;
+
+    final file = File(path);
+    if (!await file.exists()) {
+      if (mounted) setState(() => _failed = true);
+      return;
+    }
+
+    final c = VideoPlayerController.file(
+      file,
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+    );
+
+    try {
+      await c.initialize();
+      await c.setLooping(false);
+      await c.setVolume(widget.clip.volume);
+      if (mounted) {
+        setState(() {
+          _vc = c;
+          _failed = false;
+        });
+        _onEditor();
+      }
+    } catch (_) {
+      c.dispose();
+      if (mounted) setState(() => _failed = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = widget.clip;
+    final double u = widget.unit;
+    final c = _vc;
+    final bool ready = c != null && c.value.isInitialized;
+
+    if (!ready || _failed) {
+      return Container(
+        width: 150 * clip.scale * u,
+        height: 100 * clip.scale * u,
+        color: Colors.black45,
+        child: Center(
+          child: Text(
+            clip.label,
+            style: TextStyle(color: Colors.white, fontSize: 12 * u),
+          ),
+        ),
+      );
+    }
+
+    final Size vs = c.value.size;
+    final double videoAspect = vs.width > 0 && vs.height > 0 ? vs.width / vs.height : 16 / 9;
+    final double w = 150 * clip.scale * u;
+    final double h = w / videoAspect;
+
+    Widget playerWidget = SizedBox(
+      width: w,
+      height: h,
+      child: VideoPlayer(c),
+    );
+
+    if (clip.chromaKey.enabled) {
+      playerWidget = ChromaKeyPreview(
+        chroma: clip.chromaKey,
+        child: playerWidget,
+      );
+    }
+
+    return playerWidget;
   }
 }
 

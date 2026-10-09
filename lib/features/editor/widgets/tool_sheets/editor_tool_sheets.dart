@@ -539,6 +539,7 @@ class _ThumbTile extends StatelessWidget {
 
 class _ResponsiveGrid extends StatefulWidget {
   const _ResponsiveGrid({
+    super.key,
     required this.itemCount,
     required this.itemBuilder,
     this.minTile = 100,
