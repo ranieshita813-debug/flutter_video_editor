@@ -353,7 +353,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
           }
         }
         if (mounted) {
-          Navigator.of(context).pop(_selected.first.path ?? (await _selected.first.entity?.file)?.path);
+          Navigator.of(context).pop(true);
         }
         return;
       }
