@@ -35,6 +35,9 @@ class EditorController extends ChangeNotifier {
   double _exportProgress = 0.0;
   bool _isCameraActive = false;
 
+  bool _isEyedropperActive = false;
+  Completer<Color?>? _eyedropperCompleter;
+
   /// Fine-grained playhead listenable. Widgets that only need the playhead
   /// (timecode pill, transport) can use ValueListenableBuilder on this instead
   /// of rebuilding on every controller change. Once every such widget is
@@ -322,6 +325,27 @@ class EditorController extends ChangeNotifier {
   bool get isExporting => _isExporting;
   double get exportProgress => _exportProgress;
   bool get isCameraActive => _isCameraActive;
+  bool get isEyedropperActive => _isEyedropperActive;
+
+  Future<Color?> pickColorFromFrame() async {
+    _isEyedropperActive = true;
+    _eyedropperCompleter = Completer<Color?>();
+    notifyListeners();
+    return _eyedropperCompleter!.future;
+  }
+
+  void completeEyedropper(Color? color) {
+    if (_eyedropperCompleter != null && !_eyedropperCompleter!.isCompleted) {
+      _eyedropperCompleter!.complete(color);
+    }
+    _eyedropperCompleter = null;
+    _isEyedropperActive = false;
+    notifyListeners();
+  }
+
+  void cancelEyedropper() {
+    completeEyedropper(null);
+  }
 
   List<DrawingStroke> get activeDrawingStrokes => _activeDrawingStrokes;
   Color get drawingColor => _drawingColor;

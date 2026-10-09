@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -527,6 +529,8 @@ class PreviewCanvas extends StatefulWidget {
   State<PreviewCanvas> createState() => _PreviewCanvasState();
 }
 
+final GlobalKey _canvasBoundaryKey = GlobalKey();
+
 class _PreviewCanvasState extends State<PreviewCanvas> {
   final TransformationController _tf = TransformationController();
   final ValueNotifier<_GuideState> _guides =
@@ -730,7 +734,9 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
   Widget _canvas(EditorController editor, double ratio) {
     return AspectRatio(
       aspectRatio: ratio,
-      child: DecoratedBox(
+      child: RepaintBoundary(
+        key: _canvasBoundaryKey,
+        child: DecoratedBox(
         decoration: BoxDecoration(
           color: Colors.black,
           border: Border.all(color: Colors.white12),
@@ -828,10 +834,18 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                     ),
                   ),
                 ),
+                if (editor.isEyedropperActive)
+                  Positioned.fill(
+                    child: _EyedropperOverlay(
+                      boundaryKey: _canvasBoundaryKey,
+                      editor: editor,
+                    ),
+                  ),
               ],
             );
           }),
         ),
+      ),
       ),
     );
   }
@@ -1693,4 +1707,183 @@ class _DrawingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => true;
+}
+
+// ----------------------------------------------------------------------------
+// Eyedropper frame color picker overlay
+// ----------------------------------------------------------------------------
+class _EyedropperOverlay extends StatefulWidget {
+  const _EyedropperOverlay({
+    required this.boundaryKey,
+    required this.editor,
+  });
+
+  final GlobalKey boundaryKey;
+  final EditorController editor;
+
+  @override
+  State<_EyedropperOverlay> createState() => _EyedropperOverlayState();
+}
+
+class _EyedropperOverlayState extends State<_EyedropperOverlay> {
+  Offset? _pos;
+  Color? _sampledColor;
+  bool _isSampling = false;
+
+  Future<void> _sampleAt(Offset localOffset, Size size) async {
+    if (_isSampling || size.width <= 0 || size.height <= 0) return;
+    _isSampling = true;
+    try {
+      final boundary =
+          widget.boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      final image = await boundary.toImage(pixelRatio: 1.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (byteData == null) {
+        image.dispose();
+        return;
+      }
+
+      final double px = (localOffset.dx / size.width * image.width).clamp(0, image.width - 1.0);
+      final double py = (localOffset.dy / size.height * image.height).clamp(0, image.height - 1.0);
+
+      final int x = px.toInt();
+      final int y = py.toInt();
+      final int offset = (y * image.width + x) * 4;
+
+      if (offset + 3 < byteData.lengthInBytes) {
+        final int r = byteData.getUint8(offset);
+        final int g = byteData.getUint8(offset + 1);
+        final int b = byteData.getUint8(offset + 2);
+        if (mounted) {
+          setState(() {
+            _pos = localOffset;
+            _sampledColor = Color.fromARGB(255, r, g, b);
+          });
+        }
+      }
+      image.dispose();
+    } catch (_) {
+    } finally {
+      _isSampling = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        final color = _sampledColor ?? const Color(0xFF00FF00);
+
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanDown: (d) => _sampleAt(d.localPosition, size),
+          onPanUpdate: (d) => _sampleAt(d.localPosition, size),
+          onTapUp: (d) async {
+            await _sampleAt(d.localPosition, size);
+            widget.editor.completeEyedropper(_sampledColor);
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(color: Colors.black26),
+              Positioned(
+                top: 12,
+                left: 12,
+                right: 12,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.colorize_rounded, color: accentToken, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          _sampledColor != null
+                              ? 'Tap or release to select key color'
+                              : 'Tap/drag anywhere on frame to pick color',
+                          style: const TextStyle(color: Colors.white, fontSize: 12.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (_pos != null)
+                Positioned(
+                  left: _pos!.dx - 36,
+                  top: _pos!.dy - 36,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black54, blurRadius: 10),
+                        ],
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton.filledTonal(
+                      tooltip: 'Cancel',
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () => widget.editor.cancelEyedropper(),
+                    ),
+                    if (_sampledColor != null) ...[
+                      const SizedBox(width: 12),
+                      FloatingActionButton.extended(
+                        elevation: 4,
+                        backgroundColor: accentToken,
+                        foregroundColor: Colors.black,
+                        icon: const Icon(Icons.check_rounded),
+                        label: const Text('Apply Color', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: () => widget.editor.completeEyedropper(_sampledColor),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }

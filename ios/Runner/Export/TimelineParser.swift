@@ -46,6 +46,15 @@ struct AudioPropertiesSpec {
     let equalizerPreset: String
 }
 
+struct ChromaKeySpec {
+    let enabled: Bool
+    let keyColor: Int64
+    let similarity: Double
+    let smoothness: Double
+    let spill: Double
+    let output: String
+}
+
 struct DrawingPointSpec {
     let x: Double
     let y: Double
@@ -78,6 +87,7 @@ struct ClipSpec {
     let positionY: Double
     let colorGrading: ColorGradingSpec
     let audioProperties: AudioPropertiesSpec
+    let chromaKey: ChromaKeySpec
     let fontFamily: String
     let textAnimationStyle: String
     let textStyle: TextStyleSpec
@@ -155,6 +165,16 @@ class TimelineParser {
                     equalizerPreset: apDict["equalizerPreset"] as? String ?? "Flat"
                 )
 
+                let ckDict = clipDict["chromaKey"] as? [String: Any] ?? [:]
+                let chromaKey = ChromaKeySpec(
+                    enabled: ckDict["enabled"] as? Bool ?? false,
+                    keyColor: ckDict["keyColor"] as? Int64 ?? 0xFF00FF00,
+                    similarity: ckDict["similarity"] as? Double ?? 40.0,
+                    smoothness: ckDict["smoothness"] as? Double ?? 10.0,
+                    spill: ckDict["spill"] as? Double ?? 50.0,
+                    output: ckDict["output"] as? String ?? "composite"
+                )
+
                 var strokes: [DrawingStrokeSpec] = []
                 if let strokesArray = clipDict["strokes"] as? [[String: Any]] {
                     for strokeDict in strokesArray {
@@ -196,6 +216,7 @@ class TimelineParser {
                     positionY: clipDict["positionY"] as? Double ?? 0.0,
                     colorGrading: colorGrading,
                     audioProperties: audioProperties,
+                    chromaKey: chromaKey,
                     fontFamily: clipDict["fontFamily"] as? String ?? "Poppins",
                     textAnimationStyle: clipDict["textAnimationStyle"] as? String ?? "none",
                     textStyle: textStyle,

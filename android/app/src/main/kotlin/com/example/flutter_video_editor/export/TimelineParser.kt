@@ -48,6 +48,15 @@ data class AudioPropertiesSpec(
     val equalizerPreset: String
 )
 
+data class ChromaKeySpec(
+    val enabled: Boolean = false,
+    val keyColor: Long = 0xFF00FF00L,
+    val similarity: Double = 40.0,
+    val smoothness: Double = 10.0,
+    val spill: Double = 50.0,
+    val output: String = "composite"
+)
+
 data class DrawingPointSpec(
     val x: Double,
     val y: Double
@@ -80,6 +89,7 @@ data class ClipSpec(
     val positionY: Double,
     val colorGrading: ColorGradingSpec,
     val audioProperties: AudioPropertiesSpec,
+    val chromaKey: ChromaKeySpec = ChromaKeySpec(),
     val fontFamily: String,
     val textAnimationStyle: String,
     val textStyle: TextStyleSpec,
@@ -163,6 +173,16 @@ object TimelineParser {
                     equalizerPreset = apObj.optString("equalizerPreset", "Flat")
                 )
 
+                val ckObj = clipObj.optJSONObject("chromaKey") ?: JSONObject()
+                val chromaKey = ChromaKeySpec(
+                    enabled = ckObj.optBoolean("enabled", false),
+                    keyColor = ckObj.optLong("keyColor", 0xFF00FF00L),
+                    similarity = ckObj.optDouble("similarity", 40.0),
+                    smoothness = ckObj.optDouble("smoothness", 10.0),
+                    spill = ckObj.optDouble("spill", 50.0),
+                    output = ckObj.optString("output", "composite")
+                )
+
                 val strokesArray = clipObj.optJSONArray("strokes")
                 val strokes = mutableListOf<DrawingStrokeSpec>()
                 if (strokesArray != null) {
@@ -213,6 +233,7 @@ object TimelineParser {
                         positionY = clipObj.optDouble("positionY", 0.0),
                         colorGrading = colorGrading,
                         audioProperties = audioProperties,
+                        chromaKey = chromaKey,
                         fontFamily = clipObj.optString("fontFamily", "Poppins"),
                         textAnimationStyle = clipObj.optString("textAnimationStyle", "none"),
                         textStyle = textStyle,

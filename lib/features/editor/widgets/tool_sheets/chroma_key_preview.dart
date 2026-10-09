@@ -52,12 +52,16 @@ class _ChromaKeyPreviewState extends State<ChromaKeyPreview> {
     }).catchError((_) {});
   }
 
-  ui.ImageFilter? _filter(ChromaKey k) {
+  ui.ImageFilter? _filter(ChromaKey k, Size size) {
     final p = _p;
     if (p == null) return null;
     try {
       final s = p.fragmentShader();
-      int i = 2; // 0,1 = uSize (engine-provided)
+      final double width = math.max(1.0, size.width);
+      final double height = math.max(1.0, size.height);
+      s.setFloat(0, width);
+      s.setFloat(1, height);
+      int i = 2;
       void f(double v) => s.setFloat(i++, v);
       f(k.keyColor.r);
       f(k.keyColor.g);
@@ -89,17 +93,30 @@ class _ChromaKeyPreviewState extends State<ChromaKeyPreview> {
   Widget build(BuildContext context) {
     final k = widget.chroma;
     if (!k.enabled) return widget.child;
-    final filter = _filter(k);
-    if (filter == null) return widget.child;
 
-    final showBg = k.output == ChromaOutput.composite;
-    return Stack(
-      fit: StackFit.passthrough,
-      children: [
-        if (showBg)
-          Positioned.fill(child: _Background(widget.background)),
-        ImageFiltered(imageFilter: filter, child: widget.child),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(
+          constraints.hasBoundedWidth && constraints.maxWidth > 0
+              ? constraints.maxWidth
+              : 1920.0,
+          constraints.hasBoundedHeight && constraints.maxHeight > 0
+              ? constraints.maxHeight
+              : 1080.0,
+        );
+        final filter = _filter(k, size);
+        if (filter == null) return widget.child;
+
+        final showBg = k.output == ChromaOutput.composite;
+        return Stack(
+          fit: StackFit.passthrough,
+          children: [
+            if (showBg)
+              Positioned.fill(child: _Background(widget.background)),
+            ImageFiltered(imageFilter: filter, child: widget.child),
+          ],
+        );
+      },
     );
   }
 }

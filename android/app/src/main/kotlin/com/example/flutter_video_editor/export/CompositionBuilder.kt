@@ -41,6 +41,43 @@ import kotlin.math.pow
  * experimentalSetForceAudioTrack; 1.5+ এ এটির নাম পরিবর্তন করে setForceAudioTrack করা হয়েছে)।
  */
 @UnstableApi
+class DynamicTimelineOverlay(
+    private val context: Context,
+    private val width: Int,
+    private val height: Int,
+    private val baseStartMs: Long,
+    private val overlayClips: List<ClipSpec>
+) : BitmapOverlay() {
+
+    override fun getBitmap(presentationTimeUs: Long): Bitmap {
+        val currentTimelineMs = baseStartMs + presentationTimeUs / 1000L
+        val activeOverlays = overlayClips.filter { clip ->
+            clip.isVisible &&
+            currentTimelineMs >= clip.timelineStartMs &&
+            currentTimelineMs < (clip.timelineStartMs + clip.timelineDurationMs)
+        }.sortedBy { it.layerIndex }
+
+        val frameBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(frameBitmap)
+
+        for (clip in activeOverlays) {
+            OverlayRenderer.drawOverlayClip(
+                context = context,
+                canvas = canvas,
+                clip = clip,
+                width = width,
+                height = height,
+                timelineMs = currentTimelineMs
+            )
+        }
+
+        OverlayRenderer.drawWatermarkOverlayOnCanvas(canvas, width, height, "motionGr")
+
+        return frameBitmap
+    }
+}
+
+@UnstableApi
 object CompositionBuilder {
 
     private const val DEFAULT_FPS = 30
@@ -288,49 +325,99 @@ object CompositionBuilder {
         val videoItems = mutableListOf<EditedMediaItem>()
         val audioLanes = mutableListOf<AudioLane>()
 
-        for (clip in visibleClips) {
+        val audioOnlyClips = visibleClips.filter { clip ->
             val src = clip.sourcePath?.takeIf { it.isNotEmpty() }
-            val isOverlayClip = clip.clipType in OVERLAY_TYPES
-            val kind = if (src != null && !isOverlayClip) kindOf(context, src) else Kind.VIDEO
-            val isAudioOnly = src != null && !isOverlayClip && kind == Kind.AUDIO
-            val isImage = src != null && !isOverlayClip && kind == Kind.IMAGE
-            // ওভারলে ক্লিপ (টেক্সট/ড্রয়িং/স্টিকার) সর্বদা কালো কার্ডে রেন্ডার করা হয়;
-            // তাদের sourcePath (যেমন একটি স্টিকার png) একটি ওভারলে হিসেবে আঁকা হয়, কখনোই বেস মিডিয়া হিসেবে ব্যবহৃত হয় না।
-            val isCard = isOverlayClip || src == null
+            clip.clipType == "audio" || (src != null && clip.clipType !in OVERLAY_TYPES && kindOf(context, src) == Kind.AUDIO)
+        }
+
+        val overlayClips = visibleClips.filter { clip ->
+            clip !in audioOnlyClips && (clip.layerIndex > 0 || clip.clipType in OVERLAY_TYPES)
+        }
+
+        var baseClips = visibleClips.filter { clip ->
+            clip !in audioOnlyClips && clip !in overlayClips
+        }
+
+        if (baseClips.isEmpty() && (overlayClips.isNotEmpty() || visibleClips.isNotEmpty())) {
+            val maxDur = maxOf(
+                timeline.durationMs,
+                overlayClips.maxOfOrNull { it.timelineStartMs + it.timelineDurationMs } ?: 5000L
+            ).coerceAtLeast(1000L)
+
+            baseClips = listOf(
+                ClipSpec(
+                    id = "base_card",
+                    label = "Background",
+                    clipType = "video",
+                    sourcePath = null,
+                    sourceInMs = 0L,
+                    sourceOutMs = maxDur,
+                    timelineStartMs = 0L,
+                    timelineDurationMs = maxDur,
+                    layerIndex = 0,
+                    isVisible = true,
+                    volume = 0.0,
+                    speed = 1.0,
+                    opacity = 1.0,
+                    scale = 1.0,
+                    rotation = 0.0,
+                    positionX = 0.0,
+                    positionY = 0.0,
+                    colorGrading = ColorGradingSpec(0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0),
+                    audioProperties = AudioPropertiesSpec(0.0, 1.0, 1.0, 0L, 0L, "Flat"),
+                    fontFamily = "Poppins",
+                    textAnimationStyle = "none",
+                    textStyle = TextStyleSpec(28.0, 1.2, 0xFFFFFFFFL, "none", 0L, 0.0, 0L, 0.0, 0.0, 0.0, 0L, 0.0, "center"),
+                    inAnimation = "none",
+                    outAnimation = "none",
+                    strokes = emptyList(),
+                    stickerAssetPath = null,
+                    effect = "none"
+                )
+            )
+        }
+
+        // Process audio clips into audio lanes
+        for (clip in audioOnlyClips) {
+            val src = clip.sourcePath?.takeIf { it.isNotEmpty() } ?: continue
+            val speed = clip.speed.coerceIn(MIN_SPEED, MAX_SPEED)
+            val volume = clip.volume.coerceIn(0.0, MAX_VOLUME)
+            if (volume <= 0.0) continue
+            val pitch = clip.audioProperties.pitch
+
+            val builder = MediaItem.Builder().setUri(toUri(src))
+            if (clip.sourceOutMs > clip.sourceInMs) {
+                builder.setClippingConfiguration(clipping(clip))
+            }
+
+            val item = EditedMediaItem.Builder(builder.build())
+                .setEffects(
+                    Effects(
+                        ImmutableList.copyOf(audioProcessors(speed, pitch, volume)),
+                        ImmutableList.of()
+                    )
+                )
+                .build()
+
+            val lane = audioLanes.firstOrNull { it.cursorMs <= clip.timelineStartMs }
+                ?: AudioLane().also { audioLanes += it }
+
+            val gapMs = (clip.timelineStartMs - lane.cursorMs).coerceAtLeast(0L)
+            lane.parts += (gapMs * 1000L) to item
+            lane.cursorMs = clip.timelineStartMs + clipDurationMs(clip, speed)
+        }
+
+        // Process base track clips and apply dynamic overlay effect
+        for (clip in baseClips) {
+            val src = clip.sourcePath?.takeIf { it.isNotEmpty() }
+            val isCard = src == null
+            val kind = if (!isCard) kindOf(context, src!!) else Kind.VIDEO
+            val isImage = !isCard && kind == Kind.IMAGE
 
             val speed = clip.speed.coerceIn(MIN_SPEED, MAX_SPEED)
             val volume = clip.volume.coerceIn(0.0, MAX_VOLUME)
-            val pitch = clip.audioProperties.pitch
             val speedChanged = abs(speed - 1.0) > EPS
 
-            // ---------------- অডিও-শুধুমাত্র ক্লিপ (মিউজিক, ভয়েস-ওভার) ----------------
-            if (isAudioOnly) {
-                if (volume <= 0.0) continue
-                
-                val builder = MediaItem.Builder().setUri(toUri(src!!))
-                if (clip.sourceOutMs > clip.sourceInMs) {
-                    builder.setClippingConfiguration(clipping(clip))
-                }
-                
-                val item = EditedMediaItem.Builder(builder.build())
-                    .setEffects(
-                        Effects(
-                            ImmutableList.copyOf(audioProcessors(speed, pitch, volume)),
-                            ImmutableList.of()
-                        )
-                    )
-                    .build()
-
-                val lane = audioLanes.firstOrNull { it.cursorMs <= clip.timelineStartMs }
-                    ?: AudioLane().also { audioLanes += it }
-                
-                val gapMs = (clip.timelineStartMs - lane.cursorMs).coerceAtLeast(0L)
-                lane.parts += (gapMs * 1000L) to item
-                lane.cursorMs = clip.timelineStartMs + clipDurationMs(clip, speed)
-                continue
-            }
-
-            // ---------------- ভিডিও / ইমেজ / কার্ড ক্লিপ ----------------
             val videoEffects = mutableListOf<Effect>()
 
             if (speedChanged && !isImage && !isCard) {
@@ -338,8 +425,8 @@ object CompositionBuilder {
             }
 
             videoEffects += Presentation.createForWidthAndHeight(
-                width, 
-                height, 
+                width,
+                height,
                 Presentation.LAYOUT_SCALE_TO_FIT
             )
 
@@ -354,46 +441,24 @@ object CompositionBuilder {
                     .build()
             }
 
-            if (isOverlayClip) {
-                when (clip.clipType) {
-                    "drawing" -> {
-                        if (clip.strokes.isNotEmpty()) {
-                            videoEffects += overlayEffect(
-                                OverlayRenderer.renderDrawingOverlay(clip.strokes, width, height)
-                            )
-                        }
-                    }
-                    "sticker" -> {
-                        val path = clip.stickerAssetPath?.takeIf { it.isNotEmpty() } ?: src
-                        val bmp = path?.let { 
-                            OverlayRenderer.loadBitmap(context, it, width, height) 
-                        }
-                        videoEffects += if (bmp != null) {
-                            overlayEffect(bmp)
-                        } else {
-                            textOverlay(clip, width, height, context)
-                        }
-                    }
-                    else -> {
-                        videoEffects += textOverlay(clip, width, height, context)
-                    }
-                }
-            }
-
-            // ওয়াটারমার্ক: প্রতিটি আইটেমের জন্য একটি নতুন ইফেক্ট/বিটম্যাপ 
-            // (একটি শেয়ার করা OverlayEffect ইন্সট্যান্স আইটেম জুড়ে ভেঙে যায়)।
-            videoEffects += overlayEffect(
-                OverlayRenderer.renderWatermarkOverlay(width, height, "motionGr")
+            // Dynamic Overlay containing all active overlay clips & watermark
+            val dynamicOverlay = DynamicTimelineOverlay(
+                context = context,
+                width = width,
+                height = height,
+                baseStartMs = clip.timelineStartMs,
+                overlayClips = overlayClips
             )
+            videoEffects += OverlayEffect(ImmutableList.of<TextureOverlay>(dynamicOverlay))
 
             val uri = if (isCard) {
                 Uri.fromFile(blackFrame(context, width, height))
             } else {
                 toUri(src!!)
             }
-            
+
             val mediaItemBuilder = MediaItem.Builder().setUri(uri)
-            
+
             if (!isImage && !isCard && clip.sourceOutMs > clip.sourceInMs) {
                 mediaItemBuilder.setClippingConfiguration(clipping(clip))
             }
@@ -401,19 +466,18 @@ object CompositionBuilder {
             val editedBuilder = EditedMediaItem.Builder(mediaItemBuilder.build())
                 .setEffects(
                     Effects(
-                        ImmutableList.copyOf(audioProcessors(speed, pitch, volume)),
+                        ImmutableList.copyOf(audioProcessors(speed, clip.audioProperties.pitch, volume)),
                         ImmutableList.copyOf(videoEffects)
                     )
                 )
                 .setRemoveAudio(volume <= 0.0 || isImage || isCard)
 
             if (isImage || isCard) {
-                // স্টিল ইমেজের কোনো অন্তর্নিহিত ডিউরেশন নেই -> এই দুটি মান ছাড়া Transformer ব্যর্থ হয়।
                 val durationMs = (if (isCard) clip.timelineDurationMs else clipDurationMs(clip, 1.0))
                     .takeIf { it > 0 }
                     ?: clipDurationMs(clip, 1.0).takeIf { it > 0 }
                     ?: DEFAULT_CARD_DURATION_MS
-                    
+
                 editedBuilder
                     .setDurationUs(durationMs * 1000L)
                     .setFrameRate(DEFAULT_FPS)

@@ -81,6 +81,7 @@ enum EditorTool {
               final clip = editor.selectedClip;
               return ChromaKeySheet(
                 value: clip?.chromaKey ?? const ChromaKey(),
+                onPickColor: () => editor.pickColorFromFrame(),
                 onChanged: (k) {
                   if (clip != null) {
                     editor.setChromaKey(clip.id, k);
