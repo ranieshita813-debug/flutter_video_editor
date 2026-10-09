@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -102,13 +103,25 @@ class _AuthPageState extends State<AuthPage> {
             children: <Widget>[
               const SizedBox(height: 12),
               Center(
-                child: Text(
-                  'motionGr',
-                  style: GoogleFonts.unbounded(
-                    color: EditorTokens.accent,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    SvgPicture.asset(
+                      'assets/logo.svg',
+                      width: 48,
+                      height: 48,
+                      colorFilter: const ColorFilter.mode(EditorTokens.accent, BlendMode.srcIn),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'motionGr',
+                      style: GoogleFonts.unbounded(
+                        color: EditorTokens.accent,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 8),

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -74,19 +75,34 @@ class _SplashScreenState extends State<SplashScreen>
                 child: ExcludeSemantics(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: List<Widget>.generate(_title.length, (int i) {
-                      final double offsetY = math.sin(
-                            t * 2 * math.pi * _waveCycles -
-                                i * _letterPhaseShift,
-                          ) *
-                          _waveAmplitude *
-                          damping;
+                    children: <Widget>[
+                      SvgPicture.asset(
+                        'assets/logo.svg',
+                        width: 48,
+                        height: 48,
+                        colorFilter: const ColorFilter.mode(
+                          Colors.white,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List<Widget>.generate(_title.length, (int i) {
+                          final double offsetY = math.sin(
+                                t * 2 * math.pi * _waveCycles -
+                                    i * _letterPhaseShift,
+                              ) *
+                              _waveAmplitude *
+                              damping;
 
-                      return Transform.translate(
-                        offset: Offset(0, offsetY),
-                        child: Text(_title[i], style: style),
-                      );
-                    }),
+                          return Transform.translate(
+                            offset: Offset(0, offsetY),
+                            child: Text(_title[i], style: style),
+                          );
+                        }),
+                      ),
+                    ],
                   ),
                 ),
               ),

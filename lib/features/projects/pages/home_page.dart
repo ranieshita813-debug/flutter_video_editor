@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -280,6 +281,13 @@ class HomePage extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 8, 4),
       child: Row(
         children: <Widget>[
+          SvgPicture.asset(
+            'assets/logo.svg',
+            width: 28,
+            height: 28,
+            colorFilter: const ColorFilter.mode(EditorTokens.text, BlendMode.srcIn),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'motionGr',
