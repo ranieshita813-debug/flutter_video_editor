@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' show FontFeature;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -10,22 +11,65 @@ import 'package:flutter_video_editor/features/editor/controllers/editor_controll
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 
 // -----------------------------------------------------------------------------
-// Tokens (monochrome, CapCut-like)
+// Design tokens
+//
+// CapCut        -> true-black canvas, tight 2px grid, numbered selection badges
+// Premiere Pro  -> label colors per media type, timecode type, source monitor
+// Filmora       -> teal/blue gradient call to action, pill tabs, rounded panels
 // -----------------------------------------------------------------------------
 
-const Color _bg = Color(0xFF000000);
-const Color _surface = Color(0xFF111111);
-const Color _elevated = Color(0xFF1C1C1C);
-const Color _border = Color(0xFF2A2A2A);
-const Color _text = Color(0xFFFFFFFF);
-const Color _muted = Color(0xFF8C8C8C);
-const Color _accent = Color(0xFFFFFFFF); // white accent (monochrome)
-const Color _onAccent = Color(0xFF000000);
+const Color _bg = Color(0xFF08080A);
+const Color _surface = Color(0xFF131316);
+const Color _elevated = Color(0xFF1D1D22);
+const Color _border = Color(0xFF2B2B32);
+const Color _text = Color(0xFFF5F5F7);
+const Color _muted = Color(0xFF8E8E98);
+const Color _accent = Color(0xFF22E5C9);
+const Color _onAccent = Color(0xFF031412);
+
+// Premiere-style label colors, one per media type.
+const Color _cVideo = Color(0xFF7C8CFF);
+const Color _cImage = Color(0xFF34D399);
+const Color _cAudio = Color(0xFFFFB454);
+
+const LinearGradient _gradient = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: <Color>[Color(0xFF22E5C9), Color(0xFF3D8BFF)],
+);
+
+const TextStyle _timecode = TextStyle(
+  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+);
 
 String _fmt(Duration d) {
   final int s = d.inSeconds;
   return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
 }
+
+Color _typeColor(ClipType t) => switch (t) {
+      ClipType.video => _cVideo,
+      ClipType.audio => _cAudio,
+      _ => _cImage,
+    };
+
+IconData _typeIcon(ClipType t) => switch (t) {
+      ClipType.video => Icons.videocam_rounded,
+      ClipType.audio => Icons.music_note_rounded,
+      _ => Icons.image_rounded,
+    };
+
+String _typeName(ClipType t) => switch (t) {
+      ClipType.video => 'Video',
+      ClipType.audio => 'Audio',
+      _ => 'Photo',
+    };
+
+ClipType _clipOf(AssetType t) => switch (t) {
+      AssetType.video => ClipType.video,
+      AssetType.audio => ClipType.audio,
+      _ => ClipType.image,
+    };
 
 class MediaPickerArgs {
   const MediaPickerArgs({
@@ -73,9 +117,7 @@ class _Picked {
         id: e.id,
         name: e.title ?? e.id,
         duration: e.type == AssetType.image ? Duration.zero : e.videoDuration,
-        type: e.type == AssetType.video
-            ? ClipType.video
-            : (e.type == AssetType.audio ? ClipType.audio : ClipType.image),
+        type: _clipOf(e.type),
         entity: e,
       );
 
@@ -123,6 +165,12 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   int _gen = 0;
   int _lastTab = 0;
 
+  /// Grid density (3, 4 or 5 columns).
+  int _cols = 4;
+
+  /// Item shown in the source monitor (last tapped / long-pressed).
+  _Picked? _focus;
+
   List<AssetPathEntity> _albums = <AssetPathEntity>[];
   AssetPathEntity? _album;
 
@@ -132,6 +180,27 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         2 => RequestType.image,
         _ => RequestType.audio,
       };
+
+  MediaPickerArgs? get _args {
+    final Object? a = ModalRoute.of(context)?.settings.arguments;
+    return a is MediaPickerArgs ? a : null;
+  }
+
+  String get _contextLabel {
+    final MediaPickerArgs? a = _args;
+    if (a == null) return 'New project';
+    if (a.isOverlay) return 'Add overlay';
+    return a.appendToCurrent ? 'Add to timeline' : 'New project';
+  }
+
+  String get _ctaLabel {
+    final MediaPickerArgs? a = _args;
+    if (a == null) return 'Create project';
+    if (a.isOverlay) return 'Add overlay';
+    return a.appendToCurrent ? 'Add to timeline' : 'Create project';
+  }
+
+  int get _thumbSize => _cols == 3 ? 420 : (_cols == 4 ? 300 : 220);
 
   @override
   void initState() {
@@ -233,26 +302,50 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     final AssetPathEntity? picked = await showModalBottomSheet<AssetPathEntity>(
       context: context,
       backgroundColor: _surface,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
       ),
       builder: (BuildContext sheetCtx) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            for (final AssetPathEntity a in _albums)
-              ListTile(
-                title: Text(a.isAll ? 'Recent' : a.name,
-                    style: const TextStyle(color: _text, fontSize: 15)),
-                trailing: FutureBuilder<int>(
-                  future: a.assetCountAsync,
-                  builder: (_, AsyncSnapshot<int> s) => Text('${s.data ?? ''}',
-                      style: const TextStyle(color: _muted, fontSize: 13)),
-                ),
-                selected: a.id == _album?.id,
-                selectedColor: _accent,
-                onTap: () => Navigator.of(sheetCtx).pop(a),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text('Albums',
+                  style: TextStyle(
+                      color: _text, fontSize: 17, fontWeight: FontWeight.w800)),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                  for (final AssetPathEntity a in _albums)
+                    ListTile(
+                      leading: Icon(
+                        a.isAll
+                            ? Icons.history_rounded
+                            : Icons.folder_rounded,
+                        color: a.id == _album?.id ? _accent : _muted,
+                      ),
+                      title: Text(a.isAll ? 'Recent' : a.name,
+                          style: const TextStyle(fontSize: 15)),
+                      trailing: FutureBuilder<int>(
+                        future: a.assetCountAsync,
+                        builder: (_, AsyncSnapshot<int> s) => Text(
+                            '${s.data ?? ''}',
+                            style: _timecode.copyWith(
+                                color: _muted, fontSize: 13)),
+                      ),
+                      selected: a.id == _album?.id,
+                      selectedColor: _accent,
+                      textColor: _text,
+                      onTap: () => Navigator.of(sheetCtx).pop(a),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
       ),
@@ -282,7 +375,38 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       } else {
         _selected.add(p);
       }
+      _focus = p;
     });
+  }
+
+  void _reorder(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) newIndex -= 1;
+      final _Picked item = _selected.removeAt(oldIndex);
+      _selected.insert(newIndex, item);
+    });
+  }
+
+  void _cycleDensity() {
+    setState(() => _cols = _cols == 3 ? 4 : (_cols == 4 ? 5 : 3));
+  }
+
+  /// Duration used for a clip on the timeline (same rules as before).
+  Duration _effective(_Picked p) {
+    final bool isAudio = p.type == ClipType.audio;
+    final bool isVideo = p.type == ClipType.video;
+    if ((isVideo || isAudio) && p.duration > Duration.zero) return p.duration;
+    if (isAudio) return const Duration(seconds: 15);
+    if (isVideo) return const Duration(seconds: 10);
+    return const Duration(seconds: 4);
+  }
+
+  Duration get _totalVideo {
+    Duration t = Duration.zero;
+    for (final _Picked p in _selected) {
+      if (p.type != ClipType.audio) t += _effective(p);
+    }
+    return t;
   }
 
   /// Fallback for audio on platforms where the gallery can't list it (iOS),
@@ -303,7 +427,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
               <String>['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg'].contains(ext);
           final String id = 'file_${file.path ?? file.name}';
           if (_indexOf(id) >= 0) continue;
-          _selected.add(_Picked(
+          final _Picked p = _Picked(
             id: id,
             name: file.name,
             duration: isVid
@@ -313,7 +437,9 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 ? ClipType.video
                 : (isAud ? ClipType.audio : ClipType.image),
             path: file.path,
-          ));
+          );
+          _selected.add(p);
+          _focus = p;
         }
       });
     } catch (e) {
@@ -323,7 +449,11 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(m),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: _elevated,
+    ));
   }
 
   // ---- Add to project --------------------------------------------------------
@@ -333,9 +463,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     setState(() => _adding = true);
 
     try {
-      final Object? routeArgs = ModalRoute.of(context)?.settings.arguments;
-      final MediaPickerArgs? pickerArgs =
-          routeArgs is MediaPickerArgs ? routeArgs : null;
+      final MediaPickerArgs? pickerArgs = _args;
 
       final EditorController editor =
           Provider.of<EditorController>(context, listen: false);
@@ -366,15 +494,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         final _Picked p = _selected[i];
         final String? path = p.path ?? (await p.entity?.file)?.path;
         final bool isAudio = p.type == ClipType.audio;
-        final bool isVideo = p.type == ClipType.video;
-
-        final Duration d = (isVideo || isAudio) && p.duration > Duration.zero
-            ? p.duration
-            : (isAudio
-                ? const Duration(seconds: 15)
-                : (isVideo
-                    ? const Duration(seconds: 10)
-                    : const Duration(seconds: 4)));
+        final Duration d = _effective(p);
 
         String name = p.name;
         if (p.entity != null) name = await p.entity!.titleAsync;
@@ -413,16 +533,24 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
   @override
   Widget build(BuildContext context) {
+    final bool granted = _perm == _Perm.granted;
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
         child: Column(
           children: <Widget>[
             _header(),
-            if (_perm == _Perm.granted) _tabBar(),
-            if (_limited && _perm == _Perm.granted) _limitedBanner(),
+            if (granted) _tabBar(),
+            if (_limited && granted) _limitedBanner(),
+            if (granted)
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOut,
+                alignment: Alignment.topCenter,
+                child: _monitor(),
+              ),
             Expanded(child: _body()),
-            if (_perm == _Perm.granted) ...<Widget>[
+            if (granted) ...<Widget>[
               if (_selected.isNotEmpty) _tray(),
               _bottomBar(),
             ],
@@ -433,8 +561,11 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   }
 
   Widget _header() {
+    final String title = _album == null
+        ? 'Gallery'
+        : (_album!.isAll ? 'Recent' : _album!.name);
     return SizedBox(
-      height: 52,
+      height: 58,
       child: Row(
         children: <Widget>[
           IconButton(
@@ -444,32 +575,60 @@ class _MediaPickerPageState extends State<MediaPickerPage>
           ),
           Expanded(
             child: Center(
-              child: InkWell(
+              child: Material(
+                color: _elevated,
                 borderRadius: BorderRadius.circular(20),
-                onTap: _albums.isEmpty ? null : _chooseAlbum,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(
-                        _album == null
-                            ? 'Gallery'
-                            : (_album!.isAll ? 'Recent' : _album!.name),
-                        style: const TextStyle(
-                            color: _text,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700),
-                      ),
-                      if (_albums.isNotEmpty)
-                        const Icon(Icons.keyboard_arrow_down_rounded,
-                            color: _text),
-                    ],
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: _albums.isEmpty ? null : _chooseAlbum,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Flexible(
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: _text,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            if (_albums.isNotEmpty)
+                              const Icon(Icons.keyboard_arrow_down_rounded,
+                                  color: _text, size: 20),
+                          ],
+                        ),
+                        Text(
+                          _contextLabel,
+                          style: const TextStyle(
+                              color: _muted,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
+          ),
+          IconButton(
+            icon: Icon(
+              _cols == 3
+                  ? Icons.grid_view_rounded
+                  : (_cols == 4 ? Icons.apps_rounded : Icons.grid_on_rounded),
+              color: _text,
+            ),
+            tooltip: 'Grid size',
+            onPressed: _cycleDensity,
           ),
           IconButton(
             icon: const Icon(Icons.folder_open_rounded, color: _text),
@@ -482,34 +641,61 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   }
 
   Widget _tabBar() {
-    return TabBar(
-      controller: _tabs,
-      isScrollable: true,
-      tabAlignment: TabAlignment.start,
-      indicatorColor: _accent,
-      indicatorWeight: 2,
-      indicatorSize: TabBarIndicatorSize.label,
-      labelColor: _text,
-      unselectedLabelColor: _muted,
-      dividerColor: _border,
-      overlayColor: WidgetStateProperty.all(Colors.transparent),
-      labelPadding: const EdgeInsets.symmetric(horizontal: 18),
-      labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-      unselectedLabelStyle:
-          const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-      tabs: const <Widget>[
-        Tab(text: 'All'),
-        Tab(text: 'Videos'),
-        Tab(text: 'Photos'),
-        Tab(text: 'Audio'),
-      ],
+    Tab tab(IconData icon, String label) => Tab(
+          height: 34,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(icon, size: 16),
+                const SizedBox(width: 6),
+                Text(label),
+              ],
+            ),
+          ),
+        );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
+      child: TabBar(
+        controller: _tabs,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        padding: EdgeInsets.zero,
+        indicator: BoxDecoration(
+          color: _text,
+          borderRadius: BorderRadius.circular(17),
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicatorPadding: EdgeInsets.zero,
+        labelColor: _onAccent,
+        unselectedLabelColor: _muted,
+        dividerColor: Colors.transparent,
+        splashFactory: NoSplash.splashFactory,
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 3),
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+        unselectedLabelStyle:
+            const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        tabs: <Widget>[
+          tab(Icons.grid_view_rounded, 'All'),
+          tab(Icons.videocam_rounded, 'Videos'),
+          tab(Icons.image_rounded, 'Photos'),
+          tab(Icons.music_note_rounded, 'Audio'),
+        ],
+      ),
     );
   }
 
   Widget _limitedBanner() {
     return Container(
-      color: _elevated,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+      padding: const EdgeInsets.fromLTRB(12, 2, 4, 2),
+      decoration: BoxDecoration(
+        color: _elevated,
+        borderRadius: BorderRadius.circular(10),
+      ),
       child: Row(
         children: <Widget>[
           const Icon(Icons.info_outline_rounded, size: 16, color: _muted),
@@ -523,7 +709,134 @@ class _MediaPickerPageState extends State<MediaPickerPage>
               await PhotoManager.presentLimited();
               _loadAlbums();
             },
-            child: const Text('Manage', style: TextStyle(color: _text)),
+            child: const Text('Manage',
+                style: TextStyle(color: _accent, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Premiere-style "source monitor": large thumbnail plus media info.
+  Widget _monitor() {
+    final _Picked? f = _focus;
+    if (f == null) return const SizedBox(width: double.infinity);
+    final bool sel = _indexOf(f.id) >= 0;
+    final AssetEntity? e = f.entity;
+    final bool hasThumb = e != null && f.type != ClipType.audio;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border),
+      ),
+      child: Row(
+        children: <Widget>[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(9),
+            child: SizedBox(
+              width: 128,
+              height: 72,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  if (hasThumb)
+                    _Thumb(
+                      key: ValueKey<String>('mon_${f.id}'),
+                      entity: e,
+                      size: 480,
+                    )
+                  else
+                    Container(
+                      color: _elevated,
+                      child: Icon(_typeIcon(f.type),
+                          color: _typeColor(f.type), size: 28),
+                    ),
+                  if (f.type == ClipType.video)
+                    Center(
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(140),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.play_arrow_rounded,
+                            color: Colors.white, size: 20),
+                      ),
+                    ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 3,
+                    child: ColoredBox(color: _typeColor(f.type)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  f.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: _text, fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: <Widget>[
+                    _TypePill(type: f.type),
+                    const SizedBox(width: 8),
+                    Text(
+                      _fmt(_effective(f)),
+                      style: _timecode.copyWith(
+                          color: _muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                if (e != null && f.type != ClipType.audio) ...<Widget>[
+                  const SizedBox(height: 4),
+                  Text(
+                    '${e.width} × ${e.height}',
+                    style: _timecode.copyWith(color: _muted, fontSize: 11),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => _toggle(f),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: sel ? _gradient : null,
+                color: sel ? null : _elevated,
+                borderRadius: BorderRadius.circular(16),
+                border: sel ? null : Border.all(color: _border),
+              ),
+              child: Text(
+                sel ? 'Selected' : 'Select',
+                style: TextStyle(
+                  color: sel ? _onAccent : _text,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -545,19 +858,38 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            const Icon(Icons.perm_media_outlined, size: 56, color: _muted),
-            const SizedBox(height: 12),
+            Container(
+              width: 84,
+              height: 84,
+              decoration: const BoxDecoration(
+                color: _surface,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.perm_media_outlined,
+                  size: 38, color: _muted),
+            ),
+            const SizedBox(height: 14),
             const Text('Nothing here yet',
-                style: TextStyle(color: _muted, fontSize: 15)),
+                style: TextStyle(
+                    color: _text, fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text(
+              _tabs.index == 3
+                  ? 'Audio can be added from your files.'
+                  : 'Media you add to this album will show up here.',
+              style: const TextStyle(color: _muted, fontSize: 13),
+            ),
             if (_tabs.index == 3) ...<Widget>[
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: _browseFiles,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _text,
                   side: const BorderSide(color: _border),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
+                      borderRadius: BorderRadius.circular(22)),
                 ),
                 icon: const Icon(Icons.folder_open_rounded, size: 18),
                 label: const Text('Browse audio files'),
@@ -570,11 +902,11 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
     return GridView.builder(
       controller: _scroll,
-      padding: const EdgeInsets.all(1),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 1,
-        mainAxisSpacing: 1,
+      padding: const EdgeInsets.fromLTRB(2, 2, 2, 8),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: _cols,
+        crossAxisSpacing: 2,
+        mainAxisSpacing: 2,
       ),
       itemCount: _assets.length,
       itemBuilder: (BuildContext context, int i) {
@@ -584,7 +916,10 @@ class _MediaPickerPageState extends State<MediaPickerPage>
           key: ValueKey<String>(e.id),
           entity: e,
           order: idx >= 0 ? idx + 1 : null,
+          focused: _focus?.id == e.id,
+          thumbSize: _thumbSize,
           onTap: () => _toggle(_Picked.fromEntity(e)),
+          onLongPress: () => setState(() => _focus = _Picked.fromEntity(e)),
         );
       },
     );
@@ -597,31 +932,36 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          const Icon(Icons.photo_library_outlined, size: 56, color: _muted),
-          const SizedBox(height: 16),
+          Center(
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: const BoxDecoration(
+                color: _surface,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.photo_library_outlined,
+                  size: 44, color: _accent),
+            ),
+          ),
+          const SizedBox(height: 20),
           const Text('Allow access to your gallery',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
+                  color: _text, fontSize: 19, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           const Text(
             'Photos, videos and audio are shown right here, so you never have to leave the app to pick them.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: _muted, fontSize: 13),
+            style: TextStyle(color: _muted, fontSize: 13, height: 1.4),
           ),
           const SizedBox(height: 28),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _accent,
-              foregroundColor: _onAccent,
-              elevation: 0,
-              minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24)),
+          Center(
+            child: _GradientButton(
+              label: 'Allow access',
+              onPressed: _init,
+              wide: true,
             ),
-            onPressed: _init,
-            child: const Text('Allow access',
-                style: TextStyle(fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 8),
           TextButton(
@@ -633,50 +973,142 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     );
   }
 
+  /// Premiere-style sequence strip: reorderable, shows per-clip duration.
   Widget _tray() {
     return Container(
-      height: 76,
       decoration: const BoxDecoration(
         color: _surface,
         border: Border(top: BorderSide(color: _border)),
       ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        itemCount: _selected.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (BuildContext context, int i) {
-          final _Picked p = _selected[i];
-          return SizedBox(
-            width: 56,
+      padding: const EdgeInsets.fromLTRB(12, 8, 0, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(
+              children: <Widget>[
+                const Icon(Icons.view_timeline_rounded,
+                    size: 15, color: _muted),
+                const SizedBox(width: 6),
+                const Text('Sequence',
+                    style: TextStyle(
+                        color: _text,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700)),
+                const Spacer(),
+                if (_selected.length > 1)
+                  const Text('Hold and drag to reorder',
+                      style: TextStyle(color: _muted, fontSize: 11)),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () => setState(_selected.clear),
+                  child: const Text('Clear',
+                      style: TextStyle(
+                          color: _accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 64,
+            child: ReorderableListView.builder(
+              scrollDirection: Axis.horizontal,
+              buildDefaultDragHandles: false,
+              padding: const EdgeInsets.only(right: 12),
+              itemCount: _selected.length,
+              onReorder: _reorder,
+              proxyDecorator:
+                  (Widget child, int index, Animation<double> animation) =>
+                      Material(color: Colors.transparent, child: child),
+              itemBuilder: (BuildContext context, int i) => _trayItem(i),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _trayItem(int i) {
+    final _Picked p = _selected[i];
+    final Color tc = _typeColor(p.type);
+    final bool hasThumb = p.entity != null && p.type != ClipType.audio;
+
+    return ReorderableDelayedDragStartListener(
+      key: ValueKey<String>(p.id),
+      index: i,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: GestureDetector(
+          onTap: () => setState(() => _focus = p),
+          child: SizedBox(
+            width: 76,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(8),
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
-                  if (p.entity != null && p.type != ClipType.audio)
-                    _Thumb(entity: p.entity!, size: 160)
+                  if (hasThumb)
+                    _Thumb(entity: p.entity!, size: 200)
                   else
                     Container(
                       color: _elevated,
-                      child: Icon(
-                        p.type == ClipType.audio
-                            ? Icons.music_note_rounded
-                            : Icons.image_outlined,
-                        color: _muted,
-                        size: 22,
-                      ),
+                      child: Icon(_typeIcon(p.type), color: tc, size: 22),
                     ),
                   Positioned(
-                    top: 2,
-                    right: 2,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 3,
+                    child: ColoredBox(color: tc),
+                  ),
+                  Positioned(
+                    left: 4,
+                    top: 4,
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(
+                        gradient: _gradient,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text('${i + 1}',
+                          style: const TextStyle(
+                              color: _onAccent,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                  Positioned(
+                    left: 5,
+                    bottom: 6,
+                    child: Text(
+                      _fmt(_effective(p)),
+                      style: _timecode.copyWith(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        shadows: const <Shadow>[
+                          Shadow(color: Colors.black, blurRadius: 4),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 3,
+                    right: 3,
                     child: GestureDetector(
                       onTap: () => _toggle(p),
                       child: Container(
                         width: 18,
                         height: 18,
                         decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(200),
+                          color: Colors.black.withAlpha(190),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.close_rounded,
@@ -687,14 +1119,17 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 ],
               ),
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
   Widget _bottomBar() {
     final bool enabled = _selected.isNotEmpty && !_adding;
+    final int audios =
+        _selected.where((_Picked p) => p.type == ClipType.audio).length;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: const BoxDecoration(
@@ -704,38 +1139,130 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       child: Row(
         children: <Widget>[
           Expanded(
-            child: Text(
-              _selected.isEmpty
-                  ? 'Select items to add'
-                  : '${_selected.length} selected',
-              style: const TextStyle(color: _muted, fontSize: 13),
-            ),
+            child: _selected.isEmpty
+                ? const Text('Select items to add',
+                    style: TextStyle(color: _muted, fontSize: 13))
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        '${_selected.length} selected',
+                        style: const TextStyle(
+                            color: _text,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_fmt(_totalVideo)} video'
+                        '${audios > 0 ? ' · $audios audio' : ''}',
+                        style: _timecode.copyWith(
+                            color: _muted, fontSize: 11.5),
+                      ),
+                    ],
+                  ),
           ),
-          SizedBox(
-            height: 42,
-            child: ElevatedButton(
-              onPressed: enabled ? _addMediaToProject : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _accent,
-                foregroundColor: _onAccent,
-                disabledBackgroundColor: _elevated,
-                disabledForegroundColor: _muted,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(21)),
-              ),
-              child: _adding
-                  ? const SizedBox(
+          const SizedBox(width: 12),
+          _GradientButton(
+            label: _ctaLabel,
+            onPressed: enabled ? _addMediaToProject : null,
+            loading: _adding,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Small widgets
+// -----------------------------------------------------------------------------
+
+class _GradientButton extends StatelessWidget {
+  const _GradientButton({
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+    this.wide = false,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool loading;
+  final bool wide;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool on = onPressed != null || loading;
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: on ? _gradient : null,
+          color: on ? null : _elevated,
+          borderRadius: BorderRadius.circular(23),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(23),
+          onTap: onPressed,
+          child: SizedBox(
+            height: 46,
+            width: wide ? double.infinity : null,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisSize: wide ? MainAxisSize.max : MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  if (loading)
+                    const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: _onAccent),
                     )
-                  : Text('Add (${_selected.length})',
-                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                  else
+                    Text(
+                      label,
+                      style: TextStyle(
+                        color: on ? _onAccent : _muted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TypePill extends StatelessWidget {
+  const _TypePill({required this.type});
+
+  final ClipType type;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color c = _typeColor(type);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: c.withAlpha(36),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(_typeIcon(type), size: 11, color: c),
+          const SizedBox(width: 3),
+          Text(_typeName(type),
+              style: TextStyle(
+                  color: c, fontSize: 10.5, fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -751,35 +1278,56 @@ class _Cell extends StatelessWidget {
     super.key,
     required this.entity,
     required this.order,
+    required this.focused,
+    required this.thumbSize,
     required this.onTap,
+    required this.onLongPress,
   });
 
   final AssetEntity entity;
   final int? order;
+  final bool focused;
+  final int thumbSize;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final bool sel = order != null;
     final bool isAudio = entity.type == AssetType.audio;
     final bool hasDuration = entity.type != AssetType.image;
+    final Color tc = _typeColor(_clipOf(entity.type));
 
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
           if (isAudio)
             Container(
-              color: _elevated,
-              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: <Color>[Color(0xFF26221C), Color(0xFF17150F)],
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  const Icon(Icons.music_note_rounded, color: _muted, size: 26),
+                  Expanded(
+                    child: CustomPaint(
+                      size: Size.infinite,
+                      painter: _WavePainter(
+                        seed: entity.id.hashCode & 0x7fffffff,
+                        color: _cAudio,
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Text(entity.title ?? '',
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: _text, fontSize: 10)),
@@ -787,54 +1335,76 @@ class _Cell extends StatelessWidget {
               ),
             )
           else
-            _Thumb(entity: entity, size: 300),
-          if (sel) Container(color: Colors.black.withAlpha(110)),
-          if (sel)
+            _Thumb(entity: entity, size: thumbSize),
+
+          // Dim + frame when selected.
+          if (sel) Container(color: Colors.black.withAlpha(95)),
+          if (sel || focused)
             Positioned.fill(
               child: IgnorePointer(
                 child: Container(
-                  decoration:
-                      BoxDecoration(border: Border.all(color: _accent, width: 2)),
-                ),
-              ),
-            ),
-          if (hasDuration)
-            Positioned(
-              right: 4,
-              bottom: 4,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: Colors.black.withAlpha(150),
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: Text(
-                  _fmt(entity.videoDuration),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: sel ? _accent : Colors.white.withAlpha(150),
+                      width: sel ? 2.5 : 1.5,
+                    ),
                   ),
                 ),
               ),
             ),
+
+          // Premiere-style label strip for the media type.
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 3,
+            child: ColoredBox(color: tc),
+          ),
+
+          if (hasDuration)
+            Positioned(
+              left: 4,
+              bottom: 7,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(150),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _fmt(entity.videoDuration),
+                  style: _timecode.copyWith(
+                    color: Colors.white,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+
+          // Selection badge.
           Positioned(
             top: 5,
             right: 5,
-            child: Container(
-              width: 20,
-              height: 20,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              width: 22,
+              height: 22,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: sel ? _accent : Colors.black.withAlpha(90),
-                border: Border.all(color: Colors.white, width: 1.5),
+                gradient: sel ? _gradient : null,
+                color: sel ? null : Colors.black.withAlpha(90),
+                border: sel
+                    ? null
+                    : Border.all(color: Colors.white, width: 1.5),
               ),
               child: sel
                   ? Center(
                       child: Text('$order',
                           style: const TextStyle(
                               color: _onAccent,
-                              fontSize: 11,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w800)),
                     )
                   : null,
@@ -846,8 +1416,41 @@ class _Cell extends StatelessWidget {
   }
 }
 
+class _WavePainter extends CustomPainter {
+  _WavePainter({required this.seed, required this.color});
+
+  final int seed;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 2.4;
+    const int bars = 13;
+    final double gap = size.width / bars;
+    int r = seed;
+    for (int i = 0; i < bars; i++) {
+      r = (r * 1103515245 + 12345) & 0x7fffffff;
+      final double h = 0.22 + (r % 100) / 100 * 0.78;
+      final double x = gap * i + gap / 2;
+      final double half = size.height * h / 2;
+      canvas.drawLine(
+        Offset(x, size.height / 2 - half),
+        Offset(x, size.height / 2 + half),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _WavePainter old) =>
+      old.seed != seed || old.color != color;
+}
+
 class _Thumb extends StatefulWidget {
-  const _Thumb({required this.entity, required this.size});
+  const _Thumb({super.key, required this.entity, required this.size});
 
   final AssetEntity entity;
   final int size;
@@ -868,8 +1471,8 @@ class _ThumbState extends State<_Thumb> {
   @override
   void didUpdateWidget(covariant _Thumb old) {
     super.didUpdateWidget(old);
-    if (old.entity.id != widget.entity.id) {
-      _data = null;
+    if (old.entity.id != widget.entity.id || old.size != widget.size) {
+      if (old.entity.id != widget.entity.id) _data = null;
       _load();
     }
   }
