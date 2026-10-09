@@ -168,6 +168,7 @@ class EditorToolbar extends StatelessWidget {
     switch (clip.clipType) {
       case ClipType.video:
       case ClipType.image:
+        final bool isOverlay = clip.layerIndex > 0;
         return [
           EditorToolbarItem(
             id: 'split',
@@ -175,6 +176,13 @@ class EditorToolbar extends StatelessWidget {
             icon: HugeIcons.strokeRoundedScissors,
             onTap: () => editor.splitSelectedClip(),
           ),
+          if (isOverlay)
+            EditorToolbarItem(
+              id: 'chroma_key',
+              title: 'Chroma Key',
+              icon: HugeIcons.strokeRoundedFilter,
+              onTap: () => onSelectToolSheet('chroma_key'),
+            ),
           EditorToolbarItem(
             id: 'speed',
             title: 'Speed',

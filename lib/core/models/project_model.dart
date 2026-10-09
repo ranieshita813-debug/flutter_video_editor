@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 
 enum ClipType {
@@ -856,6 +857,7 @@ class TimelineClip {
     this.textAnimationStyle = TextAnimationStyle.none,
     this.textStyle = const TextStyleProperties(),
     this.colorGrading = const ColorGradingSettings(),
+    this.chromaKey = const ChromaKey(),
     this.audioProperties = const AudioProperties(),
     this.elementProperties = const ElementProperties(),
     this.cameraProperties = const CameraProperties(),
@@ -897,6 +899,7 @@ class TimelineClip {
   final TextAnimationStyle textAnimationStyle;
   final TextStyleProperties textStyle;
   final ColorGradingSettings colorGrading;
+  final ChromaKey chromaKey;
   final AudioProperties audioProperties;
   final ElementProperties elementProperties;
   final CameraProperties cameraProperties;
@@ -940,6 +943,7 @@ class TimelineClip {
     TextAnimationStyle? textAnimationStyle,
     TextStyleProperties? textStyle,
     ColorGradingSettings? colorGrading,
+    ChromaKey? chromaKey,
     AudioProperties? audioProperties,
     ElementProperties? elementProperties,
     CameraProperties? cameraProperties,
@@ -981,6 +985,7 @@ class TimelineClip {
       textAnimationStyle: textAnimationStyle ?? this.textAnimationStyle,
       textStyle: textStyle ?? this.textStyle,
       colorGrading: colorGrading ?? this.colorGrading,
+      chromaKey: chromaKey ?? this.chromaKey,
       audioProperties: audioProperties ?? this.audioProperties,
       elementProperties: elementProperties ?? this.elementProperties,
       cameraProperties: cameraProperties ?? this.cameraProperties,
@@ -1025,6 +1030,7 @@ class TimelineClip {
       'textAnimationStyle': textAnimationStyle.name,
       'textStyle': textStyle.toJson(),
       'colorGrading': colorGrading.toJson(),
+      'chromaKey': chromaKey.toJson(),
       'audioProperties': audioProperties.toJson(),
       'elementProperties': elementProperties.toJson(),
       'cameraProperties': cameraProperties.toJson(),
@@ -1082,6 +1088,9 @@ class TimelineClip {
       colorGrading: json['colorGrading'] != null
           ? ColorGradingSettings.fromJson(Map<String, dynamic>.from(json['colorGrading'] as Map))
           : const ColorGradingSettings(),
+      chromaKey: json['chromaKey'] != null
+          ? ChromaKey.fromJson(Map<String, dynamic>.from(json['chromaKey'] as Map))
+          : const ChromaKey(),
       audioProperties: json['audioProperties'] != null
           ? AudioProperties.fromJson(Map<String, dynamic>.from(json['audioProperties'] as Map))
           : const AudioProperties(),

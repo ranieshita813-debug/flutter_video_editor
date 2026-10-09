@@ -14,6 +14,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_video_editor/core/models/project_model.dart';
 
 const Color _bg = Color(0xFF121214);
 const Color _card = Color(0xFF232327);
@@ -75,6 +76,40 @@ class AdjustSettings {
     final double c = v.clamp(p.min, 100.0).toDouble();
     c == 0 ? m.remove(p) : m[p] = c;
     return AdjustSettings(m);
+  }
+
+  ColorGradingSettings toColorGrading() {
+    return ColorGradingSettings(
+      brightness: (this[AdjustParam.brightness] / 100.0).clamp(-1.0, 1.0),
+      contrast: (1.0 + this[AdjustParam.contrast] / 100.0).clamp(0.0, 2.0),
+      saturation: (1.0 + this[AdjustParam.saturation] / 100.0).clamp(0.0, 2.0),
+      temperature: (this[AdjustParam.warmth] / 100.0).clamp(-1.0, 1.0),
+      tint: (this[AdjustParam.hue] / 100.0).clamp(-1.0, 1.0),
+      vignette: (this[AdjustParam.vignette] / 100.0).clamp(0.0, 1.0),
+    );
+  }
+
+  factory AdjustSettings.fromColorGrading(ColorGradingSettings cg) {
+    var s = AdjustSettings.identity;
+    if (cg.brightness != 0.0) {
+      s = s.set(AdjustParam.brightness, cg.brightness * 100.0);
+    }
+    if (cg.contrast != 1.0) {
+      s = s.set(AdjustParam.contrast, (cg.contrast - 1.0) * 100.0);
+    }
+    if (cg.saturation != 1.0) {
+      s = s.set(AdjustParam.saturation, (cg.saturation - 1.0) * 100.0);
+    }
+    if (cg.temperature != 0.0) {
+      s = s.set(AdjustParam.warmth, cg.temperature * 100.0);
+    }
+    if (cg.tint != 0.0) {
+      s = s.set(AdjustParam.hue, cg.tint * 100.0);
+    }
+    if (cg.vignette != 0.0) {
+      s = s.set(AdjustParam.vignette, cg.vignette * 100.0);
+    }
+    return s;
   }
 
   /// Approximate live preview: wrap the video in `ColorFiltered`.

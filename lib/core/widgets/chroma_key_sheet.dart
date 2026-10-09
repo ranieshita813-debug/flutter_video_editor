@@ -13,11 +13,10 @@
 //     onClose: provider.closeTool,
 //   )
 
-import 'dart:ui' show FontFeature;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'chroma_key.dart';
-import 'chroma_key_preview.dart' show ChromaBackground;
+import 'package:flutter_video_editor/core/models/chroma_key.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_preview.dart' show ChromaBackground;
 
 const _bg = Color(0xFF16161A);
 const _card = Color(0xFF1F1F25);
@@ -336,7 +335,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           ),
         ),
         const SizedBox(width: 10),
-        Text('#${(_k.keyColor.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}',
+        Text('#${(_k.keyColor.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}',
             style: const TextStyle(color: _dim, fontSize: 12.5, fontFeatures: [FontFeature.tabularFigures()])),
         const Spacer(),
         for (final c in quick)
@@ -350,7 +349,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                 color: c,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                    color: _k.keyColor.value == c.value ? Colors.white : Colors.transparent, width: 2),
+                    color: _k.keyColor.toARGB32() == c.toARGB32() ? Colors.white : Colors.transparent, width: 2),
               ),
             ),
           ),
@@ -420,7 +419,7 @@ class _P extends StatelessWidget {
               activeTrackColor: _accent,
               inactiveTrackColor: _line,
               thumbColor: Colors.white,
-              overlayColor: _accent.withOpacity(0.15),
+              overlayColor: _accent.withValues(alpha: 0.15),
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
             ),

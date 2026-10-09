@@ -19,7 +19,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'chroma_key.dart';
+import 'package:flutter_video_editor/core/models/chroma_key.dart';
 
 enum ChromaBackground { checker, black, white, gray }
 
@@ -59,9 +59,9 @@ class _ChromaKeyPreviewState extends State<ChromaKeyPreview> {
       final s = p.fragmentShader();
       int i = 2; // 0,1 = uSize (engine-provided)
       void f(double v) => s.setFloat(i++, v);
-      f(k.keyColor.red / 255);
-      f(k.keyColor.green / 255);
-      f(k.keyColor.blue / 255);
+      f(k.keyColor.r);
+      f(k.keyColor.g);
+      f(k.keyColor.b);
       f(k.similarity / 100);
       f(k.smoothness / 100);
       f(k.highlight / 100);

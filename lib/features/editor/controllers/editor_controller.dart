@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
+import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
@@ -71,6 +72,19 @@ class EditorController extends ChangeNotifier {
     _isPlaying = false;
     _undoStack.clear();
     _redoStack.clear();
+    _autosave();
+    notifyListeners();
+  }
+
+  void setChromaKey(String clipId, ChromaKey chromaKey) {
+    final index = _project.clips.indexWhere(
+      (TimelineClip clip) => clip.id == clipId,
+    );
+    if (index == -1) return;
+
+    _saveStateCoalesced('chroma:$clipId');
+    _project.clips[index] =
+        _project.clips[index].copyWith(chromaKey: chromaKey);
     _autosave();
     notifyListeners();
   }
