@@ -1,6 +1,7 @@
 package com.example.flutter_video_editor.export
 
 import android.content.Context
+import androidx.media3.effect.BaseGlShaderProgram
 import androidx.media3.effect.GlEffect
 import androidx.media3.effect.GlShaderProgram
 
@@ -12,28 +13,12 @@ class ChromaKeyEffect(
 ) : GlEffect {
 
     override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram {
-        return object : GlShaderProgram {
-            override fun use() = Unit
+        return object : BaseGlShaderProgram(useHdr, 1) {
+            override fun configure(inputWidth: Int, inputHeight: Int): androidx.media3.common.util.Size {
+                return androidx.media3.common.util.Size(inputWidth, inputHeight)
+            }
 
-            override fun setFloat(name: String, value: Float) = Unit
-
-            override fun setFloat2(name: String, value0: Float, value1: Float) = Unit
-
-            override fun setFloat3(name: String, value0: Float, value1: Float, value2: Float) = Unit
-
-            override fun setFloat4(
-                name: String,
-                value0: Float,
-                value1: Float,
-                value2: Float,
-                value3: Float
-            ) = Unit
-
-            override fun setTexture2D(name: String, textureId: Int) = Unit
-
-            override fun release() = Unit
+            override fun drawFrame(inputTextureId: Int, presentationTimeUs: Long) = Unit
         }
     }
-
-    override fun release() = Unit
 }
