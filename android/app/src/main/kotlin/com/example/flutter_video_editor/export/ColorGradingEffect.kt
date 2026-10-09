@@ -32,9 +32,9 @@ class ColorGradingEffect(
         // temperature: -1 (নীল) থেকে 1 (লাল)
         // positive temperature = লাল বাড়ায়, নীল কমায়
         // negative temperature = নীল বাড়ায়, লাল কমায়
-        val redScale = (gain * (1.0 + 0.25 * temperature)).coerceAtLeast(0.0f)
-        val greenScale = gain.toFloat() // সবুজ সাধারণত নিউট্রাল থাকে
-        val blueScale = (gain * (1.0 - 0.25 * temperature)).coerceAtLeast(0.0f)
+        val redScale = (gain * (1.0f + 0.25f * temperature)).coerceAtLeast(0.0f)
+        val greenScale = gain
+        val blueScale = (gain * (1.0f - 0.25f * temperature)).coerceAtLeast(0.0f)
         
         // কনট্রাস্ট ফ্যাক্টর
         val contrastFactor = contrast.coerceIn(0.0f, 2.0f)
