@@ -75,9 +75,13 @@ class CompositionBuilder {
 
         for clip in overlayClips.sorted(by: { $0.layerIndex < $1.layerIndex }) {
             let layer = CALayer()
+            layer.anchorPoint = CGPoint(x: 0, y: 1)
             layer.bounds = CGRect(x: 0, y: 0, width: 200 * sx, height: 100 * sy)
             layer.position = CGPoint(x: clip.positionX * sx, y: videoSize.height - (clip.positionY * sy))
             layer.opacity = Float(clip.opacity)
+            if clip.rotation != 0 {
+                layer.transform = CATransform3DMakeRotation(CGFloat(clip.rotation * .pi / 180.0), 0, 0, 1)
+            }
 
             let startSec = Double(clip.timelineStartMs) / 1000.0
             let durSec = Double(clip.timelineDurationMs) / 1000.0

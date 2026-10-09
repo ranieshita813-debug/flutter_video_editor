@@ -84,7 +84,7 @@ object OverlayRenderer {
         text: String,
         width: Int,
         height: Int,
-        fontSizeSp: Float = 48f,
+        fontSizeSp: Float = 28f,
         fontFamily: String = "Poppins",
         textColorInt: Int = Color.WHITE,
         strokeColorInt: Int = Color.TRANSPARENT,
@@ -97,10 +97,7 @@ object OverlayRenderer {
         bgPaddingPx: Float = 0f,
         textAlignStr: String = "center"
     ): Bitmap {
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
-
-        val scale = height / 720f
+        val scale = height / 667f
         val textSizeCalculated = fontSizeSp * scale
 
         val align = when (textAlignStr.lowercase()) {
@@ -109,7 +106,6 @@ object OverlayRenderer {
             else -> Paint.Align.CENTER
         }
 
-        // ফন্ট লোডিং (অ্যাসেট থেকে অথবা ডিফল্ট)
         val typeface = loadTypeface(context, fontFamily)
 
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -118,7 +114,6 @@ object OverlayRenderer {
             this.typeface = typeface
             textAlign = align
 
-            // শ্যাডো শুধুমাত্র ইউজার দিলেই যোগ হবে
             if (shadowColorInt != Color.TRANSPARENT && shadowBlurPx > 0f) {
                 setShadowLayer(
                     shadowBlurPx * scale,
@@ -127,45 +122,34 @@ object OverlayRenderer {
                     shadowColorInt
                 )
             }
-            // অন্যথায় কোনো শ্যাডো নেই (ডিফল্ট কালো শ্যাডো সরানো হয়েছে)
         }
 
-        // টেক্সট পজিশন
+        val fontMetrics = textPaint.fontMetrics
+        val textWidth = textPaint.measureText(text)
+        val pad = bgPaddingPx * scale
+
+        val bmpW = (textWidth + pad * 2f).toInt().coerceAtLeast(1)
+        val bmpH = (fontMetrics.bottom - fontMetrics.top + pad * 2f).toInt().coerceAtLeast(1)
+
+        val bitmap = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
         val x = when (align) {
-            Paint.Align.LEFT -> width * 0.1f
-            Paint.Align.RIGHT -> width * 0.9f
-            else -> width / 2f
+            Paint.Align.LEFT -> pad
+            Paint.Align.RIGHT -> bmpW - pad
+            else -> bmpW / 2f
         }
-        val y = height * 0.8f
+        val y = pad - fontMetrics.top
 
-        // ব্যাকগ্রাউন্ড বক্স (ঐচ্ছিক)
         if (bgColorInt != Color.TRANSPARENT) {
-            val textWidth = textPaint.measureText(text)
-            val fontMetrics = textPaint.fontMetrics
-            val pad = bgPaddingPx * scale
-
-            val left = when (align) {
-                Paint.Align.LEFT -> x - pad
-                Paint.Align.RIGHT -> x - textWidth - pad
-                else -> x - (textWidth / 2f) - pad
-            }
-
-            val bgRect = RectF(
-                left,
-                y + fontMetrics.top - pad,
-                left + textWidth + (pad * 2f),
-                y + fontMetrics.bottom + pad
-            )
-
+            val bgRect = RectF(0f, 0f, bmpW.toFloat(), bmpH.toFloat())
             val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = bgColorInt
                 style = Paint.Style.FILL
             }
-
             canvas.drawRoundRect(bgRect, 8f * scale, 8f * scale, bgPaint)
         }
 
-        // স্ট্রোক রেন্ডারিং (ঐচ্ছিক)
         if (strokeColorInt != Color.TRANSPARENT && strokeWidthPx > 0f) {
             val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = strokeColorInt
@@ -178,7 +162,6 @@ object OverlayRenderer {
             canvas.drawText(text, x, y, strokePaint)
         }
 
-        // মূল টেক্সট রেন্ডার
         canvas.drawText(text, x, y, textPaint)
 
         return bitmap
@@ -364,7 +347,15 @@ object OverlayRenderer {
             "sticker" -> {
                 val path = clip.stickerAssetPath?.takeIf { it.isNotEmpty() } ?: clip.sourcePath
                 if (path != null) {
-                    overlayBmp = loadBitmap(context, path, (150 * sx).toInt(), (150 * sy).toInt())
+                    overlayBmp = loadBitmap(context, path, (150 * sx).toInt().coerceAtLeast(10), (150 * sy).toInt().coerceAtLeast(10))
+                } else {
+                    overlayBmp = renderTextOverlay(context, clip.label, width, height)
+                }
+            }
+            "element" -> {
+                val path = clip.svgPath?.takeIf { it.isNotEmpty() } ?: clip.sourcePath
+                if (path != null) {
+                    overlayBmp = loadBitmap(context, path, (100 * sx).toInt().coerceAtLeast(10), (100 * sy).toInt().coerceAtLeast(10))
                 }
             }
             "text", "caption" -> {
@@ -440,7 +431,11 @@ object OverlayRenderer {
         canvas.save()
         val matrix = Matrix()
         matrix.postScale(clip.scale.toFloat(), clip.scale.toFloat())
-        matrix.postRotate(clip.rotation.toFloat())
+        matrix.postRotate(
+            clip.rotation.toFloat(),
+            overlayBmp.width / 2f,
+            overlayBmp.height / 2f
+        )
         matrix.postTranslate((clip.positionX * sx).toFloat(), (clip.positionY * sy).toFloat())
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)

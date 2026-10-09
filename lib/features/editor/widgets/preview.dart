@@ -597,6 +597,13 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                     size: btn, iconSize: 16 * s),
                 if (showLogo) ...<Widget>[
                   SizedBox(width: 10 * s),
+                  SvgPicture.asset(
+                    'assets/logo.svg',
+                    width: 20 * s,
+                    height: 20 * s,
+                    colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                  ),
+                  SizedBox(width: 8 * s),
                   Flexible(
                     child: Text(
                       'motionGr',
@@ -1203,9 +1210,55 @@ class _OverlayClipState extends State<_OverlayClip> {
           );
         }
         return _applyAnimations(mediaWidget, clip);
+      case ClipType.sticker:
+        final stickerPath = clip.stickerAssetPath ?? clip.sourcePath;
+        if (stickerPath != null && stickerPath.isNotEmpty) {
+          Widget stickerWidget;
+          if (stickerPath.trim().startsWith('<')) {
+            stickerWidget = SvgPicture.string(stickerPath, fit: BoxFit.contain);
+          } else if (stickerPath.startsWith('assets/') || stickerPath.startsWith('asset/')) {
+            if (stickerPath.endsWith('.svg')) {
+              stickerWidget = SvgPicture.asset(stickerPath, fit: BoxFit.contain);
+            } else {
+              stickerWidget = Image.asset(stickerPath, fit: BoxFit.contain);
+            }
+          } else if (File(stickerPath).existsSync()) {
+            if (stickerPath.endsWith('.svg')) {
+              stickerWidget = SvgPicture.file(File(stickerPath), fit: BoxFit.contain);
+            } else {
+              stickerWidget = Image.file(File(stickerPath), fit: BoxFit.contain);
+            }
+          } else {
+            stickerWidget = Text(
+              clip.label,
+              style: TextStyle(color: Colors.white, fontSize: 28 * clip.scale * u),
+            );
+          }
+          return _applyAnimations(
+            SizedBox(
+              width: 100 * clip.scale * u,
+              height: 100 * clip.scale * u,
+              child: stickerWidget,
+            ),
+            clip,
+          );
+        }
+        final tsSticker = clip.textStyle;
+        final double effectiveSizeSticker = (tsSticker.fontSize > 0 ? tsSticker.fontSize : 28.0) * clip.scale * u;
+        return _applyAnimations(
+          Text(
+            clip.label,
+            textAlign: tsSticker.textAlign,
+            style: TextStyle(
+              color: tsSticker.textColor != Colors.transparent ? tsSticker.textColor : Colors.white,
+              fontSize: effectiveSizeSticker,
+              fontFamily: clip.fontFamily,
+            ),
+          ),
+          clip,
+        );
       case ClipType.text:
       case ClipType.caption:
-      case ClipType.sticker:
         final ts = clip.textStyle;
         final double effectiveSize = ts.fontSize * clip.scale * u;
 
@@ -1288,6 +1341,18 @@ class _OverlayClipState extends State<_OverlayClip> {
               width: 100 * clip.scale * u,
               height: 100 * clip.scale * u,
               child: SvgPicture.string(
+                svgStr,
+                fit: BoxFit.contain,
+                colorFilter: clip.elementProperties.fillColor != Colors.white
+                    ? ColorFilter.mode(clip.elementProperties.fillColor, BlendMode.srcIn)
+                    : null,
+              ),
+            );
+          } else if (svgStr.startsWith('assets/') || svgStr.startsWith('asset/')) {
+            elWidget = SizedBox(
+              width: 100 * clip.scale * u,
+              height: 100 * clip.scale * u,
+              child: SvgPicture.asset(
                 svgStr,
                 fit: BoxFit.contain,
                 colorFilter: clip.elementProperties.fillColor != Colors.white
@@ -1413,6 +1478,12 @@ class _OverlayClipState extends State<_OverlayClip> {
     }
     if (scaleMult != 1.0) {
       result = Transform.scale(scale: scaleMult, child: result);
+    }
+    if (clip.rotation != 0) {
+      result = Transform.rotate(
+        angle: clip.rotation * math.pi / 180,
+        child: result,
+      );
     }
     if (opacity < 1.0) {
       result = Opacity(opacity: opacity.clamp(0.0, 1.0), child: result);
