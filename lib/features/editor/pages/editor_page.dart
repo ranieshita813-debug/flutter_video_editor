@@ -12,6 +12,7 @@ import 'package:flutter_video_editor/features/editor/widgets/timeline.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_panel.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/editor/widgets/transport.dart';
+import 'package:flutter_video_editor/features/media_picker/pages/media_picker_page.dart';
 
 // ----------------------------------------------------------------------------
 // Page
@@ -157,10 +158,17 @@ class _EditorPageState extends State<EditorPage> {
                   onSelectToolSheet: _openSheet,
                   onAddMedia: () async {
                     final nav = Navigator.of(context);
-                    final mediaPath = await nav.pushNamed('/media_picker');
-                    if (mediaPath != null && mediaPath is String) {
-                      editor.addMediaClip(mediaPath);
-                    }
+                    await nav.pushNamed(
+                      '/media_picker',
+                      arguments: const MediaPickerArgs(appendToCurrent: true, isOverlay: false),
+                    );
+                  },
+                  onAddOverlay: () async {
+                    final nav = Navigator.of(context);
+                    await nav.pushNamed(
+                      '/media_picker',
+                      arguments: const MediaPickerArgs(appendToCurrent: true, isOverlay: true),
+                    );
                   },
                 );
 

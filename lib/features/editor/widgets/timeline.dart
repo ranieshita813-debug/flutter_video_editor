@@ -40,7 +40,7 @@ class _ClipSnapshot {
   double get startSec => startMs / 1000.0;
   double get endSec => endMs / 1000.0;
   double get durSec => (endMs - startMs) / 1000.0;
-  bool get isMain => type == ClipType.video || type == ClipType.image;
+  bool get isMain => (type == ClipType.video || type == ClipType.image) && layer == 0;
 
   @override
   bool operator ==(Object other) =>
@@ -233,13 +233,13 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     });
   }
 
-  bool _isOverlay(_ClipSnapshot c) =>
-      c.type != ClipType.audio && c.type != ClipType.video && c.type != ClipType.image;
+  bool _isOverlay(_ClipSnapshot c) => c.type != ClipType.audio && !c.isMain;
 
   /// Track name for an overlay lane, based on what it contains.
   String _overlayName(List<_ClipSnapshot> cs) {
     if (cs.isEmpty) return 'Text';
     final ClipType t = cs.first.type;
+    if (t == ClipType.video || t == ClipType.image) return 'Overlay';
     if (t == ClipType.sticker || t == ClipType.element) return 'Sticker';
     if (t == ClipType.drawing) return 'Drawing';
     return 'Text';
@@ -988,15 +988,23 @@ class _ClipBlockState extends State<_ClipBlock> {
     Widget body;
     switch (widget.kind) {
       case _ClipKind.text:
+        final bool overlayMedia =
+            clip.type == ClipType.video || clip.type == ClipType.image;
         final bool sticker =
             clip.type == ClipType.sticker || clip.type == ClipType.element;
         final bool drawing = clip.type == ClipType.drawing;
-        final Color bg = drawing ? drawTrackToken : (sticker ? fxTrackToken : textTrackToken);
-        final IconData icon = drawing
-            ? Icons.brush_rounded
-            : (sticker ? Icons.emoji_emotions_rounded : Icons.title_rounded);
+        final Color bg = overlayMedia
+            ? const Color(0xFF673AB7)
+            : (drawing ? drawTrackToken : (sticker ? fxTrackToken : textTrackToken));
+        final IconData icon = overlayMedia
+            ? (clip.type == ClipType.video
+                ? Icons.video_library_rounded
+                : Icons.image_rounded)
+            : (drawing
+                ? Icons.brush_rounded
+                : (sticker ? Icons.emoji_emotions_rounded : Icons.title_rounded));
         body = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(12),

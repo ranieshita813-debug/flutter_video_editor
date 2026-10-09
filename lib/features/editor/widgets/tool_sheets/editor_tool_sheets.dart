@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -81,7 +80,7 @@ class _SheetHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 48,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: dividerToken)),
       ),
       child: Row(
@@ -108,7 +107,7 @@ class _SheetHeader extends StatelessWidget {
               tapFeedback();
               onApply();
             },
-            icon: Icon(Icons.check_rounded, color: accentToken, size: 24),
+            icon: const Icon(Icons.check_rounded, color: accentToken, size: 24),
           ),
         ],
       ),
@@ -246,13 +245,12 @@ Gradient _thumbGradient(int i) {
 }
 
 class _Card extends StatelessWidget {
-  const _Card({required this.child, this.padding = const EdgeInsets.all(12)});
+  const _Card({required this.child});
   final Widget child;
-  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: padding,
+        padding: const EdgeInsets.all(12),
         decoration:
             BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(12)),
         child: child,
@@ -299,11 +297,11 @@ class _SliderRow extends StatelessWidget {
             const Spacer(),
             Text(
               display ?? v.toStringAsFixed(2),
-              style: TextStyle(
+              style: const TextStyle(
                 color: accentToken,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
               ),
             ),
           ],
@@ -335,8 +333,8 @@ class _SliderRow extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
-                Text(minLabel!, style: TextStyle(color: mutedToken, fontSize: 10)),
-                Text(maxLabel!, style: TextStyle(color: mutedToken, fontSize: 10)),
+                Text(minLabel!, style: const TextStyle(color: mutedToken, fontSize: 10)),
+                Text(maxLabel!, style: const TextStyle(color: mutedToken, fontSize: 10)),
               ],
             ),
           ),
@@ -385,7 +383,7 @@ Widget _primaryBtn(dynamic icon, String label, VoidCallback? onPressed) => Sized
 /// Pill outline button for secondary actions.
 Widget _outlineBtn(String label, VoidCallback? onPressed) => OutlinedButton(
       style: OutlinedButton.styleFrom(
-        side: BorderSide(color: dividerToken),
+        side: const BorderSide(color: dividerToken),
         shape: const StadiumBorder(),
         minimumSize: const Size.fromHeight(46),
         foregroundColor: Colors.white,
@@ -411,7 +409,7 @@ class _Tabs extends StatelessWidget {
     return Container(
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: dividerToken)),
       ),
       child: Row(
@@ -511,7 +509,7 @@ class _ThumbTile extends StatelessWidget {
                         width: 16,
                         height: 16,
                         decoration:
-                            BoxDecoration(color: accentToken, shape: BoxShape.circle),
+                            const BoxDecoration(color: accentToken, shape: BoxShape.circle),
                         child: const Icon(Icons.check_rounded,
                             size: 12, color: Colors.black),
                       ),
@@ -539,6 +537,7 @@ class _ThumbTile extends StatelessWidget {
 
 class _ResponsiveGrid extends StatefulWidget {
   const _ResponsiveGrid({
+    super.key,
     required this.itemCount,
     required this.itemBuilder,
     this.minTile = 100,
@@ -645,7 +644,7 @@ class AudioToolsSheet extends StatelessWidget {
                   color: accentToken.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Center(
+                child: const Center(
                   child: HugeIcon(
                       icon: HugeIcons.strokeRoundedMusicNote01,
                       color: accentToken,
@@ -653,16 +652,16 @@ class AudioToolsSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const Text('Add audio track',
+                    Text('Add audio track',
                         style: TextStyle(
                             color: Colors.white,
                             fontSize: 14,
                             fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text('Place a soundtrack clip on the timeline',
                         style: TextStyle(color: mutedToken, fontSize: 12)),
                   ],
@@ -682,7 +681,7 @@ class AudioToolsSheet extends StatelessWidget {
                       editor.addAudioTrack(
                           'Track ${editor.clips.where((c) => c.clipType == ClipType.audio).length + 1}');
                     },
-                    child: Tooltip(
+                    child: const Tooltip(
                       message: 'Add audio track',
                       child: Center(
                         child: HugeIcon(
@@ -743,7 +742,7 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
   Widget build(BuildContext context) {
     final editor = context.watch<EditorController>();
     final bool editing = editor.selectedClip?.clipType == ClipType.text;
-    final List<TextAnimationStyle> styles = TextAnimationStyle.values;
+    const styles = TextAnimationStyle.values;
 
     return Column(
       children: <Widget>[
@@ -760,14 +759,14 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Text content',
-              hintStyle: TextStyle(color: mutedToken),
+              hintStyle: const TextStyle(color: mutedToken),
               filled: true,
               fillColor: cardToken,
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               suffixIcon: IconButton(
                 tooltip: 'Clear text',
-                icon: Icon(Icons.cancel_rounded, color: mutedToken, size: 18),
+                icon: const Icon(Icons.cancel_rounded, color: mutedToken, size: 18),
                 onPressed: _ctrl.clear,
               ),
               border: OutlineInputBorder(
@@ -1026,7 +1025,7 @@ class CropSheet extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
-        Text('Canvas ratio',
+        const Text('Canvas ratio',
             style: TextStyle(
                 color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
@@ -1080,7 +1079,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
   Color _color = Colors.cyanAccent;
   double _width = 4.0;
 
-  static const List<(Color, String)> _palette = <(Color, String)>[
+  static const _palette = <(Color, String)>[
     (Colors.cyanAccent, 'Cyan'),
     (Colors.redAccent, 'Red'),
     (Colors.greenAccent, 'Green'),
@@ -1107,7 +1106,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
           },
         ),
         const SizedBox(height: 20),
-        Text('Color',
+        const Text('Color',
             style: TextStyle(
                 color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 10),
@@ -1193,13 +1192,12 @@ class MaskSheet extends StatelessWidget {
 }
 
 class _Diamond extends StatelessWidget {
-  const _Diamond({this.size = 8});
-  final double size;
+  const _Diamond();
 
   @override
   Widget build(BuildContext context) => Transform.rotate(
         angle: math.pi / 4,
-        child: Container(width: size, height: size, color: accentToken),
+        child: Container(width: 8, height: 8, color: accentToken),
       );
 }
 
@@ -1235,7 +1233,7 @@ class KeyframeSheet extends StatelessWidget {
                 editor.selectedClip == null
                     ? 'Select a clip to add keyframes'
                     : 'No keyframes yet',
-                style: TextStyle(color: mutedToken, fontSize: 12),
+                style: const TextStyle(color: mutedToken, fontSize: 12),
               ),
             ),
           ),
@@ -1257,10 +1255,10 @@ class KeyframeSheet extends StatelessWidget {
                   ),
                   Text(
                     '${secondsOf(kf.time).toStringAsFixed(1)}s',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: mutedToken,
                       fontSize: 12,
-                      fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+                      fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
                     ),
                   ),
                   IconButton(
@@ -1355,7 +1353,7 @@ class PluginsSheet extends StatelessWidget {
     final plugins = PluginManager().activePlugins;
 
     if (plugins.isEmpty) {
-      return Center(
+      return const Center(
         child: Text('No active plug-ins',
             style: TextStyle(color: mutedToken, fontSize: 12)),
       );
@@ -1380,7 +1378,7 @@ class PluginsSheet extends StatelessWidget {
                   color: accentToken.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Center(
+                child: const Center(
                   child: HugeIcon(
                       icon: HugeIcons.strokeRoundedGridView,
                       color: accentToken,
@@ -1398,7 +1396,7 @@ class PluginsSheet extends StatelessWidget {
                             fontSize: 14,
                             fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
-                    Text(p.version, style: TextStyle(color: mutedToken, fontSize: 12)),
+                    Text(p.version, style: const TextStyle(color: mutedToken, fontSize: 12)),
                   ],
                 ),
               ),
