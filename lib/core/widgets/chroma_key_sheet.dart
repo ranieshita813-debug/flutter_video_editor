@@ -126,7 +126,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
             scale: 0.8,
             child: Switch(
               value: _k.enabled,
-              activeColor: _accent,
+              activeThumbColor: _accent,
               onChanged: _toggle,
             ),
           ),
