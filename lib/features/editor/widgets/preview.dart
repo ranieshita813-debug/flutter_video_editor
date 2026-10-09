@@ -13,6 +13,7 @@ import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_preview.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/effects/services/effect_preview_service.dart';
 
@@ -372,19 +373,31 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
       if (sc != 1.0) child = Transform.scale(scale: sc, child: child);
     }
 
+    if (clip != null && clip.chromaKey.enabled) {
+      child = ChromaKeyPreview(
+        chroma: clip.chromaKey,
+        child: child,
+      );
+    }
+
     final cg = clip?.colorGrading;
     if (cg != null) {
       final double b = cg.brightness;
       final double cont = cg.contrast;
       final double s = cg.saturation;
-      if (b != 0.0 || cont != 1.0 || s != 1.0) {
+      final double temp = cg.temperature;
+      final double tint = cg.tint;
+      if (b != 0.0 || cont != 1.0 || s != 1.0 || temp != 0.0 || tint != 0.0) {
         const double lr = 0.2126, lg = 0.7152, lb = 0.0722;
         final double sr = (1 - s) * lr, sg = (1 - s) * lg, sb = (1 - s) * lb;
         final double off = (0.5 * (1 - cont) + b) * 255;
+        final double redShift = temp * 30.0;
+        final double blueShift = -temp * 30.0;
+        final double greenShift = tint * 30.0;
         final List<double> matrix = <double>[
-          cont * (sr + s), cont * sg, cont * sb, 0, off,
-          cont * sr, cont * (sg + s), cont * sb, 0, off,
-          cont * sr, cont * sg, cont * (sb + s), 0, off,
+          cont * (sr + s), cont * sg, cont * sb, 0, off + redShift,
+          cont * sr, cont * (sg + s), cont * sb, 0, off + greenShift,
+          cont * sr, cont * sg, cont * (sb + s), 0, off + blueShift,
           0, 0, 0, 1, 0,
         ];
         child = ColorFiltered(colorFilter: ColorFilter.matrix(matrix), child: child);

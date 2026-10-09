@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
+import 'package:flutter_video_editor/core/models/chroma_key.dart';
+import 'package:flutter_video_editor/core/widgets/chroma_key_sheet.dart';
+import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/order_tool_view.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/features/editor/widgets/speed_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/elements_sheet.dart';
 
@@ -30,7 +34,8 @@ enum EditorTool {
   track('Track', HugeIcons.strokeRoundedTarget01),
   textStyle('Text Style', HugeIcons.strokeRoundedTextFont),
   animation('Animation', HugeIcons.strokeRoundedPlay),
-  order('Order', HugeIcons.strokeRoundedArrowUpDown);
+  order('Order', HugeIcons.strokeRoundedArrowUpDown),
+  chromaKey('Chroma Key', HugeIcons.strokeRoundedFilter);
 
   const EditorTool(this.title, this.icon);
   final String title;
@@ -42,9 +47,24 @@ enum EditorTool {
         EditorTool.stickers => const StickersSheet(),
         EditorTool.filters => const EffectsSheet(isFilterMode: true),
         EditorTool.effects => const EffectsSheet(isFilterMode: false),
-        EditorTool.adjust => AdjustSheet(
-            onApply: (_) {},
-            onClose: () {},
+        EditorTool.adjust => Consumer<EditorController>(
+            builder: (ctx, editor, _) {
+              final clip = editor.selectedClip;
+              final initialAdj = clip != null
+                  ? AdjustSettings.fromColorGrading(clip.colorGrading)
+                  : AdjustSettings.identity;
+
+              return AdjustSheet(
+                initial: initialAdj,
+                onChanged: (settings) {
+                  editor.updateColorGrading(settings.toColorGrading());
+                },
+                onApply: (settings) {
+                  editor.updateColorGrading(settings.toColorGrading());
+                },
+                onClose: () {},
+              );
+            },
           ),
         EditorTool.crop => const CropSheet(),
         EditorTool.speed => const SpeedSheet(),
@@ -56,6 +76,19 @@ enum EditorTool {
         EditorTool.textStyle => const TextStyleSheet(),
         EditorTool.animation => const ClipAnimationSheet(),
         EditorTool.order => const OrderToolView(),
+        EditorTool.chromaKey => Consumer<EditorController>(
+            builder: (ctx, editor, _) {
+              final clip = editor.selectedClip;
+              return ChromaKeySheet(
+                value: clip?.chromaKey ?? const ChromaKey(),
+                onChanged: (k) {
+                  if (clip != null) {
+                    editor.setChromaKey(clip.id, k);
+                  }
+                },
+              );
+            },
+          ),
       };
 }
 

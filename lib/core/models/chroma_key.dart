@@ -133,7 +133,7 @@ class ChromaKey {
   // ---------------------------------------------------------------- JSON
   Map<String, dynamic> toJson() => {
         'enabled': enabled,
-        'keyColor': keyColor.value,
+        'keyColor': keyColor.toARGB32(),
         'output': output.index,
         'similarity': similarity,
         'smoothness': smoothness,
@@ -179,7 +179,7 @@ class ChromaKey {
   }
 
   // ------------------------------------------------------------- FFmpeg
-  String _hex(Color c) => (c.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0');
+  String _hex(Color c) => (c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0');
 
   /// Returns a filter-graph fragment: `[input] ... [output]`.
   /// Use inside -filter_complex, then overlay `[output]` on the background.
@@ -196,7 +196,9 @@ class ChromaKey {
 
     // Spill suppression (FFmpeg's despill supports green / blue only)
     if (spill > 0) {
-      final r = keyColor.red, g = keyColor.green, b = keyColor.blue;
+      final r = (keyColor.r * 255.0).round().clamp(0, 255);
+      final g = (keyColor.g * 255.0).round().clamp(0, 255);
+      final b = (keyColor.b * 255.0).round().clamp(0, 255);
       final isGreen = g >= b && g > r;
       final isBlue = b > g && b > r;
       if (isGreen || isBlue) {
