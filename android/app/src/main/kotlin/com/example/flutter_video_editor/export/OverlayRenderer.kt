@@ -208,14 +208,22 @@ object OverlayRenderer {
     ): Bitmap {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-        val scale = height / 720f
+        drawWatermarkOverlayOnCanvas(canvas, width, height, text)
+        return bitmap
+    }
 
+    fun drawWatermarkOverlayOnCanvas(
+        canvas: Canvas,
+        width: Int,
+        height: Int,
+        text: String = "motionGr"
+    ) {
+        val scale = height / 720f
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.argb(180, 255, 255, 255)
             textSize = 24f * scale
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.RIGHT
-            // শ্যাডো (ঐচ্ছিক)
             setShadowLayer(
                 4f * scale,
                 1f * scale,
@@ -223,12 +231,9 @@ object OverlayRenderer {
                 Color.argb(150, 0, 0, 0)
             )
         }
-
         val x = width - (24f * scale)
         val y = height - (24f * scale)
         canvas.drawText(text, x, y, paint)
-
-        return bitmap
     }
 
     /**
@@ -267,5 +272,187 @@ object OverlayRenderer {
         }
 
         return bitmap
+    }
+
+    /**
+     * বিটম্যাপে ক্রুমা কী ফিল্টারিং প্রয়োগ করে
+     */
+    fun applyChromaKey(
+        bitmap: Bitmap,
+        keyColor: Long,
+        similarity: Double,
+        smoothness: Double,
+        spill: Double
+    ): Bitmap {
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= 0 || h <= 0) return bitmap
+
+        val pixels = IntArray(w * h)
+        bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+
+        val keyInt = keyColor.toInt()
+        val keyR = (keyInt shr 16) and 0xFF
+        val keyG = (keyInt shr 8) and 0xFF
+        val keyB = keyInt and 0xFF
+
+        val sim = (similarity / 100.0).toFloat().coerceIn(0.01f, 1.0f)
+        val smooth = (smoothness / 100.0).toFloat().coerceIn(0.001f, 1.0f)
+        val minThresh = sim * 0.7f
+        val maxThresh = minThresh + smooth
+        val spillFactor = (spill / 100.0).toFloat().coerceIn(0.0f, 1.0f)
+
+        for (i in pixels.indices) {
+            val px = pixels[i]
+            val a = (px ushr 24) and 0xFF
+            if (a == 0) continue
+
+            var r = (px shr 16) and 0xFF
+            var g = (px shr 8) and 0xFF
+            var b = px and 0xFF
+
+            val dr = (r - keyR).toFloat()
+            val dg = (g - keyG).toFloat()
+            val db = (b - keyB).toFloat()
+            val dist = kotlin.math.sqrt(dr * dr + dg * dg + db * db) / 441.67f
+
+            val factor = when {
+                dist <= minThresh -> 0f
+                dist >= maxThresh -> 1f
+                else -> (dist - minThresh) / (maxThresh - minThresh)
+            }
+
+            if (spillFactor > 0f) {
+                val maxOther = maxOf(r, b)
+                if (g > maxOther) {
+                    val greenSpill = (g - maxOther).toFloat()
+                    g = (g - greenSpill * spillFactor).toInt().coerceIn(0, 255)
+                }
+            }
+
+            val finalA = (a * factor).toInt().coerceIn(0, 255)
+            pixels[i] = (finalA shl 24) or (r shl 16) or (g shl 8) or b
+        }
+
+        val output = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        output.setPixels(pixels, 0, w, 0, 0, w, h)
+        return output
+    }
+
+    /**
+     * ক্যানভাসে নির্দিষ্ট ওভারলে ক্লিপ আঁকে
+     */
+    fun drawOverlayClip(
+        context: Context,
+        canvas: Canvas,
+        clip: ClipSpec,
+        width: Int,
+        height: Int,
+        timelineMs: Long
+    ) {
+        val sx = width / 375f
+        val sy = height / 667f
+
+        var overlayBmp: Bitmap? = null
+
+        when (clip.clipType) {
+            "drawing" -> {
+                if (clip.strokes.isNotEmpty()) {
+                    overlayBmp = renderDrawingOverlay(clip.strokes, width, height)
+                }
+            }
+            "sticker" -> {
+                val path = clip.stickerAssetPath?.takeIf { it.isNotEmpty() } ?: clip.sourcePath
+                if (path != null) {
+                    overlayBmp = loadBitmap(context, path, (150 * sx).toInt(), (150 * sy).toInt())
+                }
+            }
+            "text", "caption" -> {
+                overlayBmp = renderTextOverlay(
+                    context = context,
+                    text = clip.label,
+                    width = width,
+                    height = height,
+                    fontSizeSp = clip.textStyle.fontSize.toFloat(),
+                    fontFamily = clip.fontFamily,
+                    textColorInt = clip.textStyle.textColor.toInt(),
+                    strokeColorInt = clip.textStyle.strokeColor.toInt(),
+                    strokeWidthPx = clip.textStyle.strokeWidth.toFloat(),
+                    shadowColorInt = clip.textStyle.shadowColor.toInt(),
+                    shadowBlurPx = clip.textStyle.shadowBlurRadius.toFloat(),
+                    shadowOffsetX = clip.textStyle.shadowOffsetX.toFloat(),
+                    shadowOffsetY = clip.textStyle.shadowOffsetY.toFloat(),
+                    bgColorInt = clip.textStyle.backgroundColor.toInt(),
+                    bgPaddingPx = clip.textStyle.backgroundPadding.toFloat(),
+                    textAlignStr = clip.textStyle.textAlign
+                )
+            }
+            "image" -> {
+                val path = clip.sourcePath
+                if (path != null) {
+                    overlayBmp = loadBitmap(context, path, (200 * sx).toInt(), (200 * sy).toInt())
+                }
+            }
+            "video" -> {
+                val path = clip.sourcePath
+                if (path != null) {
+                    val frameMs = (timelineMs - clip.timelineStartMs + clip.sourceInMs).coerceAtLeast(0L)
+                    val retriever = android.media.MediaMetadataRetriever()
+                    try {
+                        if (path.startsWith("content://")) {
+                            retriever.setDataSource(context, Uri.parse(path))
+                        } else {
+                            retriever.setDataSource(path.removePrefix("file://"))
+                        }
+                        val frame = retriever.getFrameAtTime(frameMs * 1000L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        if (frame != null) {
+                            overlayBmp = Bitmap.createScaledBitmap(frame, (200 * sx).toInt().coerceAtLeast(16), (200 * sy).toInt().coerceAtLeast(16), true)
+                            if (overlayBmp != frame) frame.recycle()
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to extract video frame for overlay", e)
+                    } finally {
+                        try { retriever.release() } catch (_: Exception) {}
+                    }
+                }
+            }
+            else -> {
+                overlayBmp = renderTextOverlay(context, clip.label, width, height)
+            }
+        }
+
+        if (overlayBmp == null) return
+
+        if (clip.chromaKey.enabled) {
+            val keyed = applyChromaKey(
+                bitmap = overlayBmp,
+                keyColor = clip.chromaKey.keyColor,
+                similarity = clip.chromaKey.similarity,
+                smoothness = clip.chromaKey.smoothness,
+                spill = clip.chromaKey.spill
+            )
+            if (keyed != overlayBmp && !overlayBmp.isRecycled) {
+                overlayBmp.recycle()
+            }
+            overlayBmp = keyed
+        }
+
+        canvas.save()
+        val matrix = Matrix()
+        matrix.postScale(clip.scale.toFloat(), clip.scale.toFloat())
+        matrix.postRotate(clip.rotation.toFloat())
+        matrix.postTranslate((clip.positionX * sx).toFloat(), (clip.positionY * sy).toFloat())
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        if (clip.opacity < 1.0) {
+            paint.alpha = (clip.opacity * 255).toInt().coerceIn(0, 255)
+        }
+
+        canvas.drawBitmap(overlayBmp, matrix, paint)
+        canvas.restore()
+
+        if (!overlayBmp.isRecycled) {
+            overlayBmp.recycle()
+        }
     }
 }
