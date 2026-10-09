@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:ui' show FontFeature;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -32,11 +31,6 @@ const Color _cVideo = Color(0xFF7C8CFF);
 const Color _cImage = Color(0xFF34D399);
 const Color _cAudio = Color(0xFFFFB454);
 
-const LinearGradient _gradient = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: <Color>[Color(0xFF22E5C9), Color(0xFF3D8BFF)],
-);
 
 const TextStyle _timecode = TextStyle(
   fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
@@ -823,15 +817,14 @@ class _MediaPickerPageState extends State<MediaPickerPage>
               duration: const Duration(milliseconds: 150),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                gradient: sel ? _gradient : null,
-                color: sel ? null : _elevated,
+                color: sel ? Colors.white : _elevated,
                 borderRadius: BorderRadius.circular(16),
                 border: sel ? null : Border.all(color: _border),
               ),
               child: Text(
                 sel ? 'Selected' : 'Select',
                 style: TextStyle(
-                  color: sel ? _onAccent : _text,
+                  color: sel ? Colors.black : _text,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1074,12 +1067,12 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                       height: 16,
                       alignment: Alignment.center,
                       decoration: const BoxDecoration(
-                        gradient: _gradient,
+                        color: Colors.white,
                         shape: BoxShape.circle,
                       ),
                       child: Text('${i + 1}',
                           style: const TextStyle(
-                              color: _onAccent,
+                              color: Colors.black,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800)),
                     ),
@@ -1199,8 +1192,7 @@ class _GradientButton extends StatelessWidget {
       color: Colors.transparent,
       child: Ink(
         decoration: BoxDecoration(
-          gradient: on ? _gradient : null,
-          color: on ? null : _elevated,
+          color: on ? Colors.white : _elevated,
           borderRadius: BorderRadius.circular(23),
         ),
         child: InkWell(
@@ -1220,13 +1212,13 @@ class _GradientButton extends StatelessWidget {
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: _onAccent),
+                          strokeWidth: 2, color: Colors.black),
                     )
                   else
                     Text(
                       label,
                       style: TextStyle(
-                        color: on ? _onAccent : _muted,
+                        color: on ? Colors.black : _muted,
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1393,8 +1385,7 @@ class _Cell extends StatelessWidget {
               height: 22,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: sel ? _gradient : null,
-                color: sel ? null : Colors.black.withAlpha(90),
+                color: sel ? Colors.white : Colors.black.withAlpha(90),
                 border: sel
                     ? null
                     : Border.all(color: Colors.white, width: 1.5),
@@ -1403,7 +1394,7 @@ class _Cell extends StatelessWidget {
                   ? Center(
                       child: Text('$order',
                           style: const TextStyle(
-                              color: _onAccent,
+                              color: Colors.black,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w800)),
                     )

@@ -255,23 +255,40 @@ class WavePainter extends CustomPainter {
         }
 
       case WaveStyle.bars:
-        const double bw = 3, gap = 2;
-        final Paint soft = Paint()..color = color.withAlpha(100);
+        const double bw = 3.5, gap = 1.5;
+        final Paint soft = Paint()..color = color.withAlpha(80);
         final Paint solid = Paint()..color = color;
+        final Paint cap = Paint()..color = Colors.white.withAlpha(200);
         for (double x = 1; x + bw <= w; x += bw + gap) {
-          final double r = lvl(bucket(data.rms, x, x + bw, max: false) * 1.25) * amp;
-          final double a = math.max(2.0, r);
-          final double pe = math.max(a, lvl(bucket(data.peak, x, x + bw, max: true)) * amp);
+          final double r = lvl(bucket(data.rms, x, x + bw, max: false) * 1.35) * amp;
+          final double a = math.max(2.5, r);
+          final double pe = math.max(a + 1.5, lvl(bucket(data.peak, x, x + bw, max: true)) * amp);
+
+          // Outer peak bar envelope
           canvas.drawRRect(
             RRect.fromRectAndRadius(
-                Rect.fromLTWH(x, mid - pe, bw, pe * 2), const Radius.circular(1.5)),
+                Rect.fromLTWH(x, mid - pe, bw, pe * 2), const Radius.circular(2.0)),
             soft,
           );
+          // Inner RMS solid bar
           canvas.drawRRect(
             RRect.fromRectAndRadius(
-                Rect.fromLTWH(x, mid - a, bw, a * 2), const Radius.circular(1.5)),
+                Rect.fromLTWH(x, mid - a, bw, a * 2), const Radius.circular(2.0)),
             solid,
           );
+          // Top & bottom peak caps
+          if (pe > a + 2) {
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                  Rect.fromLTWH(x, mid - pe, bw, 1.5), const Radius.circular(1.0)),
+              cap,
+            );
+            canvas.drawRRect(
+              RRect.fromRectAndRadius(
+                  Rect.fromLTWH(x, mid + pe - 1.5, bw, 1.5), const Radius.circular(1.0)),
+              cap,
+            );
+          }
         }
     }
   }

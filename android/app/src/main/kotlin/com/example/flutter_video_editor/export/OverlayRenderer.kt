@@ -220,20 +220,20 @@ object OverlayRenderer {
     ) {
         val scale = height / 720f
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(180, 255, 255, 255)
-            textSize = 24f * scale
+            color = Color.argb(220, 255, 255, 255)
+            textSize = 42f * scale
             typeface = Typeface.DEFAULT_BOLD
             textAlign = Paint.Align.RIGHT
             setShadowLayer(
-                4f * scale,
-                1f * scale,
-                1f * scale,
-                Color.argb(150, 0, 0, 0)
+                6f * scale,
+                2f * scale,
+                2f * scale,
+                Color.argb(180, 0, 0, 0)
             )
         }
-        val x = width - (24f * scale)
-        val y = height - (24f * scale)
-        canvas.drawText(text, x, y, paint)
+        val x = width - (32f * scale)
+        val y = height - (32f * scale)
+        canvas.drawText("motionGr", x, y, paint)
     }
 
     /**

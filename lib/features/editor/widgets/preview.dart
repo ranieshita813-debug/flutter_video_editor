@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
@@ -104,7 +103,11 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
       return;
     }
 
-    Duration local = _e.playhead - clip.start;
+    final double speed = clip.speed.clamp(0.1, 10.0);
+    await c.setPlaybackSpeed(speed);
+
+    Duration local = Duration(
+        milliseconds: ((_e.playhead - clip.start).inMilliseconds * speed).round());
     if (local.isNegative) local = Duration.zero;
     final Duration dur = c.value.duration;
     if (local > dur) local = dur;
@@ -186,29 +189,18 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   }
 
   Widget _placeholder(String text, {IconData icon = Icons.movie_rounded}) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (_loading)
-              const SizedBox(
-                width: 26,
-                height: 26,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
-              )
-            else
-              Icon(icon, size: 40, color: Colors.white24),
-            const SizedBox(height: 10),
-            Text(text,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white38, fontSize: 12)),
-          ],
+    if (_loading) {
+      return const Center(
+        child: SizedBox(
+          width: 26,
+          height: 26,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
         ),
-      ),
+      );
+    }
+    return const ColoredBox(
+      color: Colors.black,
+      child: SizedBox.expand(),
     );
   }
 
@@ -597,18 +589,9 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                     size: btn, iconSize: 16 * s),
                 if (showLogo) ...<Widget>[
                   SizedBox(width: 10 * s),
-                  Flexible(
-                    child: Text(
-                      'motionGr',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.unbounded(
-                        color: Colors.white,
-                        fontSize: 15 * s,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+                  SvgPicture.asset(
+                    'assets/logo.svg',
+                    height: 22 * s,
                   ),
                 ],
                 const Spacer(),
@@ -752,6 +735,19 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
               fit: StackFit.expand,
               children: <Widget>[
                 VideoPlayerPreview(editor: editor, fill: _fill),
+                Positioned(
+                  right: 14 * unit,
+                  bottom: 14 * unit,
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: 0.85,
+                      child: SvgPicture.asset(
+                        'assets/logo.svg',
+                        height: 32 * unit,
+                      ),
+                    ),
+                  ),
+                ),
                 Consumer<EditorController>(
                   builder: (ctx, e, _) {
                     final dynamic tracking = e.selectedClip?.trackingData;
@@ -1526,7 +1522,11 @@ class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
     final c = _vc;
     if (!mounted || c == null || !c.value.isInitialized) return;
 
-    Duration local = _e.playhead - widget.clip.start;
+    final double clipSpeed = widget.clip.speed.clamp(0.1, 10.0);
+    c.setPlaybackSpeed(clipSpeed);
+
+    Duration local = Duration(
+        milliseconds: ((_e.playhead - widget.clip.start).inMilliseconds * clipSpeed).round());
     if (local.isNegative) local = Duration.zero;
     final Duration dur = c.value.duration;
     if (local > dur) local = dur;
@@ -1535,7 +1535,9 @@ class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
 
     if (_e.isPlaying) {
       if (!c.value.isPlaying) {
-        c.seekTo(local).then((_) => c.play());
+        c.seekTo(local).then((_) {
+          if (mounted) c.play();
+        });
       } else if (drift > const Duration(milliseconds: 400)) {
         c.seekTo(local);
       }
