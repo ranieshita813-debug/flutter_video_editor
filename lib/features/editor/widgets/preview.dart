@@ -658,7 +658,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                     color: surfaceToken,
                     onSelected: (v) {
                       tapFeedback();
-                      canvasRatioNotifier.value = v;
+                      widget.editor.updateAspectRatio(presetFromCanvasRatio(v));
                       _tf.value = Matrix4.identity();
                     },
                     itemBuilder: (_) => <PopupMenuEntry<CanvasRatio>>[

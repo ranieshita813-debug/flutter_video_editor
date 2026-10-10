@@ -973,6 +973,38 @@ enum CanvasRatio {
 final ValueNotifier<CanvasRatio> canvasRatioNotifier =
     ValueNotifier<CanvasRatio>(CanvasRatio.r16x9);
 
+CanvasRatio canvasRatioFromPreset(AspectRatioPreset preset) {
+  switch (preset) {
+    case AspectRatioPreset.sixteenNine:
+      return CanvasRatio.r16x9;
+    case AspectRatioPreset.nineSixteen:
+      return CanvasRatio.r9x16;
+    case AspectRatioPreset.oneOne:
+      return CanvasRatio.r1x1;
+    case AspectRatioPreset.fourFive:
+      return CanvasRatio.r4x5;
+    case AspectRatioPreset.twentyOneNine:
+      return CanvasRatio.r21x9;
+    case AspectRatioPreset.original:
+      return CanvasRatio.r16x9;
+  }
+}
+
+AspectRatioPreset presetFromCanvasRatio(CanvasRatio ratio) {
+  switch (ratio) {
+    case CanvasRatio.r16x9:
+      return AspectRatioPreset.sixteenNine;
+    case CanvasRatio.r9x16:
+      return AspectRatioPreset.nineSixteen;
+    case CanvasRatio.r1x1:
+      return AspectRatioPreset.oneOne;
+    case CanvasRatio.r4x5:
+      return AspectRatioPreset.fourFive;
+    case CanvasRatio.r21x9:
+      return AspectRatioPreset.twentyOneNine;
+  }
+}
+
 class _RatioTile extends StatelessWidget {
   const _RatioTile({required this.ratio, required this.selected, required this.onTap});
   final CanvasRatio ratio;
@@ -1056,7 +1088,7 @@ class CropSheet extends StatelessWidget {
                       selected: r == cur,
                       onTap: () {
                         tapFeedback();
-                        canvasRatioNotifier.value = r;
+                        editor.updateAspectRatio(presetFromCanvasRatio(r));
                       },
                     ),
                   ),

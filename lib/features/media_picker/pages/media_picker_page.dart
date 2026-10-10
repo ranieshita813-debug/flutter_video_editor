@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +9,7 @@ import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 
 // -----------------------------------------------------------------------------
@@ -450,6 +453,56 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     ));
   }
 
+  Future<AspectRatioPreset> _determineAspectRatio() async {
+    for (final _Picked p in _selected) {
+      if (p.type == ClipType.audio) continue;
+
+      double? width;
+      double? height;
+
+      final AssetEntity? e = p.entity;
+      if (e != null) {
+        final int ow = e.orientatedWidth;
+        final int oh = e.orientatedHeight;
+        if (ow > 0 && oh > 0) {
+          width = ow.toDouble();
+          height = oh.toDouble();
+        } else if (e.width > 0 && e.height > 0) {
+          width = e.width.toDouble();
+          height = e.height.toDouble();
+          if (e.orientation == 90 || e.orientation == 270) {
+            final double tmp = width;
+            width = height;
+            height = tmp;
+          }
+        }
+      }
+
+      final String? path = p.path ?? (await e?.file)?.path;
+      if ((width == null || height == null) && path != null && path.isNotEmpty) {
+        if (isImagePath(path)) {
+          try {
+            final file = File(path);
+            if (await file.exists()) {
+              final bytes = await file.readAsBytes();
+              final codec = await ui.instantiateImageCodec(bytes);
+              final frame = await codec.getNextFrame();
+              width = frame.image.width.toDouble();
+              height = frame.image.height.toDouble();
+              frame.image.dispose();
+              codec.dispose();
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (width != null && height != null && width > 0 && height > 0) {
+        return detectAspectRatio(width, height);
+      }
+    }
+    return AspectRatioPreset.nineSixteen;
+  }
+
   // ---- Add to project --------------------------------------------------------
 
   Future<void> _addMediaToProject() async {
@@ -510,8 +563,12 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       final ProjectsController projects =
           Provider.of<ProjectsController>(context, listen: false);
 
+      final AspectRatioPreset mediaRatio = await _determineAspectRatio();
+      if (!mounted) return;
+
       final newProj = projects.createProject(
         name: _selected.first.name,
+        aspectRatio: mediaRatio,
         clips: clips,
       );
       editor.loadProject(newProj);

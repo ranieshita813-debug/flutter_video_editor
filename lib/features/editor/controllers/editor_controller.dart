@@ -9,6 +9,7 @@ import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/playback_controller.dart';
 import 'package:flutter_video_editor/features/editor/controllers/track_controller.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
 import 'package:flutter_video_editor/features/export/services/export_service.dart';
@@ -64,9 +65,19 @@ class EditorController extends ChangeNotifier {
   void loadProject(VideoProject project) {
     _playback.reset();
     _project = project;
+    canvasRatioNotifier.value = canvasRatioFromPreset(project.aspectRatio);
     _selectedClipId = project.clips.isNotEmpty ? project.clips.first.id : null;
     _undoStack.clear();
     _redoStack.clear();
+    _autosave();
+    notifyListeners();
+  }
+
+  void updateAspectRatio(AspectRatioPreset preset) {
+    if (_project.aspectRatio == preset) return;
+    _saveState();
+    _project = _project.copyWith(aspectRatio: preset);
+    canvasRatioNotifier.value = canvasRatioFromPreset(preset);
     _autosave();
     notifyListeners();
   }
