@@ -179,6 +179,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
       }
     });
     editor.addListener(_onEditorChanged);
+    editor.playheadListenable.addListener(_onEditorChanged);
   }
 
   @override
@@ -186,13 +187,16 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     super.didUpdateWidget(old);
     if (old.editor != widget.editor) {
       old.editor.removeListener(_onEditorChanged);
+      old.editor.playheadListenable.removeListener(_onEditorChanged);
       widget.editor.addListener(_onEditorChanged);
+      widget.editor.playheadListenable.addListener(_onEditorChanged);
     }
   }
 
   @override
   void dispose() {
     editor.removeListener(_onEditorChanged);
+    editor.playheadListenable.removeListener(_onEditorChanged);
     _snap.dispose();
     _sc.dispose();
     _vc.dispose();

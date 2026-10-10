@@ -49,6 +49,9 @@ class DynamicTimelineOverlay(
     private val overlayClips: List<ClipSpec>
 ) : BitmapOverlay() {
 
+    private var cachedFrameBitmap: Bitmap? = null
+    private var cachedCanvas: Canvas? = null
+
     override fun getBitmap(presentationTimeUs: Long): Bitmap {
         val currentTimelineMs = baseStartMs + presentationTimeUs / 1000L
         val activeOverlays = overlayClips.filter { clip ->
@@ -57,23 +60,33 @@ class DynamicTimelineOverlay(
             currentTimelineMs < (clip.timelineStartMs + clip.timelineDurationMs)
         }.sortedBy { it.layerIndex }
 
-        val frameBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(frameBitmap)
+        var frame = cachedFrameBitmap
+        if (frame == null || frame.width != width || frame.height != height || frame.isRecycled) {
+            frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            cachedFrameBitmap = frame
+            cachedCanvas = Canvas(frame)
+        } else {
+            frame.eraseColor(Color.TRANSPARENT)
+        }
 
-        for (clip in activeOverlays) {
-            OverlayRenderer.drawOverlayClip(
-                context = context,
-                canvas = canvas,
-                clip = clip,
-                width = width,
-                height = height,
-                timelineMs = currentTimelineMs
-            )
+        val canvas = cachedCanvas ?: Canvas(frame).also { cachedCanvas = it }
+
+        if (activeOverlays.isNotEmpty()) {
+            for (clip in activeOverlays) {
+                OverlayRenderer.drawOverlayClip(
+                    context = context,
+                    canvas = canvas,
+                    clip = clip,
+                    width = width,
+                    height = height,
+                    timelineMs = currentTimelineMs
+                )
+            }
         }
 
         OverlayRenderer.drawWatermarkOverlayOnCanvas(canvas, width, height, "motionGr")
 
-        return frameBitmap
+        return frame
     }
 }
 

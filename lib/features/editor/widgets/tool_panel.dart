@@ -122,16 +122,7 @@ class ToolPanel extends StatelessWidget {
                 style: const TextStyle(
                     color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
           ),
-          IconButton(
-            tooltip: 'Done',
-            icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedTick01, color: Colors.white, size: 22),
-            onPressed: () {
-              tapFeedback();
-              onClose();
-            },
-          ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 16),
         ],
       );
 

@@ -52,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen>
             return Opacity(
               opacity: _fade.value,
               child: SvgPicture.asset(
-                'assets/logo.svg',
+                'assets/logo_white.svg',
                 width: 140,
                 height: 140,
               ),

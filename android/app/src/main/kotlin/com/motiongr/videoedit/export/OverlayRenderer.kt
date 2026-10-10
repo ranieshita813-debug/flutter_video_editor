@@ -4,13 +4,23 @@ import android.content.Context
 import android.graphics.*
 import android.net.Uri
 import android.util.Log
-import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.PathParser
 import java.io.File
 import kotlin.math.pow
 
 object OverlayRenderer {
 
     private const val TAG = "OverlayRenderer"
+    private val clipBitmapCache = HashMap<String, Bitmap>()
+
+    fun clearCache() {
+        for (bmp in clipBitmapCache.values) {
+            if (!bmp.isRecycled) {
+                bmp.recycle()
+            }
+        }
+        clipBitmapCache.clear()
+    }
 
     /**
      * বিটম্যাপ লোড করে নির্দিষ্ট সাইজে রিসাইজ করে
@@ -41,7 +51,6 @@ object OverlayRenderer {
 
                 val raw = BitmapFactory.decodeStream(stream, null, options) ?: return null
 
-                // ইতিমধ্যে কাঙ্ক্ষিত সাইজ হলে রিসাইজ করবেন না
                 if (raw.width == width && raw.height == height) {
                     return raw
                 }
@@ -85,7 +94,7 @@ object OverlayRenderer {
         text: String,
         width: Int,
         height: Int,
-        fontSizeSp: Float = 48f,
+        fontSizeSp: Float = 28f,
         fontFamily: String = "Poppins",
         textColorInt: Int = Color.WHITE,
         strokeColorInt: Int = Color.TRANSPARENT,
@@ -95,91 +104,66 @@ object OverlayRenderer {
         shadowOffsetX: Float = 0f,
         shadowOffsetY: Float = 0f,
         bgColorInt: Int = Color.TRANSPARENT,
-        bgPaddingPx: Float = 0f,
-        textAlignStr: String = "center"
+        bgPaddingPx: Float = 8f,
+        textAlignStr: String = "center",
+        scaleMultiplier: Float = 1.0f
     ): Bitmap {
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bitmap)
+        val u = width / 375f
+        val textSizeCalculated = fontSizeSp * scaleMultiplier * u
 
-        val scale = height / 720f
-        val textSizeCalculated = fontSizeSp * scale
-
-        val align = when (textAlignStr.lowercase()) {
-            "left" -> Paint.Align.LEFT
-            "right" -> Paint.Align.RIGHT
-            else -> Paint.Align.CENTER
-        }
-
-        // ফন্ট লোডিং (অ্যাসেট থেকে অথবা ডিফল্ট)
         val typeface = loadTypeface(context, fontFamily)
 
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = textColorInt
             textSize = textSizeCalculated
             this.typeface = typeface
-            textAlign = align
+            textAlign = Paint.Align.LEFT
 
-            // শ্যাডো শুধুমাত্র ইউজার দিলেই যোগ হবে
             if (shadowColorInt != Color.TRANSPARENT && shadowBlurPx > 0f) {
                 setShadowLayer(
-                    shadowBlurPx * scale,
-                    shadowOffsetX * scale,
-                    shadowOffsetY * scale,
+                    shadowBlurPx * u,
+                    shadowOffsetX * u,
+                    shadowOffsetY * u,
                     shadowColorInt
                 )
             }
-            // অন্যথায় কোনো শ্যাডো নেই (ডিফল্ট কালো শ্যাডো সরানো হয়েছে)
         }
 
-        // টেক্সট পজিশন
-        val x = when (align) {
-            Paint.Align.LEFT -> width * 0.1f
-            Paint.Align.RIGHT -> width * 0.9f
-            else -> width / 2f
-        }
-        val y = height * 0.8f
+        val textWidth = textPaint.measureText(text)
+        val fontMetrics = textPaint.fontMetrics
+        val textHeight = fontMetrics.descent - fontMetrics.ascent
+        val pad = bgPaddingPx * u
 
-        // ব্যাকগ্রাউন্ড বক্স (ঐচ্ছিক)
+        val bmpW = (textWidth + pad * 2f).toInt().coerceAtLeast(16)
+        val bmpH = (textHeight + pad * 2f).toInt().coerceAtLeast(16)
+
+        val bitmap = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        val x = pad
+        val y = pad - fontMetrics.ascent
+
         if (bgColorInt != Color.TRANSPARENT) {
-            val textWidth = textPaint.measureText(text)
-            val fontMetrics = textPaint.fontMetrics
-            val pad = bgPaddingPx * scale
-
-            val left = when (align) {
-                Paint.Align.LEFT -> x - pad
-                Paint.Align.RIGHT -> x - textWidth - pad
-                else -> x - (textWidth / 2f) - pad
-            }
-
-            val bgRect = RectF(
-                left,
-                y + fontMetrics.top - pad,
-                left + textWidth + (pad * 2f),
-                y + fontMetrics.bottom + pad
-            )
-
+            val bgRect = RectF(0f, 0f, bmpW.toFloat(), bmpH.toFloat())
             val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = bgColorInt
                 style = Paint.Style.FILL
             }
-
-            canvas.drawRoundRect(bgRect, 8f * scale, 8f * scale, bgPaint)
+            canvas.drawRoundRect(bgRect, 4f * u, 4f * u, bgPaint)
         }
 
-        // স্ট্রোক রেন্ডারিং (ঐচ্ছিক)
         if (strokeColorInt != Color.TRANSPARENT && strokeWidthPx > 0f) {
             val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = strokeColorInt
                 textSize = textSizeCalculated
                 this.typeface = typeface
-                textAlign = align
+                textAlign = Paint.Align.LEFT
                 style = Paint.Style.STROKE
-                strokeWidth = strokeWidthPx * scale
+                strokeWidth = strokeWidthPx * u
             }
             canvas.drawText(text, x, y, strokePaint)
         }
 
-        // মূল টেক্সট রেন্ডার
         canvas.drawText(text, x, y, textPaint)
 
         return bitmap
@@ -190,11 +174,9 @@ object OverlayRenderer {
      */
     private fun loadTypeface(context: Context, fontFamily: String): Typeface {
         return try {
-            // অ্যাসেট থেকে ফন্ট লোড করার চেষ্টা (fonts/ ফোল্ডারে থাকতে হবে)
             val assetPath = "fonts/${fontFamily}-Bold.ttf"
             Typeface.createFromAsset(context.assets, assetPath)
         } catch (e: Exception) {
-            Log.w(TAG, "Font '$fontFamily' not found in assets, using default bold", e)
             Typeface.DEFAULT_BOLD
         }
     }
@@ -220,21 +202,44 @@ object OverlayRenderer {
         text: String = "motionGr"
     ) {
         val scale = height / 720f
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(220, 255, 255, 255)
-            textSize = 42f * scale
-            typeface = Typeface.DEFAULT_BOLD
-            textAlign = Paint.Align.RIGHT
-            setShadowLayer(
-                6f * scale,
-                2f * scale,
-                2f * scale,
-                Color.argb(180, 0, 0, 0)
-            )
+        val logoSize = 32f * scale
+        val margin = 16f * scale
+        val x = width - logoSize - margin
+        val y = height - logoSize - margin
+
+        try {
+            val pathData = "M 256 278 L 256 767 L 566 278 L 566 766 L 819 279 L 819 740"
+            val path = PathParser.createPathFromPathData(pathData)
+            val matrix = Matrix()
+            val s = logoSize / 1080f
+            matrix.postScale(s, s)
+            matrix.postTranslate(x, y)
+            path.transform(matrix)
+
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(220, 255, 255, 255)
+                style = Paint.Style.STROKE
+                strokeWidth = 108f * s
+                strokeCap = Paint.Cap.BUTT
+                strokeJoin = Paint.Join.BEVEL
+                setShadowLayer(
+                    6f * scale,
+                    2f * scale,
+                    2f * scale,
+                    Color.argb(180, 0, 0, 0)
+                )
+            }
+            canvas.drawPath(path, paint)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to render SVG logo watermark, fallback to text", e)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(220, 255, 255, 255)
+                textSize = 36f * scale
+                typeface = Typeface.DEFAULT_BOLD
+                textAlign = Paint.Align.RIGHT
+            }
+            canvas.drawText("motionGr", width - margin, height - margin, paint)
         }
-        val x = width - (32f * scale)
-        val y = height - (32f * scale)
-        canvas.drawText("motionGr", x, y, paint)
     }
 
     /**
@@ -252,7 +257,6 @@ object OverlayRenderer {
             if (stroke.points.size < 2) continue
 
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                // Long থেকে Int-এ কনভার্ট (Android color format)
                 color = stroke.color.toInt()
                 strokeWidth = (stroke.strokeWidth * (height / 720f)).toFloat()
                 style = Paint.Style.STROKE
@@ -423,12 +427,68 @@ object OverlayRenderer {
     ) {
         val u = width / 375f
 
-        var overlayBmp: Bitmap? = null
+        val cacheKey = if (clip.clipType != "video") {
+            "${clip.id}_${clip.clipType}_${clip.label}_${clip.scale}_${clip.rotation}_${clip.opacity}_${clip.colorGrading.hashCode()}_${clip.chromaKey.hashCode()}_${width}x${height}"
+        } else null
 
-        when (clip.clipType) {
+        var overlayBmp: Bitmap? = if (cacheKey != null) clipBitmapCache[cacheKey] else null
+        val isCached = overlayBmp != null
+
+        if (overlayBmp == null) {
+            when (clip.clipType) {
             "drawing" -> {
                 if (clip.strokes.isNotEmpty()) {
-                    overlayBmp = renderDrawingOverlay(clip.strokes, width, height)
+                    val size = (120 * clip.scale * u).toInt().coerceAtLeast(16)
+                    overlayBmp = renderDrawingOverlay(clip.strokes, size, size)
+                }
+            }
+            "element" -> {
+                val size = (80 * clip.scale * u).toInt().coerceAtLeast(16)
+                val svgStr = clip.svgPath ?: clip.sourcePath
+                if (svgStr != null && svgStr.contains("d=")) {
+                    try {
+                        val dMatch = Regex("""d="([^"]+)"""").find(svgStr)
+                        if (dMatch != null) {
+                            val pathData = dMatch.groupValues[1]
+                            val path = PathParser.createPathFromPathData(pathData)
+                            val bounds = RectF()
+                            path.computeBounds(bounds, true)
+                            if (bounds.width() > 0 && bounds.height() > 0) {
+                                val s = size.toFloat() / maxOf(bounds.width(), bounds.height())
+                                val m = Matrix()
+                                m.postTranslate(-bounds.left, -bounds.top)
+                                m.postScale(s, s)
+                                path.transform(m)
+
+                                val elBmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+                                val elCanvas = Canvas(elBmp)
+                                val elPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                                    color = if (clip.textStyle.textColor != 0L && clip.textStyle.textColor != 0xFFFFFFFFL) {
+                                        clip.textStyle.textColor.toInt()
+                                    } else Color.WHITE
+                                    style = Paint.Style.FILL
+                                }
+                                elCanvas.drawPath(path, elPaint)
+                                overlayBmp = elBmp
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to parse SVG element path", e)
+                    }
+                }
+
+                if (overlayBmp == null) {
+                    val elBmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+                    val elCanvas = Canvas(elBmp)
+                    val elPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = if (clip.textStyle.backgroundColor != 0L) {
+                            clip.textStyle.backgroundColor.toInt()
+                        } else Color.WHITE
+                        style = Paint.Style.FILL
+                    }
+                    val rect = RectF(0f, 0f, size.toFloat(), size.toFloat())
+                    elCanvas.drawRoundRect(rect, 8f * u, 8f * u, elPaint)
+                    overlayBmp = elBmp
                 }
             }
             "sticker" -> {
@@ -454,7 +514,8 @@ object OverlayRenderer {
                     shadowOffsetY = clip.textStyle.shadowOffsetY.toFloat(),
                     bgColorInt = clip.textStyle.backgroundColor.toInt(),
                     bgPaddingPx = clip.textStyle.backgroundPadding.toFloat(),
-                    textAlignStr = clip.textStyle.textAlign
+                    textAlignStr = clip.textStyle.textAlign,
+                    scaleMultiplier = clip.scale.toFloat()
                 )
             }
             "image" -> {
@@ -487,7 +548,7 @@ object OverlayRenderer {
                 }
             }
             else -> {
-                overlayBmp = renderTextOverlay(context, clip.label, width, height)
+                overlayBmp = renderTextOverlay(context, clip.label, width, height, scaleMultiplier = clip.scale.toFloat())
             }
         }
 
@@ -517,6 +578,11 @@ object OverlayRenderer {
             overlayBmp = graded
         }
 
+            if (cacheKey != null && overlayBmp != null) {
+                clipBitmapCache[cacheKey] = overlayBmp
+            }
+        }
+
         canvas.save()
         val matrix = Matrix()
         matrix.postRotate(clip.rotation.toFloat())
@@ -530,7 +596,7 @@ object OverlayRenderer {
         canvas.drawBitmap(overlayBmp, matrix, paint)
         canvas.restore()
 
-        if (!overlayBmp.isRecycled) {
+        if (!isCached && overlayBmp != null && !overlayBmp.isRecycled) {
             overlayBmp.recycle()
         }
     }

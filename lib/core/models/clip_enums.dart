@@ -24,6 +24,9 @@ enum VideoEffect {
   retro,
   matrix,
   flame,
+  vhs,
+  wave,
+  vignette,
 }
 
 enum TextAnimationStyle {

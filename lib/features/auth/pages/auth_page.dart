@@ -103,7 +103,7 @@ class _AuthPageState extends State<AuthPage> {
               const SizedBox(height: 12),
               Center(
                 child: SvgPicture.asset(
-                  'assets/logo.svg',
+                  'assets/logo_white.svg',
                   height: 48,
                 ),
               ),
