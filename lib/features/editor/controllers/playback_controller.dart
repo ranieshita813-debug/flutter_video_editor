@@ -2,14 +2,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 class PlaybackController {
-  PlaybackController({required this.onTimeUpdate});
+  PlaybackController({
+    required this.onTimeUpdate,
+    Stopwatch? clock,
+  }) : _clock = clock ?? Stopwatch();
 
   final VoidCallback onTimeUpdate;
 
   Duration _playhead = Duration.zero;
   bool _isPlaying = false;
   Timer? _ticker;
-  final Stopwatch _clock = Stopwatch();
+  final Stopwatch _clock;
   Duration _playFrom = Duration.zero;
   double _zoom = 1.0;
 
@@ -21,7 +24,9 @@ class PlaybackController {
 
   void setHead(Duration value) {
     _playhead = value;
-    playheadListenable.value = value;
+    if (playheadListenable.value != value) {
+      playheadListenable.value = value;
+    }
   }
 
   void setZoom(double value) {
@@ -37,7 +42,7 @@ class PlaybackController {
             milliseconds: value.inMilliseconds.clamp(0, maxDuration.inMilliseconds),
           )
         : value;
-    if (next == _playhead) return;
+    if (next == _playhead && playheadListenable.value == next) return;
     setHead(next);
     if (_isPlaying) {
       _playFrom = _playhead;
@@ -48,13 +53,14 @@ class PlaybackController {
     onTimeUpdate();
   }
 
-  void togglePlayback(Duration totalDuration) {
+  void togglePlayback(Duration Function() totalDurationGetter) {
     _isPlaying = !_isPlaying;
     _ticker?.cancel();
     _clock.stop();
 
     if (_isPlaying) {
-      if (totalDuration > Duration.zero && _playhead >= totalDuration) {
+      final Duration initialTotal = totalDurationGetter();
+      if (initialTotal > Duration.zero && _playhead >= initialTotal) {
         setHead(Duration.zero);
       }
 
@@ -65,9 +71,10 @@ class PlaybackController {
 
       _ticker = Timer.periodic(const Duration(milliseconds: 33), (Timer _) {
         final Duration next = _playFrom + _clock.elapsed;
+        final Duration currentTotal = totalDurationGetter();
 
-        if (totalDuration > Duration.zero && next >= totalDuration) {
-          setHead(totalDuration);
+        if (currentTotal > Duration.zero && next >= currentTotal) {
+          setHead(currentTotal);
           _isPlaying = false;
           _ticker?.cancel();
           _clock.stop();
@@ -87,6 +94,7 @@ class PlaybackController {
     setHead(Duration.zero);
     _isPlaying = false;
     _zoom = 1.0;
+    onTimeUpdate();
   }
 
   void dispose() {

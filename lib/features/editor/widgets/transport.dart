@@ -35,8 +35,8 @@ class TransportBar extends StatelessWidget {
           Expanded(
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Selector<EditorController, Duration>(
-                selector: (_, e) => e.playhead,
+              child: ValueListenableBuilder<Duration>(
+                valueListenable: editor.playheadListenable,
                 builder: (_, p, __) => FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,

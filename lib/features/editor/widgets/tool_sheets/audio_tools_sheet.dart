@@ -11,8 +11,8 @@ class AudioToolsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final clip = editor.selectedClip;
+    final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final editor = context.read<EditorController>();
     final bool hasAudio = clip != null &&
         (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
     final double volume = clip?.volume ?? 1.0;

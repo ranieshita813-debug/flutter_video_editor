@@ -359,8 +359,8 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final clip = editor.selectedClip;
+    final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final editor = context.read<EditorController>();
     if (clip == null || (clip.clipType != ClipType.text && clip.clipType != ClipType.caption)) {
       return Container(
         padding: const EdgeInsets.all(24),

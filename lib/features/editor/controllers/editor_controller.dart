@@ -14,8 +14,8 @@ import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
 import 'package:flutter_video_editor/features/export/services/export_service.dart';
 
 class EditorController extends ChangeNotifier {
-  EditorController() {
-    _playback = PlaybackController(onTimeUpdate: notifyListeners);
+  EditorController({PlaybackController? playbackController}) {
+    _playback = playbackController ?? PlaybackController(onTimeUpdate: notifyListeners);
     _project = VideoProject(
       id: 'proj_${DateTime.now().millisecondsSinceEpoch}',
       name: 'New Project',
@@ -509,7 +509,7 @@ class EditorController extends ChangeNotifier {
   }
 
   void togglePlayback() {
-    _playback.togglePlayback(_project.totalDuration);
+    _playback.togglePlayback(() => _project.totalDuration);
   }
 
   void toggleCameraActive() {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
+import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/widgets/chroma_key_sheet.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/order_tool_view.dart';
@@ -47,11 +48,12 @@ enum EditorTool {
         EditorTool.stickers => const StickersSheet(),
         EditorTool.filters => const EffectsSheet(isFilterMode: true),
         EditorTool.effects => const EffectsSheet(isFilterMode: false),
-        EditorTool.adjust => Consumer<EditorController>(
-            builder: (ctx, editor, _) {
-              final clip = editor.selectedClip;
-              final initialAdj = clip != null
-                  ? AdjustSettings.fromColorGrading(clip.colorGrading)
+        EditorTool.adjust => Selector<EditorController, ColorGradingSettings?>(
+            selector: (_, e) => e.selectedClip?.colorGrading,
+            builder: (ctx, colorGrading, _) {
+              final editor = ctx.read<EditorController>();
+              final initialAdj = colorGrading != null
+                  ? AdjustSettings.fromColorGrading(colorGrading)
                   : AdjustSettings.identity;
 
               return AdjustSheet(
@@ -76,15 +78,17 @@ enum EditorTool {
         EditorTool.textStyle => const TextStyleSheet(),
         EditorTool.animation => const ClipAnimationSheet(),
         EditorTool.order => const OrderToolView(),
-        EditorTool.chromaKey => Consumer<EditorController>(
-            builder: (ctx, editor, _) {
-              final clip = editor.selectedClip;
+        EditorTool.chromaKey => Selector<EditorController, ChromaKey?>(
+            selector: (_, e) => e.selectedClip?.chromaKey,
+            builder: (ctx, chromaKey, _) {
+              final editor = ctx.read<EditorController>();
+              final clipId = editor.selectedClipId;
               return ChromaKeySheet(
-                value: clip?.chromaKey ?? const ChromaKey(),
+                value: chromaKey ?? const ChromaKey(),
                 onPickColor: () => editor.pickColorFromFrame(),
                 onChanged: (k) {
-                  if (clip != null) {
-                    editor.setChromaKey(clip.id, k);
+                  if (clipId != null) {
+                    editor.setChromaKey(clipId, k);
                   }
                 },
               );
