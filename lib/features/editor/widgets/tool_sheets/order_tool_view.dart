@@ -14,8 +14,8 @@ class OrderToolView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final EditorController e = context.watch<EditorController>();
-    final clip = e.selectedClip;
+    final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final e = context.read<EditorController>();
 
     final bool overlay = clip != null &&
         clip.clipType != ClipType.video &&

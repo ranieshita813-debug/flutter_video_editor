@@ -44,6 +44,31 @@ class ExportModal extends StatefulWidget {
   State<ExportModal> createState() => _ExportModalState();
 }
 
+class _ExportDialogEditorState {
+  const _ExportDialogEditorState({
+    required this.isExporting,
+    required this.exportProgress,
+    required this.projectName,
+    required this.totalDurationMs,
+  });
+  final bool isExporting;
+  final double exportProgress;
+  final String projectName;
+  final int totalDurationMs;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ExportDialogEditorState &&
+      other.isExporting == isExporting &&
+      other.exportProgress == exportProgress &&
+      other.projectName == projectName &&
+      other.totalDurationMs == totalDurationMs;
+
+  @override
+  int get hashCode =>
+      Object.hash(isExporting, exportProgress, projectName, totalDurationMs);
+}
+
 class _ExportModalState extends State<ExportModal> {
   late ExportResolution selectedResolution;
   late int selectedFps;
@@ -75,7 +100,15 @@ class _ExportModalState extends State<ExportModal> {
   @override
   Widget build(BuildContext context) {
     final exportCtrl = context.watch<ExportController?>();
-    final editorCtrl = context.watch<EditorController>();
+    context.select<EditorController, _ExportDialogEditorState>(
+      (e) => _ExportDialogEditorState(
+        isExporting: e.isExporting,
+        exportProgress: e.exportProgress,
+        projectName: e.project.projectName,
+        totalDurationMs: e.project.totalDuration.inMilliseconds,
+      ),
+    );
+    final editorCtrl = context.read<EditorController>();
 
     final bool isExporting = exportCtrl?.isExporting ?? editorCtrl.isExporting;
     final double progress = exportCtrl?.progress ?? editorCtrl.exportProgress;

@@ -44,8 +44,8 @@ class _EffectsSheetState extends State<EffectsSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final selectedClip = editor.selectedClip;
+    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final editor = context.read<EditorController>();
     final currentEffect = selectedClip?.effect ?? VideoEffect.none;
     final appliedShaderEffects = selectedClip?.shaderEffects ?? const <ShaderEffectClip>[];
 

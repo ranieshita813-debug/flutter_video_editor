@@ -19,6 +19,27 @@ class EditorToolbarItem {
   final VoidCallback onTap;
 }
 
+class _ToolbarSelectedState {
+  const _ToolbarSelectedState({
+    required this.id,
+    required this.clipType,
+    required this.isOverlay,
+  });
+  final String? id;
+  final ClipType? clipType;
+  final bool isOverlay;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ToolbarSelectedState &&
+      other.id == id &&
+      other.clipType == clipType &&
+      other.isOverlay == isOverlay;
+
+  @override
+  int get hashCode => Object.hash(id, clipType, isOverlay);
+}
+
 class EditorToolbar extends StatelessWidget {
   const EditorToolbar({
     super.key,
@@ -33,7 +54,15 @@ class EditorToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
+    context.select<EditorController, _ToolbarSelectedState>((e) {
+      final c = e.selectedClip;
+      return _ToolbarSelectedState(
+        id: c?.id,
+        clipType: c?.clipType,
+        isOverlay: (c?.layerIndex ?? 0) > 0,
+      );
+    });
+    final editor = context.read<EditorController>();
     final clip = editor.selectedClip;
 
     final List<EditorToolbarItem> items = _getToolbarItems(context, editor, clip);

@@ -45,8 +45,8 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final clip = editor.selectedClip;
+    final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final editor = context.read<EditorController>();
     if (clip == null) {
       return Container(
         padding: const EdgeInsets.all(24),

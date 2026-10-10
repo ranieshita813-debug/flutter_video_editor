@@ -751,8 +751,9 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final bool editing = editor.selectedClip?.clipType == ClipType.text;
+    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final editor = context.read<EditorController>();
+    final bool editing = selectedClip?.clipType == ClipType.text;
     const styles = TextAnimationStyle.values;
 
     return Column(
@@ -887,8 +888,8 @@ class EffectsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final currentEffect = editor.selectedClip?.effect ?? VideoEffect.none;
+    final currentEffect = context.select<EditorController, VideoEffect?>((e) => e.selectedClip?.effect) ?? VideoEffect.none;
+    final editor = context.read<EditorController>();
 
     return _ResponsiveGrid(
       fakeLoad: true,
@@ -916,8 +917,8 @@ class ColorGradingSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final cg = editor.selectedClip?.colorGrading;
+    final cg = context.select<EditorController, ColorGradingSettings?>((e) => e.selectedClip?.colorGrading);
+    final editor = context.read<EditorController>();
     final double b = cg?.brightness ?? 0.0;
     final double c = cg?.contrast ?? 1.0;
     final double s = cg?.saturation ?? 1.0;
@@ -1030,8 +1031,8 @@ class CropSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final double scale = editor.selectedClip?.scale ?? 1.0;
+    final scale = context.select<EditorController, double?>((e) => e.selectedClip?.scale) ?? 1.0;
+    final editor = context.read<EditorController>();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1100,7 +1101,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
+    final editor = context.read<EditorController>();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1217,8 +1218,9 @@ class KeyframeSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final keyframes = editor.selectedClip?.keyframes ?? <Keyframe>[];
+    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final editor = context.read<EditorController>();
+    final keyframes = selectedClip?.keyframes ?? <Keyframe>[];
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1314,8 +1316,8 @@ class CameraSettingsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final props = editor.selectedClip?.cameraProperties ?? const CameraProperties();
+    final props = context.select<EditorController, CameraProperties?>((e) => e.selectedClip?.cameraProperties) ?? const CameraProperties();
+    final editor = context.read<EditorController>();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1342,8 +1344,8 @@ class CameraTrackingPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final tracking = editor.selectedClip?.trackingData;
+    final tracking = context.select<EditorController, TrackingData?>((e) => e.selectedClip?.trackingData);
+    final editor = context.read<EditorController>();
     final bool active = tracking?.isEnabled == true;
 
     return ListView(
