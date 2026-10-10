@@ -1,4 +1,4 @@
-package com.example.flutter_video_editor.export
+package com.motiongr.videoedit.export
 
 import android.content.ContentValues
 import android.content.Context

@@ -1,4 +1,4 @@
-package com.example.flutter_video_editor.export
+package com.motiongr.videoedit.export
 
 import android.content.Context
 import android.graphics.*
@@ -6,6 +6,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.content.res.ResourcesCompat
 import java.io.File
+import kotlin.math.pow
 
 object OverlayRenderer {
 
@@ -371,7 +372,7 @@ object OverlayRenderer {
         ))
         cm.postConcat(contrastCm)
 
-        val gain = kotlin.math.pow(2.0, cg.exposure).toFloat()
+        val gain = 2.0.pow(cg.exposure).toFloat()
         val tempR = (gain * (1.0f + 0.25f * cg.temperature.toFloat())).coerceAtLeast(0f)
         val tempB = (gain * (1.0f - 0.25f * cg.temperature.toFloat())).coerceAtLeast(0f)
         val bOffset = (cg.brightness * 255.0).toFloat().coerceIn(-128f, 128f)

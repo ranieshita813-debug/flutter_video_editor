@@ -1,4 +1,4 @@
-package com.example.flutter_video_editor.export
+package com.motiongr.videoedit.export
 
 import androidx.media3.effect.GlMatrixTransformation
 import kotlin.math.pow

@@ -1,4 +1,4 @@
-package com.example.flutter_video_editor.export
+package com.motiongr.videoedit.export
 
 import android.content.Context
 import android.opengl.GLES20
@@ -89,7 +89,7 @@ class ChromaKeyEffect(
                     GlUtil.getTextureCoordinateBounds(),
                     4
                 )
-                glProgram.setFloatUniform("uKeyColor", floatArrayOf(r, g, b))
+                glProgram.setFloatsUniform("uKeyColor", floatArrayOf(r, g, b))
                 glProgram.setFloatUniform("uSimilarity", similarityVal.coerceIn(0.01f, 1.0f))
                 glProgram.setFloatUniform("uSmoothness", smoothnessVal.coerceIn(0.001f, 1.0f))
                 glProgram.setFloatUniform("uSpill", spillVal.coerceIn(0.0f, 1.0f))

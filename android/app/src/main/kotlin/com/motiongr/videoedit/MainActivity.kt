@@ -1,7 +1,7 @@
-package com.example.flutter_video_editor
+package com.motiongr.videoedit
 
 import androidx.media3.common.util.UnstableApi
-import com.example.flutter_video_editor.export.ExportPlugin
+import com.motiongr.videoedit.export.ExportPlugin
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 
