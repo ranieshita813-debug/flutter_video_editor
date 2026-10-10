@@ -75,12 +75,14 @@ class _ExportModalState extends State<ExportModal> {
   @override
   Widget build(BuildContext context) {
     final exportCtrl = context.watch<ExportController?>();
-    final editorCtrl = context.watch<EditorController>();
+    final editorCtrl = context.read<EditorController>();
 
-    final bool isExporting = exportCtrl?.isExporting ?? editorCtrl.isExporting;
-    final double progress = exportCtrl?.progress ?? editorCtrl.exportProgress;
+    final bool isExporting = exportCtrl?.isExporting ??
+        context.select<EditorController, bool>((e) => e.isExporting);
+    final double progress = exportCtrl?.progress ??
+        context.select<EditorController, double>((e) => e.exportProgress);
     final ExportStatus status = exportCtrl?.status ??
-        (editorCtrl.isExporting ? ExportStatus.exporting : ExportStatus.idle);
+        (isExporting ? ExportStatus.exporting : ExportStatus.idle);
 
     if (isExporting) {
       _startedAt ??= DateTime.now();

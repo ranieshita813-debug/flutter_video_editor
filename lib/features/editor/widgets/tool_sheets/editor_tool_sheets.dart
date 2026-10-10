@@ -626,8 +626,8 @@ class AudioToolsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final clip = editor.selectedClip;
+    final editor = context.read<EditorController>();
+    final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
     final bool hasAudio = clip != null &&
         (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
     final double volume = clip?.volume ?? 1.0;
@@ -751,8 +751,9 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final bool editing = editor.selectedClip?.clipType == ClipType.text;
+    final editor = context.read<EditorController>();
+    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final bool editing = selectedClip?.clipType == ClipType.text;
     const styles = TextAnimationStyle.values;
 
     return Column(
@@ -887,8 +888,9 @@ class EffectsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final currentEffect = editor.selectedClip?.effect ?? VideoEffect.none;
+    final editor = context.read<EditorController>();
+    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final currentEffect = selectedClip?.effect ?? VideoEffect.none;
 
     return _ResponsiveGrid(
       fakeLoad: true,
@@ -916,8 +918,8 @@ class ColorGradingSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final cg = editor.selectedClip?.colorGrading;
+    final editor = context.read<EditorController>();
+    final cg = context.select<EditorController, ColorGradingSettings?>((e) => e.selectedClip?.colorGrading);
     final double b = cg?.brightness ?? 0.0;
     final double c = cg?.contrast ?? 1.0;
     final double s = cg?.saturation ?? 1.0;
@@ -1030,8 +1032,9 @@ class CropSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final double scale = editor.selectedClip?.scale ?? 1.0;
+    final editor = context.read<EditorController>();
+    final scale = context.select<EditorController, double>((e) => e.selectedClip?.scale ?? 1.0);
+    final hasSelectedClip = context.select<EditorController, bool>((e) => e.selectedClip != null);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1070,7 +1073,7 @@ class CropSheet extends StatelessWidget {
           display: '${(scale * 100).round()}%',
           minLabel: '50%',
           maxLabel: '300%',
-          onChanged: editor.selectedClip == null
+          onChanged: !hasSelectedClip
               ? null
               : (v) => editor.updateTranslation(scale: v),
         ),
@@ -1100,7 +1103,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
+    final editor = context.read<EditorController>();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1217,8 +1220,9 @@ class KeyframeSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final keyframes = editor.selectedClip?.keyframes ?? <Keyframe>[];
+    final editor = context.read<EditorController>();
+    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final keyframes = selectedClip?.keyframes ?? <Keyframe>[];
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1247,7 +1251,7 @@ class KeyframeSheet extends StatelessWidget {
         _primaryBtn(
           HugeIcons.strokeRoundedAdd01,
           'Add keyframe at playhead',
-          editor.selectedClip == null
+          selectedClip == null
               ? null
               : () => editor.addKeyframe(Keyframe(
                     id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
@@ -1262,7 +1266,7 @@ class KeyframeSheet extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Center(
               child: Text(
-                editor.selectedClip == null
+                selectedClip == null
                     ? 'Select a clip to add keyframes'
                     : 'No keyframes yet',
                 style: const TextStyle(color: mutedToken, fontSize: 12),
@@ -1314,8 +1318,9 @@ class CameraSettingsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final props = editor.selectedClip?.cameraProperties ?? const CameraProperties();
+    final editor = context.read<EditorController>();
+    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final props = selectedClip?.cameraProperties ?? const CameraProperties();
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -1328,7 +1333,7 @@ class CameraSettingsSheet extends StatelessWidget {
           display: '${props.focalLength.round()} mm',
           minLabel: '10 mm',
           maxLabel: '200 mm',
-          onChanged: editor.selectedClip == null
+          onChanged: selectedClip == null
               ? null
               : (v) => editor.updateCameraProperties(props.copyWith(focalLength: v)),
         ),
@@ -1342,8 +1347,9 @@ class CameraTrackingPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final tracking = editor.selectedClip?.trackingData;
+    final editor = context.read<EditorController>();
+    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final tracking = selectedClip?.trackingData;
     final bool active = tracking?.isEnabled == true;
 
     return ListView(
@@ -1364,7 +1370,7 @@ class CameraTrackingPanel extends StatelessWidget {
         _primaryBtn(
           HugeIcons.strokeRoundedTarget01,
           active ? 'Stop tracking' : 'Start auto-tracking',
-          editor.selectedClip == null
+          selectedClip == null
               ? null
               : () => editor.updateTrackingData(TrackingData(
                     isEnabled: !active,
