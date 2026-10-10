@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
+import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/widgets/chroma_key_sheet.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/order_tool_view.dart';
@@ -47,9 +48,10 @@ enum EditorTool {
         EditorTool.stickers => const StickersSheet(),
         EditorTool.filters => const EffectsSheet(isFilterMode: true),
         EditorTool.effects => const EffectsSheet(isFilterMode: false),
-        EditorTool.adjust => Consumer<EditorController>(
-            builder: (ctx, editor, _) {
-              final clip = editor.selectedClip;
+        EditorTool.adjust => Builder(
+            builder: (ctx) {
+              final editor = ctx.read<EditorController>();
+              final clip = ctx.select<EditorController, TimelineClip?>((e) => e.selectedClip);
               final initialAdj = clip != null
                   ? AdjustSettings.fromColorGrading(clip.colorGrading)
                   : AdjustSettings.identity;
@@ -76,9 +78,10 @@ enum EditorTool {
         EditorTool.textStyle => const TextStyleSheet(),
         EditorTool.animation => const ClipAnimationSheet(),
         EditorTool.order => const OrderToolView(),
-        EditorTool.chromaKey => Consumer<EditorController>(
-            builder: (ctx, editor, _) {
-              final clip = editor.selectedClip;
+        EditorTool.chromaKey => Builder(
+            builder: (ctx) {
+              final editor = ctx.read<EditorController>();
+              final clip = ctx.select<EditorController, TimelineClip?>((e) => e.selectedClip);
               return ChromaKeySheet(
                 value: clip?.chromaKey ?? const ChromaKey(),
                 onPickColor: () => editor.pickColorFromFrame(),

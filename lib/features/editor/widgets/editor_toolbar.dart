@@ -33,8 +33,8 @@ class EditorToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.watch<EditorController>();
-    final clip = editor.selectedClip;
+    final editor = context.read<EditorController>();
+    final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
 
     final List<EditorToolbarItem> items = _getToolbarItems(context, editor, clip);
 

@@ -19,9 +19,26 @@ class PlaybackController {
   bool get isPlaying => _isPlaying;
   double get zoom => _zoom;
 
-  void setHead(Duration value) {
-    _playhead = value;
-    playheadListenable.value = value;
+  void setHead(Duration value, {Duration? maxDuration, bool notifyParent = false}) {
+    final Duration next = (maxDuration != null && maxDuration > Duration.zero)
+        ? Duration(
+            milliseconds: value.inMilliseconds.clamp(0, maxDuration.inMilliseconds),
+          )
+        : (value.isNegative ? Duration.zero : value);
+
+    if (next == _playhead) return;
+    _playhead = next;
+    playheadListenable.value = next;
+
+    if (_isPlaying && notifyParent) {
+      _playFrom = _playhead;
+      _clock
+        ..reset()
+        ..start();
+    }
+    if (notifyParent) {
+      onTimeUpdate();
+    }
   }
 
   void setZoom(double value) {
@@ -32,29 +49,17 @@ class PlaybackController {
   }
 
   void setPlayhead(Duration value, Duration maxDuration) {
-    final Duration next = maxDuration > Duration.zero
-        ? Duration(
-            milliseconds: value.inMilliseconds.clamp(0, maxDuration.inMilliseconds),
-          )
-        : value;
-    if (next == _playhead) return;
-    setHead(next);
-    if (_isPlaying) {
-      _playFrom = _playhead;
-      _clock
-        ..reset()
-        ..start();
-    }
-    onTimeUpdate();
+    setHead(value, maxDuration: maxDuration, notifyParent: true);
   }
 
-  void togglePlayback(Duration totalDuration) {
+  void togglePlayback(Duration Function() totalDurationGetter) {
     _isPlaying = !_isPlaying;
     _ticker?.cancel();
     _clock.stop();
 
     if (_isPlaying) {
-      if (totalDuration > Duration.zero && _playhead >= totalDuration) {
+      final Duration currentTotal = totalDurationGetter();
+      if (currentTotal > Duration.zero && _playhead >= currentTotal) {
         setHead(Duration.zero);
       }
 
@@ -64,10 +69,11 @@ class PlaybackController {
         ..start();
 
       _ticker = Timer.periodic(const Duration(milliseconds: 33), (Timer _) {
+        final Duration total = totalDurationGetter();
         final Duration next = _playFrom + _clock.elapsed;
 
-        if (totalDuration > Duration.zero && next >= totalDuration) {
-          setHead(totalDuration);
+        if (total > Duration.zero && next >= total) {
+          setHead(total);
           _isPlaying = false;
           _ticker?.cancel();
           _clock.stop();
@@ -84,7 +90,7 @@ class PlaybackController {
   void reset() {
     _ticker?.cancel();
     _clock.stop();
-    setHead(Duration.zero);
+    setHead(Duration.zero, notifyParent: true);
     _isPlaying = false;
     _zoom = 1.0;
   }

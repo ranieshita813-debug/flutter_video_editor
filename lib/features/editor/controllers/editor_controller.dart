@@ -509,7 +509,7 @@ class EditorController extends ChangeNotifier {
   }
 
   void togglePlayback() {
-    _playback.togglePlayback(_project.totalDuration);
+    _playback.togglePlayback(() => _project.totalDuration);
   }
 
   void toggleCameraActive() {

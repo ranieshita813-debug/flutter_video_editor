@@ -46,6 +46,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   void initState() {
     super.initState();
     _e.addListener(_onEditor);
+    _e.playheadListenable.addListener(_onEditor);
     _onEditor();
   }
 
@@ -54,7 +55,9 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     super.didUpdateWidget(old);
     if (old.editor != widget.editor) {
       old.editor.removeListener(_onEditor);
+      old.editor.playheadListenable.removeListener(_onEditor);
       widget.editor.addListener(_onEditor);
+      widget.editor.playheadListenable.addListener(_onEditor);
       _onEditor();
     }
   }
@@ -62,6 +65,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   @override
   void dispose() {
     _e.removeListener(_onEditor);
+    _e.playheadListenable.removeListener(_onEditor);
     _token++;
     _vc?.dispose();
     _vc = null;
@@ -785,75 +789,80 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                     ),
                   ),
                 ),
-                Consumer<EditorController>(
-                  builder: (ctx, e, _) {
-                    final dynamic tracking = e.selectedClip?.trackingData;
-                    final TrackingBox? box = _trackingBox(tracking);
+                ValueListenableBuilder<Duration>(
+                  valueListenable: editor.playheadListenable,
+                  builder: (ctx, playhead, _) {
+                    return Consumer<EditorController>(
+                      builder: (ctx, e, _) {
+                        final dynamic tracking = e.selectedClip?.trackingData;
+                        final TrackingBox? box = _trackingBox(tracking);
 
-                    final activeOverlays = e.clips.where((c) {
-                      return c.isVisible &&
-                          c.clipType != ClipType.audio &&
-                          (c.layerIndex > 0 ||
-                              (c.clipType != ClipType.video &&
-                                  c.clipType != ClipType.image)) &&
-                          e.playhead >= c.start &&
-                          e.playhead <= c.end;
-                    }).toList()
-                      ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
+                        final activeOverlays = e.clips.where((c) {
+                          return c.isVisible &&
+                              c.clipType != ClipType.audio &&
+                              (c.layerIndex > 0 ||
+                                  (c.clipType != ClipType.video &&
+                                      c.clipType != ClipType.image)) &&
+                              playhead >= c.start &&
+                              playhead <= c.end;
+                        }).toList()
+                          ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
 
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: <Widget>[
-                        for (final clip in activeOverlays)
-                          _OverlayClip(
-                            key: ValueKey<String>(clip.id),
-                            clip: clip,
-                            unit: unit,
-                            designH: designH,
-                            othersOf: () => <Rect>[
-                              for (final o in activeOverlays)
-                                if (o.id != clip.id) _overlayRect(o)
-                            ],
-                            isSelected: clip.id == e.selectedClipId,
-                            onSelect: () => e.selectClip(clip.id),
-                            onGuides: (g) => _guides.value = g,
-                            onPosition: (x, y) {
-                              e.selectClip(clip.id);
-                              e.updateTranslation(
-                                positionX: x.clamp(-40.0, designWToken - 24).toDouble(),
-                                positionY: y.clamp(-40.0, designH - 24).toDouble(),
-                              );
-                            },
-                            onScale: (v) {
-                              e.selectClip(clip.id);
-                              e.updateTranslation(scale: v);
-                            },
-                          ),
-                        IgnorePointer(
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: <Widget>[
-                              if (_grid)
-                                const Positioned.fill(
-                                    child: CustomPaint(painter: _GuidePainter())),
-                              if (e.activeDrawingStrokes.isNotEmpty)
-                                Positioned.fill(
-                                  child: CustomPaint(
-                                    painter: _DrawingPainter(
-                                        strokes: e.activeDrawingStrokes, unit: unit),
-                                  ),
-                                ),
-                              if (box != null)
-                                Positioned.fill(
-                                  child: _TrackingOverlay(
-                                    box: box,
-                                    label: '${(tracking as dynamic)?.targetName ?? 'Target'}',
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: <Widget>[
+                            for (final clip in activeOverlays)
+                              _OverlayClip(
+                                key: ValueKey<String>(clip.id),
+                                clip: clip,
+                                unit: unit,
+                                designH: designH,
+                                othersOf: () => <Rect>[
+                                  for (final o in activeOverlays)
+                                    if (o.id != clip.id) _overlayRect(o)
+                                ],
+                                isSelected: clip.id == e.selectedClipId,
+                                onSelect: () => e.selectClip(clip.id),
+                                onGuides: (g) => _guides.value = g,
+                                onPosition: (x, y) {
+                                  e.selectClip(clip.id);
+                                  e.updateTranslation(
+                                    positionX: x.clamp(-40.0, designWToken - 24).toDouble(),
+                                    positionY: y.clamp(-40.0, designH - 24).toDouble(),
+                                  );
+                                },
+                                onScale: (v) {
+                                  e.selectClip(clip.id);
+                                  e.updateTranslation(scale: v);
+                                },
+                              ),
+                            IgnorePointer(
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: <Widget>[
+                                  if (_grid)
+                                    const Positioned.fill(
+                                        child: CustomPaint(painter: _GuidePainter())),
+                                  if (e.activeDrawingStrokes.isNotEmpty)
+                                    Positioned.fill(
+                                      child: CustomPaint(
+                                        painter: _DrawingPainter(
+                                            strokes: e.activeDrawingStrokes, unit: unit),
+                                      ),
+                                    ),
+                                  if (box != null)
+                                    Positioned.fill(
+                                      child: _TrackingOverlay(
+                                        box: box,
+                                        label: '${(tracking as dynamic)?.targetName ?? 'Target'}',
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     );
                   },
                 ),
@@ -1537,12 +1546,19 @@ class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
   void initState() {
     super.initState();
     _e.addListener(_onEditor);
+    _e.playheadListenable.addListener(_onEditor);
     _load(widget.clip.sourcePath);
   }
 
   @override
   void didUpdateWidget(covariant _OverlayVideoPlayer old) {
     super.didUpdateWidget(old);
+    if (old.editor != widget.editor) {
+      old.editor.removeListener(_onEditor);
+      old.editor.playheadListenable.removeListener(_onEditor);
+      widget.editor.addListener(_onEditor);
+      widget.editor.playheadListenable.addListener(_onEditor);
+    }
     if (old.clip.sourcePath != widget.clip.sourcePath) {
       _load(widget.clip.sourcePath);
     }
@@ -1551,6 +1567,7 @@ class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
   @override
   void dispose() {
     _e.removeListener(_onEditor);
+    _e.playheadListenable.removeListener(_onEditor);
     _vc?.dispose();
     super.dispose();
   }
@@ -1771,12 +1788,26 @@ class _AudioClipsPreviewState extends State<_AudioClipsPreview> {
   void initState() {
     super.initState();
     _e.addListener(_onEditorChange);
+    _e.playheadListenable.addListener(_onEditorChange);
     _onEditorChange();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AudioClipsPreview old) {
+    super.didUpdateWidget(old);
+    if (old.editor != widget.editor) {
+      old.editor.removeListener(_onEditorChange);
+      old.editor.playheadListenable.removeListener(_onEditorChange);
+      widget.editor.addListener(_onEditorChange);
+      widget.editor.playheadListenable.addListener(_onEditorChange);
+      _onEditorChange();
+    }
   }
 
   @override
   void dispose() {
     _e.removeListener(_onEditorChange);
+    _e.playheadListenable.removeListener(_onEditorChange);
     for (final controller in _audioControllers.values) {
       controller.dispose();
     }
