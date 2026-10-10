@@ -269,6 +269,12 @@ class EditorToolbar extends StatelessWidget {
             onTap: () => onSelectToolSheet('text'),
           ),
           EditorToolbarItem(
+            id: 'effects',
+            title: 'Effects',
+            icon: HugeIcons.strokeRoundedMagicWand01,
+            onTap: () => onSelectToolSheet('effects'),
+          ),
+          EditorToolbarItem(
             id: 'animation',
             title: 'Animation',
             icon: HugeIcons.strokeRoundedPlay,
@@ -309,6 +315,12 @@ class EditorToolbar extends StatelessWidget {
             onTap: () => onSelectToolSheet('speed'),
           ),
           EditorToolbarItem(
+            id: 'effects',
+            title: 'Effects',
+            icon: HugeIcons.strokeRoundedMagicWand01,
+            onTap: () => onSelectToolSheet('effects'),
+          ),
+          EditorToolbarItem(
             id: 'duplicate',
             title: 'Duplicate',
             icon: HugeIcons.strokeRoundedCopy01,
@@ -324,6 +336,12 @@ class EditorToolbar extends StatelessWidget {
 
       default:
         return [
+          EditorToolbarItem(
+            id: 'effects',
+            title: 'Effects',
+            icon: HugeIcons.strokeRoundedMagicWand01,
+            onTap: () => onSelectToolSheet('effects'),
+          ),
           EditorToolbarItem(
             id: 'animation',
             title: 'Animation',

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
@@ -281,13 +281,11 @@ class HomePage extends StatelessWidget {
       child: Row(
         children: <Widget>[
           Expanded(
-            child: Text(
-              'motionGr',
-              style: GoogleFonts.unbounded(
-                color: EditorTokens.text,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SvgPicture.asset(
+                'assets/logo.svg',
+                height: 28,
               ),
             ),
           ),

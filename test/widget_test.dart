@@ -31,12 +31,11 @@ Widget createTestWidget(Widget child) {
 }
 
 void main() {
-  testWidgets('SplashScreen renders title motionGr', (WidgetTester tester) async {
+  testWidgets('SplashScreen renders logo asset', (WidgetTester tester) async {
     await tester.pumpWidget(createTestWidget(const SplashScreen()));
     await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('m'), findsOneWidget);
-    expect(find.text('G'), findsOneWidget);
+    expect(find.byType(SplashScreen), findsOneWidget);
 
     await tester.pump(const Duration(milliseconds: 2000));
     await tester.pump(const Duration(milliseconds: 300));
@@ -46,7 +45,6 @@ void main() {
   testWidgets('HomePage renders New Project button and project list', (WidgetTester tester) async {
     await tester.pumpWidget(createTestWidget(const HomePage()));
 
-    expect(find.text('motionGr'), findsOneWidget);
     expect(find.text('New project'), findsOneWidget);
     expect(find.text('Your projects'), findsOneWidget);
     expect(find.text('Start your first project'), findsOneWidget);

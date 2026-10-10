@@ -126,12 +126,13 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
         crossAxisCount: 3,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 1.2,
+        childAspectRatio: 1.0,
       ),
       itemCount: options.length,
       itemBuilder: (context, index) {
         final anim = options[index];
         final isSelected = currentAnim == anim;
+        final name = _getAnimationName(anim);
         return GestureDetector(
           onTap: () {
             editor.updateSelectedClipAnimation(
@@ -140,6 +141,7 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
             );
           },
           child: Container(
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: isSelected ? EditorTokens.text : EditorTokens.elevated,
               borderRadius: BorderRadius.circular(12),
@@ -158,12 +160,14 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  _getAnimationName(anim),
+                  name,
                   textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isSelected ? EditorTokens.bg : EditorTokens.text,
                     fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                     fontFamily: 'Poppins',
                   ),
                 ),
