@@ -441,6 +441,22 @@ object CompositionBuilder {
                     .build()
             }
 
+            // Apply transition / animation effects for base track clips
+            if (!isCard && clip.inAnimation != "none") {
+                when (clip.inAnimation) {
+                    "zoomIn" -> {
+                        videoEffects += ScaleAndRotateTransformation.Builder()
+                            .setScale(1.15f, 1.15f)
+                            .build()
+                    }
+                    "zoomOut" -> {
+                        videoEffects += ScaleAndRotateTransformation.Builder()
+                            .setScale(0.85f, 0.85f)
+                            .build()
+                    }
+                }
+            }
+
             // Dynamic Overlay containing all active overlay clips & watermark
             val dynamicOverlay = DynamicTimelineOverlay(
                 context = context,

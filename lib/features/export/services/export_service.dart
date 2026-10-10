@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 
 class ExportService {
   static const MethodChannel _methodChannel = MethodChannel('editor/export');
@@ -130,63 +129,20 @@ class ExportService {
       if (result != null && result.isNotEmpty) {
         return result;
       }
-    } on MissingPluginException catch (_) {
-      // Fallback mock export
-    } on PlatformException catch (_) {
-      // Fallback mock export
-    } catch (_) {}
-
-    // Mock Export simulation for fallback
-    _fallbackTimer?.cancel();
-    _fallbackProgressController ??= StreamController<Map<String, dynamic>>.broadcast();
-
-    Directory motionGrDir;
-    try {
-      final primaryStorage = Directory('/storage/emulated/0/MotionGr');
-      if (await primaryStorage.exists() || (await primaryStorage.create(recursive: true).then((_) => true).catchError((_) => false))) {
-        motionGrDir = primaryStorage;
-      } else {
-        final docsDir = await getApplicationDocumentsDirectory();
-        motionGrDir = Directory('${docsDir.path}/MotionGr');
-        if (!await motionGrDir.exists()) {
-          await motionGrDir.create(recursive: true);
-        }
-      }
-    } catch (_) {
-      motionGrDir = Directory.systemTemp;
+      throw PlatformException(
+        code: 'EXPORT_FAILED',
+        message: 'Native export returned an empty result path.',
+      );
+    } on PlatformException {
+      rethrow;
+    } on MissingPluginException {
+      rethrow;
+    } catch (e) {
+      throw PlatformException(
+        code: 'EXPORT_ERROR',
+        message: 'Export failed with error: $e',
+      );
     }
-
-    final ext = (timelineJson['settings']?['format'] as String?) ?? 'mp4';
-    final tempPath = '${motionGrDir.path}/export_temp_${DateTime.now().millisecondsSinceEpoch}.$ext';
-    final finalPath = '${motionGrDir.path}/MotionGr_${DateTime.now().millisecondsSinceEpoch}.$ext';
-
-    int progress = 0;
-    final completer = Completer<String>();
-
-    _fallbackTimer = Timer.periodic(const Duration(milliseconds: 30), (timer) async {
-      progress += 2;
-      final double normProgress = (progress / 100.0).clamp(0.0, 1.0);
-      final String stage = progress < 30
-          ? 'Preparing assets'
-          : (progress < 80 ? 'Rendering frames' : 'Finalizing export');
-
-      if (!_fallbackProgressController!.isClosed) {
-        _fallbackProgressController!.add({
-          'progress': normProgress,
-          'stage': stage,
-        });
-      }
-
-      if (progress >= 100) {
-        timer.cancel();
-        final tempFile = File(tempPath);
-        await tempFile.writeAsString('Rendered video file simulation data');
-        await tempFile.rename(finalPath);
-        completer.complete(finalPath);
-      }
-    });
-
-    return completer.future;
   }
 
   Future<void> cancelExport() async {

@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.flutter_video_editor"
+    namespace = "com.motiongr.videoedit"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 

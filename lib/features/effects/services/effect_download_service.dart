@@ -37,8 +37,12 @@ class EffectDownloadService {
     return p != null && p > 0.0 && p < 1.0;
   }
 
+  String sanitizePath(String input) {
+    return input.replaceAll(RegExp(r'\.\.[/\\]'), '').replaceAll(RegExp(r'[^a-zA-Z0-9_\-\.]'), '_');
+  }
+
   Future<ShaderEffect> downloadEffect(ShaderEffect effect, {String? mockShaderCode}) async {
-    final id = effect.id;
+    final id = sanitizePath(effect.id);
     AppLogger.info('Starting download for effect: ${effect.name} ($id)',
         tag: 'EffectDownloadService');
 

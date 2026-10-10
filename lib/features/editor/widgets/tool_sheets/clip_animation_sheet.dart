@@ -162,7 +162,7 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
                 Text(
                   name,
                   textAlign: TextAlign.center,
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: isSelected ? EditorTokens.bg : EditorTokens.text,
@@ -171,6 +171,15 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
                     fontFamily: 'Poppins',
                   ),
                 ),
+                if (anim == ClipAnimation.bounce || anim == ClipAnimation.spin || anim == ClipAnimation.glitch)
+                  Text(
+                    '(Preview Only)',
+                    style: TextStyle(
+                      color: isSelected ? EditorTokens.bg.withValues(alpha: 0.8) : EditorTokens.muted,
+                      fontSize: 8,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
               ],
             ),
           ),

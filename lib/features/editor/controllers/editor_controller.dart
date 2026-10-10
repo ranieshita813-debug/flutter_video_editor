@@ -7,12 +7,15 @@ import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
+import 'package:flutter_video_editor/features/editor/controllers/playback_controller.dart';
+import 'package:flutter_video_editor/features/editor/controllers/track_controller.dart';
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
 import 'package:flutter_video_editor/features/export/services/export_service.dart';
 
 class EditorController extends ChangeNotifier {
   EditorController() {
+    _playback = PlaybackController(onTimeUpdate: notifyListeners);
     _project = VideoProject(
       id: 'proj_${DateTime.now().millisecondsSinceEpoch}',
       name: 'New Project',
@@ -21,14 +24,11 @@ class EditorController extends ChangeNotifier {
     _selectedClipId = null;
   }
 
+  late final PlaybackController _playback;
+  final TrackController _track = TrackController();
+
   late VideoProject _project;
 
-  Duration _playhead = Duration.zero;
-  bool _isPlaying = false;
-  Timer? _ticker;
-  final Stopwatch _clock = Stopwatch();
-  Duration _playFrom = Duration.zero;
-  double _zoom = 1.0;
   String? _selectedClipId;
   ExportSettings _exportSettings = const ExportSettings();
   bool _isExporting = false;
@@ -38,12 +38,7 @@ class EditorController extends ChangeNotifier {
   bool _isEyedropperActive = false;
   Completer<Color?>? _eyedropperCompleter;
 
-  /// Fine-grained playhead listenable. Widgets that only need the playhead
-  /// (timecode pill, transport) can use ValueListenableBuilder on this instead
-  /// of rebuilding on every controller change. Once every such widget is
-  /// migrated, the notifyListeners() inside the playback ticker can be dropped.
-  final ValueNotifier<Duration> playheadListenable =
-      ValueNotifier<Duration>(Duration.zero);
+  ValueNotifier<Duration> get playheadListenable => _playback.playheadListenable;
 
   // Vector Drawing State
   List<DrawingStroke> _activeDrawingStrokes = <DrawingStroke>[];
@@ -67,12 +62,9 @@ class EditorController extends ChangeNotifier {
   VideoProject get project => _project;
 
   void loadProject(VideoProject project) {
-    _ticker?.cancel();
-    _clock.stop();
+    _playback.reset();
     _project = project;
     _selectedClipId = project.clips.isNotEmpty ? project.clips.first.id : null;
-    _setHead(Duration.zero);
-    _isPlaying = false;
     _undoStack.clear();
     _redoStack.clear();
     _autosave();
@@ -94,8 +86,8 @@ class EditorController extends ChangeNotifier {
 
   void addSvgElementClip(String svgContent, String label) {
     _saveState();
-    final Duration start = _playhead;
-    final Duration end = _playhead + const Duration(seconds: 5);
+    final Duration start = playhead;
+    final Duration end = playhead + const Duration(seconds: 5);
     final clip = TimelineClip(
       id: 'svg_${DateTime.now().millisecondsSinceEpoch}',
       label: label,
@@ -316,9 +308,9 @@ class EditorController extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   // Getters
   // ---------------------------------------------------------------------------
-  Duration get playhead => _playhead;
-  bool get isPlaying => _isPlaying;
-  double get zoom => _zoom;
+  Duration get playhead => _playback.playhead;
+  bool get isPlaying => _playback.isPlaying;
+  double get zoom => _playback.zoom;
   String? get selectedClipId => _selectedClipId;
   List<TimelineClip> get clips => _project.clips;
   ExportSettings get exportSettings => _exportSettings;
@@ -363,8 +355,8 @@ class EditorController extends ChangeNotifier {
   TimelineClip? get activeVideoClip {
     for (final clip in _project.clips) {
       if ((clip.clipType == ClipType.video || clip.clipType == ClipType.image) &&
-          _playhead >= clip.start &&
-          _playhead <= clip.end) {
+          playhead >= clip.start &&
+          playhead <= clip.end) {
         return clip;
       }
     }
@@ -435,33 +427,13 @@ class EditorController extends ChangeNotifier {
   /// First overlay layer at or above [base] with no time overlap against
   /// [start]..[end], so two clips playing together never share one lane.
   int _freeOverlayLayer(int base, Duration start, Duration end) {
-    int layer = base;
-    while (_project.clips.any((c) =>
-        _isOverlay(c) &&
-        c.layerIndex == layer &&
-        c.start < end &&
-        c.end > start)) {
-      layer++;
-    }
-    return layer;
+    return _track.freeOverlayLayer(_project.clips, base, start, end);
   }
 
   Duration _mainTrackEnd() {
-    Duration end = Duration.zero;
-    for (final c in _project.clips) {
-      if ((c.clipType == ClipType.video || c.clipType == ClipType.image) && c.end > end) {
-        end = c.end;
-      }
-    }
-    return end;
+    return _track.mainTrackEnd(_project.clips);
   }
 
-  List<int> _overlayLayers() {
-    final List<int> ls =
-        _project.clips.where(_isOverlay).map((c) => c.layerIndex).toSet().toList()
-          ..sort();
-    return ls;
-  }
 
   // ---------------------------------------------------------------------------
   // Clips
@@ -485,8 +457,8 @@ class EditorController extends ChangeNotifier {
         lower.endsWith('.avi') ||
         lower.endsWith('.webm');
 
-    final Duration start = _playhead;
-    final Duration end = _playhead + const Duration(seconds: 5);
+    final Duration start = playhead;
+    final Duration end = playhead + const Duration(seconds: 5);
     final clip = TimelineClip(
       id: 'overlay_${DateTime.now().millisecondsSinceEpoch}',
       label: path.split(RegExp(r'[\\/]')).last,
@@ -513,71 +485,15 @@ class EditorController extends ChangeNotifier {
   void clearSelection() => selectClip(null);
 
   void setZoom(double value) {
-    final double z = value.clamp(0.5, 8.0).toDouble();
-    if (z == _zoom) return;
-    _zoom = z;
-    notifyListeners();
-  }
-
-  void _setHead(Duration value) {
-    _playhead = value;
-    playheadListenable.value = value;
+    _playback.setZoom(value);
   }
 
   void setPlayhead(Duration value) {
-    final maxDuration = _project.totalDuration;
-    final Duration next = maxDuration > Duration.zero
-        ? Duration(
-            milliseconds: value.inMilliseconds.clamp(0, maxDuration.inMilliseconds),
-          )
-        : value;
-    if (next == _playhead) return;
-    _setHead(next);
-    if (_isPlaying) {
-      // A seek during playback re-bases the playback clock.
-      _playFrom = _playhead;
-      _clock
-        ..reset()
-        ..start();
-    }
-    notifyListeners();
+    _playback.setPlayhead(value, _project.totalDuration);
   }
 
   void togglePlayback() {
-    _isPlaying = !_isPlaying;
-    _ticker?.cancel();
-    _clock.stop();
-
-    if (_isPlaying) {
-      final Duration total = _project.totalDuration;
-      if (total > Duration.zero && _playhead >= total) {
-        _setHead(Duration.zero);
-      }
-
-      // Playhead follows a real clock, so a late timer tick never slows
-      // playback down.
-      _playFrom = _playhead;
-      _clock
-        ..reset()
-        ..start();
-
-      _ticker = Timer.periodic(const Duration(milliseconds: 33), (Timer _) {
-        final Duration end = _project.totalDuration;
-        final Duration next = _playFrom + _clock.elapsed;
-
-        if (end > Duration.zero && next >= end) {
-          _setHead(end);
-          _isPlaying = false;
-          _ticker?.cancel();
-          _clock.stop();
-        } else {
-          _setHead(next);
-        }
-        notifyListeners();
-      });
-    }
-
-    notifyListeners();
+    _playback.togglePlayback(_project.totalDuration);
   }
 
   void toggleCameraActive() {
@@ -591,20 +507,24 @@ class EditorController extends ChangeNotifier {
     final existing = selectedClip;
     if (existing == null) return;
 
-    if (_playhead <= existing.start || _playhead >= existing.end) return;
+    if (playhead <= existing.start || playhead >= existing.end) return;
 
     _saveState();
 
+    final splitOffset = playhead - existing.start;
+
     final left = existing.copyWith(
       id: '${existing.id}_part1',
-      end: _playhead,
+      end: playhead,
       label: '${existing.label} (Part 1)',
+      trimOut: existing.trimIn + splitOffset,
     );
 
     final right = existing.copyWith(
       id: '${existing.id}_part2',
-      start: _playhead,
+      start: playhead,
       label: '${existing.label} (Part 2)',
+      trimIn: existing.trimIn + splitOffset,
     );
 
     final index = _project.clips.indexOf(existing);
@@ -687,10 +607,20 @@ class EditorController extends ChangeNotifier {
     );
     if (index == -1) return;
 
+    final existing = _project.clips[index];
+    final startDelta = trimStart - existing.start;
+    final endDelta = trimEnd - existing.end;
+
+    final calculatedTrimIn = existing.trimIn + startDelta;
+    final newTrimIn = calculatedTrimIn >= Duration.zero ? calculatedTrimIn : Duration.zero;
+    final newTrimOut = existing.trimOut + endDelta;
+
     _saveStateCoalesced('trim:$_selectedClipId');
-    _project.clips[index] = _project.clips[index].copyWith(
+    _project.clips[index] = existing.copyWith(
       start: trimStart,
       end: trimEnd,
+      trimIn: newTrimIn,
+      trimOut: newTrimOut,
     );
     _autosave();
     notifyListeners();
@@ -733,8 +663,8 @@ class EditorController extends ChangeNotifier {
     TextAnimationStyle animationStyle = TextAnimationStyle.fadeIn,
   }) {
     _saveState();
-    final Duration start = _playhead;
-    final Duration end = _playhead + const Duration(seconds: 4);
+    final Duration start = playhead;
+    final Duration end = playhead + const Duration(seconds: 4);
     final clip = TimelineClip(
       id: 'text_${DateTime.now().millisecondsSinceEpoch}',
       label: text,
@@ -836,8 +766,8 @@ class EditorController extends ChangeNotifier {
     Color color = Colors.white,
   }) {
     _saveState();
-    final Duration start = _playhead;
-    final Duration end = _playhead + const Duration(seconds: 5);
+    final Duration start = playhead;
+    final Duration end = playhead + const Duration(seconds: 5);
     final clip = TimelineClip(
       id: 'elem_${DateTime.now().millisecondsSinceEpoch}',
       label: '$label (${shape.name})',
@@ -999,40 +929,13 @@ class EditorController extends ChangeNotifier {
 
   /// Whether the lane holding [clipId] can move one step up (or down).
   bool canMoveClipLayer(String clipId, {required bool up}) {
-    final int index = _project.clips.indexWhere((c) => c.id == clipId);
-    if (index == -1 || !_isOverlay(_project.clips[index])) return false;
-    final List<int> ls = _overlayLayers();
-    final int i = ls.indexOf(_project.clips[index].layerIndex);
-    if (i < 0) return false;
-    return up ? i < ls.length - 1 : i > 0;
+    return _track.canMoveClipLayer(_project.clips, clipId, up: up);
   }
 
-  /// Moves the whole lane that holds [clipId] one step up/down in the overlay
-  /// stack, or to the very front/back when [toEdge] is true. Other lanes shift
-  /// to fill the gap, so lanes never merge and clips never overlap in a lane.
   void moveClipLayer(String clipId, {required bool up, bool toEdge = false}) {
     if (!canMoveClipLayer(clipId, up: up)) return;
-    final TimelineClip clip = _project.clips.firstWhere((c) => c.id == clipId);
-    final List<int> ls = _overlayLayers();
-    final int i = ls.indexOf(clip.layerIndex);
-    final int j = up ? (toEdge ? ls.length - 1 : i + 1) : (toEdge ? 0 : i - 1);
-
     _saveState();
-    final List<int> order = List<int>.of(ls)
-      ..removeAt(i)
-      ..insert(j, clip.layerIndex);
-    // order[k] is the old layer that now sits at slot k; slot k uses ls[k].
-    final Map<int, int> remap = <int, int>{
-      for (int k = 0; k < ls.length; k++) order[k]: ls[k],
-    };
-    for (int n = 0; n < _project.clips.length; n++) {
-      final TimelineClip c = _project.clips[n];
-      if (!_isOverlay(c)) continue;
-      final int? target = remap[c.layerIndex];
-      if (target != null && target != c.layerIndex) {
-        _project.clips[n] = c.copyWith(layerIndex: target);
-      }
-    }
+    _track.moveClipLayer(_project.clips, clipId, up: up, toEdge: toEdge);
     _autosave();
     notifyListeners();
   }
@@ -1070,16 +973,18 @@ class EditorController extends ChangeNotifier {
   }
 
   // Audio Tools & Multi-layer
-  void addAudioTrack(String trackName, {double volume = 1.0}) {
+  void addAudioTrack(String sourcePath, {String? trackName, double volume = 1.0, Duration? duration}) {
     _saveState();
+    final name = trackName ?? sourcePath.split(RegExp(r'[\\/]')).last;
     final clip = TimelineClip(
       id: 'audio_${DateTime.now().millisecondsSinceEpoch}',
-      label: trackName,
-      start: _playhead,
-      end: _playhead + const Duration(seconds: 10),
+      label: name,
+      start: playhead,
+      end: playhead + (duration ?? const Duration(seconds: 10)),
       clipType: ClipType.audio,
       layerIndex: 1,
       volume: volume,
+      sourcePath: sourcePath,
       audioProperties: AudioProperties(volume: volume),
     );
 
@@ -1134,8 +1039,8 @@ class EditorController extends ChangeNotifier {
     if (_activeDrawingStrokes.isEmpty) return;
     _saveState();
 
-    final Duration start = _playhead;
-    final Duration end = _playhead + const Duration(seconds: 5);
+    final Duration start = playhead;
+    final Duration end = playhead + const Duration(seconds: 5);
     final clip = TimelineClip(
       id: 'drawing_${DateTime.now().millisecondsSinceEpoch}',
       label:
@@ -1229,7 +1134,7 @@ class EditorController extends ChangeNotifier {
   Future<String?> startExport({Function? onComplete}) async {
     // Make sure the latest edits are on disk and playback is not competing
     // with the encoder.
-    if (_isPlaying) togglePlayback();
+    if (isPlaying) togglePlayback();
     if (_saveTimer?.isActive ?? false) _flushSave();
 
     _isExporting = true;
@@ -1261,23 +1166,16 @@ class EditorController extends ChangeNotifier {
   }
 
   void reset() {
-    _ticker?.cancel();
-    _clock.stop();
-    _setHead(Duration.zero);
-    _isPlaying = false;
+    _playback.reset();
     _selectedClipId = null;
-    _zoom = 1.0;
     _activeDrawingStrokes.clear();
     notifyListeners();
   }
 
   @override
   void dispose() {
-    _ticker?.cancel();
-    _clock.stop();
-    // Do not lose the last edits made inside the debounce window.
+    _playback.dispose();
     if (_saveTimer?.isActive ?? false) _flushSave();
-    playheadListenable.dispose();
     super.dispose();
   }
 }

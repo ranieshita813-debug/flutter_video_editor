@@ -340,6 +340,76 @@ object OverlayRenderer {
     }
 
     /**
+     * বিটম্যাপে কালার গ্রেডিং এবং ভিনিয়েট ফিল্টার প্রয়োগ করে
+     */
+    fun applyColorGrading(
+        bitmap: Bitmap,
+        cg: ColorGradingSpec
+    ): Bitmap {
+        if (cg.brightness == 0.0 && cg.contrast == 1.0 && cg.saturation == 1.0 &&
+            cg.temperature == 0.0 && cg.exposure == 0.0 && cg.vignette == 0.0) {
+            return bitmap
+        }
+
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= 0 || h <= 0) return bitmap
+
+        val output = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+
+        val cm = ColorMatrix()
+        cm.setSaturation(cg.saturation.toFloat().coerceIn(0f, 2f))
+
+        val contrastScale = cg.contrast.toFloat().coerceIn(0.5f, 2f)
+        val contrastTranslate = (-0.5f * contrastScale + 0.5f) * 255f
+        val contrastCm = ColorMatrix(floatArrayOf(
+            contrastScale, 0f, 0f, 0f, contrastTranslate,
+            0f, contrastScale, 0f, 0f, contrastTranslate,
+            0f, 0f, contrastScale, 0f, contrastTranslate,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        cm.postConcat(contrastCm)
+
+        val gain = kotlin.math.pow(2.0, cg.exposure).toFloat()
+        val tempR = (gain * (1.0f + 0.25f * cg.temperature.toFloat())).coerceAtLeast(0f)
+        val tempB = (gain * (1.0f - 0.25f * cg.temperature.toFloat())).coerceAtLeast(0f)
+        val bOffset = (cg.brightness * 255.0).toFloat().coerceIn(-128f, 128f)
+
+        val colorScaleCm = ColorMatrix(floatArrayOf(
+            tempR, 0f, 0f, 0f, bOffset,
+            0f, gain, 0f, 0f, bOffset,
+            0f, 0f, tempB, 0f, bOffset,
+            0f, 0f, 0f, 1f, 0f
+        ))
+        cm.postConcat(colorScaleCm)
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(cm)
+        }
+        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+
+        if (cg.vignette > 0.0) {
+            val vigVal = cg.vignette.toFloat().coerceIn(0f, 1f)
+            val cx = w / 2f
+            val cy = h / 2f
+            val radius = kotlin.math.sqrt((cx * cx + cy * cy).toDouble()).toFloat()
+            val shader = RadialGradient(
+                cx, cy, radius,
+                intArrayOf(Color.TRANSPARENT, Color.argb((vigVal * 200).toInt(), 0, 0, 0)),
+                floatArrayOf(0.4f, 1.0f),
+                Shader.TileMode.CLAMP
+            )
+            val vigPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.shader = shader
+            }
+            canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), vigPaint)
+        }
+
+        return output
+    }
+
+    /**
      * ক্যানভাসে নির্দিষ্ট ওভারলে ক্লিপ আঁকে
      */
     fun drawOverlayClip(
@@ -350,8 +420,7 @@ object OverlayRenderer {
         height: Int,
         timelineMs: Long
     ) {
-        val sx = width / 375f
-        val sy = height / 667f
+        val u = width / 375f
 
         var overlayBmp: Bitmap? = null
 
@@ -364,7 +433,7 @@ object OverlayRenderer {
             "sticker" -> {
                 val path = clip.stickerAssetPath?.takeIf { it.isNotEmpty() } ?: clip.sourcePath
                 if (path != null) {
-                    overlayBmp = loadBitmap(context, path, (150 * sx).toInt(), (150 * sy).toInt())
+                    overlayBmp = loadBitmap(context, path, (150 * clip.scale * u).toInt().coerceAtLeast(16), (150 * clip.scale * u).toInt().coerceAtLeast(16))
                 }
             }
             "text", "caption" -> {
@@ -390,7 +459,7 @@ object OverlayRenderer {
             "image" -> {
                 val path = clip.sourcePath
                 if (path != null) {
-                    overlayBmp = loadBitmap(context, path, (200 * sx).toInt(), (200 * sy).toInt())
+                    overlayBmp = loadBitmap(context, path, (180 * clip.scale * u).toInt().coerceAtLeast(16), (180 * clip.scale * u).toInt().coerceAtLeast(16))
                 }
             }
             "video" -> {
@@ -406,7 +475,7 @@ object OverlayRenderer {
                         }
                         val frame = retriever.getFrameAtTime(frameMs * 1000L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                         if (frame != null) {
-                            overlayBmp = Bitmap.createScaledBitmap(frame, (200 * sx).toInt().coerceAtLeast(16), (200 * sy).toInt().coerceAtLeast(16), true)
+                            overlayBmp = Bitmap.createScaledBitmap(frame, (180 * clip.scale * u).toInt().coerceAtLeast(16), (180 * clip.scale * u).toInt().coerceAtLeast(16), true)
                             if (overlayBmp != frame) frame.recycle()
                         }
                     } catch (e: Exception) {
@@ -437,11 +506,20 @@ object OverlayRenderer {
             overlayBmp = keyed
         }
 
+        if (clip.colorGrading.brightness != 0.0 || clip.colorGrading.contrast != 1.0 ||
+            clip.colorGrading.saturation != 1.0 || clip.colorGrading.temperature != 0.0 ||
+            clip.colorGrading.exposure != 0.0 || clip.colorGrading.vignette != 0.0) {
+            val graded = applyColorGrading(overlayBmp, clip.colorGrading)
+            if (graded != overlayBmp && !overlayBmp.isRecycled) {
+                overlayBmp.recycle()
+            }
+            overlayBmp = graded
+        }
+
         canvas.save()
         val matrix = Matrix()
-        matrix.postScale(clip.scale.toFloat(), clip.scale.toFloat())
         matrix.postRotate(clip.rotation.toFloat())
-        matrix.postTranslate((clip.positionX * sx).toFloat(), (clip.positionY * sy).toFloat())
+        matrix.postTranslate((clip.positionX * u).toFloat(), (clip.positionY * u).toFloat())
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         if (clip.opacity < 1.0) {

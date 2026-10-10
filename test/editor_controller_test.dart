@@ -4,8 +4,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 
+import 'package:flutter/services.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('editor/export'), (call) async {
+      if (call.method == 'export') {
+        return '/tmp/mock_export.mp4';
+      }
+      return null;
+    });
+  });
 
   group('EditorController Unit Tests', () {
     late EditorController controller;
@@ -36,13 +48,14 @@ void main() {
       expect(controller.playhead, equals(const Duration(seconds: 4)));
     });
 
-    test('Clip splitting creates two clips', () {
+    test('Clip splitting creates two clips and updates trimIn correctly', () {
       controller.addClip(
         TimelineClip(
           id: 'c1',
           label: 'Test Clip',
           start: Duration.zero,
           end: const Duration(seconds: 10),
+          trimIn: const Duration(seconds: 2),
           clipType: ClipType.video,
         ),
       );
@@ -52,6 +65,39 @@ void main() {
       controller.splitSelectedClip();
 
       expect(controller.clips.length, equals(initialCount + 1));
+      final left = controller.clips.firstWhere((c) => c.id == 'c1_part1');
+      final right = controller.clips.firstWhere((c) => c.id == 'c1_part2');
+
+      expect(left.start, equals(Duration.zero));
+      expect(left.end, equals(const Duration(seconds: 3)));
+      expect(left.trimIn, equals(const Duration(seconds: 2)));
+      expect(left.trimOut, equals(const Duration(seconds: 5)));
+
+      expect(right.start, equals(const Duration(seconds: 3)));
+      expect(right.end, equals(const Duration(seconds: 10)));
+      expect(right.trimIn, equals(const Duration(seconds: 5)));
+    });
+
+    test('Trimming clip updates trimIn and trimOut math correctly', () {
+      controller.addClip(
+        TimelineClip(
+          id: 'c2',
+          label: 'Trim Test Clip',
+          start: const Duration(seconds: 2),
+          end: const Duration(seconds: 10),
+          trimIn: Duration.zero,
+          clipType: ClipType.video,
+        ),
+      );
+
+      controller.selectClip('c2');
+      controller.trimSelectedClip(const Duration(seconds: 4), const Duration(seconds: 8));
+
+      final trimmed = controller.selectedClip;
+      expect(trimmed, isNotNull);
+      expect(trimmed!.start, equals(const Duration(seconds: 4)));
+      expect(trimmed.end, equals(const Duration(seconds: 8)));
+      expect(trimmed.trimIn, equals(const Duration(seconds: 2)));
     });
 
     test('Undo and Redo functionality', () {
@@ -110,8 +156,9 @@ void main() {
     });
 
     test('Audio track adding and properties update', () {
-      controller.addAudioTrack('Voiceover Stream');
+      controller.addAudioTrack('/path/to/voiceover.mp3', trackName: 'Voiceover Stream');
       expect(controller.selectedClip?.clipType, equals(ClipType.audio));
+      expect(controller.selectedClip?.sourcePath, equals('/path/to/voiceover.mp3'));
 
       controller.updateAudioProperties(
         const AudioProperties(volume: 1.5, pitch: 1.2, equalizerPreset: 'Rock'),
