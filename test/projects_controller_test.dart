@@ -54,5 +54,13 @@ void main() {
       expect(controller.projects.length, equals(initialCount - 1));
       expect(controller.getProject(created.id), isNull);
     });
+
+    test('detectAspectRatio selects correct ratio based on dimensions', () {
+      expect(detectAspectRatio(1080, 1920), equals(AspectRatioPreset.nineSixteen));
+      expect(detectAspectRatio(1920, 1080), equals(AspectRatioPreset.sixteenNine));
+      expect(detectAspectRatio(1080, 1080), equals(AspectRatioPreset.oneOne));
+      expect(detectAspectRatio(1080, 1350), equals(AspectRatioPreset.fourFive));
+      expect(detectAspectRatio(2560, 1080), equals(AspectRatioPreset.twentyOneNine));
+    });
   });
 }

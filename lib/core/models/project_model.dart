@@ -506,11 +506,30 @@ enum AspectRatioPreset {
   sixteenNine('16:9', 16 / 9),
   oneOne('1:1', 1 / 1),
   fourFive('4:5', 4 / 5),
+  twentyOneNine('21:9', 21 / 9),
   original('Original', 0.0);
 
   const AspectRatioPreset(this.label, this.ratio);
   final String label;
   final double ratio;
+}
+
+AspectRatioPreset detectAspectRatio(double width, double height) {
+  if (width <= 0 || height <= 0) return AspectRatioPreset.nineSixteen;
+  final double ratio = width / height;
+
+  AspectRatioPreset best = AspectRatioPreset.nineSixteen;
+  double minDiff = double.infinity;
+
+  for (final preset in AspectRatioPreset.values) {
+    if (preset == AspectRatioPreset.original) continue;
+    final double diff = (preset.ratio - ratio).abs();
+    if (diff < minDiff) {
+      minDiff = diff;
+      best = preset;
+    }
+  }
+  return best;
 }
 
 class DrawingPoint {

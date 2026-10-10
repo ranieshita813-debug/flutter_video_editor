@@ -285,7 +285,7 @@ class HomePage extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: SvgPicture.asset(
                 'assets/logo_white.svg',
-                height: 28,
+                height: 42,
               ),
             ),
           ),
