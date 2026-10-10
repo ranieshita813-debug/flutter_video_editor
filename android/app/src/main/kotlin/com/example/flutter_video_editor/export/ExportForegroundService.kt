@@ -67,6 +67,13 @@ class ExportForegroundService : Service() {
         return START_NOT_STICKY
     }
 
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        try {
+            cancelHandler?.invoke()
+            shutdown(removeNotification = true)
+        } catch (_: Exception) {}
+    }
+
     override fun onDestroy() {
         releaseWakeLock()
         super.onDestroy()

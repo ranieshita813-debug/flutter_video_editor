@@ -66,10 +66,15 @@ class ProjectStorageService {
   Future<void> saveProject(Project project) async {
     try {
       final dir = await _getProjectsDirectory();
-      final file = File('${dir.path}/${project.id}.json');
-      final jsonStr = jsonEncode(project.toJson());
-      await file.writeAsString(jsonStr, flush: true);
-      AppLogger.info('Saved project ${project.id} to local storage', tag: 'ProjectStorage');
+      final tempFile = File('${dir.path}/${project.id}.tmp');
+      final targetFile = File('${dir.path}/${project.id}.json');
+      final jsonMap = project.toJson();
+      jsonMap['schemaVersion'] = 1;
+      final jsonStr = jsonEncode(jsonMap);
+
+      await tempFile.writeAsString(jsonStr, flush: true);
+      await tempFile.rename(targetFile.path);
+      AppLogger.info('Saved project ${project.id} to local storage atomically', tag: 'ProjectStorage');
     } on MissingPluginException catch (_) {
       // Ignored in test environment without native channel
     } catch (e, stack) {
@@ -95,9 +100,14 @@ class ProjectStorageService {
   Future<void> saveRecoveryState(Project project) async {
     try {
       final dir = await _getProjectsDirectory();
-      final file = File('${dir.path}/recovery_active.json');
-      final jsonStr = jsonEncode(project.toJson());
-      await file.writeAsString(jsonStr, flush: true);
+      final tempFile = File('${dir.path}/recovery_active.tmp');
+      final targetFile = File('${dir.path}/recovery_active.json');
+      final jsonMap = project.toJson();
+      jsonMap['schemaVersion'] = 1;
+      final jsonStr = jsonEncode(jsonMap);
+
+      await tempFile.writeAsString(jsonStr, flush: true);
+      await tempFile.rename(targetFile.path);
     } on MissingPluginException catch (_) {
       // Ignored in test environment
     } catch (e, stack) {

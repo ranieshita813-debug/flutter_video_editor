@@ -107,7 +107,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     await c.setPlaybackSpeed(speed);
 
     Duration local = Duration(
-        milliseconds: ((_e.playhead - clip.start).inMilliseconds * speed).round());
+        milliseconds: (clip.trimIn.inMilliseconds + (_e.playhead - clip.start).inMilliseconds * speed).round());
     if (local.isNegative) local = Duration.zero;
     final Duration dur = c.value.duration;
     if (local > dur) local = dur;
@@ -735,6 +735,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
               fit: StackFit.expand,
               children: <Widget>[
                 VideoPlayerPreview(editor: editor, fill: _fill),
+                _AudioClipsPreview(editor: editor),
                 Positioned(
                   right: 14 * unit,
                   bottom: 14 * unit,
@@ -1526,7 +1527,7 @@ class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
     c.setPlaybackSpeed(clipSpeed);
 
     Duration local = Duration(
-        milliseconds: ((_e.playhead - widget.clip.start).inMilliseconds * clipSpeed).round());
+        milliseconds: (widget.clip.trimIn.inMilliseconds + (_e.playhead - widget.clip.start).inMilliseconds * clipSpeed).round());
     if (local.isNegative) local = Duration.zero;
     final Duration dur = c.value.duration;
     if (local > dur) local = dur;
@@ -1709,6 +1710,122 @@ class _DrawingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => true;
+}
+
+// ----------------------------------------------------------------------------
+// Audio Clips Preview Engine
+// ----------------------------------------------------------------------------
+class _AudioClipsPreview extends StatefulWidget {
+  const _AudioClipsPreview({required this.editor});
+  final EditorController editor;
+
+  @override
+  State<_AudioClipsPreview> createState() => _AudioClipsPreviewState();
+}
+
+class _AudioClipsPreviewState extends State<_AudioClipsPreview> {
+  final Map<String, VideoPlayerController> _audioControllers = {};
+
+  EditorController get _e => widget.editor;
+
+  @override
+  void initState() {
+    super.initState();
+    _e.addListener(_onEditorChange);
+    _onEditorChange();
+  }
+
+  @override
+  void dispose() {
+    _e.removeListener(_onEditorChange);
+    for (final controller in _audioControllers.values) {
+      controller.dispose();
+    }
+    _audioControllers.clear();
+    super.dispose();
+  }
+
+  void _onEditorChange() {
+    _syncAudioPlayers();
+  }
+
+  Future<void> _syncAudioPlayers() async {
+    final activeAudioClips = _e.clips.where((c) {
+      return c.isVisible &&
+          c.clipType == ClipType.audio &&
+          c.sourcePath != null &&
+          c.sourcePath!.isNotEmpty &&
+          _e.playhead >= c.start &&
+          _e.playhead <= c.end;
+    }).toList();
+
+    final activeClipIds = activeAudioClips.map((c) => c.id).toSet();
+
+    final toRemove = _audioControllers.keys.where((id) => !activeClipIds.contains(id)).toList();
+    for (final id in toRemove) {
+      final controller = _audioControllers.remove(id);
+      controller?.pause();
+      controller?.dispose();
+    }
+
+    for (final clip in activeAudioClips) {
+      final path = clip.sourcePath!;
+      VideoPlayerController? controller = _audioControllers[clip.id];
+
+      if (controller == null) {
+        final file = File(path);
+        if (!file.existsSync()) continue;
+
+        controller = VideoPlayerController.file(
+          file,
+          videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+        );
+        _audioControllers[clip.id] = controller;
+
+        try {
+          await controller.initialize();
+          await controller.setLooping(false);
+        } catch (_) {
+          _audioControllers.remove(clip.id);
+          await controller.dispose();
+          continue;
+        }
+      }
+
+      if (!controller.value.isInitialized) continue;
+
+      final double speed = clip.speed.clamp(0.1, 10.0);
+      final double vol = (clip.volume * clip.audioProperties.volume).clamp(0.0, 1.0);
+      await controller.setPlaybackSpeed(speed);
+      await controller.setVolume(vol);
+
+      Duration local = Duration(
+        milliseconds: (clip.trimIn.inMilliseconds + (_e.playhead - clip.start).inMilliseconds * speed).round(),
+      );
+      if (local.isNegative) local = Duration.zero;
+      final Duration dur = controller.value.duration;
+      if (local > dur) local = dur;
+
+      final Duration drift = (controller.value.position - local).abs();
+
+      if (_e.isPlaying) {
+        if (!controller.value.isPlaying) {
+          await controller.seekTo(local);
+          await controller.play();
+        } else if (drift > const Duration(milliseconds: 400)) {
+          await controller.seekTo(local);
+        }
+      } else {
+        if (controller.value.isPlaying) await controller.pause();
+        if (drift > const Duration(milliseconds: 40)) await controller.seekTo(local);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink();
+  }
 }
 
 // ----------------------------------------------------------------------------

@@ -1,17 +1,34 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter_video_editor/core/models/user_model.dart';
 
-class AuthService {
+abstract class AuthRepository {
+  UserModel? get currentUser;
+  Future<UserModel?> loadSavedSession();
+  Future<UserModel> signUp({
+    required String email,
+    required String password,
+    required String displayName,
+  });
+  Future<UserModel> signIn({
+    required String email,
+    required String password,
+  });
+  Future<UserModel> signInAsGuest();
+  Future<void> signOut();
+}
+
+class AuthService implements AuthRepository {
   AuthService();
 
   UserModel? _currentUser;
   final Map<String, String> _userCredentials = <String, String>{};
   final Map<String, UserModel> _usersByEmail = <String, UserModel>{};
 
+  @override
   UserModel? get currentUser => _currentUser;
 
   Future<File> get _sessionFile async {
@@ -58,6 +75,7 @@ class AuthService {
     } catch (_) {}
   }
 
+  @override
   Future<UserModel?> loadSavedSession() async {
     await _loadUsersDb();
     try {
@@ -86,6 +104,7 @@ class AuthService {
     } catch (_) {}
   }
 
+  @override
   Future<UserModel> signUp({
     required String email,
     required String password,
@@ -107,7 +126,7 @@ class AuthService {
       isGuest: false,
     );
 
-    _userCredentials[normalizedEmail] = password;
+    _userCredentials[normalizedEmail] = _hashPassword(password);
     _usersByEmail[normalizedEmail] = user;
     _currentUser = user;
 
@@ -116,6 +135,7 @@ class AuthService {
     return user;
   }
 
+  @override
   Future<UserModel> signIn({
     required String email,
     required String password,
@@ -130,7 +150,8 @@ class AuthService {
       );
     }
 
-    if (_userCredentials[normalizedEmail] != password) {
+    final hashedInput = _hashPassword(password);
+    if (_userCredentials[normalizedEmail] != hashedInput && _userCredentials[normalizedEmail] != password) {
       throw Exception('Invalid email or password');
     }
 
@@ -140,6 +161,7 @@ class AuthService {
     return user;
   }
 
+  @override
   Future<UserModel> signInAsGuest() async {
     final guest = UserModel(
       id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
@@ -152,6 +174,11 @@ class AuthService {
     return guest;
   }
 
+  String _hashPassword(String pass) {
+    return sha256.convert(utf8.encode(pass)).toString();
+  }
+
+  @override
   Future<void> signOut() async {
     _currentUser = null;
     try {

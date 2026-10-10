@@ -42,6 +42,7 @@ class ChromaKeyPreview extends StatefulWidget {
 class _ChromaKeyPreviewState extends State<ChromaKeyPreview> {
   static Future<ui.FragmentProgram>? _program;
   ui.FragmentProgram? _p;
+  ui.FragmentShader? _shader;
 
   @override
   void initState() {
@@ -52,11 +53,20 @@ class _ChromaKeyPreviewState extends State<ChromaKeyPreview> {
     }).catchError((_) {});
   }
 
+  @override
+  void dispose() {
+    _shader?.dispose();
+    _shader = null;
+    super.dispose();
+  }
+
   ui.ImageFilter? _filter(ChromaKey k, Size size) {
     final p = _p;
     if (p == null) return null;
     try {
+      _shader?.dispose();
       final s = p.fragmentShader();
+      _shader = s;
       final double width = math.max(1.0, size.width);
       final double height = math.max(1.0, size.height);
       s.setFloat(0, width);

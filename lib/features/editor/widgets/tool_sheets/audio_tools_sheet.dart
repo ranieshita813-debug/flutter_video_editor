@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -64,10 +65,19 @@ class AudioToolsSheet extends StatelessWidget {
                   backgroundColor: EditorTokens.text,
                   foregroundColor: EditorTokens.bg,
                 ),
-                onPressed: () {
-                  editor.addAudioTrack(
-                    'Track ${editor.clips.where((c) => c.clipType == ClipType.audio).length + 1}',
-                  );
+                onPressed: () async {
+                  try {
+                    final result = await FilePicker.platform.pickFiles(
+                      type: FileType.audio,
+                      allowMultiple: false,
+                    );
+                    if (result != null && result.files.isNotEmpty) {
+                      final file = result.files.single;
+                      if (file.path != null) {
+                        editor.addAudioTrack(file.path!, trackName: file.name);
+                      }
+                    }
+                  } catch (_) {}
                 },
                 icon: const HugeIcon(
                   icon: HugeIcons.strokeRoundedAdd01,

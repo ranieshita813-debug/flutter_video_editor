@@ -5,8 +5,20 @@ import 'package:flutter_video_editor/features/export/controllers/export_controll
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
 
+import 'package:flutter/services.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('editor/export'), (call) async {
+      if (call.method == 'export') {
+        return '/tmp/mock_export.mp4';
+      }
+      return null;
+    });
+  });
 
   group('TimelineDto Unit Tests', () {
     test('Serializes Project and TimelineClip to versioned JSON', () {

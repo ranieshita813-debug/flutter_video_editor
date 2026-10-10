@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -676,10 +677,20 @@ class AudioToolsSheet extends StatelessWidget {
                   shape: const CircleBorder(),
                   child: InkWell(
                     customBorder: const CircleBorder(),
-                    onTap: () {
+                    onTap: () async {
                       tapFeedback();
-                      editor.addAudioTrack(
-                          'Track ${editor.clips.where((c) => c.clipType == ClipType.audio).length + 1}');
+                      try {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.audio,
+                          allowMultiple: false,
+                        );
+                        if (result != null && result.files.isNotEmpty) {
+                          final file = result.files.single;
+                          if (file.path != null) {
+                            editor.addAudioTrack(file.path!, trackName: file.name);
+                          }
+                        }
+                      } catch (_) {}
                     },
                     child: const Tooltip(
                       message: 'Add audio track',
@@ -1212,6 +1223,27 @@ class KeyframeSheet extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: <Widget>[
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Keyframes',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: accentToken.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'Preview Only',
+                style: TextStyle(color: accentToken, fontSize: 10, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         _primaryBtn(
           HugeIcons.strokeRoundedAdd01,
           'Add keyframe at playhead',
