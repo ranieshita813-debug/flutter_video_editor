@@ -71,6 +71,22 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateSelectedClipSpeed(double speed) {
+    if (_selectedClipId == null) return;
+
+    final index = _project.clips.indexWhere(
+      (TimelineClip clip) => clip.id == _selectedClipId,
+    );
+    if (index == -1) return;
+
+    _saveStateCoalesced('speed:$_selectedClipId');
+    final double newSpeed = speed.clamp(0.1, 10.0).toDouble();
+    _project.clips[index] =
+        _project.clips[index].copyWith(speed: newSpeed);
+    _autosave();
+    notifyListeners();
+  }
+
   void setChromaKey(String clipId, ChromaKey chromaKey) {
     final index = _project.clips.indexWhere(
       (TimelineClip clip) => clip.id == clipId,

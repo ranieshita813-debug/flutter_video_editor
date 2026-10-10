@@ -61,6 +61,6 @@ void main() {
     } else if (uOutput == 2.0) {
         fragColor = col;
     } else {
-        fragColor = vec4(col.rgb * alpha, col.a * alpha);
+        fragColor = vec4(col.rgb, col.a * alpha);
     }
 }

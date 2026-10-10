@@ -69,6 +69,9 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   }
 
   void _onEditor() {
+    if (mounted) {
+      setState(() {});
+    }
     if (_busy) {
       _dirty = true;
       return;
@@ -318,6 +321,39 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
             0, 0, 0, 1, 0,
           ]),
           child: child,
+        );
+      case VideoEffect.vhs:
+        return FlutterShaderPreviewRenderer.applyShaderEffect(
+          child: child,
+          clip: const ShaderEffectClip(
+            id: 'fx_vhs',
+            effectId: 'vhs',
+            parameterValues: {'distortionAmount': 1.0, 'speed': 1.0},
+          ),
+          parameters: const {'distortionAmount': 1.0, 'speed': 1.0},
+          playheadTime: playhead,
+        );
+      case VideoEffect.wave:
+        return FlutterShaderPreviewRenderer.applyShaderEffect(
+          child: child,
+          clip: const ShaderEffectClip(
+            id: 'fx_wave',
+            effectId: 'wave',
+            parameterValues: {'distortionAmount': 1.0, 'speed': 1.0},
+          ),
+          parameters: const {'distortionAmount': 1.0, 'speed': 1.0},
+          playheadTime: playhead,
+        );
+      case VideoEffect.vignette:
+        return FlutterShaderPreviewRenderer.applyShaderEffect(
+          child: child,
+          clip: const ShaderEffectClip(
+            id: 'fx_vignette',
+            effectId: 'vignette',
+            parameterValues: {'vignette': 0.8},
+          ),
+          parameters: const {'vignette': 0.8},
+          playheadTime: playhead,
         );
       case VideoEffect.none:
         return child;
@@ -590,7 +626,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                 if (showLogo) ...<Widget>[
                   SizedBox(width: 10 * s),
                   SvgPicture.asset(
-                    'assets/logo.svg',
+                    'assets/logo_white.svg',
                     height: 22 * s,
                   ),
                 ],
@@ -743,7 +779,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                     child: Opacity(
                       opacity: 0.85,
                       child: SvgPicture.asset(
-                        'assets/logo.svg',
+                        'assets/logo_white.svg',
                         height: 32 * unit,
                       ),
                     ),
@@ -1520,6 +1556,9 @@ class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
   }
 
   void _onEditor() {
+    if (mounted) {
+      setState(() {});
+    }
     final c = _vc;
     if (!mounted || c == null || !c.value.isInitialized) return;
 

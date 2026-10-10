@@ -138,8 +138,13 @@ class _SpeedSheetState extends State<SpeedSheet> {
 
   void _update(SpeedSettings Function(SpeedSettings) f) => setState(() => _s = f(_s));
 
-  void _setSpeed(double v) => _update((s) => s.copyWith(
-      speed: double.parse(v.clamp(kMinSpeed, kMaxSpeed).toStringAsFixed(2))));
+  void _setSpeed(double v) {
+    _update((s) => s.copyWith(
+        speed: double.parse(v.clamp(kMinSpeed, kMaxSpeed).toStringAsFixed(2))));
+    if (mounted) {
+      context.read<EditorController>().updateSelectedClipSpeed(v);
+    }
+  }
 
   void _loadPreset(String name) {
     HapticFeedback.selectionClick();
@@ -212,10 +217,10 @@ class _SpeedSheetState extends State<SpeedSheet> {
       return;
     }
     final SpeedSettings result = _s.normalized();
+    c.updateSelectedClipSpeed(result.averageSpeed);
     if (widget.onApply != null) {
       widget.onApply!(result);
     } else {
-      // Legacy path: only the equivalent constant speed reaches the clip.
       c.updateAudioProperties(
         c.selectedClip?.audioProperties.copyWith(
                 speed: double.parse(result.averageSpeed.toStringAsFixed(3))) ??
