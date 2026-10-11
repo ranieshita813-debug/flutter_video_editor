@@ -14,6 +14,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 
 const Color _bg = Color(0xFF121214);
@@ -28,18 +29,18 @@ const Color _accent = Color(0xFF2DE2E6);
 enum AdjustGroup { light, color, effects }
 
 enum AdjustParam {
-  brightness('Brightness', Icons.wb_sunny_outlined, AdjustGroup.light),
-  contrast('Contrast', Icons.contrast_rounded, AdjustGroup.light),
-  saturation('Saturation', Icons.water_drop_outlined, AdjustGroup.color),
-  warmth('Warmth', Icons.thermostat_rounded, AdjustGroup.color),
-  hue('Hue', Icons.palette_outlined, AdjustGroup.color),
-  sharpness('Sharpen', Icons.deblur_rounded, AdjustGroup.effects),
-  vignette('Vignette', Icons.vignette_rounded, AdjustGroup.effects),
-  grain('Grain', Icons.grain_rounded, AdjustGroup.effects);
+  brightness('Brightness', HugeIcons.strokeRoundedSun01, AdjustGroup.light),
+  contrast('Contrast', HugeIcons.strokeRoundedMoon02, AdjustGroup.light),
+  saturation('Saturation', HugeIcons.strokeRoundedDroplet, AdjustGroup.color),
+  warmth('Warmth', HugeIcons.strokeRoundedFlash, AdjustGroup.color),
+  hue('Hue', HugeIcons.strokeRoundedColors, AdjustGroup.color),
+  sharpness('Sharpen', HugeIcons.strokeRoundedMagicWand01, AdjustGroup.effects),
+  vignette('Vignette', HugeIcons.strokeRoundedCircle, AdjustGroup.effects),
+  grain('Grain', HugeIcons.strokeRoundedGrid, AdjustGroup.effects);
 
   const AdjustParam(this.label, this.icon, this.group);
   final String label;
-  final IconData icon;
+  final dynamic icon;
   final AdjustGroup group;
 
   /// Sharpen, vignette and grain only go one way.
@@ -251,7 +252,7 @@ class _AdjustSheetState extends State<AdjustSheet> {
                             onTap: () => _set(0),
                             child: const Padding(
                               padding: EdgeInsets.all(8),
-                              child: Icon(Icons.undo_rounded, size: 16, color: _muted),
+                              child: HugeIcon(icon: HugeIcons.strokeRoundedUndo, size: 16, color: _muted),
                             ),
                           ),
                         const Spacer(),
@@ -339,7 +340,7 @@ class _AdjustSheetState extends State<AdjustSheet> {
                       border: Border.all(
                           color: on ? _accent : Colors.transparent, width: 1.4),
                     ),
-                    child: Icon(p.icon, size: 20, color: on ? _accent : _text),
+                    child: HugeIcon(icon: p.icon, size: 20, color: on ? _accent : _text),
                   ),
                   if (changed)
                     const Positioned(
@@ -373,7 +374,7 @@ class _AdjustSheetState extends State<AdjustSheet> {
           children: <Widget>[
             IconButton(
               tooltip: 'Cancel',
-              icon: const Icon(Icons.close_rounded, color: _text),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text, size: 20),
               onPressed: _cancel,
             ),
             // Press and hold to preview the original.
@@ -386,7 +387,7 @@ class _AdjustSheetState extends State<AdjustSheet> {
                 label: 'Hold to compare with original',
                 child: const Padding(
                   padding: EdgeInsets.all(10),
-                  child: Icon(Icons.compare_rounded, size: 22, color: _muted),
+                  child: HugeIcon(icon: HugeIcons.strokeRoundedView, size: 22, color: _muted),
                 ),
               ),
             ),
@@ -404,7 +405,7 @@ class _AdjustSheetState extends State<AdjustSheet> {
             const SizedBox(width: 48),
             IconButton(
               tooltip: 'Apply',
-              icon: Icon(Icons.check_rounded,
+              icon: HugeIcon(icon: HugeIcons.strokeRoundedTick01,
                   color: _s != widget.initial ? _accent : _text, size: 26),
               onPressed: _apply,
             ),

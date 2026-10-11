@@ -43,6 +43,13 @@ flutter:
     - shaders/vignette.frag
 
   fonts:
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/DMSans-Regular.ttf
+        - asset: assets/fonts/DMSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/DMSans-Bold.ttf
+          weight: 700
     - family: Poppins
       fonts:
         - asset: assets/fonts/Poppins-Regular.ttf

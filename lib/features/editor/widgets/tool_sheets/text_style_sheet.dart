@@ -542,7 +542,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (f == _FontFilter.imported) ...[
-                      Icon(Icons.file_upload_outlined,
+                      HugeIcon(icon: HugeIcons.strokeRoundedDownload01,
                           size: 14, color: on ? _accent : EditorTokens.muted),
                       const SizedBox(width: 5),
                     ],
@@ -583,7 +583,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
             const SizedBox(height: 14),
             OutlinedButton.icon(
               onPressed: _importing ? null : () => _import(editor),
-              icon: const Icon(Icons.file_upload_outlined, size: 18),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedDownload01, size: 18, color: _accent),
               label: const Text('Import font'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _accent,
@@ -624,7 +624,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: _accent),
                   )
                 else
-                  const Icon(Icons.note_add_outlined, size: 22, color: _accent),
+                  const HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 22, color: _accent),
                 const SizedBox(height: 6),
                 const Text('Import',
                     style: TextStyle(
@@ -698,7 +698,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                       },
                       child: const Padding(
                         padding: EdgeInsets.all(5),
-                        child: Icon(Icons.close_rounded, size: 13, color: EditorTokens.muted),
+                        child: HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 13, color: EditorTokens.muted),
                       ),
                     ),
                   ),
@@ -1105,7 +1105,7 @@ class _ParamSlider extends StatelessWidget {
                   },
                   child: const Padding(
                     padding: EdgeInsets.all(8),
-                    child: Icon(Icons.undo_rounded, size: 14, color: EditorTokens.muted),
+                    child: HugeIcon(icon: HugeIcons.strokeRoundedUndo, size: 14, color: EditorTokens.muted),
                   ),
                 ),
               const Spacer(),
