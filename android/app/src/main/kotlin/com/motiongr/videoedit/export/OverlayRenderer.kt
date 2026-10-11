@@ -596,7 +596,7 @@ object OverlayRenderer {
         canvas.drawBitmap(overlayBmp, matrix, paint)
         canvas.restore()
 
-        if (!isCached && overlayBmp != null && !overlayBmp.isRecycled) {
+        if (cacheKey == null && !isCached && overlayBmp != null && !overlayBmp.isRecycled) {
             overlayBmp.recycle()
         }
     }

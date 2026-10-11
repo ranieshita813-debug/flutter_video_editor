@@ -29,6 +29,13 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
     ClipAnimation.bounce,
     ClipAnimation.spin,
     ClipAnimation.glitch,
+    ClipAnimation.rotateIn,
+    ClipAnimation.flipHorizontal,
+    ClipAnimation.flipVertical,
+    ClipAnimation.elasticBounce,
+    ClipAnimation.blurFade,
+    ClipAnimation.shakeSlide,
+    ClipAnimation.zoomRotate,
   ];
 
   @override
@@ -126,7 +133,7 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
         crossAxisCount: 3,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 1.0,
+        childAspectRatio: 0.85,
       ),
       itemCount: options.length,
       itemBuilder: (context, index) {
@@ -141,45 +148,47 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
             );
           },
           child: Container(
-            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: isSelected ? EditorTokens.text : EditorTokens.elevated,
+              color: EditorTokens.surface,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isSelected ? EditorTokens.text : EditorTokens.border,
                 width: isSelected ? 2 : 1,
               ),
             ),
+            clipBehavior: Clip.antiAlias,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                HugeIcon(
-                  icon: _getAnimationIcon(anim),
-                  color: isSelected ? EditorTokens.bg : EditorTokens.text,
-                  size: 24.0,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  name,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isSelected ? EditorTokens.bg : EditorTokens.text,
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                    fontFamily: 'Poppins',
+                Expanded(
+                  child: Container(
+                    color: EditorTokens.elevated,
+                    child: Center(
+                      child: HugeIcon(
+                        icon: _getAnimationIcon(anim),
+                        color: isSelected ? EditorTokens.text : EditorTokens.text.withValues(alpha: 0.8),
+                        size: 26.0,
+                      ),
+                    ),
                   ),
                 ),
-                if (anim == ClipAnimation.bounce || anim == ClipAnimation.spin || anim == ClipAnimation.glitch)
-                  Text(
-                    '(Preview Only)',
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  color: isSelected ? EditorTokens.text : EditorTokens.surface,
+                  alignment: Alignment.center,
+                  child: Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: isSelected ? EditorTokens.bg.withValues(alpha: 0.8) : EditorTokens.muted,
-                      fontSize: 8,
+                      color: isSelected ? EditorTokens.bg : EditorTokens.text,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
                       fontFamily: 'Poppins',
                     ),
                   ),
+                ),
               ],
             ),
           ),
@@ -210,6 +219,20 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
         return 'Spin';
       case ClipAnimation.glitch:
         return 'Glitch';
+      case ClipAnimation.rotateIn:
+        return 'Rotate In';
+      case ClipAnimation.flipHorizontal:
+        return 'Flip H';
+      case ClipAnimation.flipVertical:
+        return 'Flip V';
+      case ClipAnimation.elasticBounce:
+        return 'Elastic';
+      case ClipAnimation.blurFade:
+        return 'Blur Fade';
+      case ClipAnimation.shakeSlide:
+        return 'Shake Slide';
+      case ClipAnimation.zoomRotate:
+        return 'Zoom Rotate';
     }
   }
 
@@ -234,6 +257,19 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
         return HugeIcons.strokeRoundedLoading01;
       case ClipAnimation.glitch:
         return HugeIcons.strokeRoundedMagicWand01;
+      case ClipAnimation.rotateIn:
+        return HugeIcons.strokeRoundedRotate360;
+      case ClipAnimation.flipHorizontal:
+      case ClipAnimation.flipVertical:
+        return HugeIcons.strokeRoundedFlipRight;
+      case ClipAnimation.elasticBounce:
+        return HugeIcons.strokeRoundedSparkles;
+      case ClipAnimation.blurFade:
+        return HugeIcons.strokeRoundedFilter;
+      case ClipAnimation.shakeSlide:
+        return HugeIcons.strokeRoundedFlash;
+      case ClipAnimation.zoomRotate:
+        return HugeIcons.strokeRoundedZoomIn;
     }
   }
 }

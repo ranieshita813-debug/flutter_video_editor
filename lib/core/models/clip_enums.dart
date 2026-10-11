@@ -36,6 +36,14 @@ enum TextAnimationStyle {
   slideUp,
   bounce,
   scaleUp,
+  fadeWord,
+  glowPulse,
+  waveText,
+  flipIn,
+  glitchText,
+  neonFlicker,
+  wipeIn,
+  rotateIn,
 }
 
 enum ClipAnimation {
@@ -49,6 +57,13 @@ enum ClipAnimation {
   bounce,
   spin,
   glitch,
+  rotateIn,
+  flipHorizontal,
+  flipVertical,
+  elasticBounce,
+  blurFade,
+  shakeSlide,
+  zoomRotate,
 }
 
 enum ElementShape {

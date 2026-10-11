@@ -817,22 +817,55 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
               : _ResponsiveGrid(
                   key: const ValueKey<String>('animations'),
                   itemCount: styles.length,
-                  minTile: 110,
-                  aspect: 2.2,
+                  minTile: 100,
+                  aspect: 0.85,
                   itemBuilder: (context, i) {
                     final style = styles[i];
                     final bool selected = style == _anim;
-                    return _tile(
-                      selected: selected,
-                      onTap: () => setState(() => _anim = style),
-                      child: Text(
-                        _cap(style.name),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: selected ? accentToken : Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                    return InkWell(
+                      onTap: () {
+                        tapFeedback();
+                        setState(() => _anim = style);
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: cardToken,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: selected ? accentToken : Colors.transparent, width: selected ? 2 : 1),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Expanded(
+                              child: Container(
+                                color: const Color(0xFF1B1B20),
+                                child: Center(
+                                  child: HugeIcon(
+                                    icon: HugeIcons.strokeRoundedTextFont,
+                                    color: selected ? accentToken : Colors.white70,
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                              color: selected ? accentToken : cardToken,
+                              alignment: Alignment.center,
+                              child: Text(
+                                _cap(style.name),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: selected ? Colors.black : Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );

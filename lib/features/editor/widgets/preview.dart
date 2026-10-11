@@ -1420,6 +1420,27 @@ class _OverlayClipState extends State<_OverlayClip> {
           case ClipAnimation.slideRight:
             transX += (1.0 - t) * 60;
             break;
+          case ClipAnimation.rotateIn:
+            scaleMult *= (0.5 + 0.5 * t);
+            opacity *= t;
+            break;
+          case ClipAnimation.flipHorizontal:
+          case ClipAnimation.flipVertical:
+            scaleMult *= (0.4 + 0.6 * t);
+            break;
+          case ClipAnimation.elasticBounce:
+            scaleMult *= (0.2 + 0.8 * math.sin(t * math.pi * 0.8));
+            break;
+          case ClipAnimation.blurFade:
+            opacity *= t;
+            break;
+          case ClipAnimation.shakeSlide:
+            transX += math.sin(t * math.pi * 4.0) * 12.0 * (1.0 - t);
+            break;
+          case ClipAnimation.zoomRotate:
+            scaleMult *= (0.2 + 0.8 * t);
+            opacity *= t;
+            break;
           default:
             break;
         }

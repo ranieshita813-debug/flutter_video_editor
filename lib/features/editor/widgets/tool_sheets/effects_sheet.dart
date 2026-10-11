@@ -163,7 +163,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
               crossAxisCount: 3,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 1.6,
+              childAspectRatio: 0.85,
             ),
             itemCount: filtered.length,
             itemBuilder: (context, index) {
@@ -173,25 +173,53 @@ class _EffectsSheetState extends State<EffectsSheet> {
                 onTap: () => editor.applyEffect(fx),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected ? EditorTokens.text : EditorTokens.elevated,
-                    borderRadius: BorderRadius.circular(10),
+                    color: EditorTokens.surface,
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: isSelected ? EditorTokens.text : EditorTokens.border,
                       width: isSelected ? 2 : 1,
                     ),
                   ),
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    fx.name.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isSelected ? EditorTokens.bg : EditorTokens.text,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
-                    ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: _getEffectGradient(fx),
+                            ),
+                          ),
+                          child: Center(
+                            child: HugeIcon(
+                              icon: _getEffectIcon(fx),
+                              color: isSelected ? EditorTokens.text : Colors.white70,
+                              size: 26,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                        color: isSelected ? EditorTokens.text : EditorTokens.elevated,
+                        alignment: Alignment.center,
+                        child: Text(
+                          fx.name.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: isSelected ? EditorTokens.bg : EditorTokens.text,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -200,5 +228,75 @@ class _EffectsSheetState extends State<EffectsSheet> {
         ),
       ],
     );
+  }
+
+  List<Color> _getEffectGradient(VideoEffect fx) {
+    switch (fx) {
+      case VideoEffect.none:
+        return const [Color(0xFF2A2A30), Color(0xFF1B1B20)];
+      case VideoEffect.warm:
+        return const [Color(0xFFFF7E5F), Color(0xFFFEB47B)];
+      case VideoEffect.cinematic:
+        return const [Color(0xFF003366), Color(0xFF336699)];
+      case VideoEffect.noir:
+        return const [Color(0xFF434343), Color(0xFF000000)];
+      case VideoEffect.vibrant:
+        return const [Color(0xFFFF007F), Color(0xFF7F00FF)];
+      case VideoEffect.vintage:
+        return const [Color(0xFFC94B4C), Color(0xFF4D13D1)];
+      case VideoEffect.glitch:
+        return const [Color(0xFF00E5FF), Color(0xFFFF0055)];
+      case VideoEffect.blur:
+        return const [Color(0xFF3A6073), Color(0xFF16222A)];
+      case VideoEffect.glow:
+        return const [Color(0xFFFF00CC), Color(0xFF333399)];
+      case VideoEffect.retro:
+        return const [Color(0xFFF7971E), Color(0xFFFFD200)];
+      case VideoEffect.matrix:
+        return const [Color(0xFF00FF87), Color(0xFF60EFFF)];
+      case VideoEffect.flame:
+        return const [Color(0xFFF857A6), Color(0xFFFF5858)];
+      case VideoEffect.vhs:
+        return const [Color(0xFF8A2387), Color(0xFFE94057)];
+      case VideoEffect.wave:
+        return const [Color(0xFF42275A), Color(0xFF734B6D)];
+      case VideoEffect.vignette:
+        return const [Color(0xFF1F1C2C), Color(0xFF928DAB)];
+    }
+  }
+
+  dynamic _getEffectIcon(VideoEffect fx) {
+    switch (fx) {
+      case VideoEffect.none:
+        return HugeIcons.strokeRoundedCancel01;
+      case VideoEffect.warm:
+        return HugeIcons.strokeRoundedSun01;
+      case VideoEffect.cinematic:
+        return HugeIcons.strokeRoundedCamera01;
+      case VideoEffect.noir:
+        return HugeIcons.strokeRoundedMoon02;
+      case VideoEffect.vibrant:
+        return HugeIcons.strokeRoundedFlash;
+      case VideoEffect.vintage:
+        return HugeIcons.strokeRoundedTime01;
+      case VideoEffect.glitch:
+        return HugeIcons.strokeRoundedMagicWand01;
+      case VideoEffect.blur:
+        return HugeIcons.strokeRoundedFilter;
+      case VideoEffect.glow:
+        return HugeIcons.strokeRoundedSparkles;
+      case VideoEffect.retro:
+        return HugeIcons.strokeRoundedVideo01;
+      case VideoEffect.matrix:
+        return HugeIcons.strokeRoundedCode;
+      case VideoEffect.flame:
+        return HugeIcons.strokeRoundedFire;
+      case VideoEffect.vhs:
+        return HugeIcons.strokeRoundedTv01;
+      case VideoEffect.wave:
+        return HugeIcons.strokeRoundedMagicWand01;
+      case VideoEffect.vignette:
+        return HugeIcons.strokeRoundedCircle;
+    }
   }
 }
