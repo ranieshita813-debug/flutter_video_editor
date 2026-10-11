@@ -11,14 +11,13 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
-import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
+import 'package:flutter_video_editor/features/editor/widgets/fx_shader.dart';
 import 'package:flutter_video_editor/features/editor/widgets/keyframe_controls.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_preview.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
-import 'package:flutter_video_editor/features/effects/services/effect_preview_service.dart';
 
 // ----------------------------------------------------------------------------
 // Shared helpers
@@ -319,15 +318,11 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     if (m != null) return ColorFiltered(colorFilter: ColorFilter.matrix(m), child: child);
     final shader = _fxShaders[fx];
     if (shader != null) {
-      return FlutterShaderPreviewRenderer.applyShaderEffect(
+      return FxShaders.applyVideo(
         child: child,
-        clip: ShaderEffectClip(
-          id: 'fx_${shader.$1}',
-          effectId: shader.$1,
-          parameterValues: shader.$2,
-        ),
-        parameters: shader.$2,
-        playheadTime: playhead,
+        effectId: shader.$1,
+        params: shader.$2,
+        time: playhead,
       );
     }
     return child;
@@ -423,11 +418,15 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
       if (fx.isEnabled && clip != null) {
         final relTime = _e.playhead - clip.start;
         final activeParams = fx.getInterpolatedParameters(relTime);
-        child = FlutterShaderPreviewRenderer.applyShaderEffect(
+        final Map<String, double> doubleParams = <String, double>{};
+        activeParams.forEach((k, v) {
+          if (v is num) doubleParams[k] = v.toDouble();
+        });
+        child = FxShaders.applyVideo(
           child: child,
-          clip: fx,
-          parameters: activeParams,
-          playheadTime: _e.playhead,
+          effectId: fx.effectId,
+          params: doubleParams,
+          time: _e.playhead,
         );
       }
     }

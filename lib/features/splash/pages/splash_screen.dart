@@ -44,7 +44,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       body: Center(
         child: AnimatedBuilder(
           animation: _controller,
@@ -52,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen>
             return Opacity(
               opacity: _fade.value,
               child: SvgPicture.asset(
-                'assets/logo_white.svg',
+                'assets/logo_black.svg',
                 width: 140,
                 height: 140,
               ),

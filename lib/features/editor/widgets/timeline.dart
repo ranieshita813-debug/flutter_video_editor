@@ -163,7 +163,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
 
   double _s = 1;
   double get _rulerH => 30 * _s;
-  double get _textH => 40 * _s;
+  double get _textH => 52 * _s;
   double get _videoH => 52 * _s;
   double get _audioH => 44 * _s;
   double get _topH => 26 * _s;
