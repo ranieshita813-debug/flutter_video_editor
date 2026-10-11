@@ -33,8 +33,12 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/
     - assets/fonts/
+    - assets/icons/
+    - assets/img/
+    - assets/logo.svg
+    - assets/logo_black.svg
+    - assets/logo_white.svg
     
   shaders:
     - assets/shaders/chromatic_aberration.frag

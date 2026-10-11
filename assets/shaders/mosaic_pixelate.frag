@@ -1,5 +1,5 @@
 #version 460 core
-#include <flutter /runtime_effect.glsl>
+#include <flutter/runtime_effect.glsl>
   uniform vec2 uSize;
   uniform float uTime;
   uniform float uSizePx;
