@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "845898273451",
+    "project_id": "motiongr-aba97",
+    "storage_bucket": "motiongr-aba97.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:845898273451:android:9cf8c0b51162aa219a9dee",
+        "android_client_info": {
+          "package_name": "com.motiongr.videoedit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9QPXPZ3x3fKl7os8L8UswzovFFAXNmzo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
