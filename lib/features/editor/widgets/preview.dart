@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -14,9 +15,42 @@ import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
+import 'package:flutter_video_editor/features/editor/widgets/keyframe_controls.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_preview.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/effects/services/effect_preview_service.dart';
+
+// ----------------------------------------------------------------------------
+// Shared helpers
+// ----------------------------------------------------------------------------
+
+/// Linear interpolation of a keyframed property at [rel] (time inside the
+/// clip). Returns null when the clip has no keyframes for [prop].
+double? _kfValue(TimelineClip c, KeyframeProperty prop, Duration rel) {
+  final ks = c.keyframes.where((k) => k.property == prop).toList()
+    ..sort((a, b) => a.time.compareTo(b.time));
+  if (ks.isEmpty) return null;
+  double v(dynamic k) => (k.value as num).toDouble();
+  if (rel <= ks.first.time) return v(ks.first);
+  if (rel >= ks.last.time) return v(ks.last);
+  for (int i = 0; i < ks.length - 1; i++) {
+    final a = ks[i], b = ks[i + 1];
+    if (rel >= a.time && rel <= b.time) {
+      final int span = (b.time - a.time).inMicroseconds;
+      if (span <= 0) return v(b);
+      final double t = (rel - a.time).inMicroseconds / span;
+      return v(a) + (v(b) - v(a)) * t;
+    }
+  }
+  return v(ks.last);
+}
+
+/// File existence is checked once per path instead of every frame.
+final Map<String, bool> _existsCache = <String, bool>{};
+bool _fileExists(String? path) {
+  if (path == null || path.isEmpty) return false;
+  return _existsCache.putIfAbsent(path, () => File(path).existsSync());
+}
 
 // ----------------------------------------------------------------------------
 // Video Player Preview
@@ -39,15 +73,60 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   int _token = 0;
   bool _busy = false;
   bool _dirty = false;
+  double _speed = -1;
+  double _vol = -1;
 
   EditorController get _e => widget.editor;
+
+  static const Map<VideoEffect, List<double>> _fxMatrices = <VideoEffect, List<double>>{
+    VideoEffect.warm: <double>[
+      1.2, 0, 0, 0, 10, 0, 1.1, 0, 0, 5, 0, 0, 0.9, 0, 0, 0, 0, 0, 1, 0,
+    ],
+    VideoEffect.cinematic: <double>[
+      1.1, 0, 0, 0, -10, 0, 1.2, 0, 0, 0, 0, 0, 1.3, 0, 10, 0, 0, 0, 1, 0,
+    ],
+    VideoEffect.noir: <double>[
+      0.2126, 0.7152, 0.0722, 0, 0,
+      0.2126, 0.7152, 0.0722, 0, 0,
+      0.2126, 0.7152, 0.0722, 0, 0,
+      0, 0, 0, 1, 0,
+    ],
+    VideoEffect.vibrant: <double>[
+      1.3, -0.1, -0.1, 0, 0,
+      -0.1, 1.3, -0.1, 0, 0,
+      -0.1, -0.1, 1.3, 0, 0,
+      0, 0, 0, 1, 0,
+    ],
+    VideoEffect.vintage: <double>[
+      0.9, 0.1, 0.1, 0, 15, 0.1, 0.8, 0.1, 0, 10, 0.1, 0.1, 0.6, 0, 5, 0, 0, 0, 1, 0,
+    ],
+    VideoEffect.retro: <double>[
+      0.8, 0.2, 0.1, 0, 20, 0.1, 0.7, 0.2, 0, 15, 0.1, 0.1, 0.5, 0, 0, 0, 0, 0, 1, 0,
+    ],
+    VideoEffect.matrix: <double>[
+      0.1, 0.8, 0.1, 0, 0, 0.1, 1.2, 0.1, 0, 20, 0.1, 0.8, 0.1, 0, 0, 0, 0, 0, 1, 0,
+    ],
+    VideoEffect.flame: <double>[
+      1.4, 0, 0, 0, 30, 0.2, 0.8, 0, 0, 10, 0, 0, 0.5, 0, 0, 0, 0, 0, 1, 0,
+    ],
+  };
+
+  static const Map<VideoEffect, (String, Map<String, double>)> _fxShaders =
+      <VideoEffect, (String, Map<String, double>)>{
+    VideoEffect.glitch: ('glitch', <String, double>{'distortionAmount': 0.8, 'speed': 2.0}),
+    VideoEffect.blur: ('blur', <String, double>{'blurAmount': 1.5}),
+    VideoEffect.glow: ('glow', <String, double>{'glowStrength': 1.2}),
+    VideoEffect.vhs: ('vhs', <String, double>{'distortionAmount': 1.0, 'speed': 1.0}),
+    VideoEffect.wave: ('wave', <String, double>{'distortionAmount': 1.0, 'speed': 1.0}),
+    VideoEffect.vignette: ('vignette', <String, double>{'vignette': 0.8}),
+  };
 
   @override
   void initState() {
     super.initState();
     _e.addListener(_onEditor);
     _e.playheadListenable.addListener(_onEditor);
-    _onEditor();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onEditor());
   }
 
   @override
@@ -73,9 +152,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   }
 
   void _onEditor() {
-    if (mounted) {
-      setState(() {});
-    }
+    if (!mounted) return;
     if (_busy) {
       _dirty = true;
       return;
@@ -110,11 +187,21 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
       return;
     }
 
-    final double speed = clip.speed.clamp(0.1, 10.0);
-    await c.setPlaybackSpeed(speed);
+    final double speed = clip.speed.clamp(0.1, 10.0).toDouble();
+    if (speed != _speed) {
+      _speed = speed;
+      await c.setPlaybackSpeed(speed);
+    }
+    final double vol = clip.volume.clamp(0.0, 1.0).toDouble();
+    if (vol != _vol) {
+      _vol = vol;
+      await c.setVolume(vol);
+    }
 
     Duration local = Duration(
-        milliseconds: (clip.trimIn.inMilliseconds + (_e.playhead - clip.start).inMilliseconds * speed).round());
+        milliseconds: (clip.trimIn.inMilliseconds +
+                (_e.playhead - clip.start).inMilliseconds * speed)
+            .round());
     if (local.isNegative) local = Duration.zero;
     final Duration dur = c.value.duration;
     if (local > dur) local = dur;
@@ -140,6 +227,8 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
       return;
     }
     final old = _vc;
+    _speed = -1;
+    _vol = -1;
     setState(() {
       _vc = next;
       _loading = false;
@@ -205,167 +294,54 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
         ),
       );
     }
-    return const ColoredBox(
+    final bool showMessage = _failed || _e.clips.isEmpty;
+    return ColoredBox(
       color: Colors.black,
-      child: SizedBox.expand(),
+      child: showMessage
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(icon, color: Colors.white24, size: 28),
+                  const SizedBox(height: 6),
+                  Text(text,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                ],
+              ),
+            )
+          : const SizedBox.expand(),
     );
   }
 
   Widget _applyVideoEffectPreset(Widget child, VideoEffect fx, Duration playhead) {
-    switch (fx) {
-      case VideoEffect.warm:
-        return ColorFiltered(
-          colorFilter: const ColorFilter.matrix([
-            1.2, 0, 0, 0, 10,
-            0, 1.1, 0, 0, 5,
-            0, 0, 0.9, 0, 0,
-            0, 0, 0, 1, 0,
-          ]),
-          child: child,
-        );
-      case VideoEffect.cinematic:
-        return ColorFiltered(
-          colorFilter: const ColorFilter.matrix([
-            1.1, 0, 0, 0, -10,
-            0, 1.2, 0, 0, 0,
-            0, 0, 1.3, 0, 10,
-            0, 0, 0, 1, 0,
-          ]),
-          child: child,
-        );
-      case VideoEffect.noir:
-        return ColorFiltered(
-          colorFilter: const ColorFilter.matrix([
-            0.2126, 0.7152, 0.0722, 0, 0,
-            0.2126, 0.7152, 0.0722, 0, 0,
-            0.2126, 0.7152, 0.0722, 0, 0,
-            0, 0, 0, 1, 0,
-          ]),
-          child: child,
-        );
-      case VideoEffect.vibrant:
-        return ColorFiltered(
-          colorFilter: const ColorFilter.matrix([
-            1.3, -0.1, -0.1, 0, 0,
-            -0.1, 1.3, -0.1, 0, 0,
-            -0.1, -0.1, 1.3, 0, 0,
-            0, 0, 0, 1, 0,
-          ]),
-          child: child,
-        );
-      case VideoEffect.vintage:
-        return ColorFiltered(
-          colorFilter: const ColorFilter.matrix([
-            0.9, 0.1, 0.1, 0, 15,
-            0.1, 0.8, 0.1, 0, 10,
-            0.1, 0.1, 0.6, 0, 5,
-            0, 0, 0, 1, 0,
-          ]),
-          child: child,
-        );
-      case VideoEffect.glitch:
-        return FlutterShaderPreviewRenderer.applyShaderEffect(
-          child: child,
-          clip: const ShaderEffectClip(
-            id: 'fx_glitch',
-            effectId: 'glitch',
-            parameterValues: {'distortionAmount': 0.8, 'speed': 2.0},
-          ),
-          parameters: const {'distortionAmount': 0.8, 'speed': 2.0},
-          playheadTime: playhead,
-        );
-      case VideoEffect.blur:
-        return FlutterShaderPreviewRenderer.applyShaderEffect(
-          child: child,
-          clip: const ShaderEffectClip(
-            id: 'fx_blur',
-            effectId: 'blur',
-            parameterValues: {'blurAmount': 1.5},
-          ),
-          parameters: const {'blurAmount': 1.5},
-          playheadTime: playhead,
-        );
-      case VideoEffect.glow:
-        return FlutterShaderPreviewRenderer.applyShaderEffect(
-          child: child,
-          clip: const ShaderEffectClip(
-            id: 'fx_glow',
-            effectId: 'glow',
-            parameterValues: {'glowStrength': 1.2},
-          ),
-          parameters: const {'glowStrength': 1.2},
-          playheadTime: playhead,
-        );
-      case VideoEffect.retro:
-        return ColorFiltered(
-          colorFilter: const ColorFilter.matrix([
-            0.8, 0.2, 0.1, 0, 20,
-            0.1, 0.7, 0.2, 0, 15,
-            0.1, 0.1, 0.5, 0, 0,
-            0, 0, 0, 1, 0,
-          ]),
-          child: child,
-        );
-      case VideoEffect.matrix:
-        return ColorFiltered(
-          colorFilter: const ColorFilter.matrix([
-            0.1, 0.8, 0.1, 0, 0,
-            0.1, 1.2, 0.1, 0, 20,
-            0.1, 0.8, 0.1, 0, 0,
-            0, 0, 0, 1, 0,
-          ]),
-          child: child,
-        );
-      case VideoEffect.flame:
-        return ColorFiltered(
-          colorFilter: const ColorFilter.matrix([
-            1.4, 0, 0, 0, 30,
-            0.2, 0.8, 0, 0, 10,
-            0, 0, 0.5, 0, 0,
-            0, 0, 0, 1, 0,
-          ]),
-          child: child,
-        );
-      case VideoEffect.vhs:
-        return FlutterShaderPreviewRenderer.applyShaderEffect(
-          child: child,
-          clip: const ShaderEffectClip(
-            id: 'fx_vhs',
-            effectId: 'vhs',
-            parameterValues: {'distortionAmount': 1.0, 'speed': 1.0},
-          ),
-          parameters: const {'distortionAmount': 1.0, 'speed': 1.0},
-          playheadTime: playhead,
-        );
-      case VideoEffect.wave:
-        return FlutterShaderPreviewRenderer.applyShaderEffect(
-          child: child,
-          clip: const ShaderEffectClip(
-            id: 'fx_wave',
-            effectId: 'wave',
-            parameterValues: {'distortionAmount': 1.0, 'speed': 1.0},
-          ),
-          parameters: const {'distortionAmount': 1.0, 'speed': 1.0},
-          playheadTime: playhead,
-        );
-      case VideoEffect.vignette:
-        return FlutterShaderPreviewRenderer.applyShaderEffect(
-          child: child,
-          clip: const ShaderEffectClip(
-            id: 'fx_vignette',
-            effectId: 'vignette',
-            parameterValues: {'vignette': 0.8},
-          ),
-          parameters: const {'vignette': 0.8},
-          playheadTime: playhead,
-        );
-      case VideoEffect.none:
-        return child;
+    final List<double>? m = _fxMatrices[fx];
+    if (m != null) return ColorFiltered(colorFilter: ColorFilter.matrix(m), child: child);
+    final shader = _fxShaders[fx];
+    if (shader != null) {
+      return FlutterShaderPreviewRenderer.applyShaderEffect(
+        child: child,
+        clip: ShaderEffectClip(
+          id: 'fx_${shader.$1}',
+          effectId: shader.$1,
+          parameterValues: shader.$2,
+        ),
+        parameters: shader.$2,
+        playheadTime: playhead,
+      );
     }
+    return child;
   }
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge(<Listenable>[_e, _e.playheadListenable]),
+      builder: (_, __) => _buildPreview(),
+    );
+  }
+
+  Widget _buildPreview() {
     final clip = _e.activeVideoClip;
     final c = _vc;
     final bool ready = c != null && c.value.isInitialized;
@@ -399,19 +375,18 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     } else if (_failed) {
       child = _placeholder("Can't play this file", icon: Icons.error_rounded);
     } else {
-      child = _placeholder(clip?.label ?? 'Add media to start editing');
+      child = _placeholder('Add media to start editing');
     }
 
     if (clip != null && (_isImg || ready)) {
-      final double sc = (clip.scale).clamp(0.2, 5.0).toDouble();
+      final double base =
+          _kfValue(clip, KeyframeProperty.scale, _e.playhead - clip.start) ?? clip.scale;
+      final double sc = base.clamp(0.2, 5.0).toDouble();
       if (sc != 1.0) child = Transform.scale(scale: sc, child: child);
     }
 
     if (clip != null && clip.chromaKey.enabled) {
-      child = ChromaKeyPreview(
-        chroma: clip.chromaKey,
-        child: child,
-      );
+      child = ChromaKeyPreview(chroma: clip.chromaKey, child: child);
     }
 
     final cg = clip?.colorGrading;
@@ -543,6 +518,7 @@ class _TrackingPainter extends CustomPainter {
     final double top = math.max(0, rect.top - 16);
     canvas.drawRect(Rect.fromLTWH(rect.left, top, lw, 16), Paint()..color = accentToken);
     tp.paint(canvas, Offset(rect.left + 6, top + 2));
+    tp.dispose();
   }
 
   @override
@@ -561,10 +537,9 @@ class PreviewCanvas extends StatefulWidget {
   State<PreviewCanvas> createState() => _PreviewCanvasState();
 }
 
-final GlobalKey _canvasBoundaryKey = GlobalKey();
-
 class _PreviewCanvasState extends State<PreviewCanvas> {
   final TransformationController _tf = TransformationController();
+  final GlobalKey _boundaryKey = GlobalKey();
   final ValueNotifier<_GuideState> _guides =
       ValueNotifier<_GuideState>(const _GuideState());
   bool _grid = false;
@@ -629,10 +604,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                     size: btn, iconSize: 16 * s),
                 if (showLogo) ...<Widget>[
                   SizedBox(width: 10 * s),
-                  SvgPicture.asset(
-                    'assets/logo_white.svg',
-                    height: 22 * s,
-                  ),
+                  SvgPicture.asset('assets/logo_white.svg', height: 22 * s),
                 ],
                 const Spacer(),
                 Container(
@@ -757,137 +729,146 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
   Widget _canvas(EditorController editor, double ratio) {
     return AspectRatio(
       aspectRatio: ratio,
-      child: RepaintBoundary(
-        key: _canvasBoundaryKey,
-        child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.black,
-          border: Border.all(color: Colors.white12),
-          boxShadow: const <BoxShadow>[
-            BoxShadow(color: Colors.black87, blurRadius: 18, spreadRadius: 1),
-          ],
-        ),
-        child: ClipRect(
-          child: LayoutBuilder(builder: (context, fc) {
-            final double unit = fc.maxWidth / designWToken;
-            final double designH = fc.maxHeight / unit;
-            return Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                VideoPlayerPreview(editor: editor, fill: _fill),
-                _AudioClipsPreview(editor: editor),
-                Positioned(
-                  right: 14 * unit,
-                  bottom: 14 * unit,
-                  child: IgnorePointer(
-                    child: Opacity(
-                      opacity: 0.85,
-                      child: SvgPicture.asset(
-                        'assets/logo_white.svg',
-                        height: 32 * unit,
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          RepaintBoundary(
+            key: _boundaryKey,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black,
+                border: Border.all(color: Colors.white12),
+                boxShadow: const <BoxShadow>[
+                  BoxShadow(color: Colors.black87, blurRadius: 18, spreadRadius: 1),
+                ],
+              ),
+              child: ClipRect(
+                child: LayoutBuilder(builder: (context, fc) {
+                  final double unit = fc.maxWidth / designWToken;
+                  final double designH = fc.maxHeight / unit;
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      VideoPlayerPreview(editor: editor, fill: _fill),
+                      _AudioClipsPreview(editor: editor),
+                      Positioned(
+                        right: 14 * unit,
+                        bottom: 14 * unit,
+                        child: IgnorePointer(
+                          child: Opacity(
+                            opacity: 0.85,
+                            child: SvgPicture.asset(
+                              'assets/logo_white.svg',
+                              height: 32 * unit,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                ValueListenableBuilder<Duration>(
-                  valueListenable: editor.playheadListenable,
-                  builder: (ctx, playhead, _) {
-                    return Consumer<EditorController>(
-                      builder: (ctx, e, _) {
-                        final dynamic tracking = e.selectedClip?.trackingData;
-                        final TrackingBox? box = _trackingBox(tracking);
+                      ValueListenableBuilder<Duration>(
+                        valueListenable: editor.playheadListenable,
+                        builder: (ctx, playhead, _) {
+                          return Consumer<EditorController>(
+                            builder: (ctx, e, _) {
+                              final dynamic tracking = e.selectedClip?.trackingData;
+                              final TrackingBox? box = _trackingBox(tracking);
 
-                        final activeOverlays = e.clips.where((c) {
-                          return c.isVisible &&
-                              c.clipType != ClipType.audio &&
-                              (c.layerIndex > 0 ||
-                                  (c.clipType != ClipType.video &&
-                                      c.clipType != ClipType.image)) &&
-                              playhead >= c.start &&
-                              playhead <= c.end;
-                        }).toList()
-                          ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
+                              final activeOverlays = e.clips.where((c) {
+                                return c.isVisible &&
+                                    c.clipType != ClipType.audio &&
+                                    (c.layerIndex > 0 ||
+                                        (c.clipType != ClipType.video &&
+                                            c.clipType != ClipType.image)) &&
+                                    playhead >= c.start &&
+                                    playhead < c.end;
+                              }).toList()
+                                ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
 
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: <Widget>[
-                            for (final clip in activeOverlays)
-                              _OverlayClip(
-                                key: ValueKey<String>(clip.id),
-                                clip: clip,
-                                unit: unit,
-                                designH: designH,
-                                othersOf: () => <Rect>[
-                                  for (final o in activeOverlays)
-                                    if (o.id != clip.id) _overlayRect(o)
-                                ],
-                                isSelected: clip.id == e.selectedClipId,
-                                onSelect: () => e.selectClip(clip.id),
-                                onGuides: (g) => _guides.value = g,
-                                onPosition: (x, y) {
-                                  e.selectClip(clip.id);
-                                  e.updateTranslation(
-                                    positionX: x.clamp(-40.0, designWToken - 24).toDouble(),
-                                    positionY: y.clamp(-40.0, designH - 24).toDouble(),
-                                  );
-                                },
-                                onScale: (v) {
-                                  e.selectClip(clip.id);
-                                  e.updateTranslation(scale: v);
-                                },
-                              ),
-                            IgnorePointer(
-                              child: Stack(
+                              return Stack(
                                 fit: StackFit.expand,
                                 children: <Widget>[
-                                  if (_grid)
-                                    const Positioned.fill(
-                                        child: CustomPaint(painter: _GuidePainter())),
-                                  if (e.activeDrawingStrokes.isNotEmpty)
-                                    Positioned.fill(
-                                      child: CustomPaint(
-                                        painter: _DrawingPainter(
-                                            strokes: e.activeDrawingStrokes, unit: unit),
-                                      ),
+                                  for (final clip in activeOverlays)
+                                    _OverlayClip(
+                                      key: ValueKey<String>(clip.id),
+                                      clip: clip,
+                                      unit: unit,
+                                      designH: designH,
+                                      viewScale: () => _tf.value.getMaxScaleOnAxis(),
+                                      othersOf: () => <Rect>[
+                                        for (final o in activeOverlays)
+                                          if (o.id != clip.id) _overlayRect(o)
+                                      ],
+                                      isSelected: clip.id == e.selectedClipId,
+                                      onSelect: () => e.selectClip(clip.id),
+                                      onGuides: (g) => _guides.value = g,
+                                      onPosition: (x, y) {
+                                        e.selectClip(clip.id);
+                                        e.updateTranslation(
+                                          positionX:
+                                              x.clamp(-40.0, designWToken - 24).toDouble(),
+                                          positionY: y.clamp(-40.0, designH - 24).toDouble(),
+                                        );
+                                      },
+                                      onScale: (v) {
+                                        e.selectClip(clip.id);
+                                        e.updateTranslation(scale: v);
+                                      },
                                     ),
-                                  if (box != null)
-                                    Positioned.fill(
-                                      child: _TrackingOverlay(
-                                        box: box,
-                                        label: '${(tracking as dynamic)?.targetName ?? 'Target'}',
-                                      ),
+                                  IgnorePointer(
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: <Widget>[
+                                        if (_grid)
+                                          const Positioned.fill(
+                                              child: CustomPaint(painter: _GuidePainter())),
+                                        if (e.activeDrawingStrokes.isNotEmpty)
+                                          Positioned.fill(
+                                            child: CustomPaint(
+                                              painter: _DrawingPainter(
+                                                  strokes: e.activeDrawingStrokes,
+                                                  unit: unit),
+                                            ),
+                                          ),
+                                        if (box != null)
+                                          Positioned.fill(
+                                            child: _TrackingOverlay(
+                                              box: box,
+                                              label:
+                                                  '${(tracking as dynamic)?.targetName ?? 'Target'}',
+                                            ),
+                                          ),
+                                      ],
                                     ),
+                                  ),
                                 ],
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                ),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: ValueListenableBuilder<_GuideState>(
-                      valueListenable: _guides,
-                      builder: (_, g, __) => g.dragging
-                          ? CustomPaint(painter: _SnapGuidePainter(g))
-                          : const SizedBox.shrink(),
-                    ),
-                  ),
-                ),
-                if (editor.isEyedropperActive)
-                  Positioned.fill(
-                    child: _EyedropperOverlay(
-                      boundaryKey: _canvasBoundaryKey,
-                      editor: editor,
-                    ),
-                  ),
-              ],
-            );
-          }),
-        ),
-      ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: ValueListenableBuilder<_GuideState>(
+                            valueListenable: _guides,
+                            builder: (_, g, __) => g.dragging
+                                ? CustomPaint(painter: _SnapGuidePainter(g))
+                                : const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ),
+          ),
+          // Outside the RepaintBoundary so its tint and magnifier are never sampled.
+          ListenableBuilder(
+            listenable: editor,
+            builder: (_, __) => editor.isEyedropperActive
+                ? _EyedropperOverlay(boundaryKey: _boundaryKey, editor: editor)
+                : const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }
@@ -901,31 +882,73 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
       children: <Widget>[
         _topBar(context),
         Expanded(
-          child: Container(
-            color: const Color(0xFF07080B),
-            child: ClipRect(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: editor.togglePlayback,
-                onDoubleTap: () => _tf.value = Matrix4.identity(),
-                child: InteractiveViewer(
-                  transformationController: _tf,
-                  minScale: 1,
-                  maxScale: 4,
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(pad),
-                      child: ValueListenableBuilder<CanvasRatio>(
-                        valueListenable: canvasRatioNotifier,
-                        builder: (_, r, __) => _canvas(editor, r.value),
+          child: Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: Container(
+                  color: const Color(0xFF07080B),
+                  child: ClipRect(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: editor.togglePlayback,
+                      child: InteractiveViewer(
+                        transformationController: _tf,
+                        minScale: 1,
+                        maxScale: 4,
+                        child: Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(pad),
+                            child: ValueListenableBuilder<CanvasRatio>(
+                              valueListenable: canvasRatioNotifier,
+                              builder: (_, r, __) => _canvas(editor, r.value),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: ListenableBuilder(
+                  listenable: _tf,
+                  builder: (_, __) => _tf.value.getMaxScaleOnAxis() > 1.01
+                      ? Material(
+                          color: const Color(0xFF1B1B20),
+                          borderRadius: BorderRadius.circular(16),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () {
+                              tapFeedback();
+                              _tf.value = Matrix4.identity();
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Icon(Icons.zoom_out_map_rounded,
+                                      size: 14, color: Colors.white),
+                                  SizedBox(width: 4),
+                                  Text('Reset',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ],
           ),
         ),
+        PreviewControlsBar(editor: editor),
       ],
     );
   }
@@ -949,25 +972,15 @@ class PaneDivider extends StatelessWidget {
         },
         child: SizedBox(
           height: 16,
-          child: Stack(
-            alignment: Alignment.center,
-            children: <Widget>[
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 7.5,
-                child: Container(height: 1, color: const Color(0xFF2A2A30)),
+          child: Center(
+            child: Container(
+              width: 38,
+              height: 5,
+              decoration: BoxDecoration(
+                color: const Color(0xFF3A3A44),
+                borderRadius: BorderRadius.circular(3),
               ),
-              Container(
-                width: 38,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3A3A44),
-                  borderRadius: BorderRadius.circular(3),
-                  border: Border.all(color: bgToken, width: 1.5),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1004,7 +1017,7 @@ class _GuideState {
       o is _GuideState && o.dragging == dragging && _listEq(o.lines, lines);
 
   @override
-  int get hashCode => Object.hash(dragging, lines.length);
+  int get hashCode => Object.hash(dragging, Object.hashAll(lines));
 }
 
 bool _listEq<T>(List<T> a, List<T> b) {
@@ -1016,22 +1029,29 @@ bool _listEq<T>(List<T> a, List<T> b) {
   return true;
 }
 
+/// Bounding rect (design units) of an overlay, matching what _OverlayClip draws.
 Rect _overlayRect(TimelineClip c) {
   double w, h;
   switch (c.clipType) {
+    case ClipType.video:
+      w = 150 * c.scale;
+      h = 84 * c.scale;
+    case ClipType.image:
+      w = h = 150 * c.scale;
     case ClipType.element:
-      w = h = 80 * c.scale;
+      final String? svg = c.elementProperties.svgPath ?? c.sourcePath;
+      w = h = ((svg != null && svg.isNotEmpty) ? 100 : 80) * c.scale;
     case ClipType.drawing:
       w = h = 120 * c.scale;
     default:
-      final bool big = c.clipType == ClipType.text ||
+      final bool text = c.clipType == ClipType.text ||
           c.clipType == ClipType.caption ||
           c.clipType == ClipType.sticker;
       final tp = TextPainter(
         text: TextSpan(
           text: c.label,
           style: TextStyle(
-              fontSize: (big ? 24 * c.scale : 16.0),
+              fontSize: text ? c.textStyle.fontSize * c.scale : 16.0,
               fontFamily: c.fontFamily,
               fontWeight: FontWeight.bold),
         ),
@@ -1039,6 +1059,7 @@ Rect _overlayRect(TimelineClip c) {
       )..layout();
       w = tp.width;
       h = tp.height;
+      tp.dispose();
   }
   return Rect.fromLTWH(c.positionX, c.positionY, w + 12, h + 12);
 }
@@ -1129,6 +1150,7 @@ class _SnapGuidePainter extends CustomPainter {
     canvas.drawRRect(
         RRect.fromRectAndRadius(r, const Radius.circular(4)), Paint()..color = Colors.black87);
     tp.paint(canvas, Offset(r.left + 4, r.top + 2));
+    tp.dispose();
   }
 
   @override
@@ -1177,6 +1199,7 @@ class _OverlayClip extends StatefulWidget {
     required this.clip,
     required this.unit,
     required this.designH,
+    required this.viewScale,
     required this.othersOf,
     required this.isSelected,
     required this.onSelect,
@@ -1188,6 +1211,7 @@ class _OverlayClip extends StatefulWidget {
   final TimelineClip clip;
   final double unit;
   final double designH;
+  final double Function() viewScale;
   final List<Rect> Function() othersOf;
   final bool isSelected;
   final VoidCallback onSelect;
@@ -1216,23 +1240,22 @@ class _OverlayClipState extends State<_OverlayClip> {
         final bool isImg = clip.clipType == ClipType.image ||
             (path != null && isImagePath(path));
         Widget mediaWidget;
-        if (isImg && path != null && File(path).existsSync()) {
+        if (isImg && _fileExists(path)) {
           Widget img = Image.file(
-            File(path),
+            File(path!),
             fit: BoxFit.contain,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
           );
           if (clip.chromaKey.enabled) {
-            img = ChromaKeyPreview(
-              chroma: clip.chromaKey,
-              child: img,
-            );
+            img = ChromaKeyPreview(chroma: clip.chromaKey, child: img);
           }
           mediaWidget = SizedBox(
             width: 150 * clip.scale * u,
             height: 150 * clip.scale * u,
             child: img,
           );
-        } else if (!isImg && path != null && File(path).existsSync()) {
+        } else if (!isImg && _fileExists(path)) {
           mediaWidget = _OverlayVideoPlayer(
             clip: clip,
             unit: u,
@@ -1251,7 +1274,7 @@ class _OverlayClipState extends State<_OverlayClip> {
         final ts = clip.textStyle;
         final double effectiveSize = ts.fontSize * clip.scale * u;
 
-        List<Shadow> shadows = [];
+        final List<Shadow> shadows = <Shadow>[];
         if (ts.shadowColor != Colors.transparent &&
             (ts.shadowBlurRadius > 0 || ts.shadowOffsetX != 0 || ts.shadowOffsetY != 0)) {
           shadows.add(
@@ -1270,7 +1293,7 @@ class _OverlayClipState extends State<_OverlayClip> {
               blurRadius: ts.shadowBlurRadius > 0 ? ts.shadowBlurRadius : 12.0,
             ),
           );
-        } else if (shadows.isEmpty) {
+        } else {
           shadows.add(const Shadow(blurRadius: 4, color: Colors.black, offset: Offset(1, 1)));
         }
 
@@ -1289,7 +1312,7 @@ class _OverlayClipState extends State<_OverlayClip> {
 
         if (ts.strokeWidth > 0 && ts.strokeColor != Colors.transparent) {
           textWidget = Stack(
-            children: [
+            children: <Widget>[
               Text(
                 clip.label,
                 textAlign: ts.textAlign,
@@ -1322,64 +1345,7 @@ class _OverlayClipState extends State<_OverlayClip> {
 
         return _applyAnimations(textWidget, clip);
       case ClipType.element:
-        Widget elWidget;
-        final svgStr = clip.elementProperties.svgPath ?? clip.sourcePath;
-        if (svgStr != null && svgStr.isNotEmpty) {
-          if (svgStr.trim().startsWith('<')) {
-            elWidget = SizedBox(
-              width: 100 * clip.scale * u,
-              height: 100 * clip.scale * u,
-              child: SvgPicture.string(
-                svgStr,
-                fit: BoxFit.contain,
-                colorFilter: clip.elementProperties.fillColor != Colors.white
-                    ? ColorFilter.mode(clip.elementProperties.fillColor, BlendMode.srcIn)
-                    : null,
-              ),
-            );
-          } else if (File(svgStr).existsSync()) {
-            elWidget = SizedBox(
-              width: 100 * clip.scale * u,
-              height: 100 * clip.scale * u,
-              child: SvgPicture.file(
-                File(svgStr),
-                fit: BoxFit.contain,
-                colorFilter: clip.elementProperties.fillColor != Colors.white
-                    ? ColorFilter.mode(clip.elementProperties.fillColor, BlendMode.srcIn)
-                    : null,
-              ),
-            );
-          } else {
-            elWidget = Container(
-              width: 80 * clip.scale * u,
-              height: 80 * clip.scale * u,
-              decoration: BoxDecoration(
-                color: clip.elementProperties.fillColor,
-                shape: clip.elementProperties.shape == ElementShape.circle
-                    ? BoxShape.circle
-                    : BoxShape.rectangle,
-                borderRadius: clip.elementProperties.shape == ElementShape.rectangle
-                    ? BorderRadius.circular(8 * u)
-                    : null,
-              ),
-            );
-          }
-        } else {
-          elWidget = Container(
-            width: 80 * clip.scale * u,
-            height: 80 * clip.scale * u,
-            decoration: BoxDecoration(
-              color: clip.elementProperties.fillColor,
-              shape: clip.elementProperties.shape == ElementShape.circle
-                  ? BoxShape.circle
-                  : BoxShape.rectangle,
-              borderRadius: clip.elementProperties.shape == ElementShape.rectangle
-                  ? BorderRadius.circular(8 * u)
-                  : null,
-            ),
-          );
-        }
-        return _applyAnimations(elWidget, clip);
+        return _applyAnimations(_elementWidget(clip, u), clip);
       case ClipType.drawing:
         final drWidget = CustomPaint(
           size: Size(120 * clip.scale * u, 120 * clip.scale * u),
@@ -1394,53 +1360,91 @@ class _OverlayClipState extends State<_OverlayClip> {
     }
   }
 
+  Widget _elementWidget(TimelineClip clip, double u) {
+    final props = clip.elementProperties;
+    final String? svgStr = props.svgPath ?? clip.sourcePath;
+    final ColorFilter? tint = props.fillColor != Colors.white
+        ? ColorFilter.mode(props.fillColor, BlendMode.srcIn)
+        : null;
+
+    Widget shape() => Container(
+          width: 80 * clip.scale * u,
+          height: 80 * clip.scale * u,
+          decoration: BoxDecoration(
+            color: props.fillColor,
+            shape: props.shape == ElementShape.circle ? BoxShape.circle : BoxShape.rectangle,
+            borderRadius: props.shape == ElementShape.rectangle
+                ? BorderRadius.circular(8 * u)
+                : null,
+          ),
+        );
+
+    if (svgStr == null || svgStr.isEmpty) return shape();
+    final double side = 100 * clip.scale * u;
+    if (svgStr.trim().startsWith('<')) {
+      return SizedBox(
+        width: side,
+        height: side,
+        child: SvgPicture.string(svgStr, fit: BoxFit.contain, colorFilter: tint),
+      );
+    }
+    if (_fileExists(svgStr)) {
+      return SizedBox(
+        width: side,
+        height: side,
+        child: SvgPicture.file(File(svgStr), fit: BoxFit.contain, colorFilter: tint),
+      );
+    }
+    return shape();
+  }
+
   Widget _applyAnimations(Widget child, TimelineClip clip) {
     final editor = context.read<EditorController>();
     final playhead = editor.playhead;
-    const int durInMs = 500;
+    final int durInMs = math.max(1, math.min(500, clip.duration.inMilliseconds ~/ 2));
 
     double opacity = clip.opacity;
     double scaleMult = 1.0;
     double transX = 0.0;
+    double rot = 0.0;
+    double flipX = 0.0; // radians around Y
+    double flipY = 0.0; // radians around X
+    double blur = 0.0;
 
     if (clip.inAnimation != ClipAnimation.none && playhead >= clip.start) {
-      final elapsed = (playhead - clip.start).inMilliseconds;
+      final int elapsed = (playhead - clip.start).inMilliseconds;
       if (elapsed < durInMs) {
-        final t = (elapsed / durInMs).clamp(0.0, 1.0);
+        final double t = (elapsed / durInMs).clamp(0.0, 1.0).toDouble();
         switch (clip.inAnimation) {
           case ClipAnimation.fadeIn:
             opacity *= t;
-            break;
           case ClipAnimation.zoomIn:
             scaleMult *= (0.3 + 0.7 * t);
-            break;
           case ClipAnimation.slideLeft:
             transX -= (1.0 - t) * 60;
-            break;
           case ClipAnimation.slideRight:
             transX += (1.0 - t) * 60;
-            break;
           case ClipAnimation.rotateIn:
+            rot = -(1.0 - t) * math.pi / 2;
             scaleMult *= (0.5 + 0.5 * t);
             opacity *= t;
-            break;
           case ClipAnimation.flipHorizontal:
-          case ClipAnimation.flipVertical:
+            flipX = (1.0 - t) * math.pi / 2;
             scaleMult *= (0.4 + 0.6 * t);
-            break;
+          case ClipAnimation.flipVertical:
+            flipY = (1.0 - t) * math.pi / 2;
+            scaleMult *= (0.4 + 0.6 * t);
           case ClipAnimation.elasticBounce:
-            scaleMult *= (0.2 + 0.8 * math.sin(t * math.pi * 0.8));
-            break;
+            scaleMult *= math.max(0.01, Curves.elasticOut.transform(t));
           case ClipAnimation.blurFade:
             opacity *= t;
-            break;
+            blur = (1.0 - t) * 8.0;
           case ClipAnimation.shakeSlide:
             transX += math.sin(t * math.pi * 4.0) * 12.0 * (1.0 - t);
-            break;
           case ClipAnimation.zoomRotate:
+            rot = (1.0 - t) * math.pi;
             scaleMult *= (0.2 + 0.8 * t);
             opacity *= t;
-            break;
           default:
             break;
         }
@@ -1448,37 +1452,54 @@ class _OverlayClipState extends State<_OverlayClip> {
     }
 
     if (clip.outAnimation != ClipAnimation.none && playhead <= clip.end) {
-      final remaining = (clip.end - playhead).inMilliseconds;
+      final int remaining = (clip.end - playhead).inMilliseconds;
       if (remaining < durInMs) {
-        final t = (remaining / durInMs).clamp(0.0, 1.0);
+        final double t = (remaining / durInMs).clamp(0.0, 1.0).toDouble();
         switch (clip.outAnimation) {
           case ClipAnimation.fadeOut:
             opacity *= t;
-            break;
           case ClipAnimation.zoomOut:
             scaleMult *= (0.3 + 0.7 * t);
-            break;
           case ClipAnimation.slideRight:
             transX += (1.0 - t) * 60;
-            break;
           case ClipAnimation.slideLeft:
             transX -= (1.0 - t) * 60;
-            break;
           default:
             break;
         }
       }
     }
 
+    // Keyframed scale (relative to the clip's static scale).
+    final double? kfs = _kfValue(clip, KeyframeProperty.scale, playhead - clip.start);
+    if (kfs != null && clip.scale > 0) scaleMult *= kfs / clip.scale;
+
     Widget result = child;
+    if (blur > 0.1) {
+      result = ImageFiltered(
+        imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: result,
+      );
+    }
+    if (flipX != 0.0 || flipY != 0.0) {
+      result = Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.identity()
+          ..setEntry(3, 2, 0.001)
+          ..rotateY(flipX)
+          ..rotateX(flipY),
+        child: result,
+      );
+    }
+    if (rot != 0.0) result = Transform.rotate(angle: rot, child: result);
     if (transX != 0.0) {
       result = Transform.translate(offset: Offset(transX, 0), child: result);
     }
     if (scaleMult != 1.0) {
-      result = Transform.scale(scale: scaleMult, child: result);
+      result = Transform.scale(scale: math.max(0.01, scaleMult), child: result);
     }
     if (opacity < 1.0) {
-      result = Opacity(opacity: opacity.clamp(0.0, 1.0), child: result);
+      result = Opacity(opacity: opacity.clamp(0.0, 1.0).toDouble(), child: result);
     }
     return result;
   }
@@ -1511,12 +1532,14 @@ class _OverlayClipState extends State<_OverlayClip> {
             widget.onScale((_baseScale * d.scale).clamp(0.2, 5.0).toDouble());
             return;
           }
-          _rx += d.focalPointDelta.dx / u;
-          _ry += d.focalPointDelta.dy / u;
+          // Divide by the InteractiveViewer zoom so the overlay tracks the finger.
+          final double vs = math.max(1.0, widget.viewScale());
+          _rx += d.focalPointDelta.dx / u / vs;
+          _ry += d.focalPointDelta.dy / u / vs;
           final Size? sz = _k.currentContext?.size;
           final double w = (sz?.width ?? 0) / u;
           final double h = (sz?.height ?? 0) / u;
-          final double th = 8 / u;
+          final double th = 8 / u / vs;
           final (double x, List<_SnapLine> lx) = _snapAxis(_rx, w, designWToken, true, _ox, th);
           final (double y, List<_SnapLine> ly) =
               _snapAxis(_ry, h, widget.designH, false, _oy, th);
@@ -1560,6 +1583,10 @@ class _OverlayVideoPlayer extends StatefulWidget {
 class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
   VideoPlayerController? _vc;
   bool _failed = false;
+  int _token = 0;
+  bool _seeking = false;
+  double _speed = -1;
+  double _vol = -1;
 
   EditorController get _e => widget.editor;
 
@@ -1587,50 +1614,87 @@ class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
 
   @override
   void dispose() {
+    _token++;
     _e.removeListener(_onEditor);
     _e.playheadListenable.removeListener(_onEditor);
     _vc?.dispose();
+    _vc = null;
     super.dispose();
   }
 
-  void _onEditor() {
-    if (mounted) {
-      setState(() {});
-    }
+  Future<void> _onEditor() async {
     final c = _vc;
     if (!mounted || c == null || !c.value.isInitialized) return;
 
-    final double clipSpeed = widget.clip.speed.clamp(0.1, 10.0);
-    c.setPlaybackSpeed(clipSpeed);
+    final double speed = widget.clip.speed.clamp(0.1, 10.0).toDouble();
+    if (speed != _speed) {
+      _speed = speed;
+      c.setPlaybackSpeed(speed);
+    }
+    final double vol = widget.clip.volume.clamp(0.0, 1.0).toDouble();
+    if (vol != _vol) {
+      _vol = vol;
+      c.setVolume(vol);
+    }
 
     Duration local = Duration(
-        milliseconds: (widget.clip.trimIn.inMilliseconds + (_e.playhead - widget.clip.start).inMilliseconds * clipSpeed).round());
+        milliseconds: (widget.clip.trimIn.inMilliseconds +
+                (_e.playhead - widget.clip.start).inMilliseconds * speed)
+            .round());
     if (local.isNegative) local = Duration.zero;
     final Duration dur = c.value.duration;
     if (local > dur) local = dur;
 
     final Duration drift = (c.value.position - local).abs();
 
+    if (_seeking) return;
     if (_e.isPlaying) {
       if (!c.value.isPlaying) {
-        c.seekTo(local).then((_) {
-          if (mounted) c.play();
-        });
+        _seeking = true;
+        try {
+          await c.seekTo(local);
+          if (mounted && _e.isPlaying) await c.play();
+        } finally {
+          _seeking = false;
+        }
       } else if (drift > const Duration(milliseconds: 400)) {
-        c.seekTo(local);
+        _seeking = true;
+        try {
+          await c.seekTo(local);
+        } finally {
+          _seeking = false;
+        }
       }
     } else {
       if (c.value.isPlaying) c.pause();
-      if (drift > const Duration(milliseconds: 40)) c.seekTo(local);
+      if (drift > const Duration(milliseconds: 40)) {
+        _seeking = true;
+        try {
+          await c.seekTo(local);
+        } finally {
+          _seeking = false;
+        }
+      }
     }
   }
 
   Future<void> _load(String? path) async {
+    final int token = ++_token;
+    final old = _vc;
+    if (old != null) {
+      _vc = null;
+      _speed = -1;
+      _vol = -1;
+      if (mounted) setState(() {});
+      await WidgetsBinding.instance.endOfFrame;
+      await old.dispose();
+    }
     if (path == null || path.isEmpty) return;
 
     final file = File(path);
     if (!await file.exists()) {
-      if (mounted) setState(() => _failed = true);
+      _existsCache[path] = false;
+      if (mounted && token == _token) setState(() => _failed = true);
       return;
     }
 
@@ -1642,18 +1706,22 @@ class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
     try {
       await c.initialize();
       await c.setLooping(false);
-      await c.setVolume(widget.clip.volume);
-      if (mounted) {
-        setState(() {
-          _vc = c;
-          _failed = false;
-        });
-        _onEditor();
-      }
+      await c.setVolume(widget.clip.volume.clamp(0.0, 1.0).toDouble());
     } catch (_) {
-      c.dispose();
-      if (mounted) setState(() => _failed = true);
+      await c.dispose();
+      if (mounted && token == _token) setState(() => _failed = true);
+      return;
     }
+
+    if (!mounted || token != _token) {
+      await c.dispose();
+      return;
+    }
+    setState(() {
+      _vc = c;
+      _failed = false;
+    });
+    _onEditor();
   }
 
   @override
@@ -1682,17 +1750,10 @@ class _OverlayVideoPlayerState extends State<_OverlayVideoPlayer> {
     final double w = 150 * clip.scale * u;
     final double h = w / videoAspect;
 
-    Widget playerWidget = SizedBox(
-      width: w,
-      height: h,
-      child: VideoPlayer(c),
-    );
+    Widget playerWidget = SizedBox(width: w, height: h, child: VideoPlayer(c));
 
     if (clip.chromaKey.enabled) {
-      playerWidget = ChromaKeyPreview(
-        chroma: clip.chromaKey,
-        child: playerWidget,
-      );
+      playerWidget = ChromaKeyPreview(chroma: clip.chromaKey, child: playerWidget);
     }
 
     return playerWidget;
@@ -1801,7 +1862,11 @@ class _AudioClipsPreview extends StatefulWidget {
 }
 
 class _AudioClipsPreviewState extends State<_AudioClipsPreview> {
-  final Map<String, VideoPlayerController> _audioControllers = {};
+  final Map<String, VideoPlayerController> _audioControllers =
+      <String, VideoPlayerController>{};
+  bool _busy = false;
+  bool _dirty = false;
+  bool _disposed = false;
 
   EditorController get _e => widget.editor;
 
@@ -1810,7 +1875,7 @@ class _AudioClipsPreviewState extends State<_AudioClipsPreview> {
     super.initState();
     _e.addListener(_onEditorChange);
     _e.playheadListenable.addListener(_onEditorChange);
-    _onEditorChange();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onEditorChange());
   }
 
   @override
@@ -1827,6 +1892,7 @@ class _AudioClipsPreviewState extends State<_AudioClipsPreview> {
 
   @override
   void dispose() {
+    _disposed = true;
     _e.removeListener(_onEditorChange);
     _e.playheadListenable.removeListener(_onEditorChange);
     for (final controller in _audioControllers.values) {
@@ -1836,8 +1902,22 @@ class _AudioClipsPreviewState extends State<_AudioClipsPreview> {
     super.dispose();
   }
 
-  void _onEditorChange() {
-    _syncAudioPlayers();
+  /// One sync at a time; if something changes meanwhile, run once more.
+  Future<void> _onEditorChange() async {
+    if (_disposed) return;
+    if (_busy) {
+      _dirty = true;
+      return;
+    }
+    _busy = true;
+    try {
+      do {
+        _dirty = false;
+        await _syncAudioPlayers();
+      } while (_dirty && !_disposed);
+    } finally {
+      _busy = false;
+    }
   }
 
   Future<void> _syncAudioPlayers() async {
@@ -1847,51 +1927,57 @@ class _AudioClipsPreviewState extends State<_AudioClipsPreview> {
           c.sourcePath != null &&
           c.sourcePath!.isNotEmpty &&
           _e.playhead >= c.start &&
-          _e.playhead <= c.end;
+          _e.playhead < c.end;
     }).toList();
 
     final activeClipIds = activeAudioClips.map((c) => c.id).toSet();
 
-    final toRemove = _audioControllers.keys.where((id) => !activeClipIds.contains(id)).toList();
+    final toRemove =
+        _audioControllers.keys.where((id) => !activeClipIds.contains(id)).toList();
     for (final id in toRemove) {
       final controller = _audioControllers.remove(id);
-      controller?.pause();
-      controller?.dispose();
+      await controller?.pause();
+      await controller?.dispose();
     }
 
     for (final clip in activeAudioClips) {
+      if (_disposed) return;
       final path = clip.sourcePath!;
       VideoPlayerController? controller = _audioControllers[clip.id];
 
       if (controller == null) {
-        final file = File(path);
-        if (!file.existsSync()) continue;
+        if (!_fileExists(path)) continue;
 
         controller = VideoPlayerController.file(
-          file,
+          File(path),
           videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
         );
-        _audioControllers[clip.id] = controller;
-
         try {
           await controller.initialize();
           await controller.setLooping(false);
         } catch (_) {
-          _audioControllers.remove(clip.id);
           await controller.dispose();
           continue;
         }
+        if (_disposed) {
+          await controller.dispose();
+          return;
+        }
+        _audioControllers[clip.id] = controller;
       }
 
       if (!controller.value.isInitialized) continue;
 
-      final double speed = clip.speed.clamp(0.1, 10.0);
-      final double vol = (clip.volume * clip.audioProperties.volume).clamp(0.0, 1.0);
+      final double speed = clip.speed.clamp(0.1, 10.0).toDouble();
+      final double vol =
+          (clip.volume * clip.audioProperties.volume).clamp(0.0, 1.0).toDouble();
       await controller.setPlaybackSpeed(speed);
       await controller.setVolume(vol);
 
       Duration local = Duration(
-        milliseconds: (clip.trimIn.inMilliseconds + (_e.playhead - clip.start).inMilliseconds * speed).round(),
+        milliseconds: (clip.trimIn.inMilliseconds +
+                (_e.playhead - clip.start).inMilliseconds * speed)
+            .round(),
       );
       if (local.isNegative) local = Duration.zero;
       final Duration dur = controller.value.duration;
@@ -1914,9 +2000,7 @@ class _AudioClipsPreviewState extends State<_AudioClipsPreview> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return const SizedBox.shrink();
-  }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 // ----------------------------------------------------------------------------
@@ -1938,46 +2022,47 @@ class _EyedropperOverlay extends StatefulWidget {
 class _EyedropperOverlayState extends State<_EyedropperOverlay> {
   Offset? _pos;
   Color? _sampledColor;
-  bool _isSampling = false;
+  ByteData? _bytes;
+  int _imgW = 0;
+  int _imgH = 0;
 
-  Future<void> _sampleAt(Offset localOffset, Size size) async {
-    if (_isSampling || size.width <= 0 || size.height <= 0) return;
-    _isSampling = true;
+  @override
+  void initState() {
+    super.initState();
+    // Snapshot the clean frame once; sampling then reads from memory.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _capture());
+  }
+
+  Future<void> _capture() async {
     try {
       final boundary =
           widget.boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
-
-      final image = await boundary.toImage(pixelRatio: 1.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-      if (byteData == null) {
-        image.dispose();
-        return;
-      }
-
-      final double px = (localOffset.dx / size.width * image.width).clamp(0, image.width - 1.0);
-      final double py = (localOffset.dy / size.height * image.height).clamp(0, image.height - 1.0);
-
-      final int x = px.toInt();
-      final int y = py.toInt();
-      final int offset = (y * image.width + x) * 4;
-
-      if (offset + 3 < byteData.lengthInBytes) {
-        final int r = byteData.getUint8(offset);
-        final int g = byteData.getUint8(offset + 1);
-        final int b = byteData.getUint8(offset + 2);
-        if (mounted) {
-          setState(() {
-            _pos = localOffset;
-            _sampledColor = Color.fromARGB(255, r, g, b);
-          });
-        }
-      }
+      final ui.Image image = await boundary.toImage(pixelRatio: 1.0);
+      final ByteData? data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final int w = image.width, h = image.height;
       image.dispose();
-    } catch (_) {
-    } finally {
-      _isSampling = false;
-    }
+      if (!mounted || data == null) return;
+      setState(() {
+        _bytes = data;
+        _imgW = w;
+        _imgH = h;
+      });
+    } catch (_) {}
+  }
+
+  void _sampleAt(Offset local, Size size) {
+    final ByteData? data = _bytes;
+    if (data == null || size.width <= 0 || size.height <= 0 || _imgW == 0) return;
+    final int x = (local.dx / size.width * _imgW).floor().clamp(0, _imgW - 1).toInt();
+    final int y = (local.dy / size.height * _imgH).floor().clamp(0, _imgH - 1).toInt();
+    final int o = (y * _imgW + x) * 4;
+    if (o + 3 >= data.lengthInBytes) return;
+    setState(() {
+      _pos = local;
+      _sampledColor =
+          Color.fromARGB(255, data.getUint8(o), data.getUint8(o + 1), data.getUint8(o + 2));
+    });
   }
 
   @override
@@ -1991,14 +2076,14 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
           behavior: HitTestBehavior.opaque,
           onPanDown: (d) => _sampleAt(d.localPosition, size),
           onPanUpdate: (d) => _sampleAt(d.localPosition, size),
-          onTapUp: (d) async {
-            await _sampleAt(d.localPosition, size);
+          onTapUp: (d) {
+            _sampleAt(d.localPosition, size);
             widget.editor.completeEyedropper(_sampledColor);
           },
           child: Stack(
             fit: StackFit.expand,
-            children: [
-              Container(color: Colors.black26),
+            children: <Widget>[
+              const ColoredBox(color: Colors.black26),
               Positioned(
                 top: 12,
                 left: 12,
@@ -2013,14 +2098,16 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: [
+                      children: <Widget>[
                         const Icon(Icons.colorize_rounded, color: accentToken, size: 16),
                         const SizedBox(width: 8),
-                        Text(
-                          _sampledColor != null
-                              ? 'Tap or release to select key color'
-                              : 'Tap/drag anywhere on frame to pick color',
-                          style: const TextStyle(color: Colors.white, fontSize: 12.5),
+                        Flexible(
+                          child: Text(
+                            _sampledColor != null
+                                ? 'Tap or release to select key color'
+                                : 'Tap/drag anywhere on frame to pick color',
+                            style: const TextStyle(color: Colors.white, fontSize: 12.5),
+                          ),
                         ),
                       ],
                     ),
@@ -2038,7 +2125,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: const [
+                        boxShadow: const <BoxShadow>[
                           BoxShadow(color: Colors.black54, blurRadius: 10),
                         ],
                       ),
@@ -2046,10 +2133,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                         child: Container(
                           width: 60,
                           height: 60,
-                          decoration: BoxDecoration(
-                            color: color,
-                            shape: BoxShape.circle,
-                          ),
+                          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                           child: Center(
                             child: Container(
                               width: 8,
@@ -2070,20 +2154,21 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                 right: 16,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: [
+                  children: <Widget>[
                     IconButton.filledTonal(
                       tooltip: 'Cancel',
                       icon: const Icon(Icons.close_rounded, color: Colors.white),
                       onPressed: () => widget.editor.cancelEyedropper(),
                     ),
-                    if (_sampledColor != null) ...[
+                    if (_sampledColor != null) ...<Widget>[
                       const SizedBox(width: 12),
                       FloatingActionButton.extended(
                         elevation: 4,
                         backgroundColor: accentToken,
                         foregroundColor: Colors.black,
                         icon: const Icon(Icons.check_rounded),
-                        label: const Text('Apply Color', style: TextStyle(fontWeight: FontWeight.bold)),
+                        label: const Text('Apply Color',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                         onPressed: () => widget.editor.completeEyedropper(_sampledColor),
                       ),
                     ],

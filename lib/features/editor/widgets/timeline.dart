@@ -3,13 +3,27 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
+
+// ----------------------------------------------------------------------------
+// Constants & helpers
+// ----------------------------------------------------------------------------
+const Color playheadBlue = Color(0xFF2D8CEB);
+const Color _timelineBg = Color(0xFF111111);
+const int _fps = 30;
+
+/// HH:MM:SS:FF timecode (Premiere style).
+String _tcFrames(double t) {
+  final int f = (math.max(0.0, t) * _fps).round();
+  final int s = f ~/ _fps;
+  return '${twoDigits(s ~/ 3600)}:${twoDigits((s ~/ 60) % 60)}:'
+      '${twoDigits(s % 60)}:${twoDigits(f % _fps)}';
+}
 
 // ----------------------------------------------------------------------------
 // Timeline Model & Snapshots
@@ -152,11 +166,11 @@ class _TimelineWidgetState extends State<TimelineWidget> {
   double get _textH => 40 * _s;
   double get _videoH => 52 * _s;
   double get _audioH => 44 * _s;
-  double get _hdrW => 76 * _s;
+  double get _topH => 26 * _s;
+  double get _botH => 22 * _s;
 
   final ScrollController _sc = ScrollController();
   final ScrollController _vc = ScrollController();
-  final ScrollController _hc = ScrollController();
   final ValueNotifier<bool> _snap = ValueNotifier<bool>(true);
 
   bool _userScrolling = false;
@@ -173,11 +187,6 @@ class _TimelineWidgetState extends State<TimelineWidget> {
   @override
   void initState() {
     super.initState();
-    _vc.addListener(() {
-      if (_hc.hasClients && (_hc.offset - _vc.offset).abs() > 0.5) {
-        _hc.jumpTo(_vc.offset.clamp(0.0, _hc.position.maxScrollExtent).toDouble());
-      }
-    });
     editor.addListener(_onEditorChanged);
     editor.playheadListenable.addListener(_onEditorChanged);
   }
@@ -200,7 +209,6 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     _snap.dispose();
     _sc.dispose();
     _vc.dispose();
-    _hc.dispose();
     super.dispose();
   }
 
@@ -271,8 +279,6 @@ class _TimelineWidgetState extends State<TimelineWidget> {
       }
     }
 
-    // Overlay lanes (top layer first), named Text / Sticker / Drawing and
-    // numbered only when more than one lane shares the same name.
     final List<List<_ClipSnapshot>> groups = <List<_ClipSnapshot>>[
       for (final l in layers.reversed)
         clips.where((c) => _isOverlay(c) && c.layer == l).toList(),
@@ -377,7 +383,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     return <double>[lo, hi];
   }
 
-  void _setZoom(double z) => editor.setZoom(z.clamp(0.5, 8.0).toDouble());
+  void _setZoom(double z) => editor.setZoom(z.clamp(0.5, 12.0).toDouble());
 
   /// The playhead is fixed on screen, so zoom always anchors on it and the
   /// scroll offset is re-derived from the playhead after the new layout.
@@ -404,17 +410,14 @@ class _TimelineWidgetState extends State<TimelineWidget> {
               tapFeedback();
               onTap();
             },
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: Container(
-                width: 34 * _s,
-                height: 28 * _s,
-                decoration: BoxDecoration(
-                  color: on ? Colors.white : const Color(0xFF26262C),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, size: 16 * _s, color: on ? Colors.black : Colors.white),
+            child: Container(
+              width: 34 * _s,
+              height: 22 * _s,
+              decoration: BoxDecoration(
+                color: on ? Colors.white : const Color(0xFF262626),
+                borderRadius: BorderRadius.circular(6),
               ),
+              child: Icon(icon, size: 15 * _s, color: on ? Colors.black : Colors.white),
             ),
           ),
         ),
@@ -453,19 +456,18 @@ class _TimelineWidgetState extends State<TimelineWidget> {
           decoration: BoxDecoration(
             color: surfaceToken,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: dividerToken),
             boxShadow: const <BoxShadow>[BoxShadow(color: Colors.black54, blurRadius: 8)],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
                 child: SizedBox(height: 56, width: w, child: thumb),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
-                child: Text(formatTimecode(t),
+                child: Text(_tcFrames(t),
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -479,6 +481,62 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     );
   }
 
+  Widget _topRow() => SizedBox(
+        height: _topH,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14 * _s),
+          child: Row(
+            children: <Widget>[
+              ValueListenableBuilder<Duration>(
+                valueListenable: editor.playheadListenable,
+                builder: (_, p, __) => Text(
+                  _tcFrames(secondsOf(p)),
+                  style: TextStyle(
+                    color: playheadBlue,
+                    fontSize: 13 * _s,
+                    fontWeight: FontWeight.w500,
+                    fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              const Spacer(),
+              ValueListenableBuilder<bool>(
+                valueListenable: _snap,
+                builder: (_, snap, __) => _chip(
+                    Icons.align_horizontal_center_rounded,
+                    'Snap',
+                    snap,
+                    () => _snap.value = !_snap.value),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  Widget _zoomBar(double zoom) => SizedBox(
+        height: _botH,
+        child: Material(
+          type: MaterialType.transparency,
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 8,
+              activeTrackColor: const Color(0xFF3A3A3A),
+              inactiveTrackColor: const Color(0xFF1E1E1E),
+              thumbColor: const Color(0xFFB0B0B0),
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+              overlayShape: SliderComponentShape.noOverlay,
+              trackShape: const RoundedRectSliderTrackShape(),
+            ),
+            child: Slider(
+              min: 0.5,
+              max: 12.0,
+              value: zoom.clamp(0.5, 12.0).toDouble(),
+              onChanged: _applyZoom,
+            ),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final Size size = MediaQuery.sizeOf(context);
@@ -487,314 +545,146 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeOutCubic,
-      decoration: const BoxDecoration(
-        color: bgToken,
-        border: Border(top: BorderSide(color: dividerToken)),
-      ),
+      color: _timelineBg,
       child: LayoutBuilder(
         builder: (context, c) {
-          // Keep the playhead (and clip origin) clear of the track header.
-          final double half = math.max(c.maxWidth * playheadFracToken, _hdrW + 12);
+          final double half = c.maxWidth * playheadFracToken;
           return Selector<EditorController, _TimelineModel>(
             selector: (_, e) => _TimelineModel.from(e),
             builder: (context, model, _) {
               final double total = math.max(model.totalMs / 1000.0, 1.0);
               final double pps = 28.0 * model.zoom;
               final List<_Lane> lanes = _lanes(model.clips);
-              // Extra bottom room so the snap / zoom chips never cover a lane.
+              final double chrome = _topH + _botH;
               final double contentH =
-                  _rulerH + lanes.fold<double>(0, (s, l) => s + l.h + _gap) + 48 * _s;
+                  _rulerH + lanes.fold<double>(0, (s, l) => s + l.h + _gap) + 16 * _s;
               final double h = c.maxHeight.isFinite
                   ? c.maxHeight
-                  : math.min(contentH, 240.0 * _s);
+                  : math.min(contentH + chrome, 240.0 * _s);
+              final double midH = math.max(0.0, h - chrome);
               final double contentW = total * pps + c.maxWidth;
 
               return SizedBox(
                 height: h,
-                child: Stack(
-                  clipBehavior: Clip.none,
+                child: Column(
                   children: <Widget>[
-                    Listener(
-                      onPointerDown: (_) {
-                        if (++_pointers == 2) setState(() {});
-                      },
-                      onPointerUp: (_) {
-                        _pointers = math.max(0, _pointers - 1);
-                        if (_pointers < 2) setState(() {});
-                      },
-                      onPointerCancel: (_) {
-                        _pointers = math.max(0, _pointers - 1);
-                        if (_pointers < 2) setState(() {});
-                      },
-                      child: GestureDetector(
-                        onScaleStart: (_) => _baseZoom = model.zoom,
-                        onScaleUpdate: (d) {
-                          if (d.pointerCount >= 2) _applyZoom(_baseZoom * d.scale);
-                        },
-                        child: NotificationListener<ScrollNotification>(
-                          onNotification: (n) {
-                            if (_programmatic) return false;
-                            if (n.metrics.axis != Axis.horizontal) return false;
-                            if (n is ScrollStartNotification && n.dragDetails != null) {
-                              _userScrolling = true;
-                              setState(() => _scrubTime = n.metrics.pixels / pps);
-                            } else if (n is ScrollUpdateNotification && _userScrolling) {
-                              final double t =
-                                  _snapTime(n.metrics.pixels / pps, pps, model.clips);
-                              setState(() => _scrubTime = t);
-                              seekPlayhead(editor, t);
-                            } else if (n is ScrollEndNotification && _userScrolling) {
-                              _userScrolling = false;
-                              setState(() => _scrubTime = null);
-                              _syncScroll();
-                            }
-                            return false;
-                          },
-                          child: SingleChildScrollView(
-                            controller: _sc,
-                            scrollDirection: Axis.horizontal,
-                            physics: _pointers >= 2
-                                ? const NeverScrollableScrollPhysics()
-                                : const ClampingScrollPhysics(),
-                            child: SizedBox(
-                              width: contentW,
-                              child: SingleChildScrollView(
-                                controller: _vc,
-                                child: GestureDetector(
-                                  // Empty timeline space: deselect everything.
-                                  // Clips and the ruler have their own gestures
-                                  // and win the arena when tapped.
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: _deselectAll,
+                    _topRow(),
+                    SizedBox(
+                      height: midH,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: <Widget>[
+                          Listener(
+                            onPointerDown: (_) {
+                              if (++_pointers == 2) setState(() {});
+                            },
+                            onPointerUp: (_) {
+                              _pointers = math.max(0, _pointers - 1);
+                              if (_pointers < 2) setState(() {});
+                            },
+                            onPointerCancel: (_) {
+                              _pointers = math.max(0, _pointers - 1);
+                              if (_pointers < 2) setState(() {});
+                            },
+                            child: GestureDetector(
+                              onScaleStart: (_) => _baseZoom = model.zoom,
+                              onScaleUpdate: (d) {
+                                if (d.pointerCount >= 2) _applyZoom(_baseZoom * d.scale);
+                              },
+                              child: NotificationListener<ScrollNotification>(
+                                onNotification: (n) {
+                                  if (_programmatic) return false;
+                                  if (n.metrics.axis != Axis.horizontal) return false;
+                                  if (n is ScrollStartNotification && n.dragDetails != null) {
+                                    _userScrolling = true;
+                                    setState(() => _scrubTime = n.metrics.pixels / pps);
+                                  } else if (n is ScrollUpdateNotification && _userScrolling) {
+                                    final double t =
+                                        _snapTime(n.metrics.pixels / pps, pps, model.clips);
+                                    setState(() => _scrubTime = t);
+                                    seekPlayhead(editor, t);
+                                  } else if (n is ScrollEndNotification && _userScrolling) {
+                                    _userScrolling = false;
+                                    setState(() => _scrubTime = null);
+                                    _syncScroll();
+                                  }
+                                  return false;
+                                },
+                                child: SingleChildScrollView(
+                                  controller: _sc,
+                                  scrollDirection: Axis.horizontal,
+                                  physics: _pointers >= 2
+                                      ? const NeverScrollableScrollPhysics()
+                                      : const ClampingScrollPhysics(),
                                   child: SizedBox(
-                                    height: math.max(contentH, h),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        GestureDetector(
-                                          behavior: HitTestBehavior.opaque,
-                                          onTapDown: (d) {
-                                            widget.onClearMulti();
-                                            seekPlayhead(
-                                                editor,
-                                                ((d.localPosition.dx - half) / pps)
-                                                    .clamp(0.0, total)
-                                                    .toDouble());
-                                          },
-                                          child: SizedBox(
-                                            height: _rulerH,
-                                            width: contentW,
-                                            child: CustomPaint(
-                                              painter: _RulerPainter(
-                                                  pps: pps,
-                                                  seconds: total + 5,
-                                                  leftPad: half,
-                                                  totalSec: total),
-                                            ),
+                                    width: contentW,
+                                    child: SingleChildScrollView(
+                                      controller: _vc,
+                                      child: GestureDetector(
+                                        behavior: HitTestBehavior.opaque,
+                                        onTap: _deselectAll,
+                                        child: SizedBox(
+                                          height: math.max(contentH, midH),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: <Widget>[
+                                              GestureDetector(
+                                                behavior: HitTestBehavior.opaque,
+                                                onTapDown: (d) {
+                                                  widget.onClearMulti();
+                                                  seekPlayhead(
+                                                      editor,
+                                                      ((d.localPosition.dx - half) / pps)
+                                                          .clamp(0.0, total)
+                                                          .toDouble());
+                                                },
+                                                child: SizedBox(
+                                                  height: _rulerH,
+                                                  width: contentW,
+                                                  child: CustomPaint(
+                                                    painter: _RulerPainter(
+                                                        pps: pps,
+                                                        seconds: total + 5,
+                                                        leftPad: half,
+                                                        totalSec: total),
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(height: 10 * _s),
+                                              for (final l in lanes)
+                                                _lane(l, contentW, pps, half, model),
+                                            ],
                                           ),
                                         ),
-                                        for (final l in lanes)
-                                          _lane(l, contentW, pps, half, model),
-                                      ],
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      width: _hdrW,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: bgToken,
-                          border: Border(right: BorderSide(color: dividerToken)),
-                        ),
-                        child: SingleChildScrollView(
-                          controller: _hc,
-                          physics: const NeverScrollableScrollPhysics(),
-                          child: SizedBox(
-                            height: contentH,
-                            child: Column(
-                              children: <Widget>[
-                                SizedBox(height: _rulerH),
-                                for (final l in lanes)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: _gap),
-                                    child: SizedBox(height: l.h, child: _header(l)),
-                                  ),
-                              ],
+                          // Playhead: blue head + hairline, fixed on screen.
+                          Positioned(
+                            left: half - 8,
+                            top: 0,
+                            bottom: 0,
+                            width: 16,
+                            child: const IgnorePointer(
+                              child: CustomPaint(painter: _PlayheadPainter()),
                             ),
                           ),
-                        ),
+                          if (_userScrolling && _scrubTime != null)
+                            _scrubCard(half, c.maxWidth, model.clips),
+                        ],
                       ),
                     ),
-                    Positioned(
-                      left: half - 32,
-                      top: 0,
-                      bottom: 0,
-                      width: 64,
-                      child: IgnorePointer(
-                        child: Column(
-                          children: <Widget>[
-                            Container(
-                              height: 17 * _s,
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(9),
-                                boxShadow: const <BoxShadow>[
-                                  BoxShadow(color: Colors.black54, blurRadius: 4)
-                                ],
-                              ),
-                            child: ValueListenableBuilder<Duration>(
-                              valueListenable: editor.playheadListenable,
-                                builder: (_, p, __) => Text(
-                                  formatTimecodeShort(secondsOf(p)),
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    fontFeatures: <FontFeature>[
-                                      FontFeature.tabularFigures()
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Expanded(child: Container(width: 2, color: Colors.white)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: 6,
-                      bottom: 4,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: const Color(0xD9101014),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: dividerToken),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            ValueListenableBuilder<bool>(
-                              valueListenable: _snap,
-                              builder: (_, snap, __) => _chip(
-                                  Icons.align_horizontal_center_rounded,
-                                  'Snap',
-                                  snap,
-                                  () => _snap.value = !_snap.value),
-                            ),
-                            _chip(Icons.remove_rounded, 'Zoom out', false,
-                                () => _applyZoom(model.zoom - 0.5)),
-                            _chip(Icons.add_rounded, 'Zoom in', false,
-                                () => _applyZoom(model.zoom + 0.5)),
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (_userScrolling && _scrubTime != null)
-                      _scrubCard(half, c.maxWidth, model.clips),
+                    _zoomBar(model.zoom),
                   ],
                 ),
               );
             },
           );
         },
-      ),
-    );
-  }
-
-  /// Track header: Keyframe buttons (Add Keyframe & Keyframe Curve) for keyframe system.
-  Widget _header(_Lane l) {
-    final selectedClip = editor.selectedClip;
-    final bool hasKeyframeAtPlayhead = selectedClip != null &&
-        selectedClip.keyframes.any((k) =>
-            (k.time.inMilliseconds - (editor.playhead - selectedClip.start).inMilliseconds).abs() < 100);
-
-    Widget btn(dynamic i, String tip, VoidCallback f, {bool active = false}) => Tooltip(
-          message: tip,
-          child: InkResponse(
-            radius: 18,
-            onTap: () {
-              tapFeedback();
-              f();
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(3),
-              child: HugeIcon(
-                icon: i,
-                size: 16 * _s,
-                color: active ? accentToken : Colors.white70,
-              ),
-            ),
-          ),
-        );
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4 * _s),
-      child: Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  btn(
-                    hasKeyframeAtPlayhead
-                        ? HugeIcons.strokeRoundedRemove01
-                        : HugeIcons.strokeRoundedAdd01,
-                    hasKeyframeAtPlayhead ? 'Remove Keyframe' : 'Add Keyframe',
-                    () {
-                      if (selectedClip == null) return;
-                      final relTime = editor.playhead - selectedClip.start;
-                      if (relTime.isNegative || relTime > selectedClip.duration) return;
-
-                      if (hasKeyframeAtPlayhead) {
-                        final kf = selectedClip.keyframes.firstWhere((k) =>
-                            (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
-                        editor.removeKeyframe(kf.id);
-                      } else {
-                        editor.addKeyframe(Keyframe(
-                          id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
-                          time: relTime,
-                          property: KeyframeProperty.scale,
-                          value: selectedClip.scale,
-                        ));
-                      }
-                    },
-                    active: hasKeyframeAtPlayhead,
-                  ),
-                  const SizedBox(width: 4),
-                  btn(
-                    HugeIcons.strokeRoundedAnalytics01,
-                    'Keyframe Curve',
-                    () {
-                      if (selectedClip != null) {
-                        showModalBottomSheet<void>(
-                          context: context,
-                          backgroundColor: surfaceToken,
-                          shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-                          builder: (_) => const KeyframeSheet(),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -880,7 +770,6 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
                       tapFeedback();
-                      // Select the clip first so the sheet knows which cut it edits.
                       editor.selectClip(list[i].id);
                       showTransitionSheet(context);
                     },
@@ -970,7 +859,6 @@ class _ClipBlockState extends State<_ClipBlock> {
           _rawEdge = left ? widget.clip.startSec : widget.clip.endSec;
         },
         onHorizontalDragUpdate: (d) {
-          // Accumulate locally: widget.clip can be stale between rebuilds.
           _rawEdge += d.delta.dx / widget.pps;
           final clip = widget.clip;
           final double snapped = widget.trimSnap(_rawEdge);
@@ -1030,7 +918,7 @@ class _ClipBlockState extends State<_ClipBlock> {
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: border, width: 2),
           ),
           child: Row(children: <Widget>[
@@ -1047,15 +935,14 @@ class _ClipBlockState extends State<_ClipBlock> {
       case _ClipKind.video:
         body = Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: border, width: 2),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(6),
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                // Locked clips keep their thumbnails (only editing is disabled).
                 LayoutBuilder(
                   builder: (context, c) => clip.path != null
                       ? _Filmstrip(
@@ -1086,11 +973,11 @@ class _ClipBlockState extends State<_ClipBlock> {
         body = Container(
           decoration: BoxDecoration(
             color: audioTrackToken,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(color: border, width: 2),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
             child: (clip.path != null)
                 ? _WaveformLoader(path: clip.path!)
                 : const SizedBox.expand(),
@@ -1285,7 +1172,6 @@ class _FilmstripState extends State<_Filmstrip> {
       return;
     }
     final double step = widget.durationSec / _n;
-    // Futures are created once per (path, count, duration), not on every build.
     _futures = <Future<Uint8List?>>[
       for (int i = 0; i < _n; i++) ThumbCache.get(widget.path, (i * step * 1000).round(), 96),
     ];
@@ -1376,7 +1262,6 @@ class _WaveformLoaderState extends State<_WaveformLoader> {
     return LayoutBuilder(
       builder: (context, c) {
         final int bars = math.max(8, (c.maxWidth / 5).floor());
-        // Re-request only when the inputs actually change.
         if (_future == null || _path != widget.path || _bars != bars) {
           _path = widget.path;
           _bars = bars;
@@ -1418,6 +1303,9 @@ class _WavePainter extends CustomPainter {
   bool shouldRepaint(covariant _WavePainter old) => !_listEq(old.amps, amps);
 }
 
+// ----------------------------------------------------------------------------
+// Premiere-style ruler & playhead
+// ----------------------------------------------------------------------------
 class _RulerPainter extends CustomPainter {
   _RulerPainter({
     required this.pps,
@@ -1430,19 +1318,13 @@ class _RulerPainter extends CustomPainter {
   final double leftPad;
   final double totalSec;
 
-  String _label(double t, double step) {
-    if (step < 1) return '${t.toStringAsFixed(1)}s';
-    final int s = t.round();
-    if (s >= 60) return '${s ~/ 60}:${twoDigits(s % 60)}';
-    return '${s}s';
-  }
+  static const Color _bg = Color(0xFF1A1A1A);
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF0B0B0E));
-    canvas.drawLine(Offset(0, size.height - 0.5), Offset(size.width, size.height - 0.5),
-        Paint()..color = const Color(0xFF26262C));
+    canvas.drawRect(Offset.zero & size, Paint()..color = _bg);
 
+    // Dim everything after the sequence end and mark it.
     final double endX = leftPad + totalSec * pps;
     if (endX < size.width) {
       canvas.drawRect(Rect.fromLTRB(endX, 0, size.width, size.height),
@@ -1452,47 +1334,57 @@ class _RulerPainter extends CustomPainter {
         Offset(endX, 0),
         Offset(endX, size.height),
         Paint()
-          ..color = accentToken.withValues(alpha: 0.7)
+          ..color = playheadBlue.withValues(alpha: 0.6)
           ..strokeWidth = 1);
 
-    const steps = <double>[0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300];
-    final double step = steps.firstWhere((s) => s * pps >= 72, orElse: () => steps.last);
-    final Paint major = Paint()
-      ..color = Colors.white60
-      ..strokeWidth = 1;
-    final Paint minor = Paint()
-      ..color = Colors.white24
-      ..strokeWidth = 1;
-    final int count = (seconds / step).ceil();
+    // Pick a major step that keeps labels roughly 90px apart.
+    const List<double> steps = <double>[
+      1 / 30, 1 / 15, 0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600
+    ];
+    final double major = steps.firstWhere((s) => s * pps >= 90, orElse: () => steps.last);
+    const int div = 4;
+    final double minor = major / div;
 
-    for (int i = 0; i <= count; i++) {
-      final double t = i * step;
+    final Paint pMajor = Paint()
+      ..color = const Color(0xFF9A9A9A)
+      ..strokeWidth = 1;
+    final Paint pMid = Paint()
+      ..color = const Color(0xFF6E6E6E)
+      ..strokeWidth = 1;
+    final Paint pSmall = Paint()
+      ..color = const Color(0xFF4A4A4A)
+      ..strokeWidth = 1;
+    final double h = size.height;
+
+    for (int i = 0;; i++) {
+      final double t = i * minor;
       final double x = leftPad + t * pps;
       if (x > size.width) break;
 
-      canvas.drawLine(Offset(x, size.height - 11), Offset(x, size.height), major);
-
-      final tp = TextPainter(
-        text: TextSpan(
-          text: _label(t, step),
-          style: TextStyle(
-            color: t > totalSec + 1e-6 ? Colors.white38 : Colors.white70,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w500,
-            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+      if (i % div == 0) {
+        canvas.drawLine(Offset(x, h * 0.45), Offset(x, h), pMajor);
+        final tp = TextPainter(
+          text: TextSpan(
+            text: _tcFrames(t),
+            style: TextStyle(
+              color: t > totalSec + 1e-6 ? Colors.white38 : const Color(0xFFB0B0B0),
+              fontSize: 10,
+              fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+            ),
           ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, Offset(x + 4, 4));
-      tp.dispose();
-
-      for (int j = 1; j < 4; j++) {
-        final double mx = x + j * step * pps / 4;
-        canvas.drawLine(
-            Offset(mx, size.height - (j == 2 ? 7 : 4)), Offset(mx, size.height), minor);
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(canvas, Offset(x + 4, h * 0.12));
+        tp.dispose();
+      } else if (i % div == div ~/ 2) {
+        canvas.drawLine(Offset(x, h * 0.68), Offset(x, h), pMid);
+      } else {
+        canvas.drawLine(Offset(x, h * 0.82), Offset(x, h), pSmall);
       }
     }
+
+    canvas.drawLine(Offset(0, h - 0.5), Offset(size.width, h - 0.5),
+        Paint()..color = const Color(0xFF262626));
   }
 
   @override
@@ -1501,4 +1393,28 @@ class _RulerPainter extends CustomPainter {
       old.seconds != seconds ||
       old.leftPad != leftPad ||
       old.totalSec != totalSec;
+}
+
+class _PlayheadPainter extends CustomPainter {
+  const _PlayheadPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint p = Paint()..color = playheadBlue;
+    final double w = size.width;
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, 0)
+        ..lineTo(w, 0)
+        ..lineTo(w, 10)
+        ..lineTo(w / 2, 18)
+        ..lineTo(0, 10)
+        ..close(),
+      p,
+    );
+    canvas.drawRect(Rect.fromLTWH(w / 2 - 0.75, 18, 1.5, size.height - 18), p);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }
