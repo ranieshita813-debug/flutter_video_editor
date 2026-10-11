@@ -17,19 +17,19 @@ import 'package:flutter_video_editor/features/projects/controllers/projects_cont
 // Filmora       -> teal/blue gradient call to action, pill tabs, rounded panels
 // -----------------------------------------------------------------------------
 
-const Color _bg = Color(0xFF08080A);
-const Color _surface = Color(0xFF131316);
-const Color _elevated = Color(0xFF1D1D22);
-const Color _border = Color(0xFF2B2B32);
-const Color _text = Color(0xFFF5F5F7);
-const Color _muted = Color(0xFF8E8E98);
-const Color _accent = Color(0xFF22E5C9);
-const Color _onAccent = Color(0xFF031412);
+const Color _bg = Color(0xFF000000);
+const Color _surface = Color(0xFF111111);
+const Color _elevated = Color(0xFF1C1C1C);
+const Color _border = Color(0xFF2A2A2A);
+const Color _text = Color(0xFFFFFFFF);
+const Color _muted = Color(0xFF8C8C8C);
+const Color _accent = Color(0xFFFFFFFF);
+const Color _onAccent = Color(0xFF000000);
 
-// Premiere-style label colors, one per media type.
-const Color _cVideo = Color(0xFF7C8CFF);
-const Color _cImage = Color(0xFF34D399);
-const Color _cAudio = Color(0xFFFFB454);
+// Monochrome label colors for media types.
+const Color _cVideo = Color(0xFFFFFFFF);
+const Color _cImage = Color(0xFFCCCCCC);
+const Color _cAudio = Color(0xFF8C8C8C);
 
 
 const TextStyle _timecode = TextStyle(

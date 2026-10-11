@@ -208,6 +208,9 @@ class _SpeedSheetState extends State<SpeedSheet> {
   }
 
   void _close() {
+    if (_dirty && mounted) {
+      context.read<EditorController>().updateSelectedClipSpeed(_initial.speed);
+    }
     _dismiss();
   }
 

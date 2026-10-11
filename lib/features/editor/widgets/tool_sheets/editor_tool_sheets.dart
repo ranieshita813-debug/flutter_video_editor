@@ -621,8 +621,16 @@ Widget _tile({
 // Tool Sheet Implementations
 // ----------------------------------------------------------------------------
 
-class AudioToolsSheet extends StatelessWidget {
+class AudioToolsSheet extends StatefulWidget {
   const AudioToolsSheet({super.key});
+
+  @override
+  State<AudioToolsSheet> createState() => _AudioToolsSheetState();
+}
+
+class _AudioToolsSheetState extends State<AudioToolsSheet> {
+  static const List<String> _voiceEffects = ['Normal', 'Deep', 'Robot', 'Chipmunk', 'Echo'];
+  static const List<String> _eqPresets = ['Flat', 'Bass Boost', 'Treble Boost', 'Vocal', 'Pop', 'Rock'];
 
   @override
   Widget build(BuildContext context) {
@@ -630,7 +638,9 @@ class AudioToolsSheet extends StatelessWidget {
     final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
     final bool hasAudio = clip != null &&
         (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
+    final ap = clip?.audioProperties ?? const AudioProperties();
     final double volume = clip?.volume ?? 1.0;
+    final bool isVideo = clip?.clipType == ClipType.video;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -707,6 +717,12 @@ class AudioToolsSheet extends StatelessWidget {
             ],
           ),
         ),
+        if (isVideo) ...<Widget>[
+          const SizedBox(height: 12),
+          _outlineBtn('Extract Audio from Video', () {
+            editor.extractAudioFromSelectedClip();
+          }),
+        ],
         if (hasAudio) ...<Widget>[
           const SizedBox(height: 20),
           _SliderRow(
@@ -718,10 +734,247 @@ class AudioToolsSheet extends StatelessWidget {
             minLabel: '0%',
             maxLabel: '200%',
             onChanged: (val) =>
-                editor.updateAudioProperties(AudioProperties(volume: val, speed: clip.speed)),
+                editor.updateAudioProperties(ap.copyWith(volume: val)),
+          ),
+          const SizedBox(height: 16),
+          _SliderRow(
+            label: 'Fade In',
+            value: ap.fadeIn.inMilliseconds / 1000.0,
+            min: 0,
+            max: 5,
+            display: '${(ap.fadeIn.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
+            onChanged: (val) => editor.updateAudioProperties(
+              ap.copyWith(fadeIn: Duration(milliseconds: (val * 1000).round())),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SliderRow(
+            label: 'Fade Out',
+            value: ap.fadeOut.inMilliseconds / 1000.0,
+            min: 0,
+            max: 5,
+            display: '${(ap.fadeOut.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
+            onChanged: (val) => editor.updateAudioProperties(
+              ap.copyWith(fadeOut: Duration(milliseconds: (val * 1000).round())),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SliderRow(
+            label: 'Pitch',
+            value: ap.pitch,
+            min: 0.5,
+            max: 2.0,
+            display: '${ap.pitch.toStringAsFixed(2)}x',
+            onChanged: (val) => editor.updateAudioProperties(ap.copyWith(pitch: val)),
+          ),
+          const SizedBox(height: 16),
+          _SliderRow(
+            label: 'Noise Reduction',
+            value: ap.noiseReduction,
+            min: 0,
+            max: 1.0,
+            display: '${(ap.noiseReduction * 100).round()}%',
+            onChanged: (val) => editor.updateAudioProperties(ap.copyWith(noiseReduction: val)),
+          ),
+          const SizedBox(height: 20),
+          const Text('Voice Effect',
+              style: TextStyle(color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _voiceEffects.map((ve) {
+                final isSelected = ap.voiceEffect == ve;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(ve),
+                    selected: isSelected,
+                    selectedColor: accentToken,
+                    backgroundColor: cardToken,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.black : Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    onSelected: (_) {
+                      editor.updateAudioProperties(ap.copyWith(voiceEffect: ve));
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text('Equalizer Preset',
+              style: TextStyle(color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _eqPresets.map((eq) {
+                final isSelected = ap.equalizerPreset == eq;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(eq),
+                    selected: isSelected,
+                    selectedColor: accentToken,
+                    backgroundColor: cardToken,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.black : Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    onSelected: (_) {
+                      editor.updateAudioProperties(ap.copyWith(equalizerPreset: eq));
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
           ),
         ],
       ],
+    );
+  }
+}
+
+class _AnimatedTextTile extends StatefulWidget {
+  const _AnimatedTextTile({
+    required this.style,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TextAnimationStyle style;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  State<_AnimatedTextTile> createState() => _AnimatedTextTileState();
+}
+
+class _AnimatedTextTileState extends State<_AnimatedTextTile>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _buildAnimatedSample(TextAnimationStyle style) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final val = _controller.value;
+        switch (style) {
+          case TextAnimationStyle.fadeIn:
+            return Opacity(
+                opacity: val,
+                child: const Text('Aa',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)));
+          case TextAnimationStyle.typewriter:
+            final count = (val * 4).round();
+            final txt = 'Text'.substring(0, count.clamp(1, 4));
+            return Text(txt,
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
+          case TextAnimationStyle.slideUp:
+            return Transform.translate(
+              offset: Offset(0, (1 - val) * 12),
+              child: const Text('Aa',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            );
+          case TextAnimationStyle.bounce:
+          case TextAnimationStyle.scaleUp:
+            return Transform.scale(
+              scale: 0.6 + 0.5 * val,
+              child: const Text('Aa',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            );
+          case TextAnimationStyle.rotateIn:
+            return Transform.rotate(
+              angle: (1 - val) * math.pi / 2,
+              child: const Text('Aa',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            );
+          case TextAnimationStyle.glowPulse:
+          case TextAnimationStyle.neonFlicker:
+            return Text('Aa',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(color: const Color(0xFF00E5FF), blurRadius: val * 12),
+                  ],
+                ));
+          default:
+            return Text('Aa',
+                style: TextStyle(
+                    color: widget.selected ? accentToken : Colors.white70,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold));
+        }
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardToken,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: widget.selected ? accentToken : Colors.transparent,
+            width: widget.selected ? 2 : 1,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Container(
+                color: const Color(0xFF1B1B20),
+                child: Center(
+                  child: _buildAnimatedSample(widget.style),
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              color: widget.selected ? accentToken : cardToken,
+              alignment: Alignment.center,
+              child: Text(
+                _cap(widget.style.name),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: widget.selected ? Colors.black : Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -822,52 +1075,13 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
                   itemBuilder: (context, i) {
                     final style = styles[i];
                     final bool selected = style == _anim;
-                    return InkWell(
+                    return _AnimatedTextTile(
+                      style: style,
+                      selected: selected,
                       onTap: () {
                         tapFeedback();
                         setState(() => _anim = style);
                       },
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: cardToken,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: selected ? accentToken : Colors.transparent, width: selected ? 2 : 1),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              child: Container(
-                                color: const Color(0xFF1B1B20),
-                                child: Center(
-                                  child: HugeIcon(
-                                    icon: HugeIcons.strokeRoundedTextFont,
-                                    color: selected ? accentToken : Colors.white70,
-                                    size: 24,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                              color: selected ? accentToken : cardToken,
-                              alignment: Alignment.center,
-                              child: Text(
-                                _cap(style.name),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: selected ? Colors.black : Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     );
                   },
                 ),
@@ -1264,8 +1478,8 @@ class KeyframeSheet extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Keyframes',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              'Keyframe Curves & System',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1274,7 +1488,7 @@ class KeyframeSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Text(
-                'Preview Only',
+                'Active',
                 style: TextStyle(color: accentToken, fontSize: 10, fontWeight: FontWeight.w600),
               ),
             ),
@@ -1283,15 +1497,20 @@ class KeyframeSheet extends StatelessWidget {
         const SizedBox(height: 12),
         _primaryBtn(
           HugeIcons.strokeRoundedAdd01,
-          'Add keyframe at playhead',
+          'Add Keyframe at Playhead',
           selectedClip == null
               ? null
-              : () => editor.addKeyframe(Keyframe(
+              : () {
+                  final relTime = editor.playhead - selectedClip.start;
+                  if (relTime.isNegative || relTime > selectedClip.duration) return;
+                  editor.addKeyframe(Keyframe(
                     id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
-                    time: editor.playhead,
+                    time: relTime,
                     property: KeyframeProperty.scale,
-                    value: 1.0,
-                  )),
+                    value: selectedClip.scale,
+                    curveType: CurveType.easeIn,
+                  ));
+                },
         ),
         const SizedBox(height: 16),
         if (keyframes.isEmpty)
@@ -1301,42 +1520,87 @@ class KeyframeSheet extends StatelessWidget {
               child: Text(
                 selectedClip == null
                     ? 'Select a clip to add keyframes'
-                    : 'No keyframes yet',
+                    : 'No keyframes on selected clip',
                 style: const TextStyle(color: mutedToken, fontSize: 12),
               ),
             ),
           ),
         ...keyframes.map((kf) => Container(
               margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.only(left: 16),
+              padding: const EdgeInsets.all(12),
               decoration:
                   BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(10)),
-              child: Row(
-                children: <Widget>[
-                  const _Diamond(),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      _cap('${kf.property}'.split('.').last),
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
-                    ),
+              child: Column(
+                children: [
+                  Row(
+                    children: <Widget>[
+                      const _Diamond(),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _cap('${kf.property}'.split('.').last),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Text(
+                        '${secondsOf(kf.time).toStringAsFixed(1)}s',
+                        style: const TextStyle(
+                          color: mutedToken,
+                          fontSize: 12,
+                          fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Remove keyframe',
+                        icon: const HugeIcon(
+                            icon: HugeIcons.strokeRoundedDelete02,
+                            color: Color(0xFFFF6B6B),
+                            size: 18),
+                        onPressed: () => editor.removeKeyframe(kf.id),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '${secondsOf(kf.time).toStringAsFixed(1)}s',
-                    style: const TextStyle(
-                      color: mutedToken,
-                      fontSize: 12,
-                      fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Remove keyframe',
-                    icon: const HugeIcon(
-                        icon: HugeIcons.strokeRoundedDelete02,
-                        color: Color(0xFFFF6B6B),
-                        size: 18),
-                    onPressed: () => editor.removeKeyframe(kf.id),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Text(
+                        'Curve: ',
+                        style: TextStyle(color: mutedToken, fontSize: 11),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: CurveType.values.map((curve) {
+                              final isSelected = kf.curveType == curve;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: ChoiceChip(
+                                  label: Text(
+                                    _cap(curve.name),
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.black : Colors.white70,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  selected: isSelected,
+                                  selectedColor: accentToken,
+                                  backgroundColor: const Color(0xFF18181B),
+                                  showCheckmark: false,
+                                  visualDensity: VisualDensity.compact,
+                                  onSelected: (_) {
+                                    editor.addKeyframe(kf.copyWith(curveType: curve));
+                                  },
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

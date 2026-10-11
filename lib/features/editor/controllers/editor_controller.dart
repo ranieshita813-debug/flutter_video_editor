@@ -71,6 +71,34 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void extractAudioFromSelectedClip() {
+    final current = selectedClip;
+    if (current == null || current.sourcePath == null) return;
+
+    _saveState();
+    final audioClip = TimelineClip(
+      id: 'audio_extracted_${DateTime.now().millisecondsSinceEpoch}',
+      label: 'Audio: ${current.label}',
+      start: current.start,
+      end: current.end,
+      clipType: ClipType.audio,
+      layerIndex: 1,
+      sourcePath: current.sourcePath,
+      volume: current.volume > 0 ? current.volume : 1.0,
+      audioProperties: current.audioProperties,
+    );
+
+    final index = _project.clips.indexOf(current);
+    _project.clips[index] = current.copyWith(
+      volume: 0.0,
+      audioProperties: current.audioProperties.copyWith(volume: 0.0),
+    );
+    _project.addClip(audioClip);
+    _selectedClipId = audioClip.id;
+    _autosave();
+    notifyListeners();
+  }
+
   void updateSelectedClipSpeed(double speed) {
     if (_selectedClipId == null) return;
 
@@ -81,8 +109,17 @@ class EditorController extends ChangeNotifier {
 
     _saveStateCoalesced('speed:$_selectedClipId');
     final double newSpeed = speed.clamp(0.1, 10.0).toDouble();
-    _project.clips[index] =
-        _project.clips[index].copyWith(speed: newSpeed);
+    final currentClip = _project.clips[index];
+
+    final double sourceDurationMs = currentClip.duration.inMilliseconds * currentClip.speed;
+    final int newDurationMs = (sourceDurationMs / newSpeed).round().clamp(200, 86400000);
+    final Duration newEnd = currentClip.start + Duration(milliseconds: newDurationMs);
+
+    _project.clips[index] = currentClip.copyWith(
+      speed: newSpeed,
+      end: newEnd,
+      audioProperties: currentClip.audioProperties.copyWith(speed: newSpeed),
+    );
     _autosave();
     notifyListeners();
   }

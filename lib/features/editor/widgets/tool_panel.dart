@@ -129,6 +129,41 @@ class ToolPanel extends StatelessWidget {
         ],
       );
 
+  Widget _buildFooter() => Container(
+        height: 52,
+        decoration: const BoxDecoration(
+          color: Color(0xFF0E0E10),
+          border: Border(top: BorderSide(color: dividerToken)),
+        ),
+        child: Row(
+          children: <Widget>[
+            IconButton(
+              tooltip: 'Cancel',
+              icon: const Icon(Icons.close_rounded, color: Colors.white),
+              onPressed: () {
+                tapFeedback();
+                onClose();
+              },
+            ),
+            const Spacer(),
+            Text(
+              tool.title,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const Spacer(),
+            IconButton(
+              tooltip: 'Apply',
+              icon: const Icon(Icons.check_rounded, color: accentToken, size: 26),
+              onPressed: () {
+                tapFeedback();
+                onClose();
+              },
+            ),
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final Widget body = Expanded(
@@ -150,6 +185,7 @@ class ToolPanel extends StatelessWidget {
               SizedBox(height: 52, child: _header()),
               const Divider(height: 1, thickness: 0.5, color: dividerToken),
               body,
+              _buildFooter(),
             ],
           ),
         ),
@@ -159,7 +195,6 @@ class ToolPanel extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: surfaceToken,
-        
         border: Border(top: BorderSide(color: dividerToken)),
       ),
       child: SafeArea(
@@ -193,6 +228,7 @@ class ToolPanel extends StatelessWidget {
               ),
               const Divider(height: 1, thickness: 0.5, color: dividerToken),
               body,
+              _buildFooter(),
             ],
           ),
         ),

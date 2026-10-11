@@ -712,14 +712,14 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     );
   }
 
-  /// Track header: name (Video / Audio / Text ...) plus the visibility toggle.
-  /// Layer ordering lives in the toolbar's "Order" tool, not here.
+  /// Track header: Keyframe buttons (Add Keyframe & Keyframe Curve) for keyframe system.
   Widget _header(_Lane l) {
-    final bool empty = l.clips.isEmpty;
-    // An empty lane has nothing to hide, so never show the "hidden" state.
-    final bool visible = empty || l.clips.any((c) => c.visible);
+    final selectedClip = editor.selectedClip;
+    final bool hasKeyframeAtPlayhead = selectedClip != null &&
+        selectedClip.keyframes.any((k) =>
+            (k.time.inMilliseconds - (editor.playhead - selectedClip.start).inMilliseconds).abs() < 100);
 
-    Widget btn(dynamic i, bool active, String tip, VoidCallback f) => Tooltip(
+    Widget btn(dynamic i, String tip, VoidCallback f, {bool active = false}) => Tooltip(
           message: tip,
           child: InkResponse(
             radius: 18,
@@ -732,27 +732,12 @@ class _TimelineWidgetState extends State<TimelineWidget> {
               child: HugeIcon(
                 icon: i,
                 size: 16 * _s,
-                color: active ? Colors.white : Colors.white70,
+                color: active ? accentToken : Colors.white70,
               ),
             ),
           ),
         );
 
-    final List<Widget> icons = <Widget>[
-      if (!empty)
-        btn(
-          visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff,
-          !visible,
-          visible ? 'Hide track' : 'Show track',
-          () {
-            for (final c in l.clips) {
-              if (c.visible == visible) editor.toggleClipVisibility(c.id);
-            }
-          },
-        ),
-    ];
-
-    // FittedBox prevents RenderFlex overflow regardless of lane height/scale.
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 4 * _s),
       child: Center(
@@ -761,18 +746,52 @@ class _TimelineWidgetState extends State<TimelineWidget> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Text(
-                l.name,
-                maxLines: 1,
-                style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  btn(
+                    hasKeyframeAtPlayhead
+                        ? HugeIcons.strokeRoundedRemove01
+                        : HugeIcons.strokeRoundedAdd01,
+                    hasKeyframeAtPlayhead ? 'Remove Keyframe' : 'Add Keyframe',
+                    () {
+                      if (selectedClip == null) return;
+                      final relTime = editor.playhead - selectedClip.start;
+                      if (relTime.isNegative || relTime > selectedClip.duration) return;
+
+                      if (hasKeyframeAtPlayhead) {
+                        final kf = selectedClip.keyframes.firstWhere((k) =>
+                            (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
+                        editor.removeKeyframe(kf.id);
+                      } else {
+                        editor.addKeyframe(Keyframe(
+                          id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
+                          time: relTime,
+                          property: KeyframeProperty.scale,
+                          value: selectedClip.scale,
+                        ));
+                      }
+                    },
+                    active: hasKeyframeAtPlayhead,
+                  ),
+                  const SizedBox(width: 4),
+                  btn(
+                    HugeIcons.strokeRoundedAnalytics01,
+                    'Keyframe Curve',
+                    () {
+                      if (selectedClip != null) {
+                        showModalBottomSheet<void>(
+                          context: context,
+                          backgroundColor: surfaceToken,
+                          shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                          builder: (_) => const KeyframeSheet(),
+                        );
+                      }
+                    },
+                  ),
+                ],
               ),
-              if (icons.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 2),
-                Row(mainAxisSize: MainAxisSize.min, children: icons),
-              ],
             ],
           ),
         ),
@@ -1091,10 +1110,69 @@ class _ClipBlockState extends State<_ClipBlock> {
     return body;
   }
 
+  Widget _buildKeyframeOverlay(TimelineClip targetClip, double clipW) {
+    if (targetClip.keyframes.isEmpty) return const SizedBox.shrink();
+    final double durSec = targetClip.duration.inMilliseconds / 1000.0;
+    if (durSec <= 0) return const SizedBox.shrink();
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        for (final kf in targetClip.keyframes) ...[
+          Positioned(
+            left: ((kf.time.inMilliseconds / 1000.0) / durSec * clipW).clamp(0.0, clipW - 12.0),
+            top: 4,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                tapFeedback();
+                seekPlayhead(widget.editor, secondsOf(targetClip.start + kf.time));
+              },
+              onLongPress: () {
+                tapFeedback();
+                widget.editor.removeKeyframe(kf.id);
+              },
+              onHorizontalDragUpdate: (d) {
+                final double deltaMs = (d.delta.dx / widget.pps) * 1000.0;
+                final int newMs = (kf.time.inMilliseconds + deltaMs.round())
+                    .clamp(0, targetClip.duration.inMilliseconds);
+                widget.editor.addKeyframe(
+                  kf.copyWith(time: Duration(milliseconds: newMs)),
+                );
+              },
+              child: Transform.rotate(
+                angle: math.pi / 4,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: accentToken,
+                    border: Border.all(color: Colors.black, width: 1.5),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final clip = widget.clip;
     final bool locked = clip.locked;
+    final fullClip = widget.editor.project.clips.firstWhere(
+      (c) => c.id == clip.id,
+      orElse: () => TimelineClip(
+        id: clip.id,
+        label: clip.label,
+        start: Duration(milliseconds: clip.startMs),
+        end: Duration(milliseconds: clip.endMs),
+        clipType: clip.type,
+      ),
+    );
 
     return ListenableBuilder(
       listenable: Listenable.merge(<Listenable>[widget.multiOn, widget.multi]),
@@ -1125,7 +1203,12 @@ class _ClipBlockState extends State<_ClipBlock> {
               children: <Widget>[
                 Positioned.fill(
                   child: LayoutBuilder(
-                    builder: (context, c) => _buildBody(c.maxWidth),
+                    builder: (context, c) => Stack(
+                      children: [
+                        _buildBody(c.maxWidth),
+                        _buildKeyframeOverlay(fullClip, c.maxWidth),
+                      ],
+                    ),
                   ),
                 ),
                 if (inMulti)
