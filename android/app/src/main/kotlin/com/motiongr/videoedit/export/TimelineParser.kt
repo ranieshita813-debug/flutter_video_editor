@@ -69,6 +69,15 @@ data class DrawingStrokeSpec(
     val points: List<DrawingPointSpec>
 )
 
+data class ElementPropertiesSpec(
+    val shape: String = "rectangle",
+    val fillColor: Long = 0xFFFFFFFFL,
+    val strokeColor: Long = 0x00000000L,
+    val strokeWidth: Double = 2.0,
+    val size: Double = 100.0,
+    val svgPath: String? = null
+)
+
 data class ClipSpec(
     val id: String,
     val label: String,
@@ -90,6 +99,7 @@ data class ClipSpec(
     val colorGrading: ColorGradingSpec,
     val audioProperties: AudioPropertiesSpec,
     val chromaKey: ChromaKeySpec = ChromaKeySpec(),
+    val elementProperties: ElementPropertiesSpec = ElementPropertiesSpec(),
     val fontFamily: String,
     val textAnimationStyle: String,
     val textStyle: TextStyleSpec,
@@ -183,6 +193,16 @@ object TimelineParser {
                     output = ckObj.optString("output", "composite")
                 )
 
+                val elemObj = clipObj.optJSONObject("elementProperties") ?: JSONObject()
+                val elementProperties = ElementPropertiesSpec(
+                    shape = elemObj.optString("shape", "rectangle"),
+                    fillColor = elemObj.optLong("fillColor", 0xFFFFFFFFL),
+                    strokeColor = elemObj.optLong("strokeColor", 0x00000000L),
+                    strokeWidth = elemObj.optDouble("strokeWidth", 2.0),
+                    size = elemObj.optDouble("size", 100.0),
+                    svgPath = if (elemObj.has("svgPath") && !elemObj.isNull("svgPath")) elemObj.getString("svgPath") else null
+                )
+
                 val strokesArray = clipObj.optJSONArray("strokes")
                 val strokes = mutableListOf<DrawingStrokeSpec>()
                 if (strokesArray != null) {
@@ -234,6 +254,7 @@ object TimelineParser {
                         colorGrading = colorGrading,
                         audioProperties = audioProperties,
                         chromaKey = chromaKey,
+                        elementProperties = elementProperties,
                         fontFamily = clipObj.optString("fontFamily", "Poppins"),
                         textAnimationStyle = clipObj.optString("textAnimationStyle", "none"),
                         textStyle = textStyle,

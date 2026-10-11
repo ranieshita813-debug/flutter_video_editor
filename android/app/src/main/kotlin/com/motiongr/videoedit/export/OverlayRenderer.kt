@@ -129,19 +129,22 @@ object OverlayRenderer {
             }
         }
 
-        val textWidth = textPaint.measureText(text)
+        val lines = text.split("\n")
         val fontMetrics = textPaint.fontMetrics
-        val textHeight = fontMetrics.descent - fontMetrics.ascent
-        val pad = bgPaddingPx * u
+        val lineHeight = fontMetrics.descent - fontMetrics.ascent
+        var maxLineWidth = 0f
+        for (line in lines) {
+            val lw = textPaint.measureText(line)
+            if (lw > maxLineWidth) maxLineWidth = lw
+        }
 
-        val bmpW = (textWidth + pad * 2f).toInt().coerceAtLeast(16)
-        val bmpH = (textHeight + pad * 2f).toInt().coerceAtLeast(16)
+        val pad = bgPaddingPx * u
+        val totalTextHeight = lineHeight * lines.size
+        val bmpW = (maxLineWidth + pad * 2f).toInt().coerceAtLeast(16)
+        val bmpH = (totalTextHeight + pad * 2f).toInt().coerceAtLeast(16)
 
         val bitmap = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
-
-        val x = pad
-        val y = pad - fontMetrics.ascent
 
         if (bgColorInt != Color.TRANSPARENT) {
             val bgRect = RectF(0f, 0f, bmpW.toFloat(), bmpH.toFloat())
@@ -152,33 +155,60 @@ object OverlayRenderer {
             canvas.drawRoundRect(bgRect, 4f * u, 4f * u, bgPaint)
         }
 
-        if (strokeColorInt != Color.TRANSPARENT && strokeWidthPx > 0f) {
-            val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = strokeColorInt
-                textSize = textSizeCalculated
-                this.typeface = typeface
-                textAlign = Paint.Align.LEFT
-                style = Paint.Style.STROKE
-                strokeWidth = strokeWidthPx * u
+        var startY = pad - fontMetrics.ascent
+        for (line in lines) {
+            val lw = textPaint.measureText(line)
+            val lineX = when (textAlignStr.lowercase()) {
+                "right" -> bmpW - pad - lw
+                "center" -> (bmpW - lw) / 2f
+                else -> pad
             }
-            canvas.drawText(text, x, y, strokePaint)
-        }
 
-        canvas.drawText(text, x, y, textPaint)
+            if (strokeColorInt != Color.TRANSPARENT && strokeWidthPx > 0f) {
+                val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = strokeColorInt
+                    textSize = textSizeCalculated
+                    this.typeface = typeface
+                    textAlign = Paint.Align.LEFT
+                    style = Paint.Style.STROKE
+                    strokeWidth = strokeWidthPx * u
+                }
+                canvas.drawText(line, lineX, startY, strokePaint)
+            }
+
+            canvas.drawText(line, lineX, startY, textPaint)
+            startY += lineHeight
+        }
 
         return bitmap
     }
 
     /**
-     * ফন্ট লোড করে (অ্যাসেট থেকে অথবা ডিফল্ট)
+     * ফন্ট লোড করে (অ্যাসেট, ড্রাইভ ফাইল অথবা ডিফল্ট)
      */
     private fun loadTypeface(context: Context, fontFamily: String): Typeface {
-        return try {
-            val assetPath = "fonts/${fontFamily}-Bold.ttf"
-            Typeface.createFromAsset(context.assets, assetPath)
-        } catch (e: Exception) {
-            Typeface.DEFAULT_BOLD
+        if (fontFamily.isEmpty()) return Typeface.DEFAULT_BOLD
+        val fontFile = File(fontFamily)
+        if (fontFile.exists()) {
+            try {
+                return Typeface.createFromFile(fontFile)
+            } catch (_: Exception) {}
         }
+        val candidates = listOf(
+            "flutter_assets/assets/fonts/${fontFamily}-Bold.ttf",
+            "flutter_assets/assets/fonts/${fontFamily}-Regular.ttf",
+            "flutter_assets/assets/fonts/${fontFamily}-SemiBold.ttf",
+            "assets/fonts/${fontFamily}-Bold.ttf",
+            "assets/fonts/${fontFamily}-Regular.ttf",
+            "fonts/${fontFamily}-Bold.ttf",
+            "fonts/${fontFamily}-Regular.ttf"
+        )
+        for (candidate in candidates) {
+            try {
+                return Typeface.createFromAsset(context.assets, candidate)
+            } catch (_: Exception) {}
+        }
+        return Typeface.DEFAULT_BOLD
     }
 
     /**
@@ -287,11 +317,14 @@ object OverlayRenderer {
         keyColor: Long,
         similarity: Double,
         smoothness: Double,
-        spill: Double
+        spill: Double,
+        outputMode: String = "composite"
     ): Bitmap {
         val w = bitmap.width
         val h = bitmap.height
         if (w <= 0 || h <= 0) return bitmap
+
+        if (outputMode == "source") return bitmap
 
         val pixels = IntArray(w * h)
         bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
@@ -325,6 +358,12 @@ object OverlayRenderer {
                 dist <= minThresh -> 0f
                 dist >= maxThresh -> 1f
                 else -> (dist - minThresh) / (maxThresh - minThresh)
+            }
+
+            if (outputMode == "matte") {
+                val mVal = (factor * 255).toInt().coerceIn(0, 255)
+                pixels[i] = (255 shl 24) or (mVal shl 16) or (mVal shl 8) or mVal
+                continue
             }
 
             if (spillFactor > 0f) {
@@ -444,7 +483,7 @@ object OverlayRenderer {
             }
             "element" -> {
                 val size = (80 * clip.scale * u).toInt().coerceAtLeast(16)
-                val svgStr = clip.svgPath ?: clip.sourcePath
+                val svgStr = clip.elementProperties.svgPath ?: clip.svgPath ?: clip.sourcePath
                 if (svgStr != null && svgStr.contains("d=")) {
                     try {
                         val dMatch = Regex("""d="([^"]+)"""").find(svgStr)
@@ -463,8 +502,8 @@ object OverlayRenderer {
                                 val elBmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
                                 val elCanvas = Canvas(elBmp)
                                 val elPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                                    color = if (clip.textStyle.textColor != 0L && clip.textStyle.textColor != 0xFFFFFFFFL) {
-                                        clip.textStyle.textColor.toInt()
+                                    color = if (clip.elementProperties.fillColor != 0xFFFFFFFFL) {
+                                        clip.elementProperties.fillColor.toInt()
                                     } else Color.WHITE
                                     style = Paint.Style.FILL
                                 }
@@ -480,14 +519,93 @@ object OverlayRenderer {
                 if (overlayBmp == null) {
                     val elBmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
                     val elCanvas = Canvas(elBmp)
-                    val elPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                        color = if (clip.textStyle.backgroundColor != 0L) {
-                            clip.textStyle.backgroundColor.toInt()
-                        } else Color.WHITE
+                    val fillColor = clip.elementProperties.fillColor.toInt()
+                    val strokeColor = clip.elementProperties.strokeColor.toInt()
+                    val strokeWidth = (clip.elementProperties.strokeWidth * u).toFloat()
+
+                    val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = if (fillColor != 0) fillColor else Color.WHITE
                         style = Paint.Style.FILL
                     }
-                    val rect = RectF(0f, 0f, size.toFloat(), size.toFloat())
-                    elCanvas.drawRoundRect(rect, 8f * u, 8f * u, elPaint)
+                    val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        color = strokeColor
+                        style = Paint.Style.STROKE
+                        this.strokeWidth = strokeWidth
+                    }
+
+                    val shape = clip.elementProperties.shape.lowercase()
+                    val sF = size.toFloat()
+
+                    when (shape) {
+                        "circle" -> {
+                            elCanvas.drawCircle(sF / 2f, sF / 2f, sF / 2f - strokeWidth, fillPaint)
+                            if (strokeColor != 0 && strokeWidth > 0) {
+                                elCanvas.drawCircle(sF / 2f, sF / 2f, sF / 2f - strokeWidth / 2f, strokePaint)
+                            }
+                        }
+                        "triangle" -> {
+                            val path = Path().apply {
+                                moveTo(sF / 2f, 0f)
+                                lineTo(sF, sF)
+                                lineTo(0f, sF)
+                                close()
+                            }
+                            elCanvas.drawPath(path, fillPaint)
+                            if (strokeColor != 0 && strokeWidth > 0) {
+                                elCanvas.drawPath(path, strokePaint)
+                            }
+                        }
+                        "star" -> {
+                            val path = Path()
+                            val cx = sF / 2f
+                            val cy = sF / 2f
+                            val outer = sF / 2f
+                            val inner = outer * 0.4f
+                            for (i in 0 until 10) {
+                                val r = if (i % 2 == 0) outer else inner
+                                val angle = i * Math.PI / 5 - Math.PI / 2
+                                val x = (cx + r * Math.cos(angle)).toFloat()
+                                val y = (cy + r * Math.sin(angle)).toFloat()
+                                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                            }
+                            path.close()
+                            elCanvas.drawPath(path, fillPaint)
+                            if (strokeColor != 0 && strokeWidth > 0) {
+                                elCanvas.drawPath(path, strokePaint)
+                            }
+                        }
+                        "arrow" -> {
+                            val path = Path().apply {
+                                moveTo(0f, sF * 0.35f)
+                                lineTo(sF * 0.6f, sF * 0.35f)
+                                lineTo(sF * 0.6f, sF * 0.1f)
+                                lineTo(sF, sF * 0.5f)
+                                lineTo(sF * 0.6f, sF * 0.9f)
+                                lineTo(sF * 0.6f, sF * 0.65f)
+                                lineTo(0f, sF * 0.65f)
+                                close()
+                            }
+                            elCanvas.drawPath(path, fillPaint)
+                            if (strokeColor != 0 && strokeWidth > 0) {
+                                elCanvas.drawPath(path, strokePaint)
+                            }
+                        }
+                        "line" -> {
+                            val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                                color = if (fillColor != 0) fillColor else Color.WHITE
+                                style = Paint.Style.STROKE
+                                this.strokeWidth = strokeWidth.coerceAtLeast(4f * u)
+                            }
+                            elCanvas.drawLine(0f, sF / 2f, sF, sF / 2f, linePaint)
+                        }
+                        else -> { // rectangle
+                            val rect = RectF(0f, 0f, sF, sF)
+                            elCanvas.drawRoundRect(rect, 8f * u, 8f * u, fillPaint)
+                            if (strokeColor != 0 && strokeWidth > 0) {
+                                elCanvas.drawRoundRect(rect, 8f * u, 8f * u, strokePaint)
+                            }
+                        }
+                    }
                     overlayBmp = elBmp
                 }
             }
@@ -560,7 +678,8 @@ object OverlayRenderer {
                 keyColor = clip.chromaKey.keyColor,
                 similarity = clip.chromaKey.similarity,
                 smoothness = clip.chromaKey.smoothness,
-                spill = clip.chromaKey.spill
+                spill = clip.chromaKey.spill,
+                outputMode = clip.chromaKey.output
             )
             if (keyed != overlayBmp && !overlayBmp.isRecycled) {
                 overlayBmp.recycle()

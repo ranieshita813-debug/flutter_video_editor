@@ -74,6 +74,7 @@ class ClipDto {
     required this.colorGrading,
     required this.audioProperties,
     required this.chromaKey,
+    this.elementProperties = const <String, dynamic>{},
     required this.fontFamily,
     required this.textAnimationStyle,
     required this.textStyle,
@@ -105,6 +106,7 @@ class ClipDto {
   final Map<String, dynamic> colorGrading;
   final Map<String, dynamic> audioProperties;
   final Map<String, dynamic> chromaKey;
+  final Map<String, dynamic> elementProperties;
   final String fontFamily;
   final String textAnimationStyle;
   final Map<String, dynamic> textStyle;
@@ -158,6 +160,14 @@ class ClipDto {
         'smoothness': clip.chromaKey.smoothness,
         'spill': clip.chromaKey.spill,
         'output': clip.chromaKey.output.name,
+      },
+      elementProperties: <String, dynamic>{
+        'shape': clip.elementProperties.shape.name,
+        'fillColor': clip.elementProperties.fillColor.toARGB32(),
+        'strokeColor': clip.elementProperties.strokeColor.toARGB32(),
+        'strokeWidth': clip.elementProperties.strokeWidth,
+        'size': clip.elementProperties.size,
+        'svgPath': clip.elementProperties.svgPath,
       },
       fontFamily: clip.fontFamily,
       textAnimationStyle: clip.textAnimationStyle.name,
@@ -219,6 +229,7 @@ class ClipDto {
       'colorGrading': colorGrading,
       'audioProperties': audioProperties,
       'chromaKey': chromaKey,
+      'elementProperties': elementProperties,
       'fontFamily': fontFamily,
       'textAnimationStyle': textAnimationStyle,
       'textStyle': textStyle,
@@ -253,6 +264,7 @@ class ClipDto {
       colorGrading: json['colorGrading'] as Map<String, dynamic>? ?? <String, dynamic>{},
       audioProperties: json['audioProperties'] as Map<String, dynamic>? ?? <String, dynamic>{},
       chromaKey: json['chromaKey'] as Map<String, dynamic>? ?? <String, dynamic>{},
+      elementProperties: json['elementProperties'] as Map<String, dynamic>? ?? <String, dynamic>{},
       fontFamily: json['fontFamily'] as String? ?? 'Poppins',
       textAnimationStyle: json['textAnimationStyle'] as String? ?? 'none',
       textStyle: json['textStyle'] as Map<String, dynamic>? ?? <String, dynamic>{},
