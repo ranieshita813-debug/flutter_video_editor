@@ -801,11 +801,13 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                             if (!attached) return@post
                             outcome.fold(
                                 onSuccess = {
+                                    OverlayRenderer.clearCache()
                                     emitProgress(1.0, "Export complete", s)
                                     ExportForegroundService.finish(ctx, true, "Video saved successfully")
                                     s.result.success(it)
                                 },
                                 onFailure = { e ->
+                                    OverlayRenderer.clearCache()
                                     s.tempFile.delete()
                                     ExportForegroundService.finish(ctx, false, e.message ?: "Could not save video")
                                     s.result.error("SAVE_ERROR", e.message, null)
@@ -821,6 +823,7 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                     exportException: ExportException
                 ) {
                     if (!s.claim()) return
+                    OverlayRenderer.clearCache()
                     s.tempFile.delete()
                     if (session === s) session = null
                     ExportForegroundService.finish(ctx, false, exportException.message ?: "Export failed")
@@ -840,6 +843,7 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                 .build()
 
             s.transformer = transformer
+            OverlayRenderer.clearCache()
             session = s
             ExportForegroundService.start(ctx)
             transformer.start(composition, temp.absolutePath)
@@ -928,6 +932,7 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
         val s = session ?: return
         if (!s.claim()) return // already finishing, nothing to cancel
         try { s.transformer?.cancel() } catch (_: Exception) {}
+        OverlayRenderer.clearCache()
         s.tempFile.delete()
         session = null
         context?.let { ExportForegroundService.stop(it) }

@@ -457,7 +457,7 @@ object CompositionBuilder {
             // Apply transition / animation effects for base track clips
             if (!isCard && clip.inAnimation != "none") {
                 when (clip.inAnimation) {
-                    "zoomIn" -> {
+                    "zoomIn", "zoomRotate" -> {
                         videoEffects += ScaleAndRotateTransformation.Builder()
                             .setScale(1.15f, 1.15f)
                             .build()
@@ -465,6 +465,21 @@ object CompositionBuilder {
                     "zoomOut" -> {
                         videoEffects += ScaleAndRotateTransformation.Builder()
                             .setScale(0.85f, 0.85f)
+                            .build()
+                    }
+                    "rotateIn" -> {
+                        videoEffects += ScaleAndRotateTransformation.Builder()
+                            .setRotationDegrees(15f)
+                            .build()
+                    }
+                    "flipHorizontal" -> {
+                        videoEffects += ScaleAndRotateTransformation.Builder()
+                            .setScale(-1f, 1f)
+                            .build()
+                    }
+                    "flipVertical" -> {
+                        videoEffects += ScaleAndRotateTransformation.Builder()
+                            .setScale(1f, -1f)
                             .build()
                     }
                 }
