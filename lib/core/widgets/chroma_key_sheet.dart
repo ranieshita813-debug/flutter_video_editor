@@ -15,6 +15,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_preview.dart' show ChromaBackground;
 
@@ -133,7 +134,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           const Spacer(),
           IconButton(
             tooltip: 'Reset',
-            icon: const Icon(Icons.restart_alt_rounded, color: _dim),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedUndo, color: _dim, size: 20),
             onPressed: () {
               HapticFeedback.lightImpact();
               _set(_k.reset());
@@ -141,7 +142,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           ),
           IconButton(
             tooltip: 'Done',
-            icon: const Icon(Icons.check_rounded, color: _accent),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedTick01, color: _accent, size: 20),
             onPressed: widget.onClose,
           ),
         ]),
@@ -185,7 +186,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                     ),
                   ),
                   child: b == ChromaBackground.checker
-                      ? const Icon(Icons.grid_on_rounded, size: 13, color: Colors.white54)
+                      ? const HugeIcon(icon: HugeIcons.strokeRoundedGridView, size: 13, color: Colors.white54)
                       : null,
                 ),
               ),
@@ -328,7 +329,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(Icons.colorize_rounded, color: _accent, size: 20),
+              const HugeIcon(icon: HugeIcons.strokeRoundedColorPicker, color: _accent, size: 20),
               const SizedBox(width: 6),
               const Text('Pick', style: TextStyle(color: Colors.white, fontSize: 13.5)),
             ]),

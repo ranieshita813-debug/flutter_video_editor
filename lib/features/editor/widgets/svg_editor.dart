@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import 'package:flutter_video_editor/core/models/svg_model.dart';
 
@@ -481,12 +482,12 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
         title: Text('Essential Graphics  ·  ${widget.title}',
             style: const TextStyle(fontSize: 13, color: Colors.white70, fontFamily: 'Poppins')),
         actions: [
-          IconButton(onPressed: _undo.isEmpty ? null : undo, icon: const Icon(Icons.undo, size: 20)),
-          IconButton(onPressed: _redo.isEmpty ? null : redo, icon: const Icon(Icons.redo, size: 20)),
+          IconButton(onPressed: _undo.isEmpty ? null : undo, icon: const HugeIcon(icon: HugeIcons.strokeRoundedUndo, color: Colors.white, size: 20)),
+          IconButton(onPressed: _redo.isEmpty ? null : redo, icon: const HugeIcon(icon: HugeIcons.strokeRoundedRedo, color: Colors.white, size: 20)),
           Padding(
             padding: const EdgeInsets.only(right: 10, left: 4),
             child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+              style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
               onPressed: doc.nodes.isEmpty ? null : () => Navigator.pop(context, doc.toSvg()),
               child: const Text('Add to timeline', style: TextStyle(fontSize: 12)),
             ),
@@ -590,7 +591,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
       });
 
   Widget _toolbar() {
-    Widget tb(Tool t, IconData i, String l) {
+    Widget tb(Tool t, dynamic iconData, String l) {
       final on = tool == t;
       return InkWell(
         onTap: () => _setTool(t),
@@ -598,7 +599,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(border: Border(bottom: BorderSide(color: on ? _accent : Colors.transparent, width: 2))),
           child: Row(children: [
-            Icon(i, size: 17, color: on ? _accent : Colors.white70),
+            HugeIcon(icon: iconData, size: 17, color: on ? _accent : Colors.white70),
             const SizedBox(width: 5),
             Text(l, style: TextStyle(fontSize: 11, color: on ? Colors.white : Colors.white54)),
           ]),
@@ -606,10 +607,10 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
       );
     }
 
-    Widget mini(IconData i, String l, VoidCallback? f) => TextButton.icon(
+    Widget mini(dynamic i, String l, VoidCallback? f) => TextButton.icon(
         style: TextButton.styleFrom(foregroundColor: Colors.white70, visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 8)),
         onPressed: f,
-        icon: Icon(i, size: 15),
+        icon: HugeIcon(icon: i, size: 15, color: Colors.white70),
         label: Text(l, style: const TextStyle(fontSize: 11)));
 
     final a = _selAnchor;
@@ -618,21 +619,21 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
       color: const Color(0xFF1E1E1E),
       height: 40,
       child: ListView(scrollDirection: Axis.horizontal, children: [
-        tb(Tool.select, Icons.near_me_outlined, 'Select'),
-        tb(Tool.node, Icons.timeline, 'Nodes'),
-        tb(Tool.pen, Icons.create_outlined, 'Pen'),
-        tb(Tool.pencil, Icons.draw_outlined, 'Pencil'),
+        tb(Tool.select, HugeIcons.strokeRoundedCursor02, 'Select'),
+        tb(Tool.node, HugeIcons.strokeRoundedTarget01, 'Nodes'),
+        tb(Tool.pen, HugeIcons.strokeRoundedPencilEdit02, 'Pen'),
+        tb(Tool.pencil, HugeIcons.strokeRoundedPencilEdit02, 'Pencil'),
         const VerticalDivider(color: Colors.white12, width: 16, indent: 8, endIndent: 8),
         if (tool == Tool.node && pm != null) ...[
-          mini(a?.smooth == true ? Icons.change_history : Icons.rounded_corner, a?.smooth == true ? 'Corner' : 'Smooth', a == null ? null : _toggleSmooth),
-          mini(Icons.add, 'Add node', a == null ? null : _addNode),
-          mini(Icons.remove, 'Delete node', a == null ? null : _deleteNode),
-          mini(closed ? Icons.call_split : Icons.loop, closed ? 'Open path' : 'Close path', _toggleClosed),
+          mini(a?.smooth == true ? HugeIcons.strokeRoundedShapes : HugeIcons.strokeRoundedShapes, a?.smooth == true ? 'Corner' : 'Smooth', a == null ? null : _toggleSmooth),
+          mini(HugeIcons.strokeRoundedAdd01, 'Add node', a == null ? null : _addNode),
+          mini(HugeIcons.strokeRoundedRemove01, 'Delete node', a == null ? null : _deleteNode),
+          mini(closed ? HugeIcons.strokeRoundedLayers01 : HugeIcons.strokeRoundedUndo, closed ? 'Open path' : 'Close path', _toggleClosed),
         ],
         if (tool == Tool.pen) ...[
-          mini(Icons.check, 'Done', penA.length < 2 ? null : () => _addPathNode(penA, false)),
-          mini(Icons.loop, 'Close', penA.length < 3 ? null : () => _addPathNode(penA, true)),
-          mini(Icons.close, 'Cancel', penA.isEmpty ? null : () => setState(() => penA = [])),
+          mini(HugeIcons.strokeRoundedTick01, 'Done', penA.length < 2 ? null : () => _addPathNode(penA, false)),
+          mini(HugeIcons.strokeRoundedUndo, 'Close', penA.length < 3 ? null : () => _addPathNode(penA, true)),
+          mini(HugeIcons.strokeRoundedCancel01, 'Cancel', penA.isEmpty ? null : () => setState(() => penA = [])),
         ],
       ]),
     );
@@ -643,9 +644,9 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
         padding: const EdgeInsets.symmetric(horizontal: 12),
         height: 32,
         child: Row(children: [
-          const Icon(Icons.zoom_out, size: 16, color: Colors.white54),
+          const HugeIcon(icon: HugeIcons.strokeRoundedZoomOut, size: 16, color: Colors.white54),
           Expanded(child: Slider(value: zoom, min: 0.3, max: 2.5, activeColor: _accent, onChanged: (v) => setState(() => zoom = v))),
-          const Icon(Icons.zoom_in, size: 16, color: Colors.white54),
+          const HugeIcon(icon: HugeIcons.strokeRoundedZoomIn, size: 16, color: Colors.white54),
           const SizedBox(width: 8),
           Text('${(zoom * 100).round()}%', style: _lbl),
         ]),
@@ -666,14 +667,14 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
       _sl('Scale', n.scale, 0.1, 4, (v) => live(() => n.scale = v), fmt: (v) => '${(v * 100).round()}%'),
       const SizedBox(height: 6),
       Wrap(spacing: 8, children: [
-        _act(Icons.copy, 'Duplicate', () => edit(() {
+        _act(HugeIcons.strokeRoundedCopy01, 'Duplicate', () => edit(() {
               doc.nodes.add(n.clone()
                 ..dx += 6
                 ..dy += 6
                 ..name = '${n.name} copy');
               sel = doc.nodes.length - 1;
             })),
-        _act(Icons.flip_to_front, 'Forward', () {
+        _act(HugeIcons.strokeRoundedArrowUp01, 'Forward', () {
           if (sel < doc.nodes.length - 1) {
             edit(() {
               doc.nodes.insert(sel + 1, doc.nodes.removeAt(sel));
@@ -681,7 +682,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
             });
           }
         }),
-        _act(Icons.flip_to_back, 'Backward', () {
+        _act(HugeIcons.strokeRoundedArrowDown01, 'Backward', () {
           if (sel > 0) {
             edit(() {
               doc.nodes.insert(sel - 1, doc.nodes.removeAt(sel));
@@ -689,7 +690,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
             });
           }
         }),
-        _act(Icons.delete_outline, 'Delete', () => edit(() {
+        _act(HugeIcons.strokeRoundedDelete02, 'Delete', () => edit(() {
               doc.nodes.removeAt(sel);
               sel = -1;
               pm = null;
@@ -699,10 +700,10 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
     ]);
   }
 
-  Widget _act(IconData i, String t, VoidCallback f) => OutlinedButton.icon(
+  Widget _act(dynamic i, String t, VoidCallback f) => OutlinedButton.icon(
       style: OutlinedButton.styleFrom(foregroundColor: Colors.white70, side: const BorderSide(color: Colors.white24), visualDensity: VisualDensity.compact),
       onPressed: f,
-      icon: Icon(i, size: 15),
+      icon: HugeIcon(icon: i, size: 15, color: Colors.white70),
       label: Text(t, style: const TextStyle(fontSize: 11)));
 
   Widget _sl(String l, double v, double mn, double mx, ValueChanged<double> on, {String Function(double)? fmt}) => Row(children: [
@@ -748,7 +749,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
                     width: 22,
                     margin: const EdgeInsets.only(right: 6),
                     decoration: BoxDecoration(border: Border.all(color: value == 'none' ? _accent : Colors.white24, width: 1.5), borderRadius: BorderRadius.circular(4)),
-                    child: const Icon(Icons.block, size: 14, color: Colors.redAccent)),
+                    child: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, size: 14, color: Colors.redAccent)),
               ),
               for (final s in _swatches)
                 GestureDetector(
@@ -806,7 +807,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
             onTap: () => _select(idx),
             leading: InkWell(
               onTap: () => edit(() => node.visible = !node.visible),
-              child: Icon(node.visible ? Icons.visibility : Icons.visibility_off, size: 17, color: Colors.white54),
+              child: HugeIcon(icon: node.visible ? HugeIcons.strokeRoundedView : HugeIcons.strokeRoundedViewOff, size: 17, color: Colors.white54),
             ),
             title: Row(children: [
               Container(width: 12, height: 12, decoration: BoxDecoration(color: fill, borderRadius: BorderRadius.circular(3))),
@@ -908,7 +909,7 @@ class _CodeTabState extends State<_CodeTab> {
           ),
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton.icon(onPressed: () => widget.onApply(c.text), icon: const Icon(Icons.check, size: 16), label: const Text('Apply code')),
+            child: TextButton.icon(onPressed: () => widget.onApply(c.text), icon: const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 16, color: Colors.white), label: const Text('Apply code')),
           ),
         ]),
       );

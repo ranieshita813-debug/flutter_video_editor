@@ -11,6 +11,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -80,21 +81,48 @@ class _ElementsSheetState extends State<ElementsSheet> {
 
   Future<void> _pasteCode() async {
     final c = TextEditingController();
-    final code = await showDialog<String>(
+    final code = await showModalBottomSheet<String>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: _panel,
-        title: const Text('Paste SVG code', style: TextStyle(color: Colors.white, fontSize: 15)),
-        content: TextField(
-          controller: c,
-          maxLines: 8,
-          style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
-          decoration: const InputDecoration(hintText: '<svg ...>', hintStyle: TextStyle(color: Colors.white38)),
+      isScrollControlled: true,
+      backgroundColor: _panel,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Paste SVG code', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: Colors.white70, size: 20),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: c,
+              maxLines: 6,
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
+              decoration: const InputDecoration(
+                hintText: '<svg ...>',
+                hintStyle: TextStyle(color: Colors.white38),
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
+              onPressed: () => Navigator.pop(ctx, c.text),
+              child: const Text('Import SVG', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, c.text), child: const Text('Import')),
-        ],
       ),
     );
     if (code != null && code.trim().isNotEmpty) _addImported('Pasted SVG', code);
@@ -159,18 +187,18 @@ class _ElementsSheetState extends State<ElementsSheet> {
           IconButton(
               tooltip: 'Draw new (pen tool)',
               onPressed: _draw,
-              icon: const Icon(Icons.draw_outlined, size: 18, color: Colors.white70)),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedPencilEdit02, size: 18, color: Colors.white70)),
           IconButton(
               tooltip: 'Paste SVG code',
               onPressed: _pasteCode,
-              icon: const Icon(Icons.code, size: 18, color: Colors.white70)),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedCode, size: 18, color: Colors.white70)),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
-                  backgroundColor: _accent, foregroundColor: Colors.black, visualDensity: VisualDensity.compact),
+                  backgroundColor: Colors.white, foregroundColor: Colors.black, visualDensity: VisualDensity.compact),
               onPressed: _importFile,
-              icon: const Icon(Icons.file_upload_outlined, size: 16),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedDownload01, size: 16, color: Colors.black),
               label: const Text('Import SVG', style: TextStyle(fontSize: 12)),
             ),
           ),
@@ -217,7 +245,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
                               onTap: () => _edit(a),
                               child: const Padding(
                                   padding: EdgeInsets.all(5),
-                                  child: Icon(Icons.edit_outlined, size: 15, color: _accent)),
+                                  child: HugeIcon(icon: HugeIcons.strokeRoundedPencilEdit02, size: 15, color: _accent)),
                             ),
                           ),
                         ]),

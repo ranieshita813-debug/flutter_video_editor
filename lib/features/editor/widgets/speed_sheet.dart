@@ -11,6 +11,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -308,7 +309,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
           IconButton(
             tooltip: 'Close',
             iconSize: 24,
-            icon: const Icon(Icons.close_rounded, color: _text),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text, size: 20),
             onPressed: _close,
           ),
           const Spacer(),
@@ -325,7 +326,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
           IconButton(
             tooltip: 'Apply',
             iconSize: 26,
-            icon: Icon(Icons.check_rounded, color: _dirty ? _accent : _text),
+            icon: HugeIcon(icon: HugeIcons.strokeRoundedTick01, color: _dirty ? _accent : _text, size: 22),
             onPressed: () => _confirm(c),
           ),
         ],
@@ -417,7 +418,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
         ),
       );
 
-  Widget _stepBtn(IconData icon, String tip, VoidCallback? f) => Semantics(
+  Widget _stepBtn(dynamic icon, String tip, VoidCallback? f) => Semantics(
         button: true,
         label: tip,
         enabled: f != null,
@@ -430,7 +431,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
               height: 40,
               decoration: BoxDecoration(
                   color: _card, borderRadius: BorderRadius.circular(8)),
-              child: Icon(icon, color: _text, size: 20),
+              child: HugeIcon(icon: icon, color: _text, size: 20),
             ),
           ),
         ),
@@ -445,7 +446,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            _stepBtn(Icons.remove_rounded, 'Slower',
+            _stepBtn(HugeIcons.strokeRoundedRemove01, 'Slower',
                 _s.speed <= kMinSpeed ? null : () => _setSpeed(_s.speed - 0.1)),
             const SizedBox(width: 12),
             // Drag the value to scrub (log scale), double-tap to return to 1x.
@@ -475,7 +476,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
               ),
             ),
             const SizedBox(width: 12),
-            _stepBtn(Icons.add_rounded, 'Faster',
+            _stepBtn(HugeIcons.strokeRoundedAdd01, 'Faster',
                 _s.speed >= kMaxSpeed ? null : () => _setSpeed(_s.speed + 0.1)),
           ],
         ),
@@ -636,9 +637,9 @@ class _SpeedSheetState extends State<SpeedSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            _pill(Icons.add_rounded, 'Add keyframe', pts.length < kMaxCurvePoints, _addPoint),
+            _pill(HugeIcons.strokeRoundedAdd01, 'Add keyframe', pts.length < kMaxCurvePoints, _addPoint),
             const SizedBox(width: 10),
-            _pill(Icons.remove_rounded, 'Delete', _canDelete, _deleteSelected),
+            _pill(HugeIcons.strokeRoundedRemove01, 'Delete', _canDelete, _deleteSelected),
           ],
         ),
         Padding(
@@ -708,7 +709,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
     );
   }
 
-  Widget _pill(IconData icon, String label, bool enabled, VoidCallback f) {
+  Widget _pill(dynamic icon, String label, bool enabled, VoidCallback f) {
     return Semantics(
       button: true,
       enabled: enabled,
@@ -722,7 +723,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
             decoration:
                 BoxDecoration(color: _card, borderRadius: BorderRadius.circular(6)),
             child: Row(mainAxisSize: MainAxisSize.min, children: <Widget>[
-              Icon(icon, size: 16, color: _text),
+              HugeIcon(icon: icon, size: 16, color: _text),
               const SizedBox(width: 4),
               Text(label,
                   style: const TextStyle(
@@ -744,7 +745,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
         _box(_fmtTime(_srcSeconds), label: 'Duration'),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Icon(Icons.arrow_forward_rounded, size: 16, color: _muted),
+          child: HugeIcon(icon: HugeIcons.strokeRoundedArrowRight01, size: 16, color: _muted),
         ),
         _box(_fmtTime(out), hot: changed),
         if (_curve) ...<Widget>[
@@ -778,7 +779,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
                   border: Border.all(color: value ? _accent : _track, width: 1.6),
                 ),
                 child: value
-                    ? const Icon(Icons.check_rounded, size: 15, color: Colors.black)
+                    ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 15, color: Colors.black)
                     : null,
               ),
               const SizedBox(width: 12),

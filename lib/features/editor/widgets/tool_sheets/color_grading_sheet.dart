@@ -15,6 +15,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import 'package:flutter_video_editor/core/models/color_grade.dart';
 
@@ -28,15 +29,15 @@ const Color _muted = Color(0xFF8E8E96);
 const Color _accent = Color(0xFF2DE2E6);
 
 enum _Tab {
-  looks('Looks', Icons.auto_awesome_outlined),
-  basic('Basic', Icons.tune_rounded),
-  creative('Creative', Icons.palette_outlined),
-  wheels('Wheels', Icons.album_outlined),
-  curves('Curves', Icons.show_chart_rounded);
+  looks('Looks', HugeIcons.strokeRoundedMagicWand01),
+  basic('Basic', HugeIcons.strokeRoundedSettings02),
+  creative('Creative', HugeIcons.strokeRoundedColors),
+  wheels('Wheels', HugeIcons.strokeRoundedCircle),
+  curves('Curves', HugeIcons.strokeRoundedPulse01);
 
   const _Tab(this.label, this.icon);
   final String label;
-  final IconData icon;
+  final dynamic icon;
 }
 
 const List<GradeParam> _wb = <GradeParam>[GradeParam.temperature, GradeParam.tint];
@@ -244,7 +245,7 @@ class _ColorGradeSheetState extends State<ColorGradeSheet> {
                       shape: BoxShape.circle,
                       border: Border.all(color: on ? _accent : Colors.transparent, width: 1.4),
                     ),
-                    child: Icon(t.icon, size: 19, color: on ? _accent : _text),
+                    child: HugeIcon(icon: t.icon, size: 19, color: on ? _accent : _text),
                   ),
                   if (_edited(t))
                     const Positioned(
@@ -291,7 +292,7 @@ class _ColorGradeSheetState extends State<ColorGradeSheet> {
           children: <Widget>[
             IconButton(
               tooltip: 'Cancel',
-              icon: const Icon(Icons.close_rounded, color: _text),
+              icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text, size: 20),
               onPressed: _cancel,
             ),
             // Press and hold to preview the original.
@@ -304,7 +305,7 @@ class _ColorGradeSheetState extends State<ColorGradeSheet> {
                 label: 'Hold to compare with original',
                 child: const Padding(
                   padding: EdgeInsets.all(10),
-                  child: Icon(Icons.compare_rounded, size: 22, color: _muted),
+                  child: HugeIcon(icon: HugeIcons.strokeRoundedView, size: 22, color: _muted),
                 ),
               ),
             ),
@@ -322,7 +323,7 @@ class _ColorGradeSheetState extends State<ColorGradeSheet> {
             const SizedBox(width: 48),
             IconButton(
               tooltip: 'Apply',
-              icon: Icon(Icons.check_rounded,
+              icon: HugeIcon(icon: HugeIcons.strokeRoundedTick01,
                   color: _g != widget.initial ? _accent : _text, size: 26),
               onPressed: _apply,
             ),
@@ -396,7 +397,7 @@ class _ColorGradeSheetState extends State<ColorGradeSheet> {
                           ),
                   ),
                   child: look == null
-                      ? const Icon(Icons.block_rounded, color: _muted, size: 20)
+                      ? const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _muted, size: 20)
                       : null,
                 ),
                 const SizedBox(height: 5),
@@ -607,7 +608,7 @@ class _Row extends StatelessWidget {
                   },
                   child: const Padding(
                     padding: EdgeInsets.all(8),
-                    child: Icon(Icons.undo_rounded, size: 14, color: _muted),
+                    child: HugeIcon(icon: HugeIcons.strokeRoundedUndo, size: 14, color: _muted),
                   ),
                 ),
               const Spacer(),
@@ -1059,7 +1060,7 @@ class _CurveEditorState extends State<_CurveEditor> {
                 child: Text('Tap to add a point',
                     style: TextStyle(color: _muted, fontSize: 12)),
               ),
-            _pill(Icons.restart_alt_rounded, 'Reset', !isDefault, () {
+            _pill(HugeIcons.strokeRoundedUndo, 'Reset', !isDefault, () {
               HapticFeedback.selectionClick();
               setState(() => _sel = null);
               widget.onChanged(ColorGrade.defaultCurve);
@@ -1098,7 +1099,7 @@ class _CurveEditorState extends State<_CurveEditor> {
         ),
       );
 
-  Widget _pill(IconData icon, String label, bool enabled, VoidCallback f) => Semantics(
+  Widget _pill(dynamic icon, String label, bool enabled, VoidCallback f) => Semantics(
         button: true,
         enabled: enabled,
         label: label,
@@ -1111,7 +1112,7 @@ class _CurveEditorState extends State<_CurveEditor> {
               decoration:
                   BoxDecoration(color: _card, borderRadius: BorderRadius.circular(6)),
               child: Row(mainAxisSize: MainAxisSize.min, children: <Widget>[
-                Icon(icon, size: 16, color: _text),
+                HugeIcon(icon: icon, size: 16, color: _text),
                 const SizedBox(width: 4),
                 Text(label,
                     style: const TextStyle(

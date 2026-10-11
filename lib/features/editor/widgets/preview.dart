@@ -195,7 +195,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     await _swap(c);
   }
 
-  Widget _placeholder(String text, {IconData icon = Icons.movie_rounded}) {
+  Widget _placeholder(String text, {dynamic icon = HugeIcons.strokeRoundedVideo01}) {
     if (_loading) {
       return const Center(
         child: SizedBox(
@@ -380,7 +380,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
           fit: fit,
           gaplessPlayback: true,
           errorBuilder: (_, __, ___) =>
-              _placeholder("Can't open this image", icon: Icons.broken_image_rounded),
+              _placeholder("Can't open this image", icon: HugeIcons.strokeRoundedImage01),
         ),
       );
     } else if (ready) {
@@ -397,7 +397,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
         ),
       );
     } else if (_failed) {
-      child = _placeholder("Can't play this file", icon: Icons.error_rounded);
+      child = _placeholder("Can't play this file", icon: HugeIcons.strokeRoundedAlertCircle);
     } else {
       child = _placeholder(clip?.label ?? 'Add media to start editing');
     }
@@ -1993,7 +1993,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.colorize_rounded, color: accentToken, size: 16),
+                        const HugeIcon(icon: HugeIcons.strokeRoundedColorPicker, color: accentToken, size: 16),
                         const SizedBox(width: 8),
                         Text(
                           _sampledColor != null
@@ -2052,16 +2052,16 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                   children: [
                     IconButton.filledTonal(
                       tooltip: 'Cancel',
-                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: Colors.white, size: 18),
                       onPressed: () => widget.editor.cancelEyedropper(),
                     ),
                     if (_sampledColor != null) ...[
                       const SizedBox(width: 12),
                       FloatingActionButton.extended(
                         elevation: 4,
-                        backgroundColor: accentToken,
+                        backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
-                        icon: const Icon(Icons.check_rounded),
+                        icon: const HugeIcon(icon: HugeIcons.strokeRoundedTick01, color: Colors.black, size: 18),
                         label: const Text('Apply Color', style: TextStyle(fontWeight: FontWeight.bold)),
                         onPressed: () => widget.editor.completeEyedropper(_sampledColor),
                       ),

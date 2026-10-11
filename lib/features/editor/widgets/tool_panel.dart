@@ -129,6 +129,44 @@ class ToolPanel extends StatelessWidget {
         ],
       );
 
+  Widget _footer() => Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: dividerToken, width: 0.5)),
+        ),
+        child: Row(
+          children: <Widget>[
+            TextButton(
+              onPressed: onClose,
+              style: TextButton.styleFrom(
+                foregroundColor: mutedToken,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              child: const Text('Cancel', style: TextStyle(fontSize: 12)),
+            ),
+            Expanded(
+              child: Text(
+                tool.title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                elevation: 0,
+                minimumSize: const Size(64, 30),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              onPressed: onClose,
+              child: const Text('Apply', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final Widget body = Expanded(
@@ -150,6 +188,7 @@ class ToolPanel extends StatelessWidget {
               SizedBox(height: 52, child: _header()),
               const Divider(height: 1, thickness: 0.5, color: dividerToken),
               body,
+              _footer(),
             ],
           ),
         ),
@@ -159,7 +198,6 @@ class ToolPanel extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         color: surfaceToken,
-        
         border: Border(top: BorderSide(color: dividerToken)),
       ),
       child: SafeArea(
@@ -193,6 +231,7 @@ class ToolPanel extends StatelessWidget {
               ),
               const Divider(height: 1, thickness: 0.5, color: dividerToken),
               body,
+              _footer(),
             ],
           ),
         ),

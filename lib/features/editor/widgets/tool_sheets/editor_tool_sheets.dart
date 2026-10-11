@@ -92,7 +92,7 @@ class _SheetHeader extends StatelessWidget {
               tapFeedback();
               onClose();
             },
-            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: Colors.white, size: 20),
           ),
           Expanded(
             child: Text(
@@ -108,7 +108,7 @@ class _SheetHeader extends StatelessWidget {
               tapFeedback();
               onApply();
             },
-            icon: const Icon(Icons.check_rounded, color: accentToken, size: 24),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedTick01, color: accentToken, size: 22),
           ),
         ],
       ),
@@ -121,12 +121,12 @@ class _SheetHeader extends StatelessWidget {
 // ----------------------------------------------------------------------------
 enum TransitionType { none, fade, slide, zoom, blur }
 
-IconData _transitionIcon(TransitionType t) => switch (t) {
-      TransitionType.none => Icons.block_rounded,
-      TransitionType.fade => Icons.blur_on_rounded,
-      TransitionType.slide => Icons.swipe_rounded,
-      TransitionType.zoom => Icons.zoom_in_rounded,
-      TransitionType.blur => Icons.blur_circular_rounded,
+dynamic _transitionIcon(TransitionType t) => switch (t) {
+      TransitionType.none => HugeIcons.strokeRoundedCancel01,
+      TransitionType.fade => HugeIcons.strokeRoundedCircle,
+      TransitionType.slide => HugeIcons.strokeRoundedArrowRight01,
+      TransitionType.zoom => HugeIcons.strokeRoundedZoomIn,
+      TransitionType.blur => HugeIcons.strokeRoundedCircle,
     };
 
 /// Opens the transition sheet. Returns the chosen type when applied, or null
@@ -464,7 +464,7 @@ class _ThumbTile extends StatelessWidget {
   final VoidCallback onTap;
   final bool selected;
   final Gradient? gradient;
-  final IconData? icon;
+  final dynamic icon;
 
   @override
   Widget build(BuildContext context) {
@@ -496,7 +496,7 @@ class _ThumbTile extends StatelessWidget {
                       child: icon == null
                           ? null
                           : Center(
-                              child: Icon(icon,
+                              child: HugeIcon(icon: icon,
                                   size: 22,
                                   color: selected ? accentToken : Colors.white70),
                             ),
@@ -511,7 +511,7 @@ class _ThumbTile extends StatelessWidget {
                         height: 16,
                         decoration:
                             const BoxDecoration(color: accentToken, shape: BoxShape.circle),
-                        child: const Icon(Icons.check_rounded,
+                        child: const HugeIcon(icon: HugeIcons.strokeRoundedTick01,
                             size: 12, color: Colors.black),
                       ),
                     ),
@@ -778,7 +778,7 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               suffixIcon: IconButton(
                 tooltip: 'Clear text',
-                icon: const Icon(Icons.cancel_rounded, color: mutedToken, size: 18),
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: mutedToken, size: 18),
                 onPressed: _ctrl.clear,
               ),
               border: OutlineInputBorder(
@@ -904,7 +904,7 @@ class EffectsSheet extends StatelessWidget {
         return _ThumbTile(
           label: _cap(fx.name),
           selected: selected,
-          icon: isNone ? Icons.block_rounded : null,
+          icon: isNone ? HugeIcons.strokeRoundedCancel01 : null,
           gradient: isNone ? null : _thumbGradient(i),
           onTap: () => editor.applyEffect(fx),
         );
@@ -1358,7 +1358,7 @@ class CameraTrackingPanel extends StatelessWidget {
         _Card(
           child: Row(
             children: <Widget>[
-              Icon(Icons.circle,
+              HugeIcon(icon: HugeIcons.strokeRoundedCircle,
                   size: 10, color: active ? Colors.greenAccent : Colors.white24),
               const SizedBox(width: 10),
               Text('Tracking: ${active ? "active" : "off"}',

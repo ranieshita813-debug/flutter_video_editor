@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -47,10 +48,10 @@ Color _typeColor(ClipType t) => switch (t) {
       _ => _cImage,
     };
 
-IconData _typeIcon(ClipType t) => switch (t) {
-      ClipType.video => Icons.videocam_rounded,
-      ClipType.audio => Icons.music_note_rounded,
-      _ => Icons.image_rounded,
+dynamic _typeIcon(ClipType t) => switch (t) {
+      ClipType.video => HugeIcons.strokeRoundedVideo01,
+      ClipType.audio => HugeIcons.strokeRoundedMusicNote01,
+      _ => HugeIcons.strokeRoundedImage01,
     };
 
 String _typeName(ClipType t) => switch (t) {
@@ -317,10 +318,10 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 children: <Widget>[
                   for (final AssetPathEntity a in _albums)
                     ListTile(
-                      leading: Icon(
-                        a.isAll
-                            ? Icons.history_rounded
-                            : Icons.folder_rounded,
+                      leading: HugeIcon(
+                        icon: a.isAll
+                            ? HugeIcons.strokeRoundedTime01
+                            : HugeIcons.strokeRoundedFolder01,
                         color: a.id == _album?.id ? _accent : _muted,
                       ),
                       title: Text(a.isAll ? 'Recent' : a.name,
@@ -563,7 +564,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: const Icon(Icons.close_rounded, color: _text),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: _text, size: 20),
             tooltip: 'Close',
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -596,7 +597,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                               ),
                             ),
                             if (_albums.isNotEmpty)
-                              const Icon(Icons.keyboard_arrow_down_rounded,
+                              const HugeIcon(icon: HugeIcons.strokeRoundedArrowDown01,
                                   color: _text, size: 20),
                           ],
                         ),
@@ -615,17 +616,16 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             ),
           ),
           IconButton(
-            icon: Icon(
-              _cols == 3
-                  ? Icons.grid_view_rounded
-                  : (_cols == 4 ? Icons.apps_rounded : Icons.grid_on_rounded),
+            icon: const HugeIcon(
+              icon: HugeIcons.strokeRoundedGridView,
               color: _text,
+              size: 20,
             ),
             tooltip: 'Grid size',
             onPressed: _cycleDensity,
           ),
           IconButton(
-            icon: const Icon(Icons.folder_open_rounded, color: _text),
+            icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolder01, color: _text, size: 20),
             tooltip: 'Browse files',
             onPressed: _browseFiles,
           ),
@@ -635,14 +635,14 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   }
 
   Widget _tabBar() {
-    Tab tab(IconData icon, String label) => Tab(
+    Tab tab(dynamic icon, String label) => Tab(
           height: 34,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(icon, size: 16),
+                HugeIcon(icon: icon, size: 16, color: _muted),
                 const SizedBox(width: 6),
                 Text(label),
               ],
@@ -673,10 +673,10 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         unselectedLabelStyle:
             const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         tabs: <Widget>[
-          tab(Icons.grid_view_rounded, 'All'),
-          tab(Icons.videocam_rounded, 'Videos'),
-          tab(Icons.image_rounded, 'Photos'),
-          tab(Icons.music_note_rounded, 'Audio'),
+          tab(HugeIcons.strokeRoundedGridView, 'All'),
+          tab(HugeIcons.strokeRoundedVideo01, 'Videos'),
+          tab(HugeIcons.strokeRoundedImage01, 'Photos'),
+          tab(HugeIcons.strokeRoundedMusicNote01, 'Audio'),
         ],
       ),
     );
@@ -692,7 +692,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       ),
       child: Row(
         children: <Widget>[
-          const Icon(Icons.info_outline_rounded, size: 16, color: _muted),
+          const HugeIcon(icon: HugeIcons.strokeRoundedInformationCircle, size: 16, color: _muted),
           const SizedBox(width: 8),
           const Expanded(
             child: Text('Limited access: only selected items are shown.',
@@ -758,7 +758,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                           color: Colors.black.withAlpha(140),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.play_arrow_rounded,
+                        child: const HugeIcon(icon: HugeIcons.strokeRoundedPlay,
                             color: Colors.white, size: 20),
                       ),
                     ),
@@ -858,7 +858,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 color: _surface,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.perm_media_outlined,
+              child: const HugeIcon(icon: HugeIcons.strokeRoundedVideo01,
                   size: 38, color: _muted),
             ),
             const SizedBox(height: 14),
@@ -884,7 +884,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(22)),
                 ),
-                icon: const Icon(Icons.folder_open_rounded, size: 18),
+                icon: const HugeIcon(icon: HugeIcons.strokeRoundedFolder01, size: 18, color: _text),
                 label: const Text('Browse audio files'),
               ),
             ],
@@ -933,7 +933,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 color: _surface,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.photo_library_outlined,
+              child: const HugeIcon(icon: HugeIcons.strokeRoundedImage01,
                   size: 44, color: _accent),
             ),
           ),
@@ -982,7 +982,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             padding: const EdgeInsets.only(right: 12),
             child: Row(
               children: <Widget>[
-                const Icon(Icons.view_timeline_rounded,
+                const HugeIcon(icon: HugeIcons.strokeRoundedLayers01,
                     size: 15, color: _muted),
                 const SizedBox(width: 6),
                 const Text('Sequence',
@@ -1105,7 +1105,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                           color: Colors.black.withAlpha(190),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.close_rounded,
+                        child: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01,
                             size: 12, color: Colors.white),
                       ),
                     ),

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -10,12 +11,12 @@ class TransportBar extends StatelessWidget {
   const TransportBar({super.key, required this.editor});
   final EditorController editor;
 
-  Widget _icon(IconData i, String tip, VoidCallback onTap, double s) => IconButton(
+  Widget _icon(dynamic i, String tip, VoidCallback onTap, double s) => IconButton(
         tooltip: tip,
         visualDensity: VisualDensity.compact,
         padding: EdgeInsets.zero,
         constraints: BoxConstraints.tightFor(width: 40 * s, height: 40 * s),
-        icon: Icon(i, color: Colors.white, size: 22 * s),
+        icon: HugeIcon(icon: i, color: Colors.white, size: 22 * s),
         onPressed: () {
           tapFeedback();
           onTap();
@@ -61,7 +62,7 @@ class TransportBar extends StatelessWidget {
               ),
             ),
           ),
-          _icon(Icons.skip_previous_rounded, 'Previous frame',
+          _icon(HugeIcons.strokeRoundedPrevious, 'Previous frame',
               () => seekPlayhead(editor, secondsOf(editor.playhead) - 1 / fpsToken), s),
           Selector<EditorController, bool>(
             selector: (_, e) => e.isPlaying,
@@ -81,8 +82,8 @@ class TransportBar extends StatelessWidget {
                   alignment: Alignment.center,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 150),
-                    child: Icon(
-                        playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    child: HugeIcon(
+                        icon: playing ? HugeIcons.strokeRoundedPause : HugeIcons.strokeRoundedPlay,
                         key: ValueKey<bool>(playing),
                         color: Colors.white,
                         size: 38 * s),
@@ -91,7 +92,7 @@ class TransportBar extends StatelessWidget {
               ),
             ),
           ),
-          _icon(Icons.skip_next_rounded, 'Next frame',
+          _icon(HugeIcons.strokeRoundedNext, 'Next frame',
               () => seekPlayhead(editor, secondsOf(editor.playhead) + 1 / fpsToken), s),
           Expanded(
             child: Align(
@@ -99,8 +100,8 @@ class TransportBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  _icon(Icons.undo_rounded, 'Undo', editor.undo, s),
-                  _icon(Icons.redo_rounded, 'Redo', editor.redo, s),
+                  _icon(HugeIcons.strokeRoundedUndo, 'Undo', editor.undo, s),
+                  _icon(HugeIcons.strokeRoundedRedo, 'Redo', editor.redo, s),
                 ],
               ),
             ),

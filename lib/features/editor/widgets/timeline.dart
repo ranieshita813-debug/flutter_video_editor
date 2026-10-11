@@ -393,7 +393,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     return null;
   }
 
-  Widget _chip(IconData icon, String tip, bool on, VoidCallback onTap) => Semantics(
+  Widget _chip(dynamic icon, String tip, bool on, VoidCallback onTap) => Semantics(
         button: true,
         label: tip,
         child: Tooltip(
@@ -413,7 +413,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                   color: on ? Colors.white : const Color(0xFF26262C),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, size: 16 * _s, color: on ? Colors.black : Colors.white),
+                child: HugeIcon(icon: icon, size: 16 * _s, color: on ? Colors.black : Colors.white),
               ),
             ),
           ),
@@ -687,14 +687,14 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                             ValueListenableBuilder<bool>(
                               valueListenable: _snap,
                               builder: (_, snap, __) => _chip(
-                                  Icons.align_horizontal_center_rounded,
+                                  HugeIcons.strokeRoundedMagnet,
                                   'Snap',
                                   snap,
                                   () => _snap.value = !_snap.value),
                             ),
-                            _chip(Icons.remove_rounded, 'Zoom out', false,
+                            _chip(HugeIcons.strokeRoundedZoomOut, 'Zoom out', false,
                                 () => _applyZoom(model.zoom - 0.5)),
-                            _chip(Icons.add_rounded, 'Zoom in', false,
+                            _chip(HugeIcons.strokeRoundedZoomIn, 'Zoom in', false,
                                 () => _applyZoom(model.zoom + 0.5)),
                           ],
                         ),
@@ -806,7 +806,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
               height: 30 * _s,
               decoration:
                   const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: Icon(Icons.add_rounded, size: 19 * _s, color: Colors.black),
+              child: HugeIcon(icon: HugeIcons.strokeRoundedAdd01, size: 19 * _s, color: Colors.black),
             ),
           ),
         ),
@@ -870,7 +870,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                       height: 24 * _s,
                       decoration: const BoxDecoration(
                           color: Colors.white, shape: BoxShape.circle),
-                      child: Icon(Icons.join_inner_rounded,
+                      child: HugeIcon(icon: HugeIcons.strokeRoundedLayers01,
                           size: 14 * _s, color: Colors.black),
                     ),
                   ),
@@ -1000,13 +1000,13 @@ class _ClipBlockState extends State<_ClipBlock> {
         final Color bg = overlayMedia
             ? const Color(0xFF673AB7)
             : (drawing ? drawTrackToken : (sticker ? fxTrackToken : textTrackToken));
-        final IconData icon = overlayMedia
+        final dynamic icon = overlayMedia
             ? (clip.type == ClipType.video
-                ? Icons.video_library_rounded
-                : Icons.image_rounded)
+                ? HugeIcons.strokeRoundedVideo01
+                : HugeIcons.strokeRoundedImage01)
             : (drawing
-                ? Icons.brush_rounded
-                : (sticker ? Icons.emoji_emotions_rounded : Icons.title_rounded));
+                ? HugeIcons.strokeRoundedPencilEdit02
+                : (sticker ? HugeIcons.strokeRoundedSmile : HugeIcons.strokeRoundedTextFont));
         body = Container(
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
@@ -1132,7 +1132,7 @@ class _ClipBlockState extends State<_ClipBlock> {
                   const Positioned(
                     top: 4,
                     left: 6,
-                    child: Icon(Icons.check_circle_rounded, size: 14, color: accentToken),
+                    child: HugeIcon(icon: HugeIcons.strokeRoundedCheckmarkCircle02, size: 14, color: accentToken),
                   ),
               ],
             ),

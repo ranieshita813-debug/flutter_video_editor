@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
@@ -68,7 +69,7 @@ class _AuthSheetState extends State<AuthSheet> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedCancel01, color: AppColors.textSecondary, size: 20),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -115,7 +116,7 @@ class _AuthSheetState extends State<AuthSheet> {
                     side: const BorderSide(color: AppColors.error),
                     minimumSize: const Size.fromHeight(48),
                   ),
-                  icon: const Icon(Icons.logout),
+                  icon: const HugeIcon(icon: HugeIcons.strokeRoundedLogout01, color: AppColors.error, size: 20),
                   label: const Text('Sign Out'),
                   onPressed: () async {
                     final navigator = Navigator.of(context);
@@ -191,7 +192,7 @@ class _AuthSheetState extends State<AuthSheet> {
                   height: 48,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.accent,
+                      backgroundColor: Colors.white,
                       foregroundColor: Colors.black,
                       elevation: 0,
                       shape: const StadiumBorder(),
