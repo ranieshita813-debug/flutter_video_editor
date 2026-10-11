@@ -28,6 +28,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/services/firebase_asset_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 
@@ -195,6 +196,7 @@ class FontLibrary extends ChangeNotifier {
 enum _FontFilter {
   all('All'),
   imported('Imported'),
+  cloud('Firebase Cloud'),
   sans('Sans'),
   serif('Serif'),
   display('Display'),
@@ -276,6 +278,8 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
   _Tab _tab = _Tab.font;
   _FontFilter _filter = _FontFilter.all;
   bool _importing = false;
+  List<RemoteFontItem> _remoteFonts = <RemoteFontItem>[];
+  bool _loadingRemoteFonts = false;
 
   final FontLibrary _library = FontLibrary.instance;
 
@@ -307,6 +311,18 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
     super.initState();
     _library.addListener(_onLibrary);
     _library.init();
+    _loadRemoteFonts();
+  }
+
+  Future<void> _loadRemoteFonts() async {
+    setState(() => _loadingRemoteFonts = true);
+    final fonts = await FirebaseAssetService.instance.fetchRemoteFonts();
+    if (mounted) {
+      setState(() {
+        _remoteFonts = fonts;
+        _loadingRemoteFonts = false;
+      });
+    }
   }
 
   @override
@@ -473,6 +489,46 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
   // ---- Font tab -------------------------------------------------------------
 
   Widget _fontTab(EditorController editor, dynamic clip) {
+    if (_filter == _FontFilter.cloud) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _filterChips(),
+          if (_loadingRemoteFonts)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: CircularProgressIndicator(color: _accent)),
+            )
+          else if (_remoteFonts.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Text(
+                'No cloud fonts available',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: EditorTokens.muted, fontFamily: 'Poppins'),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: LayoutBuilder(builder: (context, box) {
+                const int cols = 3;
+                const double gap = 8;
+                final double w = (box.maxWidth - gap * (cols - 1)) / cols;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    for (final font in _remoteFonts)
+                      _cloudFontTile(font, w, clip, editor),
+                  ],
+                );
+              }),
+            ),
+        ],
+      );
+    }
+
     final List<_FontEntry> all = _allFonts(editor);
     final List<_FontEntry> shown = all.where((f) => f.matches(_filter)).toList();
 
@@ -506,6 +562,57 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
             }),
           ),
       ],
+    );
+  }
+
+  Widget _cloudFontTile(RemoteFontItem font, double w, dynamic clip, EditorController editor) {
+    final bool isSelected = clip.fontFamily == font.name || clip.fontFamily == font.family;
+    return GestureDetector(
+      onTap: () {
+        editor.updateSelectedClipFont(font.family.isNotEmpty ? font.family : font.name);
+        _toast('Applied cloud font "${font.name}"');
+      },
+      child: Container(
+        width: w,
+        height: 68,
+        decoration: BoxDecoration(
+          color: isSelected ? _accent.withAlpha(30) : _card,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isSelected ? _accent : _line, width: isSelected ? 1.5 : 1),
+        ),
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.cloud_download_outlined, size: 12, color: _accent),
+                const SizedBox(width: 4),
+                Text(
+                  'Aa',
+                  style: TextStyle(
+                    color: isSelected ? _accent : EditorTokens.text,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              font.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isSelected ? _accent : EditorTokens.muted,
+                fontSize: 9.5,
+                fontFamily: 'Poppins',
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
