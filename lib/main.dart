@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_video_editor/app.dart';
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
+import 'package:flutter_video_editor/core/services/firebase_service.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/export/services/export_service.dart';
 
-void main() {
-  runZonedGuarded(() {
+void main() async {
+  runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    await FirebaseService.instance.initialize();
 
     // Wire real video thumbnail generator and real audio waveform decoder
     thumbGenerator = (String path, int timeMs, int maxWidth) async {

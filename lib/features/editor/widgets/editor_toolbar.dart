@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/services/feature_toggle_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 
@@ -33,53 +34,61 @@ class EditorToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final editor = context.read<EditorController>();
-    final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    return ListenableBuilder(
+      listenable: FeatureToggleService.instance,
+      builder: (context, _) {
+        final editor = context.read<EditorController>();
+        final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
 
-    final List<EditorToolbarItem> items = _getToolbarItems(context, editor, clip);
+        final List<EditorToolbarItem> allItems = _getToolbarItems(context, editor, clip);
+        final List<EditorToolbarItem> items = allItems
+            .where((item) => FeatureToggleService.instance.isFeatureEnabled(item.id))
+            .toList();
 
-    return Container(
-      height: 64,
-      decoration: const BoxDecoration(
-        color: EditorTokens.bg,
-        border: Border(top: BorderSide(color: EditorTokens.border, width: 1)),
-      ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return InkWell(
-            onTap: item.onTap,
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  HugeIcon(
-                    icon: item.icon,
-                    color: EditorTokens.text,
-                    size: 20.0,
+        return Container(
+          height: 64,
+          decoration: const BoxDecoration(
+            color: EditorTokens.bg,
+            border: Border(top: BorderSide(color: EditorTokens.border, width: 1)),
+          ),
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return InkWell(
+                onTap: item.onTap,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      HugeIcon(
+                        icon: item.icon,
+                        color: EditorTokens.text,
+                        size: 20.0,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          color: EditorTokens.text,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Poppins',
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.title,
-                    style: const TextStyle(
-                      color: EditorTokens.text,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 

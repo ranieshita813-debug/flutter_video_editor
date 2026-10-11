@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/services/firebase_asset_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_search_header.dart';
@@ -17,6 +18,7 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
   late TabController _tabController;
   String _searchQuery = '';
   String _selectedTag = 'All';
+  List<RemoteAnimationItem> _cloudAnimations = <RemoteAnimationItem>[];
 
   final List<ClipAnimation> _animations = const [
     ClipAnimation.none,
@@ -35,6 +37,16 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadCloudAnimations();
+  }
+
+  Future<void> _loadCloudAnimations() async {
+    final cloudAnims = await FirebaseAssetService.instance.fetchRemoteAnimations();
+    if (mounted) {
+      setState(() {
+        _cloudAnimations = cloudAnims;
+      });
+    }
   }
 
   @override
@@ -80,6 +92,35 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
             Tab(text: 'Out Animation'),
           ],
         ),
+        if (_cloudAnimations.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: EditorTokens.elevated,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: EditorTokens.border),
+            ),
+            child: Row(
+              children: [
+                const HugeIcon(
+                  icon: HugeIcons.strokeRoundedCloud,
+                  color: EditorTokens.accent,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${_cloudAnimations.length} Firebase Cloud Animations Synced',
+                  style: const TextStyle(
+                    color: EditorTokens.text,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Poppins',
+                  ),
+                ),
+              ],
+            ),
+          ),
         ToolSearchHeader(
           onSearchChanged: (q) => setState(() => _searchQuery = q),
           onTagSelected: (t) => setState(() => _selectedTag = t),

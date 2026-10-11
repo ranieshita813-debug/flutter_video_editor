@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/models/shader_effect_model.dart';
+import 'package:flutter_video_editor/core/services/firebase_asset_service.dart';
 import 'package:flutter_video_editor/features/effects/services/shader_database_service.dart';
 
 class ShaderEffectService extends ChangeNotifier {
@@ -29,6 +30,12 @@ class ShaderEffectService extends ChangeNotifier {
     try {
       final seeds = _getBuiltInEffectSeeds();
       await ShaderDatabaseService.instance.initialize(seeds: seeds);
+
+      final remoteEffects = await FirebaseAssetService.instance.fetchRemoteEffects();
+      if (remoteEffects.isNotEmpty) {
+        await ShaderDatabaseService.instance.initialize(seeds: remoteEffects);
+      }
+
       _isLoading = false;
       notifyListeners();
     } catch (e, stack) {

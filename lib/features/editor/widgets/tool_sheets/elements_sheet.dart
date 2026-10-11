@@ -1,30 +1,22 @@
-// pubspec.yaml additions:
-//   flutter_svg: ^2.0.10
-//   xml: ^6.5.0
-//   path_drawing: ^1.0.1
-//   file_picker: ^8.0.0
-//
-// EditorController needs one new method (see bottom of file).
-
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/models/svg_model.dart';
+import 'package:flutter_video_editor/core/services/firebase_asset_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
-import 'package:flutter_video_editor/features/editor/widgets/tool_search_header.dart';
-import 'package:flutter_video_editor/core/models/svg_model.dart';
 import 'package:flutter_video_editor/features/editor/widgets/svg_editor.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_search_header.dart';
 
 const _accent = Color(0xFF9999FF); // Premiere purple
 const _panel = Color(0xFF232323);
 const _bg = Color(0xFF181818);
 const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Poppins');
-
-// ───────────────────────── ELEMENTS LIBRARY SHEET ─────────────────────────
 
 class _Asset {
   _Asset(this.name, this.svg);
@@ -67,8 +59,27 @@ class ElementsSheet extends StatefulWidget {
 class _ElementsSheetState extends State<ElementsSheet> {
   String _searchQuery = '';
   String _selectedTag = 'All';
-  int _tab = 0; // 0 = Shapes, 1 = My SVG
-  final List<_Asset> _mine = [];
+  int _tab = 0; // 0 = Shapes, 1 = Firebase Cloud, 2 = My SVG
+  final List<_Asset> _mine = <_Asset>[];
+  List<RemoteElementItem> _cloudElements = <RemoteElementItem>[];
+  bool _loadingCloud = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCloudElements();
+  }
+
+  Future<void> _loadCloudElements() async {
+    setState(() => _loadingCloud = true);
+    final elements = await FirebaseAssetService.instance.fetchRemoteElements();
+    if (mounted) {
+      setState(() {
+        _cloudElements = elements;
+        _loadingCloud = false;
+      });
+    }
+  }
 
   Future<void> _importFile() async {
     final res = await FilePicker.platform
@@ -105,7 +116,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
       SvgDoc.parse(svg); // validate
       setState(() {
         _mine.insert(0, _Asset(name, svg));
-        _tab = 1;
+        _tab = 2;
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invalid SVG: $e')));
@@ -137,10 +148,17 @@ class _ElementsSheetState extends State<ElementsSheet> {
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
     final q = _searchQuery.toLowerCase();
-    final assets = _tab == 0
-        ? ElementShape.values.map((s) => _Asset(s.name, svgForShape(s))).toList()
-        : _mine;
-    final filtered = assets.where((a) => a.name.toLowerCase().contains(q)).toList();
+
+    List<_Asset> currentAssets = <_Asset>[];
+    if (_tab == 0) {
+      currentAssets = ElementShape.values.map((s) => _Asset(s.name, svgForShape(s))).toList();
+    } else if (_tab == 1) {
+      currentAssets = _cloudElements.map((e) => _Asset(e.name, e.svgContent)).toList();
+    } else {
+      currentAssets = _mine;
+    }
+
+    final filtered = currentAssets.where((a) => a.name.toLowerCase().contains(q)).toList();
 
     return Container(
       color: _bg,
@@ -149,12 +167,12 @@ class _ElementsSheetState extends State<ElementsSheet> {
           onSearchChanged: (q) => setState(() => _searchQuery = q),
           onTagSelected: (t) => setState(() => _selectedTag = t),
           selectedTag: _selectedTag,
-          placeholder: 'Search graphics...',
+          placeholder: 'Search graphics & Firebase elements...',
         ),
-        // Premiere-style panel tabs
         Row(children: [
           _tabBtn('Shapes', 0),
-          _tabBtn('My SVG (${_mine.length})', 1),
+          _tabBtn('Firebase Cloud (${_cloudElements.length})', 1),
+          _tabBtn('My SVG (${_mine.length})', 2),
           const Spacer(),
           IconButton(
               tooltip: 'Draw new (pen tool)',
@@ -177,54 +195,65 @@ class _ElementsSheetState extends State<ElementsSheet> {
         ]),
         const Divider(height: 1, color: Colors.white12),
         Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Text(_tab == 1 ? 'Import or paste an SVG to start' : 'No results',
-                      style: _lbl.copyWith(fontSize: 13)))
-              : GridView.builder(
-                  padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.05),
-                  itemCount: filtered.length,
-                  itemBuilder: (_, i) {
-                    final a = filtered[i];
-                    return GestureDetector(
-                      onTap: () => editor.addSvgElementClip(a.svg, a.name),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: EditorTokens.elevated,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: EditorTokens.border),
-                        ),
-                        child: Stack(children: [
-                          Positioned.fill(
-                              child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 26),
-                                  child: SvgPicture.string(a.svg, fit: BoxFit.contain))),
-                          Positioned(
-                              left: 8,
-                              right: 8,
-                              bottom: 6,
-                              child: Text(a.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      color: EditorTokens.text, fontSize: 10.5, fontFamily: 'Poppins'))),
-                          Positioned(
-                            top: 2,
-                            right: 2,
-                            child: InkWell(
-                              onTap: () => _edit(a),
-                              child: const Padding(
-                                  padding: EdgeInsets.all(5),
-                                  child: Icon(Icons.edit_outlined, size: 15, color: _accent)),
+          child: _tab == 1 && _loadingCloud
+              ? const Center(child: CircularProgressIndicator(color: _accent))
+              : filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                          _tab == 2
+                              ? 'Import or paste an SVG to start'
+                              : (_tab == 1 ? 'No cloud elements found' : 'No results'),
+                          style: _lbl.copyWith(fontSize: 13)))
+                  : GridView.builder(
+                      padding: const EdgeInsets.all(12),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.05),
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final a = filtered[i];
+                        return GestureDetector(
+                          onTap: () {
+                            editor.addSvgElementClip(a.svg, a.name);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Added "${a.name}" to canvas')),
+                            );
+                          },
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: EditorTokens.elevated,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: EditorTokens.border),
                             ),
+                            child: Stack(children: [
+                              Positioned.fill(
+                                  child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 26),
+                                      child: SvgPicture.string(a.svg, fit: BoxFit.contain))),
+                              Positioned(
+                                  left: 8,
+                                  right: 8,
+                                  bottom: 6,
+                                  child: Text(a.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          color: EditorTokens.text, fontSize: 10.5, fontFamily: 'Poppins'))),
+                              if (_tab != 0)
+                                Positioned(
+                                  top: 2,
+                                  right: 2,
+                                  child: InkWell(
+                                    onTap: () => _edit(a),
+                                    child: const Padding(
+                                        padding: EdgeInsets.all(5),
+                                        child: Icon(Icons.edit_outlined, size: 15, color: _accent)),
+                                  ),
+                                ),
+                            ]),
                           ),
-                        ]),
-                      ),
-                    );
-                  },
-                ),
+                        );
+                      },
+                    ),
         ),
       ]),
     );

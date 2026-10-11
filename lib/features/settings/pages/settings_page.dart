@@ -3,6 +3,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
+import 'package:flutter_video_editor/core/services/feature_toggle_service.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -122,6 +123,71 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 24),
+
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 8),
+              child: Text(
+                'FEATURE & TOOL TOGGLES',
+                style: TextStyle(
+                  color: EditorTokens.faint,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            ListenableBuilder(
+              listenable: FeatureToggleService.instance,
+              builder: (context, _) {
+                final flags = FeatureToggleService.instance.featureFlags;
+                return Container(
+                  decoration: BoxDecoration(
+                    color: EditorTokens.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: EditorTokens.border),
+                  ),
+                  child: Column(
+                    children: flags.entries.map((entry) {
+                      final key = entry.key;
+                      final enabled = entry.value;
+                      final title = _getToolTitle(key);
+                      final icon = _getToolIcon(key);
+
+                      return Column(
+                        children: [
+                          SwitchListTile(
+                            value: enabled,
+                            activeThumbColor: Colors.black,
+                            activeTrackColor: EditorTokens.accent,
+                            secondary: HugeIcon(
+                              icon: icon,
+                              color: EditorTokens.text,
+                              size: 20,
+                            ),
+                            title: Text(
+                              title,
+                              style: const TextStyle(color: EditorTokens.text, fontSize: 14),
+                            ),
+                            subtitle: Text(
+                              enabled ? 'Enabled in Editor Toolbar' : 'Disabled / Hidden',
+                              style: TextStyle(
+                                color: enabled ? EditorTokens.muted : Colors.redAccent,
+                                fontSize: 11,
+                              ),
+                            ),
+                            onChanged: (val) {
+                              FeatureToggleService.instance.setFeatureEnabled(key, val);
+                            },
+                          ),
+                          const Divider(height: 1, color: EditorTokens.border),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -342,5 +408,59 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     );
+  }
+
+  String _getToolTitle(String key) {
+    switch (key) {
+      case 'effects':
+        return 'Shader Effects Tool';
+      case 'filters':
+        return 'Color Filters Tool';
+      case 'chroma_key':
+        return 'Chroma Key Green Screen';
+      case 'auto_captions':
+        return 'AI Auto Captions';
+      case 'elements':
+        return 'SVG Elements Library';
+      case 'stickers':
+        return 'Stickers Tool';
+      case 'draw':
+        return 'Hand Drawing Tool';
+      case 'speed':
+        return 'Speed Curves Tool';
+      case 'adjust':
+        return 'Color Adjustments Tool';
+      case 'track':
+        return 'Track Controls Tool';
+      default:
+        return key.toUpperCase();
+    }
+  }
+
+  dynamic _getToolIcon(String key) {
+    switch (key) {
+      case 'effects':
+        return HugeIcons.strokeRoundedMagicWand01;
+      case 'filters':
+        return HugeIcons.strokeRoundedFilter;
+      case 'chroma_key':
+        return HugeIcons.strokeRoundedFilter;
+      case 'auto_captions':
+        return HugeIcons.strokeRoundedTextFont;
+      case 'elements':
+        return HugeIcons.strokeRoundedShapes;
+      case 'stickers':
+        return HugeIcons.strokeRoundedSmile;
+      case 'draw':
+        return HugeIcons.strokeRoundedPencilEdit02;
+      case 'speed':
+        return HugeIcons.strokeRoundedTime01;
+      case 'adjust':
+        return HugeIcons.strokeRoundedLayers01;
+      case 'track':
+        return HugeIcons.strokeRoundedTarget01;
+      default:
+        return HugeIcons.strokeRoundedSettings01;
+    }
   }
 }
