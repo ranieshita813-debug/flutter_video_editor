@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
@@ -96,6 +97,7 @@ abstract final class FxShaders {
     required String effectId,
     Map<String, double> params = const <String, double>{},
     Duration time = Duration.zero,
+    Size? size,
   }) {
     if (effectId == 'blur') {
       final double s =
@@ -110,9 +112,39 @@ abstract final class FxShaders {
     final ui.FragmentProgram? program = def == null ? null : _programs[def.id];
     if (def == null || program == null || def.isText) return child;
 
-    // A fresh shader per frame so ImageFiltered sees a changed filter and repaints.
+    if (size != null) {
+      return _buildVideoShaderWidget(child, program, def, size, params, time);
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final Size effectiveSize = Size(
+          constraints.hasBoundedWidth && constraints.maxWidth > 0
+              ? constraints.maxWidth
+              : 1920.0,
+          constraints.hasBoundedHeight && constraints.maxHeight > 0
+              ? constraints.maxHeight
+              : 1080.0,
+        );
+        return _buildVideoShaderWidget(child, program, def, effectiveSize, params, time);
+      },
+    );
+  }
+
+  static Widget _buildVideoShaderWidget(
+    Widget child,
+    ui.FragmentProgram program,
+    FxDef def,
+    Size size,
+    Map<String, double> params,
+    Duration time,
+  ) {
     final ui.FragmentShader shader = program.fragmentShader();
-    int i = 2; // uSize (0,1) is supplied by the engine
+    final double w = math.max(1.0, size.width);
+    final double h = math.max(1.0, size.height);
+    shader.setFloat(0, w);
+    shader.setFloat(1, h);
+    int i = 2;
     shader.setFloat(i++, time.inMicroseconds / 1e6);
     for (final p in def.params) {
       shader.setFloat(i++, _val(p, params));
@@ -134,9 +166,11 @@ abstract final class FxShaders {
       blendMode: effectId == 'text_glass_shine' ? BlendMode.srcATop : BlendMode.srcIn,
       shaderCallback: (Rect b) {
         final ui.FragmentShader s = program.fragmentShader();
+        final double w = math.max(1.0, b.width);
+        final double h = math.max(1.0, b.height);
         s
-          ..setFloat(0, b.width)
-          ..setFloat(1, b.height)
+          ..setFloat(0, w)
+          ..setFloat(1, h)
           ..setFloat(2, t)
           ..setFloat(3, intensity.clamp(0.0, 1.0).toDouble());
         return s;
