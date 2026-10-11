@@ -35,8 +35,24 @@ flutter:
   assets:
     - assets/
     - assets/fonts/
-
+    
   shaders:
+    - assets/shaders/chromatic_aberration.frag
+    - assets/shaders/digital_glitch.frag
+    - assets/shaders/vhs_tape.frag
+    - assets/shaders/film_grain.frag
+    - assets/shaders/cinematic_vignette.frag
+    - assets/shaders/dream_bloom.frag
+    - assets/shaders/mosaic_pixelate.frag
+    - assets/shaders/liquid_wave.frag
+    - assets/shaders/cinematic_grade.frag
+    - assets/shaders/crisp_sharpen.frag
+    - assets/shaders/lens_distortion.frag
+    - assets/shaders/speed_zoom_blur.frag
+    - assets/shaders/light_leak.frag
+    - assets/shaders/text_gold_foil.frag
+    - assets/shaders/text_holographic.frag
+    - assets/shaders/text_glass_shine.frag
     - shaders/chroma_key.frag
     - shaders/vhs.frag
     - shaders/wave.frag

@@ -1,0 +1,147 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/widgets.dart';
+
+class FxParam {
+  const FxParam(this.name, this.min, this.max, this.def);
+  final String name;
+  final double min, max, def;
+}
+
+class FxDef {
+  const FxDef(this.id, this.label, this.params, {this.isText = false});
+  final String id;
+  final String label;
+  final List<FxParam> params; // order MUST match the .frag uniforms
+  final bool isText;
+  String get asset => 'assets/shaders/$id.frag';
+}
+
+abstract final class FxShaders {
+  static const List<FxDef> all = <FxDef>[
+    FxDef('chromatic_aberration', 'Chromatic Aberration', [FxParam('amount', 0, 1, 0.5)]),
+    FxDef('digital_glitch', 'Digital Glitch',
+        [FxParam('amount', 0, 1, 0.7), FxParam('speed', 0.2, 4, 1.5)]),
+    FxDef('vhs_tape', 'VHS Tape',
+        [FxParam('amount', 0, 1, 0.7), FxParam('speed', 0.2, 4, 1.0)]),
+    FxDef('film_grain', 'Film Grain',
+        [FxParam('amount', 0, 1, 0.5), FxParam('sizePx', 1, 4, 1.5)]),
+    FxDef('cinematic_vignette', 'Cinematic Vignette',
+        [FxParam('strength', 0, 1, 0.6), FxParam('softness', 0, 1, 0.6)]),
+    FxDef('dream_bloom', 'Dream Bloom', [
+      FxParam('intensity', 0, 1, 0.5),
+      FxParam('threshold', 0.2, 0.95, 0.6),
+      FxParam('radius', 0.1, 1, 0.5),
+    ]),
+    FxDef('mosaic_pixelate', 'Mosaic Pixelate', [FxParam('sizePx', 2, 64, 12)]),
+    FxDef('liquid_wave', 'Liquid Wave', [
+      FxParam('amount', 0, 2, 1),
+      FxParam('freq', 0.5, 6, 2),
+      FxParam('speed', 0.2, 4, 1),
+    ]),
+    FxDef('cinematic_grade', 'Teal & Orange Grade',
+        [FxParam('intensity', 0, 1, 0.7), FxParam('warmth', -1, 1, 0)]),
+    FxDef('crisp_sharpen', 'Crisp Sharpen', [FxParam('amount', 0, 1, 0.5)]),
+    FxDef('lens_distortion', 'Lens Distortion', [FxParam('amount', -1, 1, 0.4)]),
+    FxDef('speed_zoom_blur', 'Speed Zoom Blur', [
+      FxParam('amount', 0, 1, 0.5),
+      FxParam('centerX', 0, 1, 0.5),
+      FxParam('centerY', 0, 1, 0.5),
+    ]),
+    FxDef('light_leak', 'Light Leak',
+        [FxParam('intensity', 0, 1, 0.6), FxParam('speed', 0.2, 3, 1)]),
+    FxDef('text_gold_foil', 'Gold Foil', [FxParam('intensity', 0, 1, 0.8)], isText: true),
+    FxDef('text_holographic', 'Holographic', [FxParam('intensity', 0, 1, 0.8)], isText: true),
+    FxDef('text_glass_shine', 'Glass Shine', [FxParam('intensity', 0, 1, 0.9)], isText: true),
+  ];
+
+  static final Map<String, FxDef> byId = <String, FxDef>{for (final d in all) d.id: d};
+  static final Map<String, ui.FragmentProgram> _programs = <String, ui.FragmentProgram>{};
+
+  /// Maps this library's param names to the names your existing effects use.
+  static const Map<String, String> _legacy = <String, String>{
+    'amount': 'distortionAmount',
+    'intensity': 'glowStrength',
+    'strength': 'vignette',
+  };
+
+  /// Maps your existing effect ids to the new shaders.
+  static const Map<String, String> _idAlias = <String, String>{
+    'glitch': 'digital_glitch',
+    'vhs': 'vhs_tape',
+    'wave': 'liquid_wave',
+    'vignette': 'cinematic_vignette',
+    'glow': 'dream_bloom',
+  };
+
+  /// Call once at startup, before runApp.
+  static Future<void> preload() async {
+    for (final d in all) {
+      try {
+        _programs[d.id] = await ui.FragmentProgram.fromAsset(d.asset);
+      } catch (e) {
+        debugPrint('Shader ${d.id} failed to load: $e');
+      }
+    }
+  }
+
+  static double _val(FxParam p, Map<String, double> m) {
+    final double v = m[p.name] ?? m[_legacy[p.name]] ?? p.def;
+    return v.clamp(p.min, p.max).toDouble();
+  }
+
+  /// Video effect. Needs Impeller (ImageFilter.shader).
+  static Widget applyVideo({
+    required Widget child,
+    required String effectId,
+    Map<String, double> params = const <String, double>{},
+    Duration time = Duration.zero,
+  }) {
+    if (effectId == 'blur') {
+      final double s =
+          ((params['blurAmount'] ?? params['amount'] ?? 0.5) * 12).clamp(0.0, 40.0).toDouble();
+      if (s < 0.1) return child;
+      return ImageFiltered(
+        imageFilter: ui.ImageFilter.blur(sigmaX: s, sigmaY: s, tileMode: TileMode.clamp),
+        child: child,
+      );
+    }
+    final FxDef? def = byId[_idAlias[effectId] ?? effectId];
+    final ui.FragmentProgram? program = def == null ? null : _programs[def.id];
+    if (def == null || program == null || def.isText) return child;
+
+    // A fresh shader per frame so ImageFiltered sees a changed filter and repaints.
+    final ui.FragmentShader shader = program.fragmentShader();
+    int i = 2; // uSize (0,1) is supplied by the engine
+    shader.setFloat(i++, time.inMicroseconds / 1e6);
+    for (final p in def.params) {
+      shader.setFloat(i++, _val(p, params));
+    }
+    return ImageFiltered(imageFilter: ui.ImageFilter.shader(shader), child: child);
+  }
+
+  /// Text effect, e.g. FxShaders.applyText(child: textWidget, effectId: 'text_gold_foil', ...)
+  static Widget applyText({
+    required Widget child,
+    required String effectId,
+    Duration time = Duration.zero,
+    double intensity = 1.0,
+  }) {
+    final ui.FragmentProgram? program = _programs[effectId];
+    if (program == null) return child;
+    final double t = time.inMicroseconds / 1e6;
+    return ShaderMask(
+      blendMode: effectId == 'text_glass_shine' ? BlendMode.srcATop : BlendMode.srcIn,
+      shaderCallback: (Rect b) {
+        final ui.FragmentShader s = program.fragmentShader();
+        s
+          ..setFloat(0, b.width)
+          ..setFloat(1, b.height)
+          ..setFloat(2, t)
+          ..setFloat(3, intensity.clamp(0.0, 1.0).toDouble());
+        return s;
+      },
+      child: child,
+    );
+  }
+}
