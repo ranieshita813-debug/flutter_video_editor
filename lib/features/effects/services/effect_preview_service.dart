@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
+import 'package:flutter_video_editor/features/editor/widgets/fx_shader.dart';
 
 abstract class NativeShaderBackend {
   Future<void> setupEffectRenderer(String effectId, String shaderSource);
@@ -68,6 +69,22 @@ class FlutterShaderPreviewRenderer {
         ),
         child: result,
       );
+    }
+
+    final Map<String, double> doubleParams = <String, double>{};
+    parameters.forEach((k, v) {
+      if (v is num) doubleParams[k] = v.toDouble();
+    });
+
+    final shaderApplied = FxShaders.applyVideo(
+      child: result,
+      effectId: clip.effectId,
+      params: doubleParams,
+      time: playheadTime,
+    );
+
+    if (shaderApplied != result) {
+      return shaderApplied;
     }
 
     final String effectId = clip.effectId.toLowerCase();

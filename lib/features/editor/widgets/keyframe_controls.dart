@@ -9,7 +9,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 const Color _barBg = Color(0xFF111111);
 
 /// Bar shown between the preview and the timeline:
-/// [prev kf] [add/remove kf] [next kf] [curve]   time   [play/pause]
+/// [prev kf] [add/remove kf] [next kf] [curve]   time
 class PreviewControlsBar extends StatelessWidget {
   const PreviewControlsBar({super.key, required this.editor});
   final EditorController editor;
@@ -18,7 +18,7 @@ class PreviewControlsBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: _barBg,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: Row(
         children: <Widget>[
           KeyframeControls(editor: editor),
@@ -33,22 +33,6 @@ class PreviewControlsBar extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-              ),
-            ),
-          ),
-          const Spacer(),
-          ListenableBuilder(
-            listenable: editor,
-            builder: (_, __) => IconButton(
-              tooltip: editor.isPlaying ? 'Pause' : 'Play',
-              onPressed: () {
-                tapFeedback();
-                editor.togglePlayback();
-              },
-              icon: Icon(
-                editor.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: 28,
               ),
             ),
           ),

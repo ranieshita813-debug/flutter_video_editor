@@ -22,8 +22,15 @@ String _fmt(Duration d) {
 
 String _fmtDate(DateTime d) => '${_months[d.month - 1]} ${d.day}';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int _currentIndex = 1; // 0: Template, 1: Home, 2: Projects
 
   void _createNewProject(BuildContext context) {
     Navigator.of(context).push(
@@ -232,41 +239,205 @@ class HomePage extends StatelessWidget {
     final List<Project> projects = projectsController.projects;
 
     return Scaffold(
-      backgroundColor: EditorTokens.bg,
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: <Widget>[
-            SliverToBoxAdapter(child: _buildHeader(context)),
-            SliverToBoxAdapter(child: _buildNewProjectButton(context)),
-            SliverToBoxAdapter(child: _buildSectionHeader(projects.length)),
-            if (projects.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _buildEmptyState(context),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 14,
-                    childAspectRatio: 0.48,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (BuildContext context, int index) => _buildProjectCard(
-                      context,
-                      projects[index],
-                      projectsController,
-                    ),
-                    childCount: projects.length,
-                  ),
-                ),
-              ),
+        child: IndexedStack(
+          index: _currentIndex,
+          children: <Widget>[
+            _buildTemplateTab(context),
+            _buildHomeTab(context, projects, projectsController),
+            _buildProjectsTab(context, projects, projectsController),
           ],
         ),
       ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.grey,
+        backgroundColor: Colors.white,
+        elevation: 8,
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: HugeIcon(
+              icon: HugeIcons.strokeRoundedGridView,
+              color: Colors.grey,
+              size: 22,
+            ),
+            activeIcon: HugeIcon(
+              icon: HugeIcons.strokeRoundedGridView,
+              color: Colors.black,
+              size: 22,
+            ),
+            label: 'Template',
+          ),
+          BottomNavigationBarItem(
+            icon: HugeIcon(
+              icon: HugeIcons.strokeRoundedVideo01,
+              color: Colors.grey,
+              size: 22,
+            ),
+            activeIcon: HugeIcon(
+              icon: HugeIcons.strokeRoundedVideo01,
+              color: Colors.black,
+              size: 22,
+            ),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: HugeIcon(
+              icon: HugeIcons.strokeRoundedFolder01,
+              color: Colors.grey,
+              size: 22,
+            ),
+            activeIcon: HugeIcon(
+              icon: HugeIcons.strokeRoundedFolder01,
+              color: Colors.black,
+              size: 22,
+            ),
+            label: 'Projects',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHomeTab(
+    BuildContext context,
+    List<Project> projects,
+    ProjectsController projectsController,
+  ) {
+    return CustomScrollView(
+      slivers: <Widget>[
+        SliverToBoxAdapter(child: _buildHeader(context)),
+        SliverToBoxAdapter(child: _buildNewProjectButton(context)),
+        SliverToBoxAdapter(child: _buildSectionHeader(projects.length)),
+        if (projects.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyState(context),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 14,
+                childAspectRatio: 0.48,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (BuildContext context, int index) => _buildProjectCard(
+                  context,
+                  projects[index],
+                  projectsController,
+                ),
+                childCount: projects.length,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildProjectsTab(
+    BuildContext context,
+    List<Project> projects,
+    ProjectsController projectsController,
+  ) {
+    return CustomScrollView(
+      slivers: <Widget>[
+        SliverToBoxAdapter(child: _buildHeader(context)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Text(
+                  'All Projects (${projects.length})',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _createNewProject(context),
+                  icon: const HugeIcon(
+                    icon: HugeIcons.strokeRoundedAdd01,
+                    color: Colors.black,
+                    size: 24,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (projects.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyState(context),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.72,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (BuildContext context, int index) => _buildProjectCard(
+                  context,
+                  projects[index],
+                  projectsController,
+                ),
+                childCount: projects.length,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTemplateTab(BuildContext context) {
+    return Column(
+      children: <Widget>[
+        _buildHeader(context),
+        const Expanded(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                HugeIcon(
+                  icon: HugeIcons.strokeRoundedGridView,
+                  color: Colors.grey,
+                  size: 48,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Video Templates',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Explore trending templates and quick creation presets.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -284,7 +455,7 @@ class HomePage extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: SvgPicture.asset(
-                'assets/logo_white.svg',
+                'assets/logo_black.svg',
                 height: 48,
               ),
             ),
@@ -294,11 +465,11 @@ class HomePage extends StatelessWidget {
             onPressed: () => _openAccount(context),
             icon: CircleAvatar(
               radius: 14,
-              backgroundColor: EditorTokens.accent,
+              backgroundColor: Colors.black,
               child: Text(
                 initial,
                 style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black),
+                    fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white),
               ),
             ),
           ),
@@ -307,7 +478,7 @@ class HomePage extends StatelessWidget {
             onPressed: () => _openSettings(context),
             icon: const HugeIcon(
               icon: HugeIcons.strokeRoundedSettings02,
-              color: EditorTokens.text,
+              color: Colors.black,
               size: 22,
             ),
           ),
@@ -326,13 +497,13 @@ class HomePage extends StatelessWidget {
           onPressed: () => _createNewProject(context),
           icon: const HugeIcon(
             icon: HugeIcons.strokeRoundedAdd01,
-            color: Colors.black,
+            color: Colors.white,
             size: 22,
           ),
           label: const Text('New project'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: EditorTokens.text,
-            foregroundColor: Colors.black,
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
             elevation: 0,
             shape: const StadiumBorder(),
             textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
@@ -353,10 +524,10 @@ class HomePage extends StatelessWidget {
               style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: EditorTokens.text)),
+                  color: Colors.black)),
           const SizedBox(width: 8),
           Text('$count',
-              style: const TextStyle(fontSize: 13, color: EditorTokens.muted)),
+              style: const TextStyle(fontSize: 13, color: Colors.grey)),
         ],
       ),
     );
@@ -370,7 +541,7 @@ class HomePage extends StatelessWidget {
         children: <Widget>[
           const HugeIcon(
             icon: HugeIcons.strokeRoundedVideo01,
-            color: EditorTokens.faint,
+            color: Colors.grey,
             size: 48,
           ),
           const SizedBox(height: 16),
@@ -378,19 +549,19 @@ class HomePage extends StatelessWidget {
               style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: EditorTokens.text)),
+                  color: Colors.black)),
           const SizedBox(height: 8),
           const Text(
             'Import videos and photos, then trim, add text, and export.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, height: 1.4, color: EditorTokens.muted),
+            style: TextStyle(fontSize: 13, height: 1.4, color: Colors.grey),
           ),
           const SizedBox(height: 20),
           OutlinedButton(
             onPressed: () => _createNewProject(context),
             style: OutlinedButton.styleFrom(
-              foregroundColor: EditorTokens.text,
-              side: const BorderSide(color: EditorTokens.border),
+              foregroundColor: Colors.black,
+              side: const BorderSide(color: Colors.grey),
               shape: const StadiumBorder(),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
@@ -421,12 +592,12 @@ class HomePage extends StatelessWidget {
                 fit: StackFit.expand,
                 children: <Widget>[
                   Container(
-                    color: EditorTokens.elevated,
+                    color: const Color(0xFFF0F0F0),
                     child: const Center(
                       child: HugeIcon(
                         icon: HugeIcons.strokeRoundedPlay,
                         size: 28,
-                        color: EditorTokens.faint,
+                        color: Colors.grey,
                       ),
                     ),
                   ),
@@ -443,7 +614,7 @@ class HomePage extends StatelessWidget {
                       child: Text(
                         _fmt(project.duration),
                         style: const TextStyle(
-                            color: EditorTokens.text,
+                            color: Colors.white,
                             fontSize: 10,
                             fontWeight: FontWeight.w600),
                       ),
@@ -465,7 +636,7 @@ class HomePage extends StatelessWidget {
                         child: const HugeIcon(
                           icon: HugeIcons.strokeRoundedMoreHorizontal,
                           size: 16,
-                          color: EditorTokens.text,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -482,13 +653,13 @@ class HomePage extends StatelessWidget {
             style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: EditorTokens.text),
+                color: Colors.black),
           ),
           const SizedBox(height: 1),
           Text(
             _fmtDate(project.updatedAt),
             maxLines: 1,
-            style: const TextStyle(fontSize: 10, color: EditorTokens.muted),
+            style: const TextStyle(fontSize: 10, color: Colors.grey),
           ),
         ],
       ),
