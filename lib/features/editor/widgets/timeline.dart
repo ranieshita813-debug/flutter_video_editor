@@ -887,10 +887,10 @@ class _ClipBlockState extends State<_ClipBlock> {
   Widget _frame(Widget child, {Color? color}) => Container(
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.zero,
         ),
         foregroundDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.zero,
           border: Border.all(
             color: widget.selected ? Colors.white : Colors.transparent,
             width: 2,

@@ -194,7 +194,7 @@ class _AuthSheetState extends State<AuthSheet> {
                       backgroundColor: AppColors.accent,
                       foregroundColor: Colors.black,
                       elevation: 0,
-                      shape: const StadiumBorder(),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     onPressed: authController.isLoading

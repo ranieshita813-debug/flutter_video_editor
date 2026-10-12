@@ -424,7 +424,7 @@ Widget _primaryBtn(dynamic icon, String label, VoidCallback? onPressed) => Sized
           disabledBackgroundColor: cardToken,
           disabledForegroundColor: mutedToken,
           elevation: 0,
-          shape: const StadiumBorder(),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
         onPressed: onPressed == null
@@ -451,7 +451,7 @@ Widget _primaryBtn(dynamic icon, String label, VoidCallback? onPressed) => Sized
 Widget _outlineBtn(String label, VoidCallback? onPressed) => OutlinedButton(
       style: OutlinedButton.styleFrom(
         side: const BorderSide(color: dividerToken),
-        shape: const StadiumBorder(),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         minimumSize: const Size.fromHeight(46),
         foregroundColor: Colors.white,
         disabledForegroundColor: mutedToken,
@@ -962,7 +962,9 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
   void _syncFrom(TimelineClip? clip) {
     if (clip?.id == _syncedId) return;
     _syncedId = clip?.id;
-    if (clip != null && clip.clipType == ClipType.text) {
+    if (clip != null && (clip.clipType == ClipType.text || clip.clipType == ClipType.caption)) {
+      _selectedFont = clip.fontFamily;
+      _anim = clip.textAnimationStyle;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _ctrl.text = clip.label;
       });
@@ -990,6 +992,13 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
             controller: _ctrl,
             style: const TextStyle(color: Colors.white, fontSize: 14),
             textInputAction: TextInputAction.done,
+            onChanged: (val) {
+              if (editing) {
+                final String text = val.trim().isEmpty ? 'Text' : val;
+                editor.updateSelectedTextProperties(
+                    text: text, fontFamily: _selectedFont, textAnimationStyle: _anim);
+              }
+            },
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Text content',
@@ -1000,9 +1009,15 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
               suffixIcon: IconButton(
                 tooltip: 'Clear text',
                 icon: const Icon(Icons.cancel_rounded, color: mutedToken, size: 18),
-                onPressed: _ctrl.clear,
+                onPressed: () {
+                  _ctrl.clear();
+                  if (editing) {
+                    editor.updateSelectedTextProperties(
+                        text: 'Text', fontFamily: _selectedFont, textAnimationStyle: _anim);
+                  }
+                },
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
             ),
           ),
         ),

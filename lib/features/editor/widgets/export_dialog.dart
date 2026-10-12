@@ -10,22 +10,22 @@ import 'package:flutter_video_editor/features/export/controllers/export_controll
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 
 // -----------------------------------------------------------------------------
-// Tokens (same palette as the editor page)
+// Light Theme Tokens
 // -----------------------------------------------------------------------------
 
-const Color _bg = Color(0xFF000000);
-const Color _card = Color(0xFF16161A);
-const Color _track = Color(0xFF2B2B31);
-const Color _selectedFill = Color(0xFF1C1C20);
-const Color _doneBtn = Color(0xFF1C1C20);
-const Color _text = Color(0xFFFFFFFF);
-const Color _muted = Color(0xFF9A9AA3);
-const Color _purple = Color(0xFFFFFFFF);
-const Color _green = Color(0xFFFFFFFF);
-const Color _red = Color(0xFFFFFFFF);
+const Color _bg = Color(0xFFFFFFFF);
+const Color _card = Color(0xFFF4F4F6);
+const Color _track = Color(0xFFE0E0E6);
+const Color _selectedFill = Color(0xFFEEEEEE);
+const Color _doneBtn = Color(0xFFE8F5E9);
+const Color _text = Color(0xFF111111);
+const Color _muted = Color(0xFF707078);
+const Color _purple = Color(0xFF000000);
+const Color _green = Color(0xFF2E7D32);
+const Color _red = Color(0xFFD32F2F);
 
 final RoundedRectangleBorder _pill =
-    RoundedRectangleBorder(borderRadius: BorderRadius.circular(14));
+    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10));
 
 /// Full-screen export page. Entry point unchanged: `ExportModal.show(context)`.
 class ExportModal extends StatefulWidget {
@@ -130,7 +130,7 @@ class _ExportModalState extends State<ExportModal> {
         children: <Widget>[
           IconButton(
             icon: Icon(Icons.close_rounded,
-                color: isExporting ? Colors.white24 : _text, size: 26),
+                color: isExporting ? Colors.black26 : _text, size: 26),
             tooltip: 'Close',
             onPressed: isExporting
                 ? null
@@ -272,7 +272,7 @@ class _ExportModalState extends State<ExportModal> {
         child: ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
             backgroundColor: _purple,
-            foregroundColor: Colors.black,
+            foregroundColor: Colors.white,
             elevation: 0,
             shape: _pill,
           ),
@@ -321,18 +321,18 @@ class _ExportModalState extends State<ExportModal> {
             height: 26,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: state == 2 ? Colors.white : Colors.transparent,
+              color: state == 2 ? Colors.black : Colors.transparent,
               border: Border.all(
-                  color: state == 0 ? _track : Colors.white, width: state == 1 ? 2 : 1.5),
+                  color: state == 0 ? _track : Colors.black, width: state == 1 ? 2 : 1.5),
             ),
             child: state == 2
-                ? const Icon(Icons.check_rounded, size: 16, color: Colors.black)
+                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
                 : state == 1
                     ? const Center(
                         child: SizedBox(
                           width: 10,
                           height: 10,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                         ),
                       )
                     : null,
@@ -479,7 +479,7 @@ class _ExportModalState extends State<ExportModal> {
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: _purple,
-              foregroundColor: Colors.black,
+              foregroundColor: Colors.white,
               elevation: 0,
               minimumSize: const Size.fromHeight(52),
               shape: _pill,
@@ -539,7 +539,7 @@ class _ExportModalState extends State<ExportModal> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: _purple,
-              foregroundColor: Colors.black,
+              foregroundColor: Colors.white,
               elevation: 0,
               minimumSize: const Size.fromHeight(52),
               shape: _pill,
@@ -589,7 +589,7 @@ class _Segmented<T> extends StatelessWidget {
                   height: subtitle == null ? 42 : 52,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: v == selected ? _purple : Colors.transparent,
+                    color: v == selected ? Colors.black : Colors.transparent,
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: Column(
@@ -597,13 +597,13 @@ class _Segmented<T> extends StatelessWidget {
                     children: <Widget>[
                       Text(title(v),
                           style: TextStyle(
-                              color: v == selected ? Colors.black : _text,
+                              color: v == selected ? Colors.white : _text,
                               fontSize: 14,
                               fontWeight: FontWeight.w700)),
                       if (subtitle != null)
                         Text(subtitle!(v),
                             style: TextStyle(
-                                color: v == selected ? Colors.black54 : _muted,
+                                color: v == selected ? Colors.white70 : _muted,
                                 fontSize: 11)),
                     ],
                   ),
@@ -680,7 +680,7 @@ class _RingPainter extends CustomPainter {
         c + Offset(math.cos(a), math.sin(a)) * (r + 10),
         c + Offset(math.cos(a), math.sin(a)) * (r + (i % 5 == 0 ? 18 : 14)),
         Paint()
-          ..color = on ? Colors.white : _track
+          ..color = on ? Colors.black : _track
           ..strokeWidth = 1.5
           ..strokeCap = StrokeCap.round,
       );
@@ -702,7 +702,7 @@ class _RingPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 8
         ..strokeCap = StrokeCap.round
-        ..color = Colors.white,
+        ..color = Colors.black,
     );
   }
 

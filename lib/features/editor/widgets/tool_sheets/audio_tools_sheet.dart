@@ -27,67 +27,127 @@ class AudioToolsSheet extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: EditorTokens.border),
           ),
-          child: Row(
+          child: Column(
             children: [
-              const HugeIcon(
-                icon: HugeIcons.strokeRoundedMusicNote01,
-                color: EditorTokens.text,
-                size: 22,
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Add Audio Track',
-                      style: TextStyle(
-                        color: EditorTokens.text,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
-                      ),
+              Row(
+                children: [
+                  const HugeIcon(
+                    icon: HugeIcons.strokeRoundedMusicNote01,
+                    color: EditorTokens.text,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Import Music / Audio',
+                          style: TextStyle(
+                            color: EditorTokens.text,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        Text(
+                          'Import audio from device file manager',
+                          style: TextStyle(
+                            color: EditorTokens.muted,
+                            fontSize: 11,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'Insert soundtrack clip to timeline',
-                      style: TextStyle(
-                        color: EditorTokens.muted,
-                        fontSize: 11,
-                        fontFamily: 'Poppins',
-                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: EditorTokens.text,
+                      foregroundColor: EditorTokens.bg,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                  ],
-                ),
+                    onPressed: () async {
+                      try {
+                        final result = await FilePicker.platform.pickFiles(
+                          type: FileType.audio,
+                          allowMultiple: false,
+                        );
+                        if (result != null && result.files.isNotEmpty) {
+                          final file = result.files.single;
+                          if (file.path != null) {
+                            editor.addAudioTrack(file.path!, trackName: file.name);
+                          }
+                        }
+                      } catch (_) {}
+                    },
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedFolder01,
+                      color: EditorTokens.bg,
+                      size: 16,
+                    ),
+                    label: const Text(
+                      'Import',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: EditorTokens.text,
-                  foregroundColor: EditorTokens.bg,
-                ),
-                onPressed: () async {
-                  try {
-                    final result = await FilePicker.platform.pickFiles(
-                      type: FileType.audio,
-                      allowMultiple: false,
-                    );
-                    if (result != null && result.files.isNotEmpty) {
-                      final file = result.files.single;
-                      if (file.path != null) {
-                        editor.addAudioTrack(file.path!, trackName: file.name);
-                      }
-                    }
-                  } catch (_) {}
-                },
-                icon: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedAdd01,
-                  color: EditorTokens.bg,
-                  size: 16,
-                ),
-                label: const Text(
-                  'Add',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
-                ),
+              const Divider(height: 20, color: EditorTokens.border),
+              Row(
+                children: [
+                  const HugeIcon(
+                    icon: HugeIcons.strokeRoundedScissors,
+                    color: EditorTokens.text,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Extract Audio from Video',
+                          style: TextStyle(
+                            color: EditorTokens.text,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                        Text(
+                          'Separate audio track from selected video clip',
+                          style: TextStyle(
+                            color: EditorTokens.muted,
+                            fontSize: 11,
+                            fontFamily: 'Poppins',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: EditorTokens.text,
+                      side: const BorderSide(color: EditorTokens.border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      editor.extractAudioFromSelectedClip();
+                    },
+                    icon: const HugeIcon(
+                      icon: HugeIcons.strokeRoundedScissors,
+                      color: EditorTokens.text,
+                      size: 16,
+                    ),
+                    label: const Text(
+                      'Extract',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
