@@ -15,6 +15,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 // ----------------------------------------------------------------------------
 const Color playheadBlue = Color(0xFF2D8CEB);
 const Color _timelineBg = Color(0xFF111111);
+const Color _overlayMediaColor = Color(0xFF673AB7);
 const int _fps = 30;
 
 /// HH:MM:SS:FF timecode (Premiere style).
@@ -28,6 +29,17 @@ String _tcFrames(double t) {
 // ----------------------------------------------------------------------------
 // Timeline Model & Snapshots
 // ----------------------------------------------------------------------------
+class _KfSnap {
+  const _KfSnap(this.id, this.ms);
+  final String id;
+  final int ms; // relative to clip start
+
+  @override
+  bool operator ==(Object o) => o is _KfSnap && o.id == id && o.ms == ms;
+  @override
+  int get hashCode => Object.hash(id, ms);
+}
+
 class _ClipSnapshot {
   const _ClipSnapshot({
     required this.id,
@@ -39,6 +51,7 @@ class _ClipSnapshot {
     required this.locked,
     required this.visible,
     required this.path,
+    required this.keyframes,
   });
 
   final String id;
@@ -50,6 +63,7 @@ class _ClipSnapshot {
   final bool locked;
   final bool visible;
   final String? path;
+  final List<_KfSnap> keyframes;
 
   double get startSec => startMs / 1000.0;
   double get endSec => endMs / 1000.0;
@@ -67,11 +81,12 @@ class _ClipSnapshot {
       other.layer == layer &&
       other.locked == locked &&
       other.visible == visible &&
-      other.path == path;
+      other.path == path &&
+      _listEq(other.keyframes, keyframes);
 
   @override
-  int get hashCode =>
-      Object.hash(id, startMs, endMs, label, type, layer, locked, visible, path);
+  int get hashCode => Object.hash(id, startMs, endMs, label, type, layer, locked,
+      visible, path, Object.hashAll(keyframes));
 }
 
 bool _listEq<T>(List<T> a, List<T> b) {
@@ -103,6 +118,9 @@ class _TimelineModel {
               locked: c.isLocked,
               visible: c.isVisible,
               path: c.sourcePath,
+              keyframes: <_KfSnap>[
+                for (final k in c.keyframes) _KfSnap(k.id, k.time.inMilliseconds),
+              ],
             ),
         ],
         e.zoom,
@@ -159,7 +177,8 @@ class TimelineWidget extends StatefulWidget {
 
 class _TimelineWidgetState extends State<TimelineWidget> {
   static const double _gap = 14;
-  static const double _minClipW = 48; // two 24px trim handles
+  static const double _minClipW = 20; // was 48: short clips no longer overlap
+  static const double _clipGap = 2; // visual gap between neighbouring clips
 
   double _s = 1;
   double get _rulerH => 30 * _s;
@@ -738,7 +757,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                 left: half + list[i].startSec * pps,
                 top: 0,
                 bottom: 0,
-                width: math.max(_minClipW, list[i].durSec * pps - 4),
+                width: math.max(_minClipW, list[i].durSec * pps - _clipGap),
                 child: RepaintBoundary(
                   child: _ClipBlock(
                     editor: widget.editor,
@@ -764,7 +783,8 @@ class _TimelineWidgetState extends State<TimelineWidget> {
               if (isVideo && i < list.length - 1)
                 Positioned(
                   key: ValueKey<String>('tr_${list[i].id}'),
-                  left: half + list[i].endSec * pps - 14 * _s,
+                  // Centred exactly on the cut between two clips.
+                  left: half + list[i].endSec * pps - 12 * _s - _clipGap / 2,
                   top: l.h / 2 - 12 * _s,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
@@ -829,6 +849,7 @@ class _ClipBlock extends StatefulWidget {
 class _ClipBlockState extends State<_ClipBlock> {
   double _originStart = 0;
   double _rawEdge = 0; // un-snapped edge accumulated during a trim drag
+  double _kfRawMs = 0; // un-rounded keyframe time accumulated during a drag
 
   void _startMove() {
     widget.editor.selectClip(widget.clip.id);
@@ -843,10 +864,46 @@ class _ClipBlockState extends State<_ClipBlock> {
     );
   }
 
-  /// Handle width shrinks on very short clips (down to 14px) so the clip body
+  // ---- Colours ------------------------------------------------------------
+  Color _clipColor(_ClipSnapshot c) {
+    switch (c.type) {
+      case ClipType.audio:
+        return audioTrackToken;
+      case ClipType.video:
+      case ClipType.image:
+        return _overlayMediaColor; // overlay media (main track uses filmstrip)
+      case ClipType.sticker:
+      case ClipType.element:
+        return fxTrackToken;
+      case ClipType.drawing:
+        return drawTrackToken;
+      default:
+        return textTrackToken;
+    }
+  }
+
+  /// Selection border is a foreground decoration, so it never changes the
+  /// clip's size or shifts the content inside it.
+  Widget _frame(Widget child, {Color? color}) => Container(
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        foregroundDecoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: widget.selected ? Colors.white : Colors.transparent,
+            width: 2,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: child,
+      );
+
+  /// Handle width shrinks on very short clips (down to 8px) so the clip body
   /// always keeps a tappable / long-pressable middle.
   Widget _trimHandle({required bool left, required double clipW}) {
-    final double hw = (clipW / 3).clamp(14.0, 24.0).toDouble();
+    final double hw = (clipW / 3).clamp(8.0, 24.0).toDouble();
     return Positioned(
       left: left ? 0 : null,
       right: left ? null : 0,
@@ -882,9 +939,9 @@ class _ClipBlockState extends State<_ClipBlock> {
         },
         child: Align(
           alignment: left ? Alignment.centerLeft : Alignment.centerRight,
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 2),
-            child: _Handle(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: _Handle(width: math.min(12.0, hw)),
           ),
         ),
       ),
@@ -893,10 +950,8 @@ class _ClipBlockState extends State<_ClipBlock> {
 
   Widget _buildBody(double clipW) {
     final clip = widget.clip;
-    final bool locked = clip.locked;
-    final Color border = widget.selected ? Colors.white : Colors.transparent;
-
     Widget body;
+
     switch (widget.kind) {
       case _ClipKind.text:
         final bool overlayMedia =
@@ -904,9 +959,6 @@ class _ClipBlockState extends State<_ClipBlock> {
         final bool sticker =
             clip.type == ClipType.sticker || clip.type == ClipType.element;
         final bool drawing = clip.type == ClipType.drawing;
-        final Color bg = overlayMedia
-            ? const Color(0xFF673AB7)
-            : (drawing ? drawTrackToken : (sticker ? fxTrackToken : textTrackToken));
         final IconData icon = overlayMedia
             ? (clip.type == ClipType.video
                 ? Icons.video_library_rounded
@@ -914,78 +966,70 @@ class _ClipBlockState extends State<_ClipBlock> {
             : (drawing
                 ? Icons.brush_rounded
                 : (sticker ? Icons.emoji_emotions_rounded : Icons.title_rounded));
-        body = Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: border, width: 2),
+        body = _frame(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(children: <Widget>[
+              Icon(icon, size: 15, color: Colors.white),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(clip.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12)),
+              ),
+              if (clip.locked)
+                const Icon(Icons.lock_rounded, size: 12, color: Colors.white70),
+            ]),
           ),
-          child: Row(children: <Widget>[
-            Icon(icon, size: 15, color: Colors.white70),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(clip.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
-            ),
-          ]),
+          color: _clipColor(clip),
         );
       case _ClipKind.video:
-        body = Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: border, width: 2),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                LayoutBuilder(
-                  builder: (context, c) => clip.path != null
-                      ? _Filmstrip(
-                          key: ValueKey<String>(
-                              '${clip.id}|${widget.pps.toStringAsFixed(2)}'),
-                          path: clip.path!,
-                          durationSec: clip.durSec,
-                          width: c.maxWidth,
-                        )
-                      : const _Stripes(),
+        body = _frame(
+          Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              LayoutBuilder(
+                builder: (context, c) => clip.path != null
+                    ? _Filmstrip(
+                        key: ValueKey<String>(
+                            '${clip.id}|${widget.pps.toStringAsFixed(2)}'),
+                        path: clip.path!,
+                        durationSec: clip.durSec,
+                        width: c.maxWidth,
+                      )
+                    : const _Stripes(),
+              ),
+              Positioned(
+                right: 6,
+                bottom: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                      color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+                  child: Text('${clip.durSec.toStringAsFixed(1)}s',
+                      style: const TextStyle(color: Colors.white, fontSize: 10)),
                 ),
-                Positioned(
-                  right: 6,
+              ),
+              if (clip.locked)
+                const Positioned(
+                  left: 6,
                   bottom: 4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                        color: Colors.black54, borderRadius: BorderRadius.circular(4)),
-                    child: Text('${clip.durSec.toStringAsFixed(1)}s',
-                        style: const TextStyle(color: Colors.white, fontSize: 10)),
-                  ),
+                  child: Icon(Icons.lock_rounded, size: 12, color: Colors.white70),
                 ),
-              ],
-            ),
+            ],
           ),
         );
       case _ClipKind.audio:
-        body = Container(
-          decoration: BoxDecoration(
-            color: audioTrackToken,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: border, width: 2),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: (clip.path != null)
-                ? _WaveformLoader(path: clip.path!)
-                : const SizedBox.expand(),
-          ),
+        body = _frame(
+          clip.path != null
+              ? _WaveformLoader(path: clip.path!)
+              : const SizedBox.expand(),
+          color: _clipColor(clip),
         );
     }
 
-    if (widget.selected && !locked && !widget.multiOn.value) {
+    if (widget.selected && !clip.locked && !widget.multiOn.value) {
       body = Stack(
         children: <Widget>[
           Positioned.fill(child: body),
@@ -997,52 +1041,79 @@ class _ClipBlockState extends State<_ClipBlock> {
     return body;
   }
 
-  Widget _buildKeyframeOverlay(TimelineClip targetClip, double clipW) {
-    if (targetClip.keyframes.isEmpty) return const SizedBox.shrink();
-    final double durSec = targetClip.duration.inMilliseconds / 1000.0;
-    if (durSec <= 0) return const SizedBox.shrink();
+  // ---- Keyframes ----------------------------------------------------------
+  void _moveKeyframe(String id, int ms) {
+    for (final c in widget.editor.project.clips) {
+      if (c.id != widget.clip.id) continue;
+      for (final k in c.keyframes) {
+        if (k.id == id) {
+          widget.editor.addKeyframe(k.copyWith(time: Duration(milliseconds: ms)));
+          return;
+        }
+      }
+    }
+  }
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        for (final kf in targetClip.keyframes) ...[
-          Positioned(
-            left: ((kf.time.inMilliseconds / 1000.0) / durSec * clipW).clamp(0.0, clipW - 12.0),
-            top: 4,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                tapFeedback();
-                seekPlayhead(widget.editor, secondsOf(targetClip.start + kf.time));
-              },
-              onLongPress: () {
-                tapFeedback();
-                widget.editor.removeKeyframe(kf.id);
-              },
-              onHorizontalDragUpdate: (d) {
-                final double deltaMs = (d.delta.dx / widget.pps) * 1000.0;
-                final int newMs = (kf.time.inMilliseconds + deltaMs.round())
-                    .clamp(0, targetClip.duration.inMilliseconds);
-                widget.editor.addKeyframe(
-                  kf.copyWith(time: Duration(milliseconds: newMs)),
-                );
-              },
-              child: Transform.rotate(
-                angle: math.pi / 4,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: accentToken,
-                    border: Border.all(color: Colors.black, width: 1.5),
-                    borderRadius: BorderRadius.circular(2),
+  Widget _buildKeyframeOverlay(_ClipSnapshot clip, double clipW) {
+    if (clip.keyframes.isEmpty) return const SizedBox.shrink();
+    const double hit = 24;
+    final int durMs = clip.endMs - clip.startMs;
+    final bool canEdit = !clip.locked && !widget.multiOn.value;
+
+    return Positioned.fill(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          for (final kf in clip.keyframes)
+            if (kf.ms >= 0 && kf.ms <= durMs)
+              Positioned(
+                key: ValueKey<String>('kf_${kf.id}'),
+                left: ((kf.ms / 1000.0) * widget.pps)
+                        .clamp(12.0, math.max(12.0, clipW - 12.0))
+                        .toDouble() -
+                    hit / 2,
+                bottom: 0,
+                width: hit,
+                height: hit,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    tapFeedback();
+                    seekPlayhead(widget.editor, (clip.startMs + kf.ms) / 1000.0);
+                  },
+                  onLongPress: canEdit
+                      ? () {
+                          tapFeedback();
+                          widget.editor.removeKeyframe(kf.id);
+                        }
+                      : null,
+                  onHorizontalDragStart:
+                      canEdit ? (_) => _kfRawMs = kf.ms.toDouble() : null,
+                  onHorizontalDragUpdate: canEdit
+                      ? (d) {
+                          _kfRawMs += d.delta.dx / widget.pps * 1000.0;
+                          _moveKeyframe(
+                              kf.id, _kfRawMs.round().clamp(0, durMs).toInt());
+                        }
+                      : null,
+                  child: Center(
+                    child: Transform.rotate(
+                      angle: math.pi / 4,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: accentToken,
+                          border: Border.all(color: Colors.black, width: 1.5),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
         ],
-      ],
+      ),
     );
   }
 
@@ -1050,16 +1121,6 @@ class _ClipBlockState extends State<_ClipBlock> {
   Widget build(BuildContext context) {
     final clip = widget.clip;
     final bool locked = clip.locked;
-    final fullClip = widget.editor.project.clips.firstWhere(
-      (c) => c.id == clip.id,
-      orElse: () => TimelineClip(
-        id: clip.id,
-        label: clip.label,
-        start: Duration(milliseconds: clip.startMs),
-        end: Duration(milliseconds: clip.endMs),
-        clipType: clip.type,
-      ),
-    );
 
     return ListenableBuilder(
       listenable: Listenable.merge(<Listenable>[widget.multiOn, widget.multi]),
@@ -1091,9 +1152,9 @@ class _ClipBlockState extends State<_ClipBlock> {
                 Positioned.fill(
                   child: LayoutBuilder(
                     builder: (context, c) => Stack(
-                      children: [
+                      children: <Widget>[
                         _buildBody(c.maxWidth),
-                        _buildKeyframeOverlay(fullClip, c.maxWidth),
+                        _buildKeyframeOverlay(clip, c.maxWidth),
                       ],
                     ),
                   ),
@@ -1114,10 +1175,11 @@ class _ClipBlockState extends State<_ClipBlock> {
 }
 
 class _Handle extends StatelessWidget {
-  const _Handle();
+  const _Handle({this.width = 12});
+  final double width;
   @override
   Widget build(BuildContext context) => Container(
-        width: 12,
+        width: width,
         decoration:
             BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5)),
         child: const Center(

@@ -1,15 +1,20 @@
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:flutter_video_editor/core/models/svg_model.dart';
 
+// ----------------------------------------------------------------------------
+// Design tokens
+// ----------------------------------------------------------------------------
 const _accent = Color(0xFF9999FF);
 const _panel = Color(0xFF232323);
+const _panelHi = Color(0xFF2C2C2C);
 const _bg = Color(0xFF181818);
+const _line = Color(0x1FFFFFFF);
 const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Poppins');
+const _lblStrong = TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'Poppins');
 
 enum Tool { select, node, pen, pencil }
 
@@ -24,25 +29,52 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
   late SvgDoc doc;
   final _undo = <SvgDoc>[], _redo = <SvgDoc>[];
   int sel = -1, ver = 0;
-  double zoom = 0.9, _k = 1;
-  late final TabController tabs = TabController(length: 3, vsync: this);
   String? error;
 
+  // View
+  double zoom = 0.9, _k = 1, _baseZoom = 0.9, _pinchScale0 = 1;
+  Offset _pan = Offset.zero, _artTL = Offset.zero;
+  bool _pinch = false;
+
+  // Panel
+  late final TabController tabs = TabController(length: 3, vsync: this);
+  bool _panelOpen = true;
+  int _lastTab = 0;
+
+  // Tools
   Tool tool = Tool.select;
   PathModel? pm; // path being node-edited
   int selSp = 0, selAi = -1; // selected subpath / anchor
   int _drag = 0; // 0 none, 1 anchor, 2 in-handle, 3 out-handle
+  bool _dragSnapped = false;
   List<Anchor> penA = [];
   bool _penDragging = false;
   List<Offset> pencilPts = [];
 
-  static const _swatches = [0xFFFFFFFF, 0xFF000000, 0xFF9999FF, 0xFF2D8CFF, 0xFF00C2A8, 0xFFFFC107, 0xFFFF7043, 0xFFEF5350, 0xFFE040FB];
+  // Cached serialisation so we don't re-serialise on every frame.
+  String? _svgCache;
+  int _svgVer = -1;
+  String get svg {
+    if (_svgCache == null || _svgVer != ver) {
+      _svgCache = doc.toSvg();
+      _svgVer = ver;
+    }
+    return _svgCache!;
+  }
+
+  static const _swatches = [
+    0xFFFFFFFF, 0xFF000000, 0xFF9999FF, 0xFF2D8CFF, 0xFF00C2A8,
+    0xFFFFC107, 0xFFFF7043, 0xFFEF5350, 0xFFE040FB,
+  ];
 
   SvgNode? get cur => (sel >= 0 && sel < doc.nodes.length) ? doc.nodes[sel] : null;
+
   Anchor? get _selAnchor {
     final p = pm;
-    if (p == null || selSp >= p.subs.length || selAi < 0 || selAi >= p.subs[selSp].a.length) return null;
-    return p.subs[selSp].a[selAi];
+    if (p == null || selSp < 0 || selSp >= p.subs.length) return null;
+    final a = p.subs[selSp].a;
+    if (selAi < 0 || selAi >= a.length) return null;
+    return a[selAi];
   }
 
   @override
@@ -54,6 +86,12 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
       doc = SvgDoc(const Rect.fromLTWH(0, 0, 100, 100), '', []);
       error = '$e';
     }
+  }
+
+  @override
+  void dispose() {
+    tabs.dispose();
+    super.dispose();
   }
 
   // ── history ──
@@ -79,7 +117,12 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
   void _syncPm() {
     final n = cur;
     pm = (tool == Tool.node && n != null && n.tag == 'path') ? PathModel.fromD(n.attrs['d'] ?? '') : null;
-    if (pm == null || selSp >= pm!.subs.length || selAi >= pm!.subs[selSp].a.length) selAi = -1;
+    if (pm == null || selSp >= pm!.subs.length) {
+      selSp = 0;
+      selAi = -1;
+    } else if (selAi >= pm!.subs[selSp].a.length) {
+      selAi = -1;
+    }
   }
 
   void undo() {
@@ -124,7 +167,9 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
       if (t == Tool.pen || t == Tool.pencil) sel = -1;
     });
     if (blocked) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select a shape first to edit its nodes')));
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Select a shape first to edit its nodes')));
     }
   }
 
@@ -151,7 +196,10 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
         }
       });
 
-  void _commit() => cur?.attrs['d'] = pm!.toD();
+  void _commit() {
+    final m = pm;
+    if (m != null) cur?.attrs['d'] = m.toD();
+  }
 
   void _pick(Offset p) {
     for (var i = doc.nodes.length - 1; i >= 0; i--) {
@@ -264,10 +312,11 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
   }
 
   void _panStart(Offset p) {
+    _dragSnapped = false;
+    _drag = 0;
     switch (tool) {
       case Tool.select:
         setState(() => _pick(p));
-        if (cur != null) snap();
         break;
       case Tool.node:
         if (pm == null) return;
@@ -275,12 +324,10 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
         if (a != null) {
           if (a.o != null && (a.o! - p).distance <= r) {
             _drag = 3;
-            snap();
             return;
           }
           if (a.i != null && (a.i! - p).distance <= r) {
             _drag = 2;
-            snap();
             return;
           }
         }
@@ -291,7 +338,6 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
             selAi = h[1];
           });
           _drag = 1;
-          snap();
         }
         break;
       case Tool.pen:
@@ -303,11 +349,20 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
     }
   }
 
+  /// Undo snapshot is taken on the first real movement, so taps and
+  /// zero-distance drags never add empty history entries.
+  void _ensureSnap() {
+    if (_dragSnapped) return;
+    snap();
+    _dragSnapped = true;
+  }
+
   void _panUpdate(Offset p, Offset delta) {
     switch (tool) {
       case Tool.select:
         final n = cur;
-        if (n != null) {
+        if (n != null && delta != Offset.zero) {
+          _ensureSnap();
           live(() {
             n.dx += delta.dx;
             n.dy += delta.dy;
@@ -317,6 +372,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
       case Tool.node:
         final a = _selAnchor;
         if (_drag == 0 || a == null) return;
+        _ensureSnap();
         live(() {
           if (_drag == 1) {
             a.p += delta;
@@ -343,31 +399,50 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
         }
         break;
       case Tool.pencil:
-        if (pencilPts.isNotEmpty && (p - pencilPts.last).distance * _k > 4) setState(() => pencilPts.add(p));
+        if (pencilPts.isNotEmpty && (p - pencilPts.last).distance * _k > 4) {
+          setState(() => pencilPts.add(p));
+        }
         break;
     }
   }
 
   void _panEnd() {
     _drag = 0;
+    _dragSnapped = false;
     _penDragging = false;
     if (tool == Tool.pencil && pencilPts.isNotEmpty) _finishPencil();
   }
 
+  /// A second finger landed: abandon the one-finger action cleanly.
+  void _cancelDrag() {
+    _drag = 0;
+    _dragSnapped = false;
+    _penDragging = false;
+    if (pencilPts.isNotEmpty) setState(() => pencilPts = []);
+  }
+
   void _finishPencil() {
-    final pts = _rdp(pencilPts, 2.5 / _k);
+    var pts = _rdp(pencilPts, 2.5 / _k);
     pencilPts = [];
     if (pts.length < 2) {
       setState(() {});
       return;
     }
-    final a = <Anchor>[];
-    for (var j = 0; j < pts.length; j++) {
-      final prev = pts[math.max(j - 1, 0)], next = pts[math.min(j + 1, pts.length - 1)];
-      final t = (next - prev) / 6;
-      a.add(Anchor(pts[j], i: j > 0 ? pts[j] - t : null, o: j < pts.length - 1 ? pts[j] + t : null, smooth: true));
+    var closed = false;
+    if (pts.length >= 4 && (pts.last - pts.first).distance * _k < 14) {
+      closed = true;
+      pts = pts.sublist(0, pts.length - 1);
     }
-    _addPathNode(a, false, edit: false);
+    final a = <Anchor>[];
+    final n = pts.length;
+    for (var j = 0; j < n; j++) {
+      final hasPrev = closed || j > 0, hasNext = closed || j < n - 1;
+      final prev = pts[closed ? (j - 1 + n) % n : math.max(j - 1, 0)];
+      final next = pts[closed ? (j + 1) % n : math.min(j + 1, n - 1)];
+      final t = (next - prev) / 6;
+      a.add(Anchor(pts[j], i: hasPrev ? pts[j] - t : null, o: hasNext ? pts[j] + t : null, smooth: true));
+    }
+    _addPathNode(a, closed, edit: false);
   }
 
   static List<Offset> _rdp(List<Offset> p, double e) {
@@ -416,10 +491,12 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
   }
 
   void _addNode() {
-    final s = pm!.subs[selSp];
+    final m = pm;
+    if (m == null || selSp >= m.subs.length) return;
+    final s = m.subs[selSp];
     if (selAi < 0 || selAi >= s.segCount) return;
     edit(() {
-      pm!.splitSeg(selSp, selAi, 0.5);
+      m.splitSeg(selSp, selAi, 0.5);
       selAi++;
       _commit();
     });
@@ -445,9 +522,10 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
   }
 
   void _toggleClosed() {
-    if (pm == null || selSp >= pm!.subs.length) return;
+    final m = pm;
+    if (m == null || selSp >= m.subs.length) return;
     edit(() {
-      final s = pm!.subs[selSp];
+      final s = m.subs[selSp];
       s.closed = !s.closed;
       _commit();
     });
@@ -465,261 +543,493 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
         ver++;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invalid SVG: $e')));
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text('Invalid SVG: $e')));
     }
+  }
+
+  void _fit() => setState(() {
+        zoom = 0.9;
+        _pan = Offset.zero;
+      });
+
+  Future<bool> _confirmDiscard() async {
+    final r = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: _panel,
+        title: const Text('Discard changes?', style: TextStyle(color: Colors.white, fontSize: 16)),
+        content: const Text('Your edits have not been added to the timeline.', style: _lbl),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Keep editing')),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Discard')),
+        ],
+      ),
+    );
+    return r ?? false;
   }
 
   // ───────────────── UI ─────────────────
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
+    return PopScope(
+      canPop: _undo.isEmpty,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final ok = await _confirmDiscard();
+        if (ok && mounted) Navigator.pop(context);
+      },
+      child: Scaffold(
+        backgroundColor: _bg,
+        appBar: _appBar(),
+        body: SafeArea(
+          top: false,
+          child: error != null ? _errorView() : _body(),
+        ),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _appBar() => AppBar(
         backgroundColor: _panel,
         elevation: 0,
-        title: Text('Essential Graphics  ·  ${widget.title}',
-            style: const TextStyle(fontSize: 13, color: Colors.white70, fontFamily: 'Poppins')),
+        scrolledUnderElevation: 0,
+        titleSpacing: 0,
+        title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, color: Colors.white, fontFamily: 'Poppins')),
+          Text('Vector editor', style: _lbl.copyWith(fontSize: 10)),
+        ]),
         actions: [
-          IconButton(onPressed: _undo.isEmpty ? null : undo, icon: const Icon(Icons.undo, size: 20)),
-          IconButton(onPressed: _redo.isEmpty ? null : redo, icon: const Icon(Icons.redo, size: 20)),
+          IconButton(tooltip: 'Undo', onPressed: _undo.isEmpty ? null : undo, icon: const Icon(Icons.undo, size: 20)),
+          IconButton(tooltip: 'Redo', onPressed: _redo.isEmpty ? null : redo, icon: const Icon(Icons.redo, size: 20)),
           Padding(
             padding: const EdgeInsets.only(right: 10, left: 4),
             child: FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+              style: FilledButton.styleFrom(
+                backgroundColor: _accent,
+                foregroundColor: Colors.black,
+                visualDensity: VisualDensity.compact,
+              ),
               onPressed: doc.nodes.isEmpty ? null : () => Navigator.pop(context, doc.toSvg()),
               child: const Text('Add to timeline', style: TextStyle(fontSize: 12)),
             ),
           ),
         ],
+      );
+
+  Widget _errorView() => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.error_outline, color: Colors.redAccent, size: 36),
+            const SizedBox(height: 10),
+            const Text('Cannot open this SVG', style: _lblStrong),
+            const SizedBox(height: 6),
+            Text(error!, textAlign: TextAlign.center, maxLines: 4, overflow: TextOverflow.ellipsis, style: _lbl),
+            const SizedBox(height: 16),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+              onPressed: () => setState(() => error = null),
+              child: const Text('Start with a blank canvas'),
+            ),
+          ]),
+        ),
+      );
+
+  Widget _body() {
+    final h = MediaQuery.sizeOf(context).height;
+    final panelH = (h * 0.34).clamp(190.0, 300.0).toDouble();
+    return Column(children: [
+      Expanded(
+        child: Stack(children: [
+          Positioned.fill(child: _canvas()),
+          Positioned(left: 8, top: 8, child: _rail()),
+          Positioned(right: 8, top: 8, child: _zoomPill()),
+          Positioned(left: 64, right: 12, bottom: 10, child: _bottomOverlay()),
+        ]),
       ),
-      body: error != null
-          ? Center(child: Text('Cannot open SVG\n$error', style: const TextStyle(color: Colors.redAccent)))
-          : Column(children: [
-              Expanded(child: Stack(children: [Positioned.fill(child: _canvas()), _hint()])),
-              _toolbar(),
-              _zoomBar(),
-              Container(
-                height: 250,
-                color: _panel,
-                child: Column(children: [
-                  TabBar(
-                    controller: tabs,
-                    indicatorColor: _accent,
-                    labelColor: Colors.white,
-                    unselectedLabelColor: Colors.white54,
-                    labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                    tabs: const [Tab(text: 'Properties', height: 36), Tab(text: 'Layers', height: 36), Tab(text: 'Code', height: 36)],
-                  ),
-                  Expanded(
-                      child: TabBarView(controller: tabs, children: [
-                    _props(),
-                    _layers(),
-                    _CodeTab(key: ValueKey(ver), source: doc.toSvg(), onApply: _applyCode),
-                  ])),
-                ]),
-              ),
-            ]),
-    );
+      _panelView(panelH),
+    ]);
   }
 
-  Widget _hint() {
-    const hints = {
-      Tool.select: 'Tap to select · drag to move',
-      Tool.node: 'Drag nodes and handles · tap a segment to add a node',
-      Tool.pen: 'Tap for corners · drag for curves · tap first node to close',
-      Tool.pencil: 'Draw freehand — it becomes a smooth, editable path',
-    };
-    return Positioned(
-        left: 10,
-        top: 6,
-        child: IgnorePointer(child: Text(hints[tool]!, style: _lbl.copyWith(color: Colors.white38))));
-  }
-
+  // ── canvas ──
   Widget _canvas() => LayoutBuilder(builder: (_, c) {
         final vb = doc.viewBox;
         final k = math.min(c.maxWidth / vb.width, c.maxHeight / vb.height) * zoom;
         _k = k;
         final w = vb.width * k, h = vb.height * k;
+        _artTL = Offset((c.maxWidth - w) / 2, (c.maxHeight - h) / 2) + _pan;
+        Offset toDoc(Offset l) => (l - _artTL) / k + vb.topLeft;
+
         final f = (tool == Tool.select) ? cur?.frame : null;
-        final overlayModel = tool == Tool.pen ? PathModel([SubPath(penA)]) : (tool == Tool.node ? pm : null);
-        return Center(
-          child: SizedBox(
-            width: w,
-            height: h,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              dragStartBehavior: DragStartBehavior.down,
-              onTapUp: (d) => _tap(d.localPosition / k + vb.topLeft),
-              onPanStart: (d) => _panStart(d.localPosition / k + vb.topLeft),
-              onPanUpdate: (d) => _panUpdate(d.localPosition / k + vb.topLeft, d.delta / k),
-              onPanEnd: (_) => _panEnd(),
-              onPanCancel: _panEnd,
-              child: Stack(clipBehavior: Clip.none, children: [
-                Positioned.fill(child: CustomPaint(painter: _Checker())),
-                Positioned.fill(child: SvgPicture.string(doc.toSvg(), fit: BoxFit.fill)),
-                if (f != null)
-                  Positioned.fromRect(
-                    rect: Rect.fromLTWH((f.left - vb.left) * k, (f.top - vb.top) * k, f.width * k, f.height * k),
+        final overlayModel = tool == Tool.pen ? PathModel([SubPath(penA, false)]) : (tool == Tool.node ? pm : null);
+
+        return ClipRect(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (d) => _tap(toDoc(d.localPosition)),
+            onScaleStart: (d) {
+              if (d.pointerCount >= 2) {
+                _pinch = true;
+                _baseZoom = zoom;
+                _pinchScale0 = 1;
+              } else if (!_pinch) {
+                _panStart(toDoc(d.localFocalPoint));
+              }
+            },
+            onScaleUpdate: (d) {
+              if (d.pointerCount >= 2) {
+                if (!_pinch) {
+                  _pinch = true;
+                  _cancelDrag();
+                  _baseZoom = zoom;
+                  _pinchScale0 = d.scale;
+                }
+                setState(() {
+                  zoom = (_baseZoom * d.scale / _pinchScale0).clamp(0.3, 6.0).toDouble();
+                  _pan += d.focalPointDelta;
+                });
+              } else if (!_pinch) {
+                _panUpdate(toDoc(d.localFocalPoint), d.focalPointDelta / k);
+              }
+            },
+            onScaleEnd: (d) {
+              if (d.pointerCount == 0) {
+                if (!_pinch) _panEnd();
+                _pinch = false;
+              }
+            },
+            child: Stack(clipBehavior: Clip.none, children: [
+              Positioned.fill(child: Container(color: _bg)),
+              Positioned(
+                left: _artTL.dx,
+                top: _artTL.dy,
+                width: w,
+                height: h,
+                child: Stack(clipBehavior: Clip.none, children: [
+                  Positioned.fill(child: RepaintBoundary(child: CustomPaint(painter: _Checker()))),
+                  Positioned.fill(child: SvgPicture.string(svg, fit: BoxFit.fill)),
+                  Positioned.fill(
                     child: IgnorePointer(
-                      child: Transform.rotate(
-                        angle: cur!.rot * math.pi / 180,
-                        child: Container(decoration: BoxDecoration(border: Border.all(color: _accent, width: 1.5))),
+                      child: DecoratedBox(decoration: BoxDecoration(border: Border.all(color: Colors.white24, width: 1))),
+                    ),
+                  ),
+                  if (f != null)
+                    Positioned.fromRect(
+                      rect: Rect.fromLTWH((f.left - vb.left) * k, (f.top - vb.top) * k, f.width * k, f.height * k),
+                      child: IgnorePointer(
+                        child: Transform.rotate(
+                          angle: cur!.rot * math.pi / 180,
+                          child: Container(decoration: BoxDecoration(border: Border.all(color: _accent, width: 1.5))),
+                        ),
+                      ),
+                    ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: _NodePainter(
+                          pm: overlayModel,
+                          sp: tool == Tool.pen ? 0 : selSp,
+                          ai: tool == Tool.pen ? penA.length - 1 : selAi,
+                          k: k,
+                          origin: vb.topLeft,
+                          pencil: pencilPts,
+                          pen: tool == Tool.pen,
+                        ),
                       ),
                     ),
                   ),
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: _NodePainter(
-                        pm: overlayModel,
-                        sp: tool == Tool.pen ? 0 : selSp,
-                        ai: tool == Tool.pen ? penA.length - 1 : selAi,
-                        k: k,
-                        origin: vb.topLeft,
-                        pencil: pencilPts,
-                        pen: tool == Tool.pen,
-                      ),
-                    ),
-                  ),
-                ),
-              ]),
-            ),
+                ]),
+              ),
+            ]),
           ),
         );
       });
 
-  Widget _toolbar() {
-    Widget tb(Tool t, IconData i, String l) {
+  // ── floating controls ──
+  BoxDecoration get _floatDeco => BoxDecoration(
+        color: _panel.withValues(alpha: .94),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _line),
+      );
+
+  Widget _rail() {
+    Widget b(Tool t, IconData i, String l) {
       final on = tool == t;
-      return InkWell(
-        onTap: () => _setTool(t),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: on ? _accent : Colors.transparent, width: 2))),
-          child: Row(children: [
-            Icon(i, size: 17, color: on ? _accent : Colors.white70),
-            const SizedBox(width: 5),
-            Text(l, style: TextStyle(fontSize: 11, color: on ? Colors.white : Colors.white54)),
-          ]),
+      return Tooltip(
+        message: l,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: () => _setTool(t),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: on ? _accent : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(i, size: 19, color: on ? Colors.black : Colors.white70),
+          ),
         ),
       );
     }
 
-    Widget mini(IconData i, String l, VoidCallback? f) => TextButton.icon(
-        style: TextButton.styleFrom(foregroundColor: Colors.white70, visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 8)),
-        onPressed: f,
-        icon: Icon(i, size: 15),
-        label: Text(l, style: const TextStyle(fontSize: 11)));
-
-    final a = _selAnchor;
-    final closed = (pm != null && selSp < pm!.subs.length) ? pm!.subs[selSp].closed : false;
     return Container(
-      color: const Color(0xFF1E1E1E),
-      height: 40,
-      child: ListView(scrollDirection: Axis.horizontal, children: [
-        tb(Tool.select, Icons.near_me_outlined, 'Select'),
-        tb(Tool.node, Icons.timeline, 'Nodes'),
-        tb(Tool.pen, Icons.create_outlined, 'Pen'),
-        tb(Tool.pencil, Icons.draw_outlined, 'Pencil'),
-        const VerticalDivider(color: Colors.white12, width: 16, indent: 8, endIndent: 8),
-        if (tool == Tool.node && pm != null) ...[
-          mini(a?.smooth == true ? Icons.change_history : Icons.rounded_corner, a?.smooth == true ? 'Corner' : 'Smooth', a == null ? null : _toggleSmooth),
-          mini(Icons.add, 'Add node', a == null ? null : _addNode),
-          mini(Icons.remove, 'Delete node', a == null ? null : _deleteNode),
-          mini(closed ? Icons.call_split : Icons.loop, closed ? 'Open path' : 'Close path', _toggleClosed),
-        ],
-        if (tool == Tool.pen) ...[
-          mini(Icons.check, 'Done', penA.length < 2 ? null : () => _addPathNode(penA, false)),
-          mini(Icons.loop, 'Close', penA.length < 3 ? null : () => _addPathNode(penA, true)),
-          mini(Icons.close, 'Cancel', penA.isEmpty ? null : () => setState(() => penA = [])),
-        ],
+      padding: const EdgeInsets.all(4),
+      decoration: _floatDeco,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        b(Tool.select, Icons.near_me_outlined, 'Select'),
+        b(Tool.node, Icons.timeline, 'Nodes'),
+        b(Tool.pen, Icons.create_outlined, 'Pen'),
+        b(Tool.pencil, Icons.draw_outlined, 'Pencil'),
       ]),
     );
   }
 
-  Widget _zoomBar() => Container(
+  Widget _zoomPill() {
+    Widget ib(IconData i, String t, VoidCallback f) => IconButton(
+          tooltip: t,
+          onPressed: f,
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          icon: Icon(i, size: 17, color: Colors.white70),
+        );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: _floatDeco,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        ib(Icons.remove, 'Zoom out', () => setState(() => zoom = (zoom / 1.25).clamp(0.3, 6.0).toDouble())),
+        GestureDetector(
+          onTap: _fit,
+          child: SizedBox(width: 44, child: Text('${(zoom * 100).round()}%', textAlign: TextAlign.center, style: _lbl)),
+        ),
+        ib(Icons.add, 'Zoom in', () => setState(() => zoom = (zoom * 1.25).clamp(0.3, 6.0).toDouble())),
+        ib(Icons.fit_screen_outlined, 'Fit', _fit),
+      ]),
+    );
+  }
+
+  Widget _bottomOverlay() {
+    const hints = {
+      Tool.select: 'Tap to select · drag to move · pinch to zoom',
+      Tool.node: 'Drag nodes and handles · tap a segment to add a node',
+      Tool.pen: 'Tap for corners · drag for curves · tap first node to close',
+      Tool.pencil: 'Draw freehand — it becomes an editable path',
+    };
+    final bar = _contextBar();
+    return IgnorePointer(
+      ignoring: bar == null,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (bar != null) bar,
+        if (bar != null) const SizedBox(height: 8),
+        IgnorePointer(
+          child: Text(hints[tool]!, textAlign: TextAlign.center, maxLines: 2, style: _lbl.copyWith(color: Colors.white38, fontSize: 10.5)),
+        ),
+      ]),
+    );
+  }
+
+  Widget? _contextBar() {
+    Widget act(IconData i, String l, VoidCallback? f) => TextButton.icon(
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.white,
+            disabledForegroundColor: Colors.white24,
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+          ),
+          onPressed: f,
+          icon: Icon(i, size: 15),
+          label: Text(l, style: const TextStyle(fontSize: 11)),
+        );
+
+    List<Widget>? items;
+    if (tool == Tool.node && pm != null) {
+      final a = _selAnchor;
+      final closed = selSp < pm!.subs.length ? pm!.subs[selSp].closed : false;
+      items = [
+        act(a?.smooth == true ? Icons.change_history : Icons.rounded_corner, a?.smooth == true ? 'Corner' : 'Smooth', a == null ? null : _toggleSmooth),
+        act(Icons.add, 'Add node', a == null ? null : _addNode),
+        act(Icons.remove, 'Delete', a == null ? null : _deleteNode),
+        act(closed ? Icons.call_split : Icons.loop, closed ? 'Open' : 'Close', _toggleClosed),
+      ];
+    } else if (tool == Tool.pen && penA.isNotEmpty) {
+      items = [
+        act(Icons.check, 'Done', penA.length < 2 ? null : () => _addPathNode(penA, false)),
+        act(Icons.loop, 'Close', penA.length < 3 ? null : () => _addPathNode(penA, true)),
+        act(Icons.backspace_outlined, 'Undo point', () => setState(() => penA.removeLast())),
+        act(Icons.close, 'Cancel', () => setState(() => penA = [])),
+      ];
+    }
+    if (items == null) return null;
+    return Container(
+      decoration: _floatDeco.copyWith(borderRadius: BorderRadius.circular(22)),
+      child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(mainAxisSize: MainAxisSize.min, children: items)),
+    );
+  }
+
+  // ── bottom panel ──
+  Widget _panelView(double bodyH) {
+    Widget tab(IconData i, String t) => Tab(
+          height: 38,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(i, size: 15),
+            const SizedBox(width: 6),
+            Text(t),
+          ]),
+        );
+    return Container(
+      decoration: const BoxDecoration(
         color: _panel,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        height: 32,
-        child: Row(children: [
-          const Icon(Icons.zoom_out, size: 16, color: Colors.white54),
-          Expanded(child: Slider(value: zoom, min: 0.3, max: 2.5, activeColor: _accent, onChanged: (v) => setState(() => zoom = v))),
-          const Icon(Icons.zoom_in, size: 16, color: Colors.white54),
-          const SizedBox(width: 8),
-          Text('${(zoom * 100).round()}%', style: _lbl),
+        border: Border(top: BorderSide(color: _line)),
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          Expanded(
+            child: TabBar(
+              controller: tabs,
+              indicatorColor: _accent,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white54,
+              dividerColor: Colors.transparent,
+              labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              onTap: (i) {
+                setState(() => _panelOpen = (i == _lastTab) ? !_panelOpen : true);
+                _lastTab = i;
+              },
+              tabs: [
+                tab(Icons.tune, 'Properties'),
+                tab(Icons.layers_outlined, 'Layers'),
+                tab(Icons.code, 'Code'),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: _panelOpen ? 'Collapse panel' : 'Expand panel',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => setState(() => _panelOpen = !_panelOpen),
+            icon: Icon(_panelOpen ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, size: 20, color: Colors.white70),
+          ),
         ]),
-      );
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.topCenter,
+          child: SizedBox(
+            height: _panelOpen ? bodyH : 0,
+            child: _panelOpen
+                ? TabBarView(controller: tabs, children: [
+                    _props(),
+                    _layers(),
+                    _CodeTab(key: ValueKey(ver), source: svg, onApply: _applyCode),
+                  ])
+                : null,
+          ),
+        ),
+      ]),
+    );
+  }
 
   // ── properties ──
+  Widget _section(String t) => Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 8),
+        child: Text(t.toUpperCase(), style: _lbl.copyWith(fontSize: 10, letterSpacing: 1, color: Colors.white38)),
+      );
+
   Widget _props() {
     final n = cur;
-    if (n == null) return const Center(child: Text('Select a layer, or draw with Pen / Pencil', style: _lbl));
-    return ListView(padding: const EdgeInsets.all(14), children: [
+    if (n == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.touch_app_outlined, color: Colors.white24, size: 28),
+            SizedBox(height: 8),
+            Text('Select a layer to edit it,\nor draw with Pen / Pencil', textAlign: TextAlign.center, style: _lbl),
+          ]),
+        ),
+      );
+    }
+    final sMax = math.max(10.0, doc.viewBox.shortestSide / 8);
+    final off = doc.viewBox.shortestSide / 50;
+    return ListView(padding: const EdgeInsets.fromLTRB(14, 8, 14, 16), children: [
+      Row(children: [
+        Expanded(child: Text(n.name, overflow: TextOverflow.ellipsis, style: _lblStrong)),
+        Text(n.tag, style: _lbl),
+      ]),
+      _section('Appearance'),
       _colorRow('Fill', n.attrs['fill'] ?? '#000000', (v) => edit(() => n.attrs['fill'] = v)),
       _colorRow('Stroke', n.attrs['stroke'] ?? 'none', (v) => edit(() => n.attrs['stroke'] = v)),
-      _sl('Stroke width', double.tryParse(n.attrs['stroke-width'] ?? '') ?? 1, 0, 30, (v) => live(() => n.attrs['stroke-width'] = v.toStringAsFixed(1))),
+      _sl('Stroke width', double.tryParse(n.attrs['stroke-width'] ?? '') ?? 1, 0, sMax, (v) => live(() => n.attrs['stroke-width'] = v.toStringAsFixed(1))),
       _sl('Opacity', double.tryParse(n.attrs['opacity'] ?? '') ?? 1, 0, 1, (v) => live(() => n.attrs['opacity'] = v.toStringAsFixed(2)),
           fmt: (v) => '${(v * 100).round()}%'),
-      const Divider(color: Colors.white12, height: 20),
+      _section('Transform'),
       _sl('Rotation', n.rot, -180, 180, (v) => live(() => n.rot = v), fmt: (v) => '${v.round()}°'),
       _sl('Scale', n.scale, 0.1, 4, (v) => live(() => n.scale = v), fmt: (v) => '${(v * 100).round()}%'),
-      const SizedBox(height: 6),
-      Wrap(spacing: 8, children: [
+      _section('Arrange'),
+      Wrap(spacing: 8, runSpacing: 6, children: [
         _act(Icons.copy, 'Duplicate', () => edit(() {
               doc.nodes.add(n.clone()
-                ..dx += 6
-                ..dy += 6
+                ..dx += off
+                ..dy += off
                 ..name = '${n.name} copy');
               sel = doc.nodes.length - 1;
             })),
-        _act(Icons.flip_to_front, 'Forward', () {
-          if (sel < doc.nodes.length - 1) {
-            edit(() {
-              doc.nodes.insert(sel + 1, doc.nodes.removeAt(sel));
-              sel++;
-            });
-          }
-        }),
-        _act(Icons.flip_to_back, 'Backward', () {
-          if (sel > 0) {
-            edit(() {
-              doc.nodes.insert(sel - 1, doc.nodes.removeAt(sel));
-              sel--;
-            });
-          }
-        }),
+        _act(Icons.flip_to_front, 'Forward', sel < doc.nodes.length - 1 ? () {
+          edit(() {
+            doc.nodes.insert(sel + 1, doc.nodes.removeAt(sel));
+            sel++;
+          });
+        } : null),
+        _act(Icons.flip_to_back, 'Backward', sel > 0 ? () {
+          edit(() {
+            doc.nodes.insert(sel - 1, doc.nodes.removeAt(sel));
+            sel--;
+          });
+        } : null),
         _act(Icons.delete_outline, 'Delete', () => edit(() {
               doc.nodes.removeAt(sel);
               sel = -1;
               pm = null;
               if (tool == Tool.node) tool = Tool.select;
-            })),
+            }), danger: true),
       ]),
     ]);
   }
 
-  Widget _act(IconData i, String t, VoidCallback f) => OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(foregroundColor: Colors.white70, side: const BorderSide(color: Colors.white24), visualDensity: VisualDensity.compact),
+  Widget _act(IconData i, String t, VoidCallback? f, {bool danger = false}) => OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: danger ? Colors.redAccent : Colors.white70,
+        side: BorderSide(color: danger ? Colors.redAccent.withValues(alpha: .5) : Colors.white24),
+        visualDensity: VisualDensity.compact,
+      ),
       onPressed: f,
       icon: Icon(i, size: 15),
       label: Text(t, style: const TextStyle(fontSize: 11)));
 
-  Widget _sl(String l, double v, double mn, double mx, ValueChanged<double> on, {String Function(double)? fmt}) => Row(children: [
-        SizedBox(width: 84, child: Text(l, style: _lbl)),
-        Expanded(
-            child: SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-              trackHeight: 2,
-              activeTrackColor: _accent,
-              thumbColor: _accent,
-              inactiveTrackColor: Colors.white12,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-              overlayShape: SliderComponentShape.noOverlay),
-          child: Slider(value: v.clamp(mn, mx), min: mn, max: mx, onChangeStart: (_) => snap(), onChanged: on),
-        )),
-        SizedBox(width: 44, child: Text(fmt?.call(v) ?? v.toStringAsFixed(1), textAlign: TextAlign.end, style: _lbl)),
-      ]);
+  Widget _sl(String l, double v, double mn, double mx, ValueChanged<double> on, {String Function(double)? fmt}) => SizedBox(
+        height: 32,
+        child: Row(children: [
+          SizedBox(width: 84, child: Text(l, style: _lbl)),
+          Expanded(
+              child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+                trackHeight: 2,
+                activeTrackColor: _accent,
+                thumbColor: _accent,
+                inactiveTrackColor: Colors.white12,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                overlayShape: SliderComponentShape.noOverlay),
+            child: Slider(value: v.clamp(mn, mx).toDouble(), min: mn, max: mx, onChangeStart: (_) => snap(), onChanged: on),
+          )),
+          SizedBox(width: 44, child: Text(fmt?.call(v) ?? v.toStringAsFixed(1), textAlign: TextAlign.end, style: _lbl)),
+        ]),
+      );
 
   Color? _parse(String s) {
     s = s.trim();
@@ -730,7 +1040,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
     return v == null ? null : Color(0xFF000000 | v);
   }
 
-  String _hex(int c) => '#${(c & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+  String _hex(int c) => '#${(c & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
   Widget _colorRow(String label, String value, ValueChanged<String> on) {
     final c = _parse(value);
@@ -762,15 +1072,20 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
             ]),
           ),
         ),
-        SizedBox(
-          width: 74,
+        Container(
+          width: 76,
+          height: 26,
+          margin: const EdgeInsets.only(left: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(color: _panelHi, borderRadius: BorderRadius.circular(6)),
           child: TextFormField(
             key: ValueKey('$label$sel$value'),
             initialValue: value,
             style: const TextStyle(color: Colors.white, fontSize: 11, fontFamily: 'monospace'),
-            decoration: const InputDecoration(isDense: true, border: InputBorder.none),
+            decoration: const InputDecoration(isDense: true, border: InputBorder.none, contentPadding: EdgeInsets.only(top: 6)),
             onFieldSubmitted: (t) {
-              if (_parse(t) != null || t == 'none') on(t);
+              final v = t.trim();
+              if (_parse(v) != null || v == 'none') on(v);
             },
           ),
         ),
@@ -781,8 +1096,13 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
   // ── layers ──
   Widget _layers() {
     final n = doc.nodes.length;
+    if (n == 0) {
+      return const Center(child: Text('No layers yet', style: _lbl));
+    }
     return ReorderableListView.builder(
       itemCount: n,
+      buildDefaultDragHandles: false,
+      padding: const EdgeInsets.only(bottom: 8),
       // ignore: deprecated_member_use
       onReorder: (o, nw) {
         if (nw > o) nw--;
@@ -797,9 +1117,10 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
         final idx = n - 1 - i;
         final node = doc.nodes[idx];
         final fill = _parse(node.attrs['fill'] ?? '#000000') ?? _parse(node.attrs['stroke'] ?? '') ?? Colors.white24;
-        return Container(
-          key: ValueKey('${node.hashCode}$idx'),
-          color: idx == sel ? _accent.withValues(alpha: .18) : Colors.transparent,
+        final on = idx == sel;
+        return Material(
+          key: ObjectKey(node),
+          color: on ? _accent.withValues(alpha: .16) : Colors.transparent,
           child: ListTile(
             dense: true,
             visualDensity: VisualDensity.compact,
@@ -809,11 +1130,18 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
               child: Icon(node.visible ? Icons.visibility : Icons.visibility_off, size: 17, color: Colors.white54),
             ),
             title: Row(children: [
-              Container(width: 12, height: 12, decoration: BoxDecoration(color: fill, borderRadius: BorderRadius.circular(3))),
+              Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(color: fill, borderRadius: BorderRadius.circular(3), border: Border.all(color: Colors.white24, width: .5))),
               const SizedBox(width: 8),
               Expanded(child: Text(node.name, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 12))),
             ]),
             subtitle: Text(node.tag, style: _lbl.copyWith(fontSize: 10)),
+            trailing: ReorderableDragStartListener(
+              index: i,
+              child: const Padding(padding: EdgeInsets.all(8), child: Icon(Icons.drag_handle, size: 18, color: Colors.white38)),
+            ),
           ),
         );
       },
@@ -853,8 +1181,8 @@ class _NodePainter extends CustomPainter {
             for (final h in [a.i, a.o]) {
               if (h == null) continue;
               canvas.drawLine(c, t(h), Paint()..color = Colors.white54..strokeWidth = 1);
-              canvas.drawCircle(t(h), 4.5, Paint()..color = Colors.white);
-              canvas.drawCircle(t(h), 4.5, line);
+              canvas.drawCircle(t(h), 5, Paint()..color = Colors.white);
+              canvas.drawCircle(t(h), 5, line);
             }
           }
           final r = Rect.fromCenter(center: c, width: 10, height: 10);
@@ -875,6 +1203,7 @@ class _NodePainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2
             ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round
             ..color = Colors.white);
     }
   }
@@ -893,23 +1222,44 @@ class _CodeTab extends StatefulWidget {
 
 class _CodeTabState extends State<_CodeTab> {
   late final c = TextEditingController(text: widget.source);
+
+  @override
+  void dispose() {
+    c.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
         child: Column(children: [
           Expanded(
             child: TextField(
               controller: c,
               maxLines: null,
               expands: true,
+              textAlignVertical: TextAlignVertical.top,
               style: const TextStyle(color: Color(0xFFCFCFFF), fontSize: 11, fontFamily: 'monospace'),
-              decoration: const InputDecoration(filled: true, fillColor: _bg, border: InputBorder.none),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: _bg,
+                contentPadding: const EdgeInsets.all(10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              ),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(onPressed: () => widget.onApply(c.text), icon: const Icon(Icons.check, size: 16), label: const Text('Apply code')),
-          ),
+          Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            TextButton.icon(
+              onPressed: () => c.text = widget.source,
+              icon: const Icon(Icons.restart_alt, size: 16),
+              label: const Text('Reset'),
+            ),
+            TextButton.icon(
+              onPressed: () => widget.onApply(c.text),
+              icon: const Icon(Icons.check, size: 16),
+              label: const Text('Apply code'),
+            ),
+          ]),
         ]),
       );
 }

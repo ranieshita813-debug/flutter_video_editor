@@ -9,28 +9,26 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
-import 'package:flutter_video_editor/features/editor/widgets/skeleton_grid.dart';
 
 // ============================================================================
 // Design notes
 // ----------------------------------------------------------------------------
-// Visual language: CapCut-style docked panels on mobile (✕ title ✓ header,
-// thumbnail tiles, thin sliders with a white thumb) with Premiere-style
-// numeric readouts (tabular figures). Colors still come from the existing
-// tokens in editor_helpers.dart: surfaceToken, cardToken, accentToken,
-// mutedToken, dividerToken.
+// CapCut-style docked panels (✕ title ✓ header, thumbnail tiles, thin sliders
+// with a white thumb) with Premiere-style numeric readouts (tabular figures).
+// Colors come from the tokens in editor_helpers.dart: surfaceToken, cardToken,
+// accentToken, mutedToken, dividerToken.
 //
 // Sheets are content only. To get the ✕ / ✓ header, wrap one in
-// [ToolSheetFrame] from the host that shows it, for example:
+// [ToolSheetFrame] from the host that shows it:
 //
-//   ToolSheetFrame(
-//     title: 'Color',
-//     onClose: closePanel,
-//     child: const ColorGradingSheet(),
-//   )
+//   ToolSheetFrame(title: 'Color', onClose: closePanel, child: const ColorGradingSheet())
 //
-// The frame needs a bounded height from its parent, like the sheets did.
+// The frame needs a bounded height from its parent.
 // ============================================================================
+
+const Color _danger = Color(0xFFFF6B6B);
+const Color _canvasDark = Color(0xFF1B1B20);
+const double _pad = 16;
 
 // ----------------------------------------------------------------------------
 // Public frame: header with cancel / apply, used by the host
@@ -53,25 +51,21 @@ class ToolSheetFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: <Widget>[
-        _SheetHeader(
-          title: title,
-          onClose: onClose,
-          onApply: onApply ?? onClose,
-        ),
-        Expanded(child: child),
-      ],
+    // The sheets use InkWell / ChoiceChip, which need a Material ancestor.
+    return Material(
+      type: MaterialType.transparency,
+      child: Column(
+        children: <Widget>[
+          _SheetHeader(title: title, onClose: onClose, onApply: onApply ?? onClose),
+          Expanded(child: child),
+        ],
+      ),
     );
   }
 }
 
 class _SheetHeader extends StatelessWidget {
-  const _SheetHeader({
-    required this.title,
-    required this.onClose,
-    required this.onApply,
-  });
+  const _SheetHeader({required this.title, required this.onClose, required this.onApply});
 
   final String title;
   final VoidCallback onClose;
@@ -81,9 +75,7 @@ class _SheetHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 48,
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: dividerToken)),
-      ),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: dividerToken))),
       child: Row(
         children: <Widget>[
           IconButton(
@@ -98,8 +90,7 @@ class _SheetHeader extends StatelessWidget {
             child: Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),
           IconButton(
@@ -131,6 +122,9 @@ IconData _transitionIcon(TransitionType t) => switch (t) {
 
 /// Opens the transition sheet. Returns the chosen type when applied, or null
 /// when cancelled. [onApply] receives the type and duration in seconds.
+///
+/// Pass [onApply] — without it, applying only returns the type and nothing is
+/// written to the project.
 Future<TransitionType?> showTransitionSheet(
   BuildContext context, {
   TransitionType initial = TransitionType.none,
@@ -141,23 +135,15 @@ Future<TransitionType?> showTransitionSheet(
     context: context,
     backgroundColor: surfaceToken,
     isScrollControlled: true,
+    useSafeArea: true,
     constraints: const BoxConstraints(maxWidth: 560),
-    shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
-    builder: (_) => _TransitionPanel(
-      initial: initial,
-      initialSeconds: initialSeconds,
-      onApply: onApply,
-    ),
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
+    builder: (_) => _TransitionPanel(initial: initial, initialSeconds: initialSeconds, onApply: onApply),
   );
 }
 
 class _TransitionPanel extends StatefulWidget {
-  const _TransitionPanel({
-    required this.initial,
-    required this.initialSeconds,
-    this.onApply,
-  });
+  const _TransitionPanel({required this.initial, required this.initialSeconds, this.onApply});
 
   final TransitionType initial;
   final double initialSeconds;
@@ -173,65 +159,69 @@ class _TransitionPanelState extends State<_TransitionPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          _SheetHeader(
-            title: 'Transition',
-            onClose: () => Navigator.of(context).pop(),
-            onApply: () {
-              widget.onApply?.call(_type, _seconds);
-              Navigator.of(context).pop(_type);
-            },
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                for (final t in TransitionType.values)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: SizedBox(
-                        height: 88,
-                        child: _ThumbTile(
-                          label: _cap(t.name),
-                          icon: _transitionIcon(t),
-                          selected: t == _type,
-                          onTap: () => setState(() => _type = t),
+    return Material(
+      type: MaterialType.transparency,
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            _SheetHeader(
+              title: 'Transition',
+              onClose: () => Navigator.of(context).pop(),
+              onApply: () {
+                widget.onApply?.call(_type, _seconds);
+                Navigator.of(context).pop(_type);
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  for (final t in TransitionType.values)
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: SizedBox(
+                          height: 88,
+                          child: _ThumbTile(
+                            label: _cap(t.name),
+                            icon: _transitionIcon(t),
+                            selected: t == _type,
+                            onTap: () => setState(() => _type = t),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-            child: _SliderRow(
-              label: 'Duration',
-              value: _seconds,
-              min: 0.1,
-              max: 2.0,
-              display: '${_seconds.toStringAsFixed(1)}s',
-              // Nothing to time when there is no transition.
-              onChanged: _type == TransitionType.none
-                  ? null
-                  : (v) => setState(() => _seconds = v),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(_pad, 4, _pad, 20),
+              child: _SliderRow(
+                label: 'Duration',
+                value: _seconds,
+                min: 0.1,
+                max: 2.0,
+                display: '${_seconds.toStringAsFixed(1)}s',
+                // Nothing to time when there is no transition.
+                onChanged: _type == TransitionType.none ? null : (v) => setState(() => _seconds = v),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
 // ----------------------------------------------------------------------------
-// Shared sheet widgets
+// Shared widgets
 // ----------------------------------------------------------------------------
 String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+EdgeInsets _listPad(BuildContext context) =>
+    EdgeInsets.fromLTRB(_pad, _pad, _pad, _pad + MediaQuery.paddingOf(context).bottom);
 
 Gradient _thumbGradient(int i) {
   final double h = (i * 47 % 360).toDouble();
@@ -246,16 +236,86 @@ Gradient _thumbGradient(int i) {
 }
 
 class _Card extends StatelessWidget {
-  const _Card({required this.child});
+  const _Card({required this.child, this.padding = const EdgeInsets.all(12)});
   final Widget child;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration:
-            BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(12)),
+        padding: padding,
+        decoration: BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(12)),
         child: child,
       );
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 20, bottom: 8),
+        child: Text(text, style: const TextStyle(color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
+      );
+}
+
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint({required this.text, this.icon = Icons.touch_app_outlined});
+  final String text;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, color: Colors.white24, size: 28),
+            const SizedBox(height: 8),
+            Text(text, textAlign: TextAlign.center, style: const TextStyle(color: mutedToken, fontSize: 12)),
+          ],
+        ),
+      );
+}
+
+/// Horizontal row of single-select chips.
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({required this.options, required this.selected, required this.onSelected});
+  final List<String> options;
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          for (final o in options)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(o),
+                selected: o == selected,
+                showCheckmark: false,
+                selectedColor: accentToken,
+                backgroundColor: cardToken,
+                side: BorderSide.none,
+                labelStyle: TextStyle(
+                  color: o == selected ? Colors.black : Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                onSelected: (_) {
+                  tapFeedback();
+                  onSelected(o);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Thin slider with a white thumb and a numeric readout (CapCut + Premiere).
@@ -287,22 +347,24 @@ class _SliderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double v = value.clamp(min, max).toDouble();
+    final String shown = display ?? v.toStringAsFixed(2);
+    final bool enabled = onChanged != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Row(
           children: <Widget>[
             Text(label,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                style: TextStyle(
+                    color: enabled ? Colors.white : mutedToken, fontSize: 13, fontWeight: FontWeight.w600)),
             const Spacer(),
             Text(
-              display ?? v.toStringAsFixed(2),
-              style: const TextStyle(
-                color: accentToken,
+              shown,
+              style: TextStyle(
+                color: enabled ? accentToken : mutedToken,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
-                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
               ),
             ),
           ],
@@ -324,7 +386,13 @@ class _SliderRow extends StatelessWidget {
             alignment: Alignment.center,
             children: <Widget>[
               if (bipolar) Container(width: 2, height: 12, color: mutedToken),
-              Slider(value: v, min: min, max: max, onChanged: onChanged),
+              Slider(
+                value: v,
+                min: min,
+                max: max,
+                semanticFormatterCallback: (_) => '$label $shown',
+                onChanged: onChanged,
+              ),
             ],
           ),
         ),
@@ -344,7 +412,8 @@ class _SliderRow extends StatelessWidget {
   }
 }
 
-/// Pill button in the accent color.
+/// Pill button in the accent color. [icon] is a HugeIcons value, so its type
+/// depends on your hugeicons version; it is passed straight to [HugeIcon].
 Widget _primaryBtn(dynamic icon, String label, VoidCallback? onPressed) => SizedBox(
       width: double.infinity,
       height: 46,
@@ -369,10 +438,7 @@ Widget _primaryBtn(dynamic icon, String label, VoidCallback? onPressed) => Sized
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (icon != null) ...<Widget>[
-              HugeIcon(
-                  icon: icon,
-                  color: onPressed == null ? mutedToken : Colors.black,
-                  size: 18),
+              HugeIcon(icon: icon, color: onPressed == null ? mutedToken : Colors.black, size: 18),
               const SizedBox(width: 8),
             ],
             Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
@@ -388,6 +454,7 @@ Widget _outlineBtn(String label, VoidCallback? onPressed) => OutlinedButton(
         shape: const StadiumBorder(),
         minimumSize: const Size.fromHeight(46),
         foregroundColor: Colors.white,
+        disabledForegroundColor: mutedToken,
         textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
       onPressed: onPressed == null
@@ -409,36 +476,36 @@ class _Tabs extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: dividerToken)),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: _pad),
+      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: dividerToken))),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           for (int i = 0; i < labels.length; i++)
             Padding(
               padding: const EdgeInsets.only(right: 24),
-              child: InkWell(
-                onTap: () {
-                  tapFeedback();
-                  onChanged(i);
-                },
-                child: Container(
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                          color: i == index ? accentToken : Colors.transparent,
-                          width: 2),
+              child: Semantics(
+                button: true,
+                selected: i == index,
+                child: InkWell(
+                  onTap: () {
+                    tapFeedback();
+                    onChanged(i);
+                  },
+                  child: Container(
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: i == index ? accentToken : Colors.transparent, width: 2),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    labels[i],
-                    style: TextStyle(
-                      color: i == index ? Colors.white : mutedToken,
-                      fontSize: 13,
-                      fontWeight: i == index ? FontWeight.w600 : FontWeight.w500,
+                    child: Text(
+                      labels[i],
+                      style: TextStyle(
+                        color: i == index ? Colors.white : mutedToken,
+                        fontSize: 13,
+                        fontWeight: i == index ? FontWeight.w600 : FontWeight.w500,
+                      ),
                     ),
                   ),
                 ),
@@ -472,6 +539,7 @@ class _ThumbTile extends StatelessWidget {
       button: true,
       selected: selected,
       label: label,
+      excludeSemantics: true,
       child: InkWell(
         onTap: () {
           tapFeedback();
@@ -489,17 +557,11 @@ class _ThumbTile extends StatelessWidget {
                         color: gradient == null ? cardToken : null,
                         gradient: gradient,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: selected ? accentToken : Colors.transparent,
-                            width: 2),
+                        border: Border.all(color: selected ? accentToken : Colors.transparent, width: 2),
                       ),
                       child: icon == null
                           ? null
-                          : Center(
-                              child: Icon(icon,
-                                  size: 22,
-                                  color: selected ? accentToken : Colors.white70),
-                            ),
+                          : Center(child: Icon(icon, size: 22, color: selected ? accentToken : Colors.white70)),
                     ),
                   ),
                   if (selected)
@@ -509,10 +571,8 @@ class _ThumbTile extends StatelessWidget {
                       child: Container(
                         width: 16,
                         height: 16,
-                        decoration:
-                            const BoxDecoration(color: accentToken, shape: BoxShape.circle),
-                        child: const Icon(Icons.check_rounded,
-                            size: 12, color: Colors.black),
+                        decoration: const BoxDecoration(color: accentToken, shape: BoxShape.circle),
+                        child: const Icon(Icons.check_rounded, size: 12, color: Colors.black),
                       ),
                     ),
                 ],
@@ -536,70 +596,40 @@ class _ThumbTile extends StatelessWidget {
   }
 }
 
-class _ResponsiveGrid extends StatefulWidget {
+class _ResponsiveGrid extends StatelessWidget {
   const _ResponsiveGrid({
     super.key,
     required this.itemCount,
     required this.itemBuilder,
     this.minTile = 100,
     this.aspect = 1,
-    this.fakeLoad = false,
   });
   final int itemCount;
   final IndexedWidgetBuilder itemBuilder;
   final double minTile;
   final double aspect;
-  final bool fakeLoad;
-
-  @override
-  State<_ResponsiveGrid> createState() => _ResponsiveGridState();
-}
-
-class _ResponsiveGridState extends State<_ResponsiveGrid> {
-  late bool _loading = widget.fakeLoad;
-
-  @override
-  void initState() {
-    super.initState();
-    if (_loading) {
-      Future<void>.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) setState(() => _loading = false);
-      });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
-      final int cols = colsCount(c.maxWidth - 32, widget.minTile);
-      if (_loading) {
-        return SkeletonGrid(
-            itemCount: math.min(widget.itemCount, cols * 2),
-            crossAxisCount: cols,
-            childAspectRatio: widget.aspect);
-      }
+      final int cols = colsCount(c.maxWidth - 2 * _pad, minTile);
       return GridView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: _listPad(context),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: cols,
           crossAxisSpacing: 8,
           mainAxisSpacing: 10,
-          childAspectRatio: widget.aspect,
+          childAspectRatio: aspect,
         ),
-        itemCount: widget.itemCount,
-        itemBuilder: widget.itemBuilder,
+        itemCount: itemCount,
+        itemBuilder: itemBuilder,
       );
     });
   }
 }
 
-/// Text-only chip tile, used for fonts, animation styles and emoji.
-Widget _tile({
-  required Widget child,
-  required VoidCallback onTap,
-  bool selected = false,
-}) =>
-    InkWell(
+/// Text-only chip tile, used for fonts and emoji.
+Widget _tile({required Widget child, required VoidCallback onTap, bool selected = false}) => InkWell(
       onTap: () {
         tapFeedback();
         onTap();
@@ -618,32 +648,42 @@ Widget _tile({
     );
 
 // ----------------------------------------------------------------------------
-// Tool Sheet Implementations
+// Audio
 // ----------------------------------------------------------------------------
-
-class AudioToolsSheet extends StatefulWidget {
+class AudioToolsSheet extends StatelessWidget {
   const AudioToolsSheet({super.key});
 
-  @override
-  State<AudioToolsSheet> createState() => _AudioToolsSheetState();
-}
-
-class _AudioToolsSheetState extends State<AudioToolsSheet> {
   static const List<String> _voiceEffects = ['Normal', 'Deep', 'Robot', 'Chipmunk', 'Echo'];
-  static const List<String> _eqPresets = ['Flat', 'Bass Boost', 'Treble Boost', 'Vocal', 'Pop', 'Rock'];
+  static const List<String> _eqPresets = ['Flat', 'Bass boost', 'Treble boost', 'Vocal', 'Pop', 'Rock'];
+
+  Future<void> _pickAudio(BuildContext context, EditorController editor) async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.audio, allowMultiple: false);
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.single;
+      if (file.path == null) {
+        messenger?.showSnackBar(const SnackBar(content: Text('Couldn’t read that file. Try another.')));
+        return;
+      }
+      editor.addAudioTrack(file.path!, trackName: file.name);
+    } catch (_) {
+      messenger?.showSnackBar(const SnackBar(content: Text('Couldn’t open the file picker. Try again.')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
     final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
-    final bool hasAudio = clip != null &&
-        (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
-    final ap = clip?.audioProperties ?? const AudioProperties();
-    final double volume = clip?.volume ?? 1.0;
+    final bool hasAudio = clip != null && (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
     final bool isVideo = clip?.clipType == ClipType.video;
+    final ap = clip?.audioProperties ?? const AudioProperties();
+    // The volume slider writes to audioProperties, so it must read from there too.
+    final double volume = ap.volume;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: _listPad(context),
       children: <Widget>[
         _Card(
           child: Row(
@@ -656,10 +696,7 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(
-                  child: HugeIcon(
-                      icon: HugeIcons.strokeRoundedMusicNote01,
-                      color: accentToken,
-                      size: 20),
+                  child: HugeIcon(icon: HugeIcons.strokeRoundedMusicNote01, color: accentToken, size: 20),
                 ),
               ),
               const SizedBox(width: 12),
@@ -668,47 +705,29 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text('Add audio track',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600)),
+                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
                     SizedBox(height: 2),
-                    Text('Place a soundtrack clip on the timeline',
-                        style: TextStyle(color: mutedToken, fontSize: 12)),
+                    Text('Place a soundtrack on the timeline', style: TextStyle(color: mutedToken, fontSize: 12)),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              SizedBox(
-                width: 44,
-                height: 44,
-                child: Material(
-                  color: accentToken,
-                  shape: const CircleBorder(),
-                  child: InkWell(
-                    customBorder: const CircleBorder(),
-                    onTap: () async {
-                      tapFeedback();
-                      try {
-                        final result = await FilePicker.platform.pickFiles(
-                          type: FileType.audio,
-                          allowMultiple: false,
-                        );
-                        if (result != null && result.files.isNotEmpty) {
-                          final file = result.files.single;
-                          if (file.path != null) {
-                            editor.addAudioTrack(file.path!, trackName: file.name);
-                          }
-                        }
-                      } catch (_) {}
-                    },
-                    child: const Tooltip(
-                      message: 'Add audio track',
-                      child: Center(
-                        child: HugeIcon(
-                            icon: HugeIcons.strokeRoundedAdd01,
-                            color: Colors.black,
-                            size: 20),
+              Tooltip(
+                message: 'Add audio track',
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: Material(
+                    color: accentToken,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () {
+                        tapFeedback();
+                        _pickAudio(context, editor);
+                      },
+                      child: const Center(
+                        child: HugeIcon(icon: HugeIcons.strokeRoundedAdd01, color: Colors.black, size: 20),
                       ),
                     ),
                   ),
@@ -719,260 +738,194 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
         ),
         if (isVideo) ...<Widget>[
           const SizedBox(height: 12),
-          _outlineBtn('Extract Audio from Video', () {
-            editor.extractAudioFromSelectedClip();
-          }),
+          _outlineBtn('Extract audio from video', editor.extractAudioFromSelectedClip),
         ],
-        if (hasAudio) ...<Widget>[
-          const SizedBox(height: 20),
-          _SliderRow(
-            label: 'Volume',
-            value: volume,
-            min: 0,
-            max: 2,
-            display: '${(volume * 100).round()}%',
-            minLabel: '0%',
-            maxLabel: '200%',
-            onChanged: (val) =>
-                editor.updateAudioProperties(ap.copyWith(volume: val)),
-          ),
-          const SizedBox(height: 16),
-          _SliderRow(
-            label: 'Fade In',
-            value: ap.fadeIn.inMilliseconds / 1000.0,
-            min: 0,
-            max: 5,
-            display: '${(ap.fadeIn.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
-            onChanged: (val) => editor.updateAudioProperties(
-              ap.copyWith(fadeIn: Duration(milliseconds: (val * 1000).round())),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _SliderRow(
-            label: 'Fade Out',
-            value: ap.fadeOut.inMilliseconds / 1000.0,
-            min: 0,
-            max: 5,
-            display: '${(ap.fadeOut.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
-            onChanged: (val) => editor.updateAudioProperties(
-              ap.copyWith(fadeOut: Duration(milliseconds: (val * 1000).round())),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _SliderRow(
-            label: 'Pitch',
-            value: ap.pitch,
-            min: 0.5,
-            max: 2.0,
-            display: '${ap.pitch.toStringAsFixed(2)}x',
-            onChanged: (val) => editor.updateAudioProperties(ap.copyWith(pitch: val)),
-          ),
-          const SizedBox(height: 16),
-          _SliderRow(
-            label: 'Noise Reduction',
-            value: ap.noiseReduction,
-            min: 0,
-            max: 1.0,
-            display: '${(ap.noiseReduction * 100).round()}%',
-            onChanged: (val) => editor.updateAudioProperties(ap.copyWith(noiseReduction: val)),
-          ),
-          const SizedBox(height: 20),
-          const Text('Voice Effect',
-              style: TextStyle(color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _voiceEffects.map((ve) {
-                final isSelected = ap.voiceEffect == ve;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(ve),
-                    selected: isSelected,
-                    selectedColor: accentToken,
-                    backgroundColor: cardToken,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.black : Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    onSelected: (_) {
-                      editor.updateAudioProperties(ap.copyWith(voiceEffect: ve));
-                    },
+        if (!hasAudio)
+          const _EmptyHint(text: 'Select an audio or video clip to adjust its sound.')
+        else ...<Widget>[
+          const _SectionLabel('Levels'),
+          _Card(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            child: Column(
+              children: <Widget>[
+                _SliderRow(
+                  label: 'Volume',
+                  value: volume,
+                  min: 0,
+                  max: 2,
+                  display: '${(volume * 100).round()}%',
+                  minLabel: '0%',
+                  maxLabel: '200%',
+                  onChanged: (v) => editor.updateAudioProperties(ap.copyWith(volume: v)),
+                ),
+                const SizedBox(height: 8),
+                _SliderRow(
+                  label: 'Fade in',
+                  value: ap.fadeIn.inMilliseconds / 1000.0,
+                  min: 0,
+                  max: 5,
+                  display: '${(ap.fadeIn.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
+                  onChanged: (v) => editor.updateAudioProperties(
+                    ap.copyWith(fadeIn: Duration(milliseconds: (v * 1000).round())),
                   ),
-                );
-              }).toList(),
+                ),
+                const SizedBox(height: 8),
+                _SliderRow(
+                  label: 'Fade out',
+                  value: ap.fadeOut.inMilliseconds / 1000.0,
+                  min: 0,
+                  max: 5,
+                  display: '${(ap.fadeOut.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
+                  onChanged: (v) => editor.updateAudioProperties(
+                    ap.copyWith(fadeOut: Duration(milliseconds: (v * 1000).round())),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 20),
-          const Text('Equalizer Preset',
-              style: TextStyle(color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _eqPresets.map((eq) {
-                final isSelected = ap.equalizerPreset == eq;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(eq),
-                    selected: isSelected,
-                    selectedColor: accentToken,
-                    backgroundColor: cardToken,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.black : Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    onSelected: (_) {
-                      editor.updateAudioProperties(ap.copyWith(equalizerPreset: eq));
-                    },
-                  ),
-                );
-              }).toList(),
+          const _SectionLabel('Voice'),
+          _Card(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            child: Column(
+              children: <Widget>[
+                _SliderRow(
+                  label: 'Pitch',
+                  value: ap.pitch,
+                  min: 0.5,
+                  max: 2.0,
+                  display: '${ap.pitch.toStringAsFixed(2)}x',
+                  onChanged: (v) => editor.updateAudioProperties(ap.copyWith(pitch: v)),
+                ),
+                const SizedBox(height: 8),
+                _SliderRow(
+                  label: 'Noise reduction',
+                  value: ap.noiseReduction,
+                  min: 0,
+                  max: 1.0,
+                  display: '${(ap.noiseReduction * 100).round()}%',
+                  onChanged: (v) => editor.updateAudioProperties(ap.copyWith(noiseReduction: v)),
+                ),
+              ],
             ),
+          ),
+          const _SectionLabel('Voice effect'),
+          _ChipRow(
+            options: _voiceEffects,
+            selected: _matchOption(_voiceEffects, ap.voiceEffect),
+            onSelected: (v) => editor.updateAudioProperties(ap.copyWith(voiceEffect: v)),
+          ),
+          const _SectionLabel('Equalizer preset'),
+          _ChipRow(
+            options: _eqPresets,
+            selected: _matchOption(_eqPresets, ap.equalizerPreset),
+            onSelected: (v) => editor.updateAudioProperties(ap.copyWith(equalizerPreset: v)),
           ),
         ],
       ],
     );
   }
+
+  /// Matches a stored value to a chip label, ignoring case, so values saved as
+  /// "Bass Boost" still highlight the "Bass boost" chip.
+  static String _matchOption(List<String> options, String stored) => options.firstWhere(
+        (o) => o.toLowerCase() == stored.toLowerCase(),
+        orElse: () => '',
+      );
 }
 
-class _AnimatedTextTile extends StatefulWidget {
+// ----------------------------------------------------------------------------
+// Text and animation
+// ----------------------------------------------------------------------------
+class _AnimatedTextTile extends StatelessWidget {
   const _AnimatedTextTile({
     required this.style,
     required this.selected,
     required this.onTap,
+    required this.animation,
   });
 
   final TextAnimationStyle style;
   final bool selected;
   final VoidCallback onTap;
 
-  @override
-  State<_AnimatedTextTile> createState() => _AnimatedTextTileState();
-}
+  /// One controller shared by every tile, instead of one ticker per tile.
+  final Animation<double> animation;
 
-class _AnimatedTextTileState extends State<_AnimatedTextTile>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  static const TextStyle _sample = TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold);
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Widget _buildAnimatedSample(TextAnimationStyle style) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, _) {
-        final val = _controller.value;
-        switch (style) {
-          case TextAnimationStyle.fadeIn:
-            return Opacity(
-                opacity: val,
-                child: const Text('Aa',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)));
-          case TextAnimationStyle.typewriter:
-            final count = (val * 4).round();
-            final txt = 'Text'.substring(0, count.clamp(1, 4));
-            return Text(txt,
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold));
-          case TextAnimationStyle.slideUp:
-            return Transform.translate(
-              offset: Offset(0, (1 - val) * 12),
-              child: const Text('Aa',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            );
-          case TextAnimationStyle.bounce:
-          case TextAnimationStyle.scaleUp:
-            return Transform.scale(
-              scale: 0.6 + 0.5 * val,
-              child: const Text('Aa',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            );
-          case TextAnimationStyle.rotateIn:
-            return Transform.rotate(
-              angle: (1 - val) * math.pi / 2,
-              child: const Text('Aa',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            );
-          case TextAnimationStyle.glowPulse:
-          case TextAnimationStyle.neonFlicker:
-            return Text('Aa',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(color: const Color(0xFF00E5FF), blurRadius: val * 12),
-                  ],
-                ));
-          default:
-            return Text('Aa',
-                style: TextStyle(
-                    color: widget.selected ? accentToken : Colors.white70,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold));
-        }
-      },
-    );
+  Widget _sampleFor(double val) {
+    switch (style) {
+      case TextAnimationStyle.fadeIn:
+        return Opacity(opacity: val, child: const Text('Aa', style: _sample));
+      case TextAnimationStyle.typewriter:
+        final int count = (val * 4).round().clamp(1, 4);
+        return Text('Text'.substring(0, count), style: _sample.copyWith(fontSize: 16));
+      case TextAnimationStyle.slideUp:
+        return Transform.translate(offset: Offset(0, (1 - val) * 12), child: const Text('Aa', style: _sample));
+      case TextAnimationStyle.bounce:
+        return Transform.scale(
+            scale: 0.6 + 0.5 * Curves.elasticOut.transform(val), child: const Text('Aa', style: _sample));
+      case TextAnimationStyle.scaleUp:
+        return Transform.scale(scale: 0.6 + 0.5 * val, child: const Text('Aa', style: _sample));
+      case TextAnimationStyle.rotateIn:
+        return Transform.rotate(angle: (1 - val) * math.pi / 2, child: const Text('Aa', style: _sample));
+      case TextAnimationStyle.glowPulse:
+      case TextAnimationStyle.neonFlicker:
+        return Text('Aa',
+            style: _sample.copyWith(shadows: <Shadow>[Shadow(color: const Color(0xFF00E5FF), blurRadius: val * 12)]));
+      default:
+        return Text('Aa', style: _sample.copyWith(color: selected ? accentToken : Colors.white70));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: widget.onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardToken,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: widget.selected ? accentToken : Colors.transparent,
-            width: widget.selected ? 2 : 1,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: _cap(style.name),
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: cardToken,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: selected ? accentToken : Colors.transparent, width: 2),
           ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: Container(
-                color: const Color(0xFF1B1B20),
-                child: Center(
-                  child: _buildAnimatedSample(widget.style),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Expanded(
+                child: Container(
+                  color: _canvasDark,
+                  child: Center(
+                    child: AnimatedBuilder(
+                      animation: animation,
+                      builder: (_, __) => _sampleFor(animation.value),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              color: widget.selected ? accentToken : cardToken,
-              alignment: Alignment.center,
-              child: Text(
-                _cap(widget.style.name),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: widget.selected ? Colors.black : Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                color: selected ? accentToken : cardToken,
+                alignment: Alignment.center,
+                child: Text(
+                  _cap(style.name),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected ? Colors.black : Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -986,26 +939,41 @@ class TextAnimationSheet extends StatefulWidget {
   State<TextAnimationSheet> createState() => _TextAnimationSheetState();
 }
 
-class _TextAnimationSheetState extends State<TextAnimationSheet> {
-  final TextEditingController _ctrl = TextEditingController(text: 'Sample Text');
+class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTickerProviderStateMixin {
+  final TextEditingController _ctrl = TextEditingController(text: 'Sample text');
+  late final AnimationController _pulse =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
   String _selectedFont = 'Poppins';
   TextAnimationStyle _anim = TextAnimationStyle.fadeIn;
   int _tab = 0;
+  String? _syncedId;
 
-  static const List<String> _fonts = <String>[
-    'Poppins', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'
-  ];
+  static const List<String> _fonts = <String>['Poppins', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'];
 
   @override
   void dispose() {
+    _pulse.dispose();
     _ctrl.dispose();
     super.dispose();
+  }
+
+  /// When a different text clip is selected, load its text into the field so
+  /// "Update" never overwrites it with the placeholder.
+  void _syncFrom(TimelineClip? clip) {
+    if (clip?.id == _syncedId) return;
+    _syncedId = clip?.id;
+    if (clip != null && clip.clipType == ClipType.text) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _ctrl.text = clip.label;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
     final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    _syncFrom(selectedClip);
     final bool editing = selectedClip?.clipType == ClipType.text;
     const styles = TextAnimationStyle.values;
 
@@ -1017,25 +985,24 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
           onChanged: (i) => setState(() => _tab = i),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          padding: const EdgeInsets.fromLTRB(_pad, 14, _pad, 0),
           child: TextField(
             controller: _ctrl,
             style: const TextStyle(color: Colors.white, fontSize: 14),
+            textInputAction: TextInputAction.done,
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Text content',
               hintStyle: const TextStyle(color: mutedToken),
               filled: true,
               fillColor: cardToken,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               suffixIcon: IconButton(
                 tooltip: 'Clear text',
                 icon: const Icon(Icons.cancel_rounded, color: mutedToken, size: 18),
                 onPressed: _ctrl.clear,
               ),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             ),
           ),
         ),
@@ -1043,7 +1010,6 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
           child: _tab == 0
               ? _ResponsiveGrid(
                   key: const ValueKey<String>('fonts'),
-                  fakeLoad: true,
                   itemCount: _fonts.length,
                   minTile: 110,
                   aspect: 2.2,
@@ -1074,10 +1040,10 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
                   aspect: 0.85,
                   itemBuilder: (context, i) {
                     final style = styles[i];
-                    final bool selected = style == _anim;
                     return _AnimatedTextTile(
                       style: style,
-                      selected: selected,
+                      selected: style == _anim,
+                      animation: _pulse,
                       onTap: () {
                         tapFeedback();
                         setState(() => _anim = style);
@@ -1087,17 +1053,17 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
                 ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+          padding: EdgeInsets.fromLTRB(_pad, 4, _pad, _pad + MediaQuery.paddingOf(context).bottom),
           child: _primaryBtn(
             null,
             editing ? 'Update selected text' : 'Add text clip',
             () {
+              final String text = _ctrl.text.trim().isEmpty ? 'Text' : _ctrl.text;
               if (editing) {
                 editor.updateSelectedTextProperties(
-                    text: _ctrl.text, fontFamily: _selectedFont, textAnimationStyle: _anim);
+                    text: text, fontFamily: _selectedFont, textAnimationStyle: _anim);
               } else {
-                editor.addTextOverlay(_ctrl.text.isEmpty ? 'Text' : _ctrl.text,
-                    fontFamily: _selectedFont, animationStyle: _anim);
+                editor.addTextOverlay(text, fontFamily: _selectedFont, animationStyle: _anim);
               }
             },
           ),
@@ -1107,6 +1073,9 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> {
   }
 }
 
+// ----------------------------------------------------------------------------
+// Stickers
+// ----------------------------------------------------------------------------
 class StickersSheet extends StatelessWidget {
   const StickersSheet({super.key});
 
@@ -1118,7 +1087,6 @@ class StickersSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
     return _ResponsiveGrid(
-      fakeLoad: true,
       itemCount: _emojis.length,
       minTile: 64,
       itemBuilder: (context, i) => _tile(
@@ -1129,6 +1097,9 @@ class StickersSheet extends StatelessWidget {
   }
 }
 
+// ----------------------------------------------------------------------------
+// Effects and filters
+// ----------------------------------------------------------------------------
 class EffectsSheet extends StatelessWidget {
   const EffectsSheet({super.key, required this.isFilterMode});
   final bool isFilterMode;
@@ -1139,72 +1110,110 @@ class EffectsSheet extends StatelessWidget {
     final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
     final currentEffect = selectedClip?.effect ?? VideoEffect.none;
 
-    return _ResponsiveGrid(
-      fakeLoad: true,
-      itemCount: VideoEffect.values.length,
-      minTile: 76,
-      aspect: 0.8,
-      itemBuilder: (context, i) {
-        final fx = VideoEffect.values[i];
-        final bool selected = fx == currentEffect;
-        final bool isNone = fx == VideoEffect.none;
-        return _ThumbTile(
-          label: _cap(fx.name),
-          selected: selected,
-          icon: isNone ? Icons.block_rounded : null,
-          gradient: isNone ? null : _thumbGradient(i),
-          onTap: () => editor.applyEffect(fx),
-        );
-      },
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(_pad, 14, _pad, 0),
+          child: Row(
+            children: <Widget>[
+              Text(isFilterMode ? 'Filters' : 'Effects',
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              const Spacer(),
+              if (selectedClip == null)
+                const Text('Select a clip to apply', style: TextStyle(color: mutedToken, fontSize: 11)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _ResponsiveGrid(
+            itemCount: VideoEffect.values.length,
+            minTile: 76,
+            aspect: 0.8,
+            itemBuilder: (context, i) {
+              final fx = VideoEffect.values[i];
+              final bool isNone = fx == VideoEffect.none;
+              return _ThumbTile(
+                label: _cap(fx.name),
+                selected: fx == currentEffect,
+                icon: isNone ? Icons.block_rounded : null,
+                gradient: isNone ? null : _thumbGradient(i),
+                onTap: () => editor.applyEffect(fx),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
+// ----------------------------------------------------------------------------
+// Color grading
+// ----------------------------------------------------------------------------
 class ColorGradingSheet extends StatelessWidget {
   const ColorGradingSheet({super.key});
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
+    final hasClip = context.select<EditorController, bool>((e) => e.selectedClip != null);
     final cg = context.select<EditorController, ColorGradingSettings?>((e) => e.selectedClip?.colorGrading);
     final double b = cg?.brightness ?? 0.0;
     final double c = cg?.contrast ?? 1.0;
     final double s = cg?.saturation ?? 1.0;
+    final bool isDefault = b.abs() < 0.005 && (c - 1).abs() < 0.005 && (s - 1).abs() < 0.005;
 
-    void push(double nb, double nc, double ns) => editor.updateColorGrading(
-        ColorGradingSettings(brightness: nb, contrast: nc, saturation: ns));
+    void push(double nb, double nc, double ns) =>
+        editor.updateColorGrading(ColorGradingSettings(brightness: nb, contrast: nc, saturation: ns));
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: _listPad(context),
       children: <Widget>[
-        _SliderRow(
-            label: 'Brightness',
-            value: b,
-            min: -0.5,
-            max: 0.5,
-            bipolar: true,
-            onChanged: (v) => push(v, c, s)),
+        if (!hasClip) const _EmptyHint(text: 'Select a clip to grade its color.'),
+        _Card(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+          child: Column(
+            children: <Widget>[
+              _SliderRow(
+                label: 'Brightness',
+                value: b,
+                min: -0.5,
+                max: 0.5,
+                bipolar: true,
+                display: '${b >= 0 ? '+' : '−'}${b.abs().toStringAsFixed(2)}',
+                onChanged: hasClip ? (v) => push(v, c, s) : null,
+              ),
+              const SizedBox(height: 8),
+              _SliderRow(
+                label: 'Contrast',
+                value: c,
+                min: 0.5,
+                max: 2.0,
+                display: '${(c * 100).round()}%',
+                onChanged: hasClip ? (v) => push(b, v, s) : null,
+              ),
+              const SizedBox(height: 8),
+              _SliderRow(
+                label: 'Saturation',
+                value: s,
+                min: 0.0,
+                max: 2.0,
+                display: '${(s * 100).round()}%',
+                onChanged: hasClip ? (v) => push(b, c, v) : null,
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 20),
-        _SliderRow(
-            label: 'Contrast',
-            value: c,
-            min: 0.5,
-            max: 2.0,
-            onChanged: (v) => push(b, v, s)),
-        const SizedBox(height: 20),
-        _SliderRow(
-            label: 'Saturation',
-            value: s,
-            min: 0.0,
-            max: 2.0,
-            onChanged: (v) => push(b, c, v)),
-        const SizedBox(height: 24),
-        _outlineBtn('Reset', () => push(0.0, 1.0, 1.0)),
+        _outlineBtn('Reset', hasClip && !isDefault ? () => push(0.0, 1.0, 1.0) : null),
       ],
     );
   }
 }
 
+// ----------------------------------------------------------------------------
+// Canvas and crop
+// ----------------------------------------------------------------------------
 enum CanvasRatio {
   r16x9('16:9', 16 / 9),
   r9x16('9:16', 9 / 16),
@@ -1217,8 +1226,7 @@ enum CanvasRatio {
   final double value;
 }
 
-final ValueNotifier<CanvasRatio> canvasRatioNotifier =
-    ValueNotifier<CanvasRatio>(CanvasRatio.r16x9);
+final ValueNotifier<CanvasRatio> canvasRatioNotifier = ValueNotifier<CanvasRatio>(CanvasRatio.r16x9);
 
 class _RatioTile extends StatelessWidget {
   const _RatioTile({required this.ratio, required this.selected, required this.onTap});
@@ -1235,6 +1243,7 @@ class _RatioTile extends StatelessWidget {
       button: true,
       selected: selected,
       label: 'Canvas ratio ${ratio.label}',
+      excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
@@ -1253,8 +1262,7 @@ class _RatioTile extends StatelessWidget {
                 height: h,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
-                  border: Border.all(
-                      color: selected ? accentToken : Colors.white70, width: 2),
+                  border: Border.all(color: selected ? accentToken : Colors.white70, width: 2),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1281,14 +1289,12 @@ class CropSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
     final scale = context.select<EditorController, double>((e) => e.selectedClip?.scale ?? 1.0);
-    final hasSelectedClip = context.select<EditorController, bool>((e) => e.selectedClip != null);
+    final hasClip = context.select<EditorController, bool>((e) => e.selectedClip != null);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: _listPad(context),
       children: <Widget>[
-        const Text('Canvas ratio',
-            style: TextStyle(
-                color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Canvas ratio', style: TextStyle(color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         ValueListenableBuilder<CanvasRatio>(
           valueListenable: canvasRatioNotifier,
@@ -1297,7 +1303,7 @@ class CropSheet extends StatelessWidget {
               for (final r in CanvasRatio.values)
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
                     child: _RatioTile(
                       ratio: r,
                       selected: r == cur,
@@ -1311,24 +1317,29 @@ class CropSheet extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 24),
-        _SliderRow(
-          label: 'Clip zoom',
-          value: scale,
-          min: 0.5,
-          max: 3.0,
-          display: '${(scale * 100).round()}%',
-          minLabel: '50%',
-          maxLabel: '300%',
-          onChanged: !hasSelectedClip
-              ? null
-              : (v) => editor.updateTranslation(scale: v),
+        const _SectionLabel('Clip'),
+        _Card(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+          child: _SliderRow(
+            label: 'Zoom',
+            value: scale,
+            min: 0.5,
+            max: 3.0,
+            display: '${(scale * 100).round()}%',
+            minLabel: '50%',
+            maxLabel: '300%',
+            onChanged: hasClip ? (v) => editor.updateTranslation(scale: v) : null,
+          ),
         ),
+        if (!hasClip) const _EmptyHint(text: 'Select a clip to zoom it.'),
       ],
     );
   }
 }
 
+// ----------------------------------------------------------------------------
+// Vector drawing
+// ----------------------------------------------------------------------------
 class VectorDrawingSheet extends StatefulWidget {
   const VectorDrawingSheet({super.key});
 
@@ -1345,67 +1356,90 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
     (Colors.redAccent, 'Red'),
     (Colors.greenAccent, 'Green'),
     (Colors.yellowAccent, 'Yellow'),
+    (Colors.orangeAccent, 'Orange'),
+    (Colors.pinkAccent, 'Pink'),
     (Colors.white, 'White'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Make the editor agree with what this sheet shows on first open.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final editor = context.read<EditorController>();
+      editor.setStrokeWidth(_width);
+      editor.setDrawingColor(_color);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: _listPad(context),
       children: <Widget>[
-        _SliderRow(
-          label: 'Stroke width',
-          value: _width,
-          min: 1,
-          max: 20,
-          display: _width.toStringAsFixed(0),
-          onChanged: (v) {
-            setState(() => _width = v);
-            editor.setStrokeWidth(v);
-          },
+        // Live stroke preview.
+        Container(
+          height: 56,
+          decoration: BoxDecoration(color: _canvasDark, borderRadius: BorderRadius.circular(12)),
+          alignment: Alignment.center,
+          child: Container(
+            width: 140,
+            height: _width,
+            decoration: BoxDecoration(color: _color, borderRadius: BorderRadius.circular(_width / 2)),
+          ),
         ),
-        const SizedBox(height: 20),
-        const Text('Color',
-            style: TextStyle(
-                color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        const SizedBox(height: 16),
+        _Card(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+          child: _SliderRow(
+            label: 'Stroke width',
+            value: _width,
+            min: 1,
+            max: 20,
+            display: _width.toStringAsFixed(0),
+            onChanged: (v) {
+              setState(() => _width = v);
+              editor.setStrokeWidth(v);
+            },
+          ),
+        ),
+        const _SectionLabel('Color'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
           children: <Widget>[
             for (final (c, name) in _palette)
               Semantics(
                 button: true,
                 selected: _color == c,
                 label: name,
+                excludeSemantics: true,
                 child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () {
                     tapFeedback();
                     setState(() => _color = c);
                     editor.setDrawingColor(c);
                   },
-                  child: Container(
+                  child: SizedBox(
                     width: 44,
                     height: 44,
-                    alignment: Alignment.center,
-                    color: Colors.transparent,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: c,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: _color == c ? Colors.white : Colors.transparent,
-                            width: 2),
+                    child: Center(
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _color == c ? Colors.white : Colors.transparent, width: 2),
+                        ),
+                        child: _color == c
+                            ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 16, color: Colors.black)
+                            : null,
                       ),
-                      child: _color == c
-                          ? const HugeIcon(
-                              icon: HugeIcons.strokeRoundedTick01,
-                              size: 16,
-                              color: Colors.black)
-                          : null,
                     ),
                   ),
                 ),
@@ -1415,13 +1449,9 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
         const SizedBox(height: 24),
         Row(
           children: <Widget>[
-            Expanded(
-              child: _outlineBtn('Clear', editor.clearActiveDrawing),
-            ),
+            Expanded(child: _outlineBtn('Clear', editor.clearActiveDrawing)),
             const SizedBox(width: 12),
-            Expanded(
-              child: _primaryBtn(null, 'Save clip', editor.saveVectorDrawingAsClip),
-            ),
+            Expanded(child: _primaryBtn(null, 'Save clip', editor.saveVectorDrawingAsClip)),
           ],
         ),
       ],
@@ -1429,29 +1459,69 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
   }
 }
 
-class MaskSheet extends StatelessWidget {
+// ----------------------------------------------------------------------------
+// Mask
+// ----------------------------------------------------------------------------
+class MaskSheet extends StatefulWidget {
   const MaskSheet({super.key});
+
+  @override
+  State<MaskSheet> createState() => _MaskSheetState();
+}
+
+class _MaskSheetState extends State<MaskSheet> {
+  MaskType? _type;
+  double _feather = 10.0;
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-    return _ResponsiveGrid(
-      itemCount: MaskType.values.length,
-      minTile: 76,
-      aspect: 0.8,
-      itemBuilder: (context, i) {
-        final type = MaskType.values[i];
-        return _ThumbTile(
-          label: _cap(type.name),
-          gradient: _thumbGradient(i + 3),
-          onTap: () =>
-              editor.updateMaskProperties(MaskProperties(type: type, feather: 10.0)),
-        );
-      },
+    return Column(
+      children: <Widget>[
+        Expanded(
+          child: _ResponsiveGrid(
+            itemCount: MaskType.values.length,
+            minTile: 76,
+            aspect: 0.8,
+            itemBuilder: (context, i) {
+              final type = MaskType.values[i];
+              return _ThumbTile(
+                label: _cap(type.name),
+                selected: type == _type,
+                gradient: _thumbGradient(i + 3),
+                onTap: () {
+                  setState(() => _type = type);
+                  editor.updateMaskProperties(MaskProperties(type: type, feather: _feather));
+                },
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(_pad, 0, _pad, _pad + MediaQuery.paddingOf(context).bottom),
+          child: _SliderRow(
+            label: 'Feather',
+            value: _feather,
+            min: 0,
+            max: 50,
+            display: _feather.round().toString(),
+            // Needs a shape to feather.
+            onChanged: _type == null
+                ? null
+                : (v) {
+                    setState(() => _feather = v);
+                    editor.updateMaskProperties(MaskProperties(type: _type!, feather: v));
+                  },
+          ),
+        ),
+      ],
     );
   }
 }
 
+// ----------------------------------------------------------------------------
+// Keyframes
+// ----------------------------------------------------------------------------
 class _Diamond extends StatelessWidget {
   const _Diamond();
 
@@ -1469,42 +1539,45 @@ class KeyframeSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
     final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
-    final keyframes = selectedClip?.keyframes ?? <Keyframe>[];
+    final keyframes = <Keyframe>[...?selectedClip?.keyframes]..sort((a, b) => a.time.compareTo(b.time));
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: _listPad(context),
       children: <Widget>[
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Keyframe Curves & System',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+          children: <Widget>[
+            const Expanded(
+              child: Text('Keyframes',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: accentToken.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
+            if (keyframes.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accentToken.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text('${keyframes.length}',
+                    style: const TextStyle(color: accentToken, fontSize: 11, fontWeight: FontWeight.w600)),
               ),
-              child: const Text(
-                'Active',
-                style: TextStyle(color: accentToken, fontSize: 10, fontWeight: FontWeight.w600),
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 12),
         _primaryBtn(
           HugeIcons.strokeRoundedAdd01,
-          'Add Keyframe at Playhead',
+          'Add keyframe at playhead',
           selectedClip == null
               ? null
               : () {
                   final relTime = editor.playhead - selectedClip.start;
-                  if (relTime.isNegative || relTime > selectedClip.duration) return;
+                  if (relTime.isNegative || relTime > selectedClip.duration) {
+                    ScaffoldMessenger.maybeOf(context)
+                      ?..hideCurrentSnackBar()
+                      ..showSnackBar(const SnackBar(content: Text('Move the playhead inside the clip first.')));
+                    return;
+                  }
                   editor.addKeyframe(Keyframe(
-                    id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
+                    id: 'kf_${DateTime.now().microsecondsSinceEpoch}',
                     time: relTime,
                     property: KeyframeProperty.scale,
                     value: selectedClip.scale,
@@ -1514,102 +1587,109 @@ class KeyframeSheet extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         if (keyframes.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Center(
-              child: Text(
-                selectedClip == null
-                    ? 'Select a clip to add keyframes'
-                    : 'No keyframes on selected clip',
-                style: const TextStyle(color: mutedToken, fontSize: 12),
-              ),
-            ),
+          _EmptyHint(
+            icon: Icons.diamond_outlined,
+            text: selectedClip == null
+                ? 'Select a clip to add keyframes.'
+                : 'No keyframes on this clip yet. Move the playhead and add one.',
           ),
-        ...keyframes.map((kf) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration:
-                  BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(10)),
-              child: Column(
-                children: [
-                  Row(
-                    children: <Widget>[
-                      const _Diamond(),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          _cap('${kf.property}'.split('.').last),
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      Text(
-                        '${secondsOf(kf.time).toStringAsFixed(1)}s',
-                        style: const TextStyle(
-                          color: mutedToken,
-                          fontSize: 12,
-                          fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Remove keyframe',
-                        icon: const HugeIcon(
-                            icon: HugeIcons.strokeRoundedDelete02,
-                            color: Color(0xFFFF6B6B),
-                            size: 18),
-                        onPressed: () => editor.removeKeyframe(kf.id),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Text(
-                        'Curve: ',
-                        style: TextStyle(color: mutedToken, fontSize: 11),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
+        for (final kf in keyframes)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.fromLTRB(12, 4, 4, 10),
+            decoration: BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    const _Diamond(),
+                    const SizedBox(width: 12),
+                    // Tap the row to jump the playhead to this keyframe.
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: () {
+                          tapFeedback();
+                          seekPlayhead(editor, secondsOf(selectedClip!.start + kf.time));
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                           child: Row(
-                            children: CurveType.values.map((curve) {
-                              final isSelected = kf.curveType == curve;
-                              return Padding(
+                            children: <Widget>[
+                              Expanded(
+                                child: Text(
+                                  _cap('${kf.property}'.split('.').last),
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              Text(
+                                '${secondsOf(kf.time).toStringAsFixed(1)}s',
+                                style: const TextStyle(
+                                  color: mutedToken,
+                                  fontSize: 12,
+                                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Remove keyframe',
+                      icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete02, color: _danger, size: 18),
+                      onPressed: () => editor.removeKeyframe(kf.id),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: <Widget>[
+                    const Text('Curve', style: TextStyle(color: mutedToken, fontSize: 11)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: <Widget>[
+                            for (final curve in CurveType.values)
+                              Padding(
                                 padding: const EdgeInsets.only(right: 6),
                                 child: ChoiceChip(
                                   label: Text(
                                     _cap(curve.name),
                                     style: TextStyle(
-                                      color: isSelected ? Colors.black : Colors.white70,
+                                      color: kf.curveType == curve ? Colors.black : Colors.white70,
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  selected: isSelected,
+                                  selected: kf.curveType == curve,
                                   selectedColor: accentToken,
-                                  backgroundColor: const Color(0xFF18181B),
+                                  backgroundColor: surfaceToken,
+                                  side: BorderSide.none,
                                   showCheckmark: false,
                                   visualDensity: VisualDensity.compact,
-                                  onSelected: (_) {
-                                    editor.addKeyframe(kf.copyWith(curveType: curve));
-                                  },
+                                  onSelected: (_) => editor.addKeyframe(kf.copyWith(curveType: curve)),
                                 ),
-                              );
-                            }).toList(),
-                          ),
+                              ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            )),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
 }
 
+// ----------------------------------------------------------------------------
+// Camera
+// ----------------------------------------------------------------------------
 class CameraSettingsSheet extends StatelessWidget {
   const CameraSettingsSheet({super.key});
 
@@ -1620,19 +1700,28 @@ class CameraSettingsSheet extends StatelessWidget {
     final props = selectedClip?.cameraProperties ?? const CameraProperties();
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: _listPad(context),
       children: <Widget>[
-        _SliderRow(
-          label: 'Focal length',
-          value: props.focalLength,
-          min: 10,
-          max: 200,
-          display: '${props.focalLength.round()} mm',
-          minLabel: '10 mm',
-          maxLabel: '200 mm',
-          onChanged: selectedClip == null
-              ? null
-              : (v) => editor.updateCameraProperties(props.copyWith(focalLength: v)),
+        if (selectedClip == null) const _EmptyHint(text: 'Select a clip to change its camera.'),
+        _Card(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+          child: _SliderRow(
+            label: 'Focal length',
+            value: props.focalLength,
+            min: 10,
+            max: 200,
+            display: '${props.focalLength.round()} mm',
+            minLabel: '10 mm',
+            maxLabel: '200 mm',
+            onChanged: selectedClip == null
+                ? null
+                : (v) => editor.updateCameraProperties(props.copyWith(focalLength: v)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _outlineBtn(
+          'Reset',
+          selectedClip == null ? null : () => editor.updateCameraProperties(const CameraProperties()),
         ),
       ],
     );
@@ -1646,20 +1735,20 @@ class CameraTrackingPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
     final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
-    final tracking = selectedClip?.trackingData;
-    final bool active = tracking?.isEnabled == true;
+    final bool active = selectedClip?.trackingData?.isEnabled == true;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: _listPad(context),
       children: <Widget>[
         _Card(
           child: Row(
             children: <Widget>[
-              Icon(Icons.circle,
-                  size: 10, color: active ? Colors.greenAccent : Colors.white24),
+              Icon(Icons.circle, size: 10, color: active ? Colors.greenAccent : Colors.white24),
               const SizedBox(width: 10),
-              Text('Tracking: ${active ? "active" : "off"}',
-                  style: const TextStyle(color: Colors.white, fontSize: 13)),
+              Expanded(
+                child: Text(active ? 'Tracking is on' : 'Tracking is off',
+                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+              ),
             ],
           ),
         ),
@@ -1675,11 +1764,15 @@ class CameraTrackingPanel extends StatelessWidget {
                     rect: const Rect.fromLTWH(0.2, 0.2, 0.6, 0.6),
                   )),
         ),
+        if (selectedClip == null) const _EmptyHint(text: 'Select a clip to track a subject.'),
       ],
     );
   }
 }
 
+// ----------------------------------------------------------------------------
+// Plug-ins
+// ----------------------------------------------------------------------------
 class PluginsSheet extends StatelessWidget {
   const PluginsSheet({super.key});
 
@@ -1688,54 +1781,44 @@ class PluginsSheet extends StatelessWidget {
     final plugins = PluginManager().activePlugins;
 
     if (plugins.isEmpty) {
-      return const Center(
-        child: Text('No active plug-ins',
-            style: TextStyle(color: mutedToken, fontSize: 12)),
-      );
+      return const Center(child: _EmptyHint(icon: Icons.extension_outlined, text: 'No active plug-ins.'));
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: _listPad(context),
       itemCount: plugins.length,
       itemBuilder: (context, index) {
         final p = plugins[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(12),
-          decoration:
-              BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(12)),
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: accentToken.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(8),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _Card(
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: accentToken.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: HugeIcon(icon: HugeIcons.strokeRoundedGridView, color: accentToken, size: 20),
+                  ),
                 ),
-                child: const Center(
-                  child: HugeIcon(
-                      icon: HugeIcons.strokeRoundedGridView,
-                      color: accentToken,
-                      size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(p.name,
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(p.version, style: const TextStyle(color: mutedToken, fontSize: 12)),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(p.name,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 2),
-                    Text(p.version, style: const TextStyle(color: mutedToken, fontSize: 12)),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
