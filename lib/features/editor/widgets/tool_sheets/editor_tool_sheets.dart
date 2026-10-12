@@ -1608,10 +1608,12 @@ class KeyframeSheet extends StatelessWidget {
                     Expanded(
                       child: InkWell(
                         borderRadius: BorderRadius.circular(8),
-                        onTap: () {
-                          tapFeedback();
-                          seekPlayhead(editor, secondsOf(selectedClip!.start + kf.time));
-                        },
+                        onTap: selectedClip == null
+                            ? null
+                            : () {
+                                tapFeedback();
+                                seekPlayhead(editor, secondsOf(selectedClip.start + kf.time));
+                              },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           child: Row(
@@ -1735,7 +1737,7 @@ class CameraTrackingPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
     final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
-    final bool active = selectedClip?.trackingData?.isEnabled == true;
+    final bool active = selectedClip?.trackingData.isEnabled == true;
 
     return ListView(
       padding: _listPad(context),

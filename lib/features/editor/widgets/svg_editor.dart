@@ -578,8 +578,9 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
       canPop: _undo.isEmpty,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
+        final navigator = Navigator.of(context);
         final ok = await _confirmDiscard();
-        if (ok && mounted) Navigator.pop(context);
+        if (ok) navigator.pop();
       },
       child: Scaffold(
         backgroundColor: _bg,
