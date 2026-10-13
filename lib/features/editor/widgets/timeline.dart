@@ -16,19 +16,16 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 const Color playheadBlue = Color(0xFF2D8CEB);
 const Color _timelineBg = Color(0xFF111111);
 const Color _overlayMediaColor = Color(0xFF673AB7);
-const int _fps = 30;
 
 /// Pixels per second at zoom 1.0.
 const double _basePps = 28.0;
 const double _minZoom = 0.5;
 const double _maxZoom = 12.0;
 
-/// HH:MM:SS:FF timecode (Premiere style).
+/// MM:SS timecode.
 String _tcFrames(double t) {
-  final int f = (math.max(0.0, t) * _fps).round();
-  final int s = f ~/ _fps;
-  return '${twoDigits(s ~/ 3600)}:${twoDigits((s ~/ 60) % 60)}:'
-      '${twoDigits(s % 60)}:${twoDigits(f % _fps)}';
+  final int s = math.max(0, t.round());
+  return '${twoDigits(s ~/ 60)}:${twoDigits(s % 60)}';
 }
 
 /// Zoom is multiplicative, so the slider is logarithmic: every slider step
@@ -218,9 +215,9 @@ class _TimelineWidgetState extends State<TimelineWidget> {
 
   double _s = 1;
   double get _rulerH => 30 * _s;
-  double get _textH => 52 * _s;
-  double get _videoH => 52 * _s;
-  double get _audioH => 44 * _s;
+  double get _textH => 38 * _s;
+  double get _videoH => 38 * _s;
+  double get _audioH => 32 * _s;
   double get _topH => 30 * _s;
   double get _botH => 28 * _s;
 

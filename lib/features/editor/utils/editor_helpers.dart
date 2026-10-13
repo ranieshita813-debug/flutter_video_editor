@@ -46,15 +46,13 @@ double secondsOf(Duration v) => v.inMilliseconds / 1000.0;
 String twoDigits(int n) => n.toString().padLeft(2, '0');
 
 String formatTimecode(double s) {
-  final int f = (math.max(s, 0) * fpsToken).round();
-  final int sec = f ~/ fpsToken;
-  return '${twoDigits(sec ~/ 3600)}:${twoDigits(sec % 3600 ~/ 60)}:${twoDigits(sec % 60)}:${twoDigits(f % fpsToken)}';
+  final int sec = math.max(0, s.round());
+  return '${twoDigits(sec ~/ 60)}:${twoDigits(sec % 60)}';
 }
 
 String formatTimecodeShort(double s) {
-  final int f = (math.max(s, 0) * fpsToken).round();
-  final int sec = f ~/ fpsToken;
-  return '${twoDigits(sec ~/ 60)}:${twoDigits(sec % 60)}.${twoDigits(f % fpsToken)}';
+  final int sec = math.max(0, s.round());
+  return '${twoDigits(sec ~/ 60)}:${twoDigits(sec % 60)}';
 }
 
 void seekPlayhead(EditorController e, double s) {

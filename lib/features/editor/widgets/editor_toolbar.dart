@@ -41,8 +41,7 @@ class EditorToolbar extends StatelessWidget {
     return Container(
       height: 64,
       decoration: const BoxDecoration(
-        color: EditorTokens.bg,
-        border: Border(top: BorderSide(color: EditorTokens.border, width: 1)),
+        color: Color(0xFF111111),
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
@@ -70,7 +69,7 @@ class EditorToolbar extends StatelessWidget {
                     style: const TextStyle(
                       color: EditorTokens.text,
                       fontSize: 10,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.bold,
                       fontFamily: 'Poppins',
                     ),
                   ),
