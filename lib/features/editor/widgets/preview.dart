@@ -721,12 +721,8 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
           RepaintBoundary(
             key: _boundaryKey,
             child: DecoratedBox(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.black,
-                border: Border.all(color: Colors.white12),
-                boxShadow: const <BoxShadow>[
-                  BoxShadow(color: Colors.black87, blurRadius: 18, spreadRadius: 1),
-                ],
               ),
               child: ClipRect(
                 child: LayoutBuilder(builder: (context, fc) {

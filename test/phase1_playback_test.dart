@@ -38,16 +38,16 @@ void main() {
       ),
     );
 
-    expect(find.text('00:00:00:00'), findsOneWidget);
+    expect(find.text('00:00'), findsOneWidget);
 
     await tester.runAsync(() async {
       editor.togglePlayback();
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      await Future<void>.delayed(const Duration(milliseconds: 1200));
     });
     await tester.pump();
 
     expect(editor.isPlaying, isTrue);
-    expect(find.text('00:00:00:00'), findsNothing);
+    expect(find.text('00:00'), findsNothing);
     expect(editor.playhead > Duration.zero, isTrue);
 
     editor.togglePlayback();
