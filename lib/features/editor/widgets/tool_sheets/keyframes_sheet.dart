@@ -1,65 +1,50 @@
 // ============================================================================
-// KEYFRAMES (Premiere Pro style)
-// ----------------------------------------------------------------------------
-// Drop-in replacement: delete the old "Keyframes" section (_Diamond and
-// KeyframeSheet) from your sheets file and paste this block in its place.
-// It must stay in the same file because it uses the private helpers
-// (_Card, _SectionLabel, _EmptyHint, _cap, _listPad, _outlineBtn, ...).
-//
-// Features
-//  - Prev / next keyframe navigator and a diamond toggle at the playhead
-//  - Timeline with one lane per property, ruler, playhead, frame snapping
-//  - Tap to select, tap again to deselect, drag a diamond to retime it
-//  - Property filter chips, select all, copy, paste at playhead, delete
-//  - Interpolation presets with curve thumbnails (applies to the selection)
-//  - Value graph and speed graph preview for the selected curve
-//  - Timecode readouts (mm:ss:ff) with tabular figures
-//
-// Assumptions about your models (isolated, easy to adjust):
-//  - Keyframe has: id, time (Duration), property, curveType, copyWith(...)
-//    including copyWith(time:) and copyWith(id:)   -> used by drag and paste
-//  - Keyframe may have a `value`; it is read dynamically in _valueText()
-//  - editor.addKeyframe(kf) replaces a keyframe that has the same id
+// KEYFRAMES: dark monochrome, CapCut style
 // ============================================================================
-
 const double _kfFps = 30;
 
-String _propName(Keyframe k) => _cap('${k.property}'.split('.').last);
+const Color _kfBg = Color(0xFF0D0D0D);
+const Color _kfCard = Color(0xFF171717);
+const Color _kfLine = Color(0xFF2A2A2A);
+const Color _kfLineHi = Color(0xFF3A3A3A);
+const Color _kfText = Color(0xFFF2F2F2);
+const Color _kfMuted = Color(0xFF8A8A8A);
+const Color _kfDim = Color(0xFF555555);
 
-String _timecode(double s) {
-  final int totalFrames = (s * _kfFps).round();
-  final int f = totalFrames % _kfFps.toInt();
-  final int sec = (totalFrames ~/ _kfFps) % 60;
-  final int m = totalFrames ~/ (_kfFps * 60).toInt();
+String _kfTimecode(double s) {
+  final int fps = _kfFps.toInt();
+  final int total = ((s < 0 ? 0.0 : s) * _kfFps).round();
   String two(int n) => n.toString().padLeft(2, '0');
-  return '${two(m)}:${two(sec)}:${two(f)}';
+  return '${two(total ~/ (fps * 60))}:${two((total ~/ fps) % 60)}:${two(total % fps)}';
 }
 
-String _valueText(Keyframe k) {
-  try {
-    final dynamic v = (k as dynamic).value;
-    if (v == null) return '—';
-    if (v is num) return v.toStringAsFixed(2);
-    return '$v';
-  } catch (_) {
-    return '—';
+T? _kfFind<T>(Iterable<T> items, bool Function(T) test) {
+  for (final T i in items) {
+    if (test(i)) return i;
   }
+  return null;
 }
 
-/// Easing shape used for the thumbnails and graphs, derived from the curve name.
-double _ease(CurveType c, double t) {
-  final String n = c.name.toLowerCase();
-  if (n.contains('hold') || n.contains('step')) return t < 1 ? 0 : 1;
-  if (n.contains('inout') || n.contains('smooth') || n.contains('bezier') || n.contains('auto')) {
-    return t * t * (3 - 2 * t);
-  }
-  if (n.contains('in')) return t * t * t;
-  if (n.contains('out')) return 1 - math.pow(1 - t, 3).toDouble();
-  if (n.contains('bounce')) return Curves.bounceOut.transform(t);
-  if (n.contains('elastic')) return Curves.elasticOut.transform(t);
-  return t;
+class _CurveOption {
+  const _CurveOption(this.label, this.curve);
+  final String label;
+  final KeyframeCurve curve;
 }
 
+const List<_CurveOption> _kfOptions = <_CurveOption>[
+  _CurveOption('Linear', KeyframeCurve.linear),
+  _CurveOption('Ease in', KeyframeCurve.easeIn),
+  _CurveOption('Ease out', KeyframeCurve.easeOut),
+  _CurveOption('In-out', KeyframeCurve.easeInOut),
+  _CurveOption('Bounce', KeyframeCurve.bounce),
+  _CurveOption('Elastic', KeyframeCurve.elastic),
+  _CurveOption('Steps', KeyframeCurve.steps),
+  _CurveOption('Random', KeyframeCurve.random),
+];
+
+// ----------------------------------------------------------------------------
+// Sheet
+// ----------------------------------------------------------------------------
 class KeyframeSheet extends StatefulWidget {
   const KeyframeSheet({super.key});
 
@@ -68,28 +53,12 @@ class KeyframeSheet extends StatefulWidget {
 }
 
 class _KeyframeSheetState extends State<KeyframeSheet> {
-  final Set<dynamic> _sel = <dynamic>{};
-  List<Keyframe> _clipboard = const <Keyframe>[];
-  String? _filter;
-  Keyframe? _drag;
-
-  static const double _rulerH = 22;
-  static const double _laneH = 30;
+  Object? _selId;
+  bool _lockScroll = false; // গ্রাফের হ্যান্ডেল টানার সময় লিস্ট স্ক্রল বন্ধ
 
   void _toast(String msg) => ScaffoldMessenger.maybeOf(context)
     ?..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(msg)));
-
-  int _hit(List<Keyframe> list, List<String> lanes, Offset p, double w, double total) {
-    final int lane = ((p.dy - _rulerH) / _laneH).floor();
-    if (lane < 0 || lane >= lanes.length) return -1;
-    for (int i = 0; i < list.length; i++) {
-      if (_propName(list[i]) != lanes[lane]) continue;
-      final double x = secondsOf(list[i].time) / total * w;
-      if ((x - p.dx).abs() <= 12) return i;
-    }
-    return -1;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,44 +66,40 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
     final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
     final playhead = context.select<EditorController, Duration>((e) => e.playhead);
 
-    final List<Keyframe> all = <Keyframe>[...?clip?.keyframes]..sort((a, b) => a.time.compareTo(b.time));
-    final List<String> props = <String>[];
-    for (final k in all) {
-      final n = _propName(k);
-      if (!props.contains(n)) props.add(n);
-    }
-    if (_filter != null && !props.contains(_filter)) _filter = null;
-    final List<Keyframe> visible = _filter == null ? all : all.where((k) => _propName(k) == _filter).toList();
-    final List<String> lanes = _filter == null ? props : <String>[_filter!];
+    final List<Keyframe> all = <Keyframe>[...?clip?.keyframes]
+      ..sort((a, b) => a.time.compareTo(b.time));
 
     final double total = clip == null ? 1.0 : math.max(secondsOf(clip.duration), 0.1);
     final double rel = clip == null ? 0.0 : secondsOf(playhead - clip.start);
     final bool inClip = clip != null && rel >= 0 && rel <= total;
-    final List<Keyframe> selected = all.where((k) => _sel.contains(k.id)).toList();
-    final List<Keyframe> atHead = all.where((k) => (secondsOf(k.time) - rel).abs() < 0.5 / _kfFps).toList();
+    final double tol = 0.5 / _kfFps;
 
-    void seekTo(double relSeconds) {
+    final Keyframe? atHead = _kfFind(all, (k) => (secondsOf(k.time) - rel).abs() < tol);
+    final Keyframe? selected = _selId == null ? null : _kfFind(all, (k) => k.id == _selId);
+
+    void seekTo(double s) {
       if (clip == null) return;
-      seekPlayhead(editor, secondsOf(clip.start) + relSeconds);
+      seekPlayhead(editor, secondsOf(clip.start) + s.clamp(0.0, total).toDouble());
     }
 
     void prev() {
-      final c = all.where((k) => secondsOf(k.time) < rel - 0.5 / _kfFps);
-      if (c.isNotEmpty) seekTo(secondsOf(c.last.time));
+      final List<Keyframe> c = all.where((k) => secondsOf(k.time) < rel - tol).toList();
+      if (c.isEmpty) return;
+      seekTo(secondsOf(c.last.time));
+      setState(() => _selId = c.last.id);
     }
 
     void next() {
-      final c = all.where((k) => secondsOf(k.time) > rel + 0.5 / _kfFps);
-      if (c.isNotEmpty) seekTo(secondsOf(c.first.time));
+      final List<Keyframe> c = all.where((k) => secondsOf(k.time) > rel + tol).toList();
+      if (c.isEmpty) return;
+      seekTo(secondsOf(c.first.time));
+      setState(() => _selId = c.first.id);
     }
 
-    void toggleAtHead() {
-      if (atHead.isNotEmpty) {
-        for (final k in atHead) {
-          editor.removeKeyframe(k.id);
-          _sel.remove(k.id);
-        }
-        setState(() {});
+    void toggle() {
+      if (atHead != null) {
+        editor.removeKeyframe(atHead.id);
+        setState(() => _selId = null);
       } else if (!inClip) {
         _toast('Move the playhead inside the clip first.');
       } else {
@@ -142,364 +107,219 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
       }
     }
 
-    void paste() {
-      if (_clipboard.isEmpty) return;
-      if (!inClip) {
-        _toast('Move the playhead inside the clip first.');
-        return;
-      }
-      final double base = _clipboard.map((k) => secondsOf(k.time)).reduce(math.min);
-      int n = 0;
-      for (final k in _clipboard) {
-        final double t = (rel + secondsOf(k.time) - base).clamp(0.0, total).toDouble();
-        editor.addKeyframe(k.copyWith(
-          id: '${DateTime.now().microsecondsSinceEpoch}_${n++}',
-          time: Duration(milliseconds: (t * 1000).round()),
-        ));
-      }
+    void pick(Keyframe kf, _CurveOption o) {
+      tapFeedback();
+      final KeyframeCurve cur = kf.curve;
+      final bool reroll = o.curve.kind == CurveKind.random && cur.kind == CurveKind.random;
+      editor.addKeyframe(kf.copyWith(curve: reroll ? cur.copyWith(seed: cur.seed + 1) : o.curve));
     }
 
-    return ListView(
-      padding: _listPad(context),
-      children: <Widget>[
-        // ---- Navigator + edit toolbar -------------------------------------
-        _Card(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          child: Row(
-            children: <Widget>[
-              _KfAction(icon: Icons.skip_previous_rounded, tooltip: 'Previous keyframe', onTap: clip == null ? null : prev),
-              _KfAction(
-                icon: atHead.isNotEmpty ? Icons.diamond_rounded : Icons.diamond_outlined,
-                tooltip: atHead.isNotEmpty ? 'Remove keyframe at playhead' : 'Add keyframe at playhead',
-                active: atHead.isNotEmpty,
-                onTap: clip == null ? null : toggleAtHead,
-              ),
-              _KfAction(icon: Icons.skip_next_rounded, tooltip: 'Next keyframe', onTap: clip == null ? null : next),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  _timecode(rel < 0 ? 0 : rel),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: accentToken,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                  ),
-                ),
-              ),
-              _KfAction(
-                icon: Icons.select_all_rounded,
-                tooltip: 'Select all',
-                onTap: all.isEmpty ? null : () => setState(() => _sel..clear()..addAll(visible.map((k) => k.id))),
-              ),
-              _KfAction(
-                icon: Icons.copy_rounded,
-                tooltip: 'Copy',
-                onTap: selected.isEmpty
-                    ? null
-                    : () {
-                        _clipboard = List<Keyframe>.of(selected);
-                        _toast('${selected.length} keyframe(s) copied');
-                        setState(() {});
-                      },
-              ),
-              _KfAction(
-                icon: Icons.content_paste_rounded,
-                tooltip: 'Paste at playhead',
-                onTap: _clipboard.isEmpty || clip == null ? null : paste,
-              ),
-              _KfAction(
-                icon: Icons.delete_outline_rounded,
-                tooltip: 'Delete selected',
-                danger: true,
-                onTap: selected.isEmpty
-                    ? null
-                    : () {
-                        for (final k in selected) {
-                          editor.removeKeyframe(k.id);
-                        }
-                        setState(_sel.clear);
-                      },
-              ),
-            ],
-          ),
-        ),
-
-        // ---- Property filter ---------------------------------------------
-        if (props.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 12),
-          _ChipRow(
-            options: <String>['All', ...props],
-            selected: _filter ?? 'All',
-            onSelected: (v) => setState(() => _filter = v == 'All' ? null : v),
-          ),
-        ],
-
-        // ---- Timeline -----------------------------------------------------
-        const _SectionLabel('Timeline'),
-        if (clip == null)
-          const _EmptyHint(icon: Icons.diamond_outlined, text: 'Select a clip to animate it.')
-        else if (all.isEmpty)
-          const _EmptyHint(
-            icon: Icons.diamond_outlined,
-            text: 'No keyframes yet. Move the playhead and tap the diamond.',
-          )
-        else
-          _Card(
-            padding: EdgeInsets.zero,
-            child: LayoutBuilder(builder: (context, c) {
-              final double w = c.maxWidth;
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTapUp: (d) {
-                  final int i = _hit(visible, lanes, d.localPosition, w, total);
-                  if (i >= 0) {
-                    tapFeedback();
-                    setState(() => _sel.contains(visible[i].id) ? _sel.remove(visible[i].id) : _sel.add(visible[i].id));
-                  } else {
-                    seekTo((d.localPosition.dx / w * total).clamp(0.0, total).toDouble());
-                  }
-                },
-                onPanStart: (d) {
-                  final int i = _hit(visible, lanes, d.localPosition, w, total);
-                  if (i >= 0) {
-                    _drag = visible[i];
-                    setState(() => _sel.add(_drag!.id));
-                  }
-                },
-                onPanUpdate: (d) {
-                  final k = _drag;
-                  if (k == null) return;
-                  double t = (d.localPosition.dx / w * total).clamp(0.0, total).toDouble();
-                  t = (t * _kfFps).round() / _kfFps; // snap to frames
-                  editor.addKeyframe(k.copyWith(time: Duration(milliseconds: (t * 1000).round())));
-                },
-                onPanEnd: (_) => _drag = null,
-                onPanCancel: () => _drag = null,
-                child: CustomPaint(
-                  size: Size(w, _rulerH + _laneH * lanes.length),
-                  painter: _KfTimelinePainter(
-                    keys: visible,
-                    lanes: lanes,
-                    selected: _sel,
-                    total: total,
-                    playhead: rel,
-                    rulerH: _rulerH,
-                    laneH: _laneH,
-                  ),
-                ),
-              );
-            }),
-          ),
-
-        // ---- Inspector: interpolation + graph -----------------------------
-        const _SectionLabel('Interpolation'),
-        if (selected.isEmpty)
-          const _EmptyHint(text: 'Select one or more keyframes to edit their curve.')
-        else ...<Widget>[
-          _Card(
-            padding: const EdgeInsets.all(12),
+    return ColoredBox(
+      color: _kfBg,
+      child: ListView(
+        physics: (_lockScroll && selected != null) ? const NeverScrollableScrollPhysics() : null,
+        padding: EdgeInsets.fromLTRB(12, 12, 12, 16 + MediaQuery.paddingOf(context).bottom),
+        children: <Widget>[
+          // ---- prev / diamond / next / timecode / delete --------------------
+          _KfCard(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                SizedBox(
-                  width: 112,
-                  height: 112,
-                  child: CustomPaint(painter: _CurveGraphPainter(selected.first.curveType, speed: true)),
+                _KfAction(
+                  icon: Icons.chevron_left_rounded,
+                  tooltip: 'Previous keyframe',
+                  onTap: clip == null ? null : prev,
                 ),
-                const SizedBox(width: 14),
+                _KfAction(
+                  icon: atHead != null ? Icons.diamond_rounded : Icons.diamond_outlined,
+                  tooltip: atHead != null ? 'Remove keyframe' : 'Add keyframe',
+                  active: atHead != null,
+                  onTap: clip == null ? null : toggle,
+                ),
+                _KfAction(
+                  icon: Icons.chevron_right_rounded,
+                  tooltip: 'Next keyframe',
+                  onTap: clip == null ? null : next,
+                ),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        selected.length == 1 ? _propName(selected.first) : '${selected.length} keyframes',
-                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 8),
-                      _kv('Time', selected.length == 1 ? _timecode(secondsOf(selected.first.time)) : 'Mixed'),
-                      _kv('Value', selected.length == 1 ? _valueText(selected.first) : 'Mixed'),
-                      _kv('Curve', _cap(selected.first.curveType.name)),
-                      const SizedBox(height: 6),
-                      Row(children: const <Widget>[
-                        _Legend(color: accentToken, text: 'Value'),
-                        SizedBox(width: 10),
-                        _Legend(color: Colors.white38, text: 'Speed'),
-                      ]),
-                    ],
+                  child: Text(
+                    _kfTimecode(rel),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: _kfText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                    ),
                   ),
+                ),
+                _KfAction(
+                  icon: Icons.delete_outline_rounded,
+                  tooltip: 'Delete selected keyframe',
+                  onTap: selected == null
+                      ? null
+                      : () {
+                          editor.removeKeyframe(selected.id);
+                          setState(() => _selId = null);
+                        },
                 ),
               ],
             ),
           ),
+
+          // ---- Track ---------------------------------------------------------
           const SizedBox(height: 10),
-          SizedBox(
-            height: 84,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: CurveType.values.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, i) {
-                final curve = CurveType.values[i];
-                final bool on = selected.every((k) => k.curveType == curve);
-                return SizedBox(
-                  width: 72,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () {
-                      tapFeedback();
-                      for (final k in selected) {
-                        editor.addKeyframe(k.copyWith(curveType: curve));
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: on ? accentToken.withValues(alpha: 0.18) : cardToken,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: on ? accentToken : Colors.transparent),
-                      ),
-                      child: Column(
-                        children: <Widget>[
-                          Expanded(child: CustomPaint(size: Size.infinite, painter: _CurveGraphPainter(curve, mini: true, active: on))),
-                          const SizedBox(height: 4),
-                          Text(
-                            _cap(curve.name),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: on ? accentToken : Colors.white70,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              },
+          if (clip == null)
+            const _KfHint('Select a clip to animate it.')
+          else if (all.isEmpty)
+            const _KfHint('No keyframes yet. Move the playhead and tap the diamond.')
+          else
+            _KfCard(
+              child: _KfTrack(
+                keys: all,
+                selectedId: selected?.id,
+                total: total,
+                playhead: rel,
+                onSeek: seekTo,
+                onSelect: (k) {
+                  if (k == null) {
+                    setState(() => _selId = null);
+                  } else {
+                    seekTo(secondsOf(k.time));
+                    setState(() => _selId = k.id);
+                  }
+                },
+              ),
             ),
+
+          // ---- Curve graph + type tiles (শুধু সিলেক্ট করলে) -----------------
+          if (selected != null) ...<Widget>[
+            const SizedBox(height: 10),
+            _KfCard(
+              padding: EdgeInsets.zero,
+              child: _CurveEditor(
+                key: ValueKey<Object?>(selected.id),
+                curve: selected.curve,
+                onDragState: (b) {
+                  if (_lockScroll != b) setState(() => _lockScroll = b);
+                },
+                onChanged: (c) => editor.addKeyframe(selected.copyWith(curve: c)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 4,
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+              childAspectRatio: 1.1,
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: <Widget>[
+                for (final _CurveOption o in _kfOptions)
+                  _CurveTile(
+                    option: o,
+                    on: o.curve.sameShape(selected.curve),
+                    onTap: () => pick(selected, o),
+                  ),
+              ],
+            ),
+          ] else if (all.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: _KfHint('Tap a diamond to edit its curve.'),
+            ),
+
+          const SizedBox(height: 16),
+          _kfOutlineButton(
+            'Clear all keyframes',
+            all.isEmpty
+                ? null
+                : () {
+                    for (final Keyframe k in all) {
+                      editor.removeKeyframe(k.id);
+                    }
+                    setState(() {
+                      _selId = null;
+                      _lockScroll = false;
+                    });
+                  },
           ),
         ],
-
-        // ---- Keyframe list ------------------------------------------------
-        if (visible.isNotEmpty) ...<Widget>[
-          _SectionLabel('Keyframes (${visible.length})'),
-          for (final kf in visible)
-            Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              decoration: BoxDecoration(
-                color: cardToken,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _sel.contains(kf.id) ? accentToken : Colors.transparent),
-              ),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: () {
-                        tapFeedback();
-                        seekTo(secondsOf(kf.time));
-                        setState(() => _sel
-                          ..clear()
-                          ..add(kf.id));
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                        child: Row(
-                          children: <Widget>[
-                            Transform.rotate(
-                              angle: math.pi / 4,
-                              child: Container(width: 8, height: 8, color: _sel.contains(kf.id) ? accentToken : Colors.white70),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(_propName(kf),
-                                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-                            ),
-                            Text(_valueText(kf),
-                                style: const TextStyle(
-                                  color: accentToken,
-                                  fontSize: 12,
-                                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                                )),
-                            const SizedBox(width: 12),
-                            Text(_timecode(secondsOf(kf.time)),
-                                style: const TextStyle(
-                                  color: mutedToken,
-                                  fontSize: 12,
-                                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                                )),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Remove keyframe',
-                    icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete02, color: _danger, size: 18),
-                    onPressed: () {
-                      editor.removeKeyframe(kf.id);
-                      setState(() => _sel.remove(kf.id));
-                    },
-                  ),
-                ],
-              ),
-            ),
-        ],
-        const SizedBox(height: 12),
-        _outlineBtn(
-          'Clear all keyframes',
-          all.isEmpty
-              ? null
-              : () {
-                  for (final k in all) {
-                    editor.removeKeyframe(k.id);
-                  }
-                  setState(_sel.clear);
-                },
-        ),
-      ],
+      ),
     );
   }
+}
 
-  Widget _kv(String k, String v) => Padding(
-        padding: const EdgeInsets.only(bottom: 3),
-        child: Row(
-          children: <Widget>[
-            SizedBox(width: 44, child: Text(k, style: const TextStyle(color: mutedToken, fontSize: 11))),
-            Text(v,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                )),
-          ],
+// ----------------------------------------------------------------------------
+// Small widgets
+// ----------------------------------------------------------------------------
+class _KfCard extends StatelessWidget {
+  const _KfCard({required this.child, this.padding = const EdgeInsets.all(6)});
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: padding,
+        decoration: BoxDecoration(
+          color: _kfCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kfLine),
+        ),
+        child: child,
+      );
+}
+
+class _KfHint extends StatelessWidget {
+  const _KfHint(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: _kfMuted, fontSize: 13),
         ),
       );
 }
 
+Widget _kfOutlineButton(String label, VoidCallback? onTap) => SizedBox(
+      height: 44,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _kfText,
+          disabledForegroundColor: _kfDim,
+          side: BorderSide(color: onTap == null ? _kfLine : _kfLineHi),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        onPressed: onTap == null
+            ? null
+            : () {
+                tapFeedback();
+                onTap();
+              },
+        child: Text(label),
+      ),
+    );
+
 class _KfAction extends StatelessWidget {
-  const _KfAction({required this.icon, required this.tooltip, this.onTap, this.active = false, this.danger = false});
+  const _KfAction({
+    required this.icon,
+    required this.tooltip,
+    this.onTap,
+    this.active = false,
+  });
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
   final bool active;
-  final bool danger;
 
   @override
   Widget build(BuildContext context) {
-    final Color c = onTap == null
-        ? Colors.white24
-        : active
-            ? accentToken
-            : danger
-                ? _danger
-                : Colors.white;
+    final Color fg = onTap == null ? _kfDim : (active ? _kfBg : _kfText);
     return Tooltip(
       message: tooltip,
       child: InkWell(
@@ -510,213 +330,420 @@ class _KfAction extends StatelessWidget {
                 tapFeedback();
                 onTap!();
               },
-        child: SizedBox(width: 38, height: 40, child: Icon(icon, size: 20, color: c)),
+        child: Container(
+          width: 44,
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: active ? _kfText : Colors.transparent,
+          ),
+          child: Icon(icon, size: 22, color: fg),
+        ),
       ),
     );
   }
 }
 
-class _Legend extends StatelessWidget {
-  const _Legend({required this.color, required this.text});
-  final Color color;
-  final String text;
+class _CurveTile extends StatelessWidget {
+  const _CurveTile({required this.option, required this.on, required this.onTap});
+  final _CurveOption option;
+  final bool on;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Container(width: 10, height: 2, color: color),
-          const SizedBox(width: 4),
-          Text(text, style: const TextStyle(color: mutedToken, fontSize: 10)),
-        ],
-      );
+  Widget build(BuildContext context) {
+    final BorderRadius r = BorderRadius.circular(10);
+    return Material(
+      color: on ? _kfText : _kfCard,
+      borderRadius: r,
+      child: InkWell(
+        borderRadius: r,
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: r,
+            border: Border.all(color: on ? _kfText : _kfLine),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              CustomPaint(
+                size: const Size(28, 28),
+                painter: _CurveIconPainter(option.curve, on ? _kfBg : _kfMuted),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                option.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: on ? _kfBg : _kfMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ----------------------------------------------------------------------------
-// Painters
+// Track (single lane)
 // ----------------------------------------------------------------------------
-class _KfTimelinePainter extends CustomPainter {
-  _KfTimelinePainter({
+class _KfTrack extends StatelessWidget {
+  const _KfTrack({
     required this.keys,
-    required this.lanes,
-    required this.selected,
+    required this.selectedId,
     required this.total,
     required this.playhead,
-    required this.rulerH,
-    required this.laneH,
+    required this.onSeek,
+    required this.onSelect,
+  });
+
+  final List<Keyframe> keys; // time অনুযায়ী সাজানো
+  final Object? selectedId;
+  final double total;
+  final double playhead;
+  final ValueChanged<double> onSeek;
+  final ValueChanged<Keyframe?> onSelect;
+
+  static const double _pad = 16;
+  static const double _h = 56;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, c) {
+      final double w = c.maxWidth;
+      final double usable = math.max(w - _pad * 2, 1);
+      double xOf(double sec) => _pad + sec / total * usable;
+      double secOf(double dx) => ((dx - _pad) / usable * total).clamp(0.0, total).toDouble();
+
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapUp: (d) {
+          Keyframe? hit;
+          double best = 22; // সবচেয়ে কাছের ডায়মন্ড, ২২px-এর মধ্যে
+          for (final Keyframe k in keys) {
+            final double dist = (xOf(secondsOf(k.time)) - d.localPosition.dx).abs();
+            if (dist < best) {
+              best = dist;
+              hit = k;
+            }
+          }
+          tapFeedback();
+          if (hit != null) {
+            onSelect(hit);
+          } else {
+            onSeek(secOf(d.localPosition.dx));
+            onSelect(null);
+          }
+        },
+        onHorizontalDragUpdate: (d) => onSeek(secOf(d.localPosition.dx)),
+        child: CustomPaint(
+          size: Size(w, _h),
+          painter: _TrackPainter(
+            keys: keys,
+            selectedId: selectedId,
+            xOf: xOf,
+            playheadX: xOf(playhead.clamp(0.0, total).toDouble()),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class _TrackPainter extends CustomPainter {
+  _TrackPainter({
+    required this.keys,
+    required this.selectedId,
+    required this.xOf,
+    required this.playheadX,
   });
 
   final List<Keyframe> keys;
-  final List<String> lanes;
-  final Set<dynamic> selected;
-  final double total;
-  final double playhead;
-  final double rulerH;
-  final double laneH;
-
-  void _text(Canvas canvas, String s, Offset o, Color c, double size) {
-    final tp = TextPainter(
-      text: TextSpan(text: s, style: TextStyle(color: c, fontSize: size, fontWeight: FontWeight.w500)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, o);
-  }
+  final Object? selectedId;
+  final double Function(double) xOf;
+  final double playheadX;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final line = Paint()
-      ..color = dividerToken
-      ..strokeWidth = 1;
+    final double cy = size.height / 2;
 
-    // Ruler ticks.
-    const steps = <double>[0.5, 1, 2, 5, 10, 30, 60];
-    double step = steps.last;
-    for (final s in steps) {
-      if (s / total * w >= 52) {
-        step = s;
-        break;
-      }
-    }
-    for (double t = 0; t <= total + 0.0001; t += step) {
-      final double x = t / total * w;
-      canvas.drawLine(Offset(x, rulerH - 6), Offset(x, rulerH), line);
-      _text(canvas, '${t.toStringAsFixed(t % 1 == 0 ? 0 : 1)}s', Offset(x + 3, 3), mutedToken, 9);
-    }
-    canvas.drawLine(Offset(0, rulerH), Offset(w, rulerH), line);
+    canvas.drawLine(
+      Offset(16, cy),
+      Offset(size.width - 16, cy),
+      Paint()
+        ..color = _kfLineHi
+        ..strokeWidth = 2,
+    );
 
-    // Lanes.
-    for (int i = 0; i < lanes.length; i++) {
-      final double top = rulerH + i * laneH;
-      if (i.isOdd) {
-        canvas.drawRect(Rect.fromLTWH(0, top, w, laneH), Paint()..color = Colors.white.withValues(alpha: 0.03));
-      }
-      canvas.drawLine(Offset(0, top + laneH), Offset(w, top + laneH), line);
-      _text(canvas, lanes[i], Offset(6, top + 3), mutedToken, 9);
-    }
-
-    // Segments between neighbours on the same lane, then diamonds.
-    for (int i = 0; i < lanes.length; i++) {
-      final double cy = rulerH + i * laneH + laneH / 2 + 3;
-      final lane = keys.where((k) => _propName(k) == lanes[i]).toList();
-      for (int j = 0; j + 1 < lane.length; j++) {
-        final double a = secondsOf(lane[j].time) / total * w;
-        final double b = secondsOf(lane[j + 1].time) / total * w;
-        canvas.drawLine(
-          Offset(a, cy),
-          Offset(b, cy),
-          Paint()
-            ..color = accentToken.withValues(alpha: 0.35)
-            ..strokeWidth = 2,
-        );
-      }
-      for (final k in lane) {
-        final double x = secondsOf(k.time) / total * w;
-        final bool on = selected.contains(k.id);
-        final path = Path()
-          ..moveTo(x, cy - 7)
-          ..lineTo(x + 7, cy)
-          ..lineTo(x, cy + 7)
-          ..lineTo(x - 7, cy)
-          ..close();
-        canvas.drawPath(path, Paint()..color = on ? accentToken : Colors.white);
-        canvas.drawPath(
-          path,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.5
-            ..color = on ? Colors.white : Colors.black54,
-        );
-      }
-    }
-
-    // Playhead.
-    final double px = (playhead / total * w).clamp(0.0, w).toDouble();
-    final ph = Paint()
-      ..color = _danger
-      ..strokeWidth = 1.5;
-    canvas.drawLine(Offset(px, 0), Offset(px, size.height), ph);
-    canvas.drawCircle(Offset(px, 4), 4, ph);
-  }
-
-  @override
-  bool shouldRepaint(covariant _KfTimelinePainter o) => true;
-}
-
-class _CurveGraphPainter extends CustomPainter {
-  _CurveGraphPainter(this.curve, {this.mini = false, this.active = false, this.speed = false});
-  final CurveType curve;
-  final bool mini;
-  final bool active;
-  final bool speed;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Rect r = mini ? Offset.zero & size : Rect.fromLTWH(6, 6, size.width - 12, size.height - 12);
-    if (!mini) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(8)),
-        Paint()..color = _canvasDark,
+    final Paint seg = Paint()
+      ..color = _kfDim
+      ..strokeWidth = 2;
+    for (int i = 0; i + 1 < keys.length; i++) {
+      canvas.drawLine(
+        Offset(xOf(secondsOf(keys[i].time)), cy),
+        Offset(xOf(secondsOf(keys[i + 1].time)), cy),
+        seg,
       );
-      final grid = Paint()
-        ..color = Colors.white10
-        ..strokeWidth = 1;
-      for (int i = 0; i <= 4; i++) {
-        final double x = r.left + r.width * i / 4;
-        final double y = r.top + r.height * i / 4;
-        canvas.drawLine(Offset(x, r.top), Offset(x, r.bottom), grid);
-        canvas.drawLine(Offset(r.left, y), Offset(r.right, y), grid);
-      }
     }
 
-    Offset at(double t, double v) => Offset(r.left + t * r.width, r.bottom - v.clamp(-0.2, 1.2) * r.height);
-
-    Path build(double Function(double) f) {
-      final p = Path()..moveTo(at(0, f(0)).dx, at(0, f(0)).dy);
-      for (int i = 1; i <= 48; i++) {
-        final double t = i / 48;
-        final o = at(t, f(t));
-        p.lineTo(o.dx, o.dy);
-      }
-      return p;
-    }
-
-    if (speed) {
-      // Numeric derivative, normalised to the graph height.
-      final List<double> d = <double>[
-        for (int i = 0; i <= 48; i++) ((_ease(curve, math.min(1, (i + 1) / 48)) - _ease(curve, i / 48)) * 48).abs(),
-      ];
-      final double mx = math.max(d.reduce(math.max), 0.0001);
-      final p = Path()..moveTo(r.left, r.bottom - d[0] / mx * r.height);
-      for (int i = 1; i <= 48; i++) {
-        p.lineTo(r.left + i / 48 * r.width, r.bottom - d[i] / mx * r.height);
-      }
+    for (final Keyframe k in keys) {
+      final double x = xOf(secondsOf(k.time));
+      final bool on = k.id == selectedId;
+      final Path p = Path()
+        ..moveTo(x, cy - 8)
+        ..lineTo(x + 8, cy)
+        ..lineTo(x, cy + 8)
+        ..lineTo(x - 8, cy)
+        ..close();
+      canvas.drawPath(p, Paint()..color = on ? _kfText : _kfBg);
       canvas.drawPath(
         p,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
-          ..color = Colors.white38,
+          ..strokeWidth = 1.5
+          ..color = on ? _kfBg : _kfMuted,
       );
     }
 
-    canvas.drawPath(
-      build((t) => _ease(curve, t)),
+    final Paint ph = Paint()
+      ..color = _kfText
+      ..strokeWidth = 2;
+    canvas.drawLine(Offset(playheadX, 6), Offset(playheadX, size.height - 4), ph);
+    canvas.drawCircle(Offset(playheadX, 6), 3.5, ph);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrackPainter o) => true;
+}
+
+// ----------------------------------------------------------------------------
+// Curve editor (bezier-এ হ্যান্ডেল টানা যায়, বাকিগুলোয় শুধু প্রিভিউ)
+// ----------------------------------------------------------------------------
+class _GraphMap {
+  const _GraphMap(this.size);
+  final Size size;
+
+  static const double pad = 16;
+  static const double yMin = -0.4;
+  static const double yMax = 1.4;
+
+  Rect get r => Rect.fromLTWH(pad, pad, size.width - pad * 2, size.height - pad * 2);
+
+  Offset toPx(double x, double y) => Offset(
+        r.left + x * r.width,
+        r.bottom - (y - yMin) / (yMax - yMin) * r.height,
+      );
+
+  double xOf(double px) => ((px - r.left) / r.width).clamp(0.0, 1.0).toDouble();
+
+  double yOf(double py) =>
+      (yMin + (r.bottom - py) / r.height * (yMax - yMin)).clamp(yMin, yMax).toDouble();
+}
+
+class _CurveEditor extends StatefulWidget {
+  const _CurveEditor({
+    super.key,
+    required this.curve,
+    required this.onChanged,
+    required this.onDragState,
+  });
+
+  final KeyframeCurve curve;
+  final ValueChanged<KeyframeCurve> onChanged;
+  final ValueChanged<bool> onDragState;
+
+  @override
+  State<_CurveEditor> createState() => _CurveEditorState();
+}
+
+class _CurveEditorState extends State<_CurveEditor> {
+  static const double _height = 200;
+
+  late KeyframeCurve _curve = widget.curve;
+  int _active = -1; // -1 = কিছু ধরা নেই, 0 = প্রথম হ্যান্ডেল, 1 = দ্বিতীয়
+
+  @override
+  void didUpdateWidget(covariant _CurveEditor old) {
+    super.didUpdateWidget(old);
+    if (_active == -1) _curve = widget.curve; // টাইল চাপলে বা বাইরে বদলালে সিঙ্ক
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, c) {
+      final _GraphMap map = _GraphMap(Size(c.maxWidth, _height));
+
+      void move(Offset p) {
+        final double x = map.xOf(p.dx);
+        final double y = map.yOf(p.dy);
+        setState(() {
+          _curve = _active == 0 ? _curve.copyWith(x1: x, y1: y) : _curve.copyWith(x2: x, y2: y);
+        });
+      }
+
+      void finish() {
+        if (_active == -1) return;
+        _active = -1;
+        widget.onDragState(false);
+        widget.onChanged(_curve); // আঙুল তুললে বা cancel হলেও সেভ হবে
+      }
+
+      // Listener ব্যবহার করেছি যাতে ListView-এর স্ক্রলের সাথে gesture লড়াই না হয়।
+      return Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: (e) {
+          if (!_curve.isBezier || _active != -1) return;
+          final double d0 = (map.toPx(_curve.x1, _curve.y1) - e.localPosition).distance;
+          final double d1 = (map.toPx(_curve.x2, _curve.y2) - e.localPosition).distance;
+          if (math.min(d0, d1) > 36) return;
+          _active = d0 <= d1 ? 0 : 1;
+          widget.onDragState(true);
+          move(e.localPosition);
+        },
+        onPointerMove: (e) {
+          if (_active != -1) move(e.localPosition);
+        },
+        onPointerUp: (_) => finish(),
+        onPointerCancel: (_) => finish(),
+        child: CustomPaint(
+          size: map.size,
+          painter: _CurveGraphPainter(_curve, map),
+        ),
+      );
+    });
+  }
+}
+
+class _CurveGraphPainter extends CustomPainter {
+  _CurveGraphPainter(this.curve, this.map);
+  final KeyframeCurve curve;
+  final _GraphMap map;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.clipRect(Offset.zero & size);
+
+    // গ্রিড
+    final Paint grid = Paint()
+      ..color = _kfLine
+      ..strokeWidth = 1;
+    for (int i = 0; i <= 4; i++) {
+      final double f = i / 4;
+      canvas.drawLine(map.toPx(f, 0), map.toPx(f, 1), grid);
+      canvas.drawLine(map.toPx(0, f), map.toPx(1, f), grid);
+    }
+    canvas.drawRect(
+      Rect.fromPoints(map.toPx(0, 1), map.toPx(1, 0)),
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = mini ? 1.8 : 2.4
-        ..strokeCap = StrokeCap.round
-        ..color = (mini && !active) ? Colors.white70 : accentToken,
+        ..color = _kfLineHi
+        ..strokeWidth = 1,
     );
 
-    if (!mini) {
-      for (final o in <Offset>[at(0, 0), at(1, 1)]) {
-        canvas.drawCircle(o, 4, Paint()..color = Colors.white);
+    final Offset start = map.toPx(0, 0);
+    final Offset end = map.toPx(1, 1);
+    final Offset h1 = map.toPx(curve.x1, curve.y1);
+    final Offset h2 = map.toPx(curve.x2, curve.y2);
+
+    // হ্যান্ডেলের লাইন (শুধু bezier)
+    if (curve.isBezier) {
+      final Paint guide = Paint()
+        ..color = _kfDim
+        ..strokeWidth = 1.2;
+      canvas.drawLine(start, h1, guide);
+      canvas.drawLine(end, h2, guide);
+    }
+
+    // কার্ভ
+    const int n = 120;
+    final Path path = Path();
+    for (int i = 0; i <= n; i++) {
+      final double t = i / n;
+      final Offset o = map.toPx(t, curve.transform(t));
+      if (i == 0) {
+        path.moveTo(o.dx, o.dy);
+      } else {
+        path.lineTo(o.dx, o.dy);
+      }
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.6
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = _kfText,
+    );
+
+    // দুই প্রান্ত
+    final Paint dot = Paint()..color = _kfText;
+    canvas.drawCircle(start, 4, dot);
+    canvas.drawCircle(end, 4, dot);
+
+    // টানার হ্যান্ডেল (শুধু bezier)
+    if (curve.isBezier) {
+      for (final Offset o in <Offset>[h1, h2]) {
+        canvas.drawCircle(o, 10, Paint()..color = _kfText);
+        canvas.drawCircle(
+          o,
+          10,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.5
+            ..color = _kfBg,
+        );
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant _CurveGraphPainter o) =>
-      o.curve != curve || o.active != active || o.mini != mini || o.speed != speed;
+  bool shouldRepaint(covariant _CurveGraphPainter o) => o.curve != curve || o.map.size != map.size;
+}
+
+// ----------------------------------------------------------------------------
+// টাইলের ছোট আইকন (কার্ভের নিজের আকার)
+// ----------------------------------------------------------------------------
+class _CurveIconPainter extends CustomPainter {
+  _CurveIconPainter(this.curve, this.color);
+  final KeyframeCurve curve;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double pad = 4;
+    final double w = size.width - pad * 2;
+    final double h = size.height - pad * 2;
+    final Path path = Path();
+    for (int i = 0; i <= 48; i++) {
+      final double t = i / 48;
+      final double y = curve.transform(t).clamp(-0.25, 1.25).toDouble();
+      final double px = pad + t * w;
+      final double py = size.height - pad - y * h;
+      if (i == 0) {
+        path.moveTo(px, py);
+      } else {
+        path.lineTo(px, py);
+      }
+    }
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurveIconPainter o) => o.curve != curve || o.color != color;
 }
