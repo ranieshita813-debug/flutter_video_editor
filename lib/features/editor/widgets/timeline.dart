@@ -14,7 +14,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 // Constants & helpers
 // ----------------------------------------------------------------------------
 const Color playheadBlue = Color(0xFF2D8CEB);
-const Color _timelineBg = Color(0xFF111111);
+const Color _timelineBg = Color(0xFF121212);
 const Color _overlayMediaColor = Color(0xFF673AB7);
 const int _fps = 30;
 
@@ -218,9 +218,9 @@ class _TimelineWidgetState extends State<TimelineWidget> {
 
   double _s = 1;
   double get _rulerH => 30 * _s;
-  double get _textH => 52 * _s;
-  double get _videoH => 52 * _s;
-  double get _audioH => 44 * _s;
+  double get _textH => 38 * _s;
+  double get _videoH => 38 * _s;
+  double get _audioH => 32 * _s;
   double get _topH => 30 * _s;
   double get _botH => 28 * _s;
 
@@ -590,8 +590,9 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     );
   }
 
-  Widget _topRow() => SizedBox(
+  Widget _topRow() => Container(
         height: _topH,
+        color: const Color(0xFF000000),
         child: Padding(
           padding: EdgeInsets.only(left: 14 * _s, right: 6 * _s),
           child: Row(
@@ -1539,7 +1540,7 @@ class _RulerPainter extends CustomPainter {
   final ScrollController scroll;
   final double viewW;
 
-  static const Color _bg = Color(0xFF1A1A1A);
+  static const Color _bg = Color(0xFF000000);
 
   @override
   void paint(Canvas canvas, Size size) {

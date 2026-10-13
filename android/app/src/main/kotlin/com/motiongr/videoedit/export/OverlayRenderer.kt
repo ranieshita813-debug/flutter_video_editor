@@ -739,9 +739,16 @@ object OverlayRenderer {
         val posY = getInterpolatedKeyframeValue(clip, "positionY", relTimeMs, clip.positionY)
         val rot = getInterpolatedKeyframeValue(clip, "rotation", relTimeMs, clip.rotation)
         val opacity = getInterpolatedKeyframeValue(clip, "opacity", relTimeMs, clip.opacity)
+        val scaleKeyframe = getInterpolatedKeyframeValue(clip, "scale", relTimeMs, clip.scale)
 
         canvas.save()
         val matrix = Matrix()
+        if (clip.scale > 0.0) {
+            val scaleMult = (scaleKeyframe / clip.scale).toFloat()
+            val bw = overlayBmp.width.toFloat()
+            val bh = overlayBmp.height.toFloat()
+            matrix.postScale(scaleMult, scaleMult, bw / 2f, bh / 2f)
+        }
         matrix.postRotate(rot.toFloat())
         matrix.postTranslate((posX * u).toFloat(), (posY * u).toFloat())
 
