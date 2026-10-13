@@ -116,14 +116,14 @@ class ToolPanel extends StatelessWidget {
   Widget _header() => Row(
         children: <Widget>[
           const SizedBox(width: 16),
-          HugeIcon(icon: tool.icon, color: Colors.white70, size: 18),
+          HugeIcon(icon: tool.icon, color: Colors.white, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(tool.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                    color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 16),
         ],
@@ -132,8 +132,8 @@ class ToolPanel extends StatelessWidget {
   Widget _buildFooter() => Container(
         height: 52,
         decoration: const BoxDecoration(
-          color: Color(0xFF0E0E10),
-          border: Border(top: BorderSide(color: dividerToken)),
+          color: Color(0xFF121212),
+          border: Border(top: BorderSide.none),
         ),
         child: Row(
           children: <Widget>[
@@ -149,7 +149,7 @@ class ToolPanel extends StatelessWidget {
             Text(
               tool.title,
               style: const TextStyle(
-                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
             ),
             const Spacer(),
             IconButton(
@@ -176,14 +176,13 @@ class ToolPanel extends StatelessWidget {
       return Container(
         decoration: const BoxDecoration(
           color: surfaceToken,
-          border: Border(left: BorderSide(color: dividerToken)),
+          border: Border(top: BorderSide(color: dividerToken)),
         ),
         child: SafeArea(
           left: false,
           child: Column(
             children: <Widget>[
               SizedBox(height: 52, child: _header()),
-              const Divider(height: 1, thickness: 0.5, color: dividerToken),
               body,
               _buildFooter(),
             ],
@@ -226,7 +225,6 @@ class ToolPanel extends StatelessWidget {
                   ),
                 ),
               ),
-              const Divider(height: 1, thickness: 0.5, color: dividerToken),
               body,
               _buildFooter(),
             ],
