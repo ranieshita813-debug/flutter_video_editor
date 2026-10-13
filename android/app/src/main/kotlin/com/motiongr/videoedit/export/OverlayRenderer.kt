@@ -13,6 +13,38 @@ object OverlayRenderer {
     private const val TAG = "OverlayRenderer"
     private val clipBitmapCache = HashMap<String, Bitmap>()
 
+    fun getInterpolatedKeyframeValue(
+        clip: ClipSpec,
+        property: String,
+        relativeTimeMs: Long,
+        defaultValue: Double
+    ): Double {
+        val ks = clip.keyframes.filter { it.property == property }.sortedBy { it.timeMs }
+        if (ks.isEmpty()) return defaultValue
+
+        if (relativeTimeMs <= ks.first().timeMs) return ks.first().value
+        if (relativeTimeMs >= ks.last().timeMs) return ks.last().value
+
+        for (i in 0 until ks.size - 1) {
+            val a = ks[i]
+            val b = ks[i + 1]
+            if (relativeTimeMs >= a.timeMs && relativeTimeMs <= b.timeMs) {
+                val span = b.timeMs - a.timeMs
+                if (span <= 0) return b.value
+                var t = (relativeTimeMs - a.timeMs).toDouble() / span.toDouble()
+
+                t = when (a.curveType) {
+                    "easeIn" -> t * t
+                    "easeOut" -> 1.0 - (1.0 - t) * (1.0 - t)
+                    "cubicBezier" -> t * t * (3.0 - 2.0 * t)
+                    else -> t
+                }
+                return a.value + (b.value - a.value) * t
+            }
+        }
+        return ks.last().value
+    }
+
     fun clearCache() {
         for (bmp in clipBitmapCache.values) {
             if (!bmp.isRecycled) {
@@ -702,14 +734,21 @@ object OverlayRenderer {
             }
         }
 
+        val relTimeMs = timelineMs - clip.timelineStartMs
+        val posX = getInterpolatedKeyframeValue(clip, "positionX", relTimeMs, clip.positionX)
+        val posY = getInterpolatedKeyframeValue(clip, "positionY", relTimeMs, clip.positionY)
+        val rot = getInterpolatedKeyframeValue(clip, "rotation", relTimeMs, clip.rotation)
+        val opacity = getInterpolatedKeyframeValue(clip, "opacity", relTimeMs, clip.opacity)
+
         canvas.save()
         val matrix = Matrix()
-        matrix.postRotate(clip.rotation.toFloat())
-        matrix.postTranslate((clip.positionX * u).toFloat(), (clip.positionY * u).toFloat())
+        matrix.postRotate(rot.toFloat())
+        matrix.postTranslate((posX * u).toFloat(), (posY * u).toFloat())
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-        if (clip.opacity < 1.0) {
-            paint.alpha = (clip.opacity * 255).toInt().coerceIn(0, 255)
+        val finalOpacity = opacity.coerceIn(0.0, 1.0)
+        if (finalOpacity < 1.0) {
+            paint.alpha = (finalOpacity * 255).toInt().coerceIn(0, 255)
         }
 
         canvas.drawBitmap(overlayBmp, matrix, paint)

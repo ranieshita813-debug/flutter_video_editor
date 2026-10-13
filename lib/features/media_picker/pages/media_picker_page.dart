@@ -1,7 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
 
@@ -528,9 +527,18 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   @override
   Widget build(BuildContext context) {
     final bool granted = _perm == _Perm.granted;
-    return Scaffold(
-      backgroundColor: _bg,
-      body: SafeArea(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: _bg,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: _bg,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: _bg,
+      ),
+      child: Scaffold(
+        backgroundColor: _bg,
+        body: SafeArea(
         child: Column(
           children: <Widget>[
             _header(),
@@ -550,6 +558,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             ],
           ],
         ),
+      ),
       ),
     );
   }

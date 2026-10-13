@@ -9,6 +9,7 @@ import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/playback_controller.dart';
 import 'package:flutter_video_editor/features/editor/controllers/track_controller.dart';
+import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
 import 'package:flutter_video_editor/features/export/services/export_service.dart';
@@ -889,12 +890,63 @@ class EditorController extends ChangeNotifier {
 
     _saveState();
     final updatedKeyframes = List<Keyframe>.from(_project.clips[index].keyframes)
-      ..removeWhere((k) => k.property == keyframe.property && k.time == keyframe.time)
+      ..removeWhere((k) => k.property == keyframe.property && (k.time.inMilliseconds - keyframe.time.inMilliseconds).abs() < 50)
       ..add(keyframe);
 
     _project.clips[index] = _project.clips[index].copyWith(
       keyframes: updatedKeyframes,
     );
+    _autosave();
+    notifyListeners();
+  }
+
+  void addKeyframeAtPlayhead([KeyframeProperty? property]) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    final clip = _project.clips[index];
+    final relTime = playhead - clip.start;
+    if (relTime.isNegative || relTime > clip.duration) return;
+
+    _saveState();
+    final updatedKeyframes = List<Keyframe>.from(clip.keyframes);
+    final stamp = DateTime.now().millisecondsSinceEpoch;
+
+    final propsToAdd = property != null
+        ? <KeyframeProperty>[property]
+        : <KeyframeProperty>[
+            KeyframeProperty.positionX,
+            KeyframeProperty.positionY,
+            KeyframeProperty.scale,
+            KeyframeProperty.rotation,
+            KeyframeProperty.opacity,
+            if (clip.clipType == ClipType.audio || clip.clipType == ClipType.video)
+              KeyframeProperty.volume,
+          ];
+
+    for (int i = 0; i < propsToAdd.length; i++) {
+      final p = propsToAdd[i];
+      final double currentValue = switch (p) {
+        KeyframeProperty.positionX => getInterpolatedKeyframeValue(clip, p, relTime, clip.positionX),
+        KeyframeProperty.positionY => getInterpolatedKeyframeValue(clip, p, relTime, clip.positionY),
+        KeyframeProperty.scale => getInterpolatedKeyframeValue(clip, p, relTime, clip.scale),
+        KeyframeProperty.rotation => getInterpolatedKeyframeValue(clip, p, relTime, clip.rotation),
+        KeyframeProperty.opacity => getInterpolatedKeyframeValue(clip, p, relTime, clip.opacity),
+        KeyframeProperty.volume => getInterpolatedKeyframeValue(clip, p, relTime, clip.volume),
+      };
+
+      updatedKeyframes.removeWhere(
+          (k) => k.property == p && (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
+      updatedKeyframes.add(Keyframe(
+        id: 'kf_${stamp}_$i',
+        time: relTime,
+        property: p,
+        value: currentValue,
+      ));
+    }
+
+    _project.clips[index] = clip.copyWith(keyframes: updatedKeyframes);
     _autosave();
     notifyListeners();
   }
@@ -930,15 +982,53 @@ class EditorController extends ChangeNotifier {
     if (index == -1) return;
 
     _saveStateCoalesced('xform:$_selectedClipId');
-    _project.clips[index] = _project.clips[index].copyWith(
-      positionX: positionX ?? _project.clips[index].positionX,
-      positionY: positionY ?? _project.clips[index].positionY,
-      scale: scale ?? _project.clips[index].scale,
-      rotation: rotation ?? _project.clips[index].rotation,
-      opacity: opacity ?? _project.clips[index].opacity,
-      anchorX: anchorX ?? _project.clips[index].anchorX,
-      anchorY: anchorY ?? _project.clips[index].anchorY,
-    );
+    final clip = _project.clips[index];
+    final relTime = playhead - clip.start;
+    final bool hasKeyframes = clip.keyframes.isNotEmpty;
+    final bool inRange = !relTime.isNegative && relTime <= clip.duration;
+
+    if (hasKeyframes && inRange) {
+      final updatedKeyframes = List<Keyframe>.from(clip.keyframes);
+      final stamp = DateTime.now().millisecondsSinceEpoch;
+
+      void updateOrAddKf(KeyframeProperty prop, double val) {
+        updatedKeyframes.removeWhere((k) =>
+            k.property == prop && (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
+        updatedKeyframes.add(Keyframe(
+          id: 'kf_${stamp}_${prop.name}',
+          time: relTime,
+          property: prop,
+          value: val,
+        ));
+      }
+
+      if (positionX != null) updateOrAddKf(KeyframeProperty.positionX, positionX);
+      if (positionY != null) updateOrAddKf(KeyframeProperty.positionY, positionY);
+      if (scale != null) updateOrAddKf(KeyframeProperty.scale, scale);
+      if (rotation != null) updateOrAddKf(KeyframeProperty.rotation, rotation);
+      if (opacity != null) updateOrAddKf(KeyframeProperty.opacity, opacity);
+
+      _project.clips[index] = clip.copyWith(
+        positionX: positionX ?? clip.positionX,
+        positionY: positionY ?? clip.positionY,
+        scale: scale ?? clip.scale,
+        rotation: rotation ?? clip.rotation,
+        opacity: opacity ?? clip.opacity,
+        anchorX: anchorX ?? clip.anchorX,
+        anchorY: anchorY ?? clip.anchorY,
+        keyframes: updatedKeyframes,
+      );
+    } else {
+      _project.clips[index] = clip.copyWith(
+        positionX: positionX ?? clip.positionX,
+        positionY: positionY ?? clip.positionY,
+        scale: scale ?? clip.scale,
+        rotation: rotation ?? clip.rotation,
+        opacity: opacity ?? clip.opacity,
+        anchorX: anchorX ?? clip.anchorX,
+        anchorY: anchorY ?? clip.anchorY,
+      );
+    }
     _autosave();
     notifyListeners();
   }

@@ -67,6 +67,14 @@ struct DrawingStrokeSpec {
     let points: [DrawingPointSpec]
 }
 
+struct KeyframeSpec {
+    let id: String
+    let timeMs: Int64
+    let property: String
+    let value: Double
+    let curveType: String
+}
+
 struct ClipSpec {
     let id: String
     let label: String
@@ -96,6 +104,7 @@ struct ClipSpec {
     let strokes: [DrawingStrokeSpec]
     let stickerAssetPath: String?
     let effect: String
+    let keyframes: [KeyframeSpec]
 }
 
 struct TimelineSpec {
@@ -196,6 +205,19 @@ class TimelineParser {
                     }
                 }
 
+                var keyframes: [KeyframeSpec] = []
+                if let kfArray = clipDict["keyframes"] as? [[String: Any]] {
+                    for kfDict in kfArray {
+                        keyframes.append(KeyframeSpec(
+                            id: kfDict["id"] as? String ?? "",
+                            timeMs: kfDict["timeMs"] as? Int64 ?? 0,
+                            property: kfDict["property"] as? String ?? "positionX",
+                            value: kfDict["value"] as? Double ?? 0.0,
+                            curveType: kfDict["curveType"] as? String ?? "linear"
+                        ))
+                    }
+                }
+
                 clips.append(ClipSpec(
                     id: clipDict["id"] as? String ?? "",
                     label: clipDict["label"] as? String ?? "",
@@ -224,7 +246,8 @@ class TimelineParser {
                     outAnimation: clipDict["outAnimation"] as? String ?? "none",
                     strokes: strokes,
                     stickerAssetPath: clipDict["stickerAssetPath"] as? String,
-                    effect: clipDict["effect"] as? String ?? "none"
+                    effect: clipDict["effect"] as? String ?? "none",
+                    keyframes: keyframes
                 ))
             }
         }

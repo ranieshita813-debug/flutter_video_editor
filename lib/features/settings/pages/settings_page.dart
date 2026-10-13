@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
@@ -24,8 +25,17 @@ class _SettingsPageState extends State<SettingsPage> {
     final auth = context.watch<AuthController>();
     final user = auth.currentUser;
 
-    return Scaffold(
-      backgroundColor: EditorTokens.bg,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: EditorTokens.bg,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: EditorTokens.bg,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: EditorTokens.bg,
+      ),
+      child: Scaffold(
+        backgroundColor: EditorTokens.bg,
       appBar: AppBar(
         backgroundColor: EditorTokens.bg,
         elevation: 0,
@@ -340,6 +350,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -1580,7 +1580,7 @@ class KeyframeSheet extends StatelessWidget {
         const SizedBox(height: 12),
         _primaryBtn(
           HugeIcons.strokeRoundedAdd01,
-          'Add keyframe at playhead',
+          'Add keyframes at playhead',
           selectedClip == null
               ? null
               : () {
@@ -1591,13 +1591,7 @@ class KeyframeSheet extends StatelessWidget {
                       ..showSnackBar(const SnackBar(content: Text('Move the playhead inside the clip first.')));
                     return;
                   }
-                  editor.addKeyframe(Keyframe(
-                    id: 'kf_${DateTime.now().microsecondsSinceEpoch}',
-                    time: relTime,
-                    property: KeyframeProperty.scale,
-                    value: selectedClip.scale,
-                    curveType: CurveType.easeIn,
-                  ));
+                  editor.addKeyframeAtPlayhead();
                 },
         ),
         const SizedBox(height: 16),
