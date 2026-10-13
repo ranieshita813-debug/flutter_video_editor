@@ -1112,21 +1112,6 @@ class _SnapGuidePainter extends CustomPainter {
   _SnapGuidePainter(this.g);
   final _GuideState g;
 
-  static Color _color(_SnapKind k) => switch (k) {
-        _SnapKind.center || _SnapKind.edge => accentToken,
-        _SnapKind.third => const Color(0xFFFFC857),
-        _SnapKind.safe => const Color(0xFF4DD0B5),
-        _SnapKind.object => const Color(0xFFFF5FA2),
-      };
-
-  static String _label(_SnapLine l) => switch (l.kind) {
-        _SnapKind.center => l.vertical ? 'Center' : 'Middle',
-        _SnapKind.edge => 'Edge',
-        _SnapKind.third => 'Thirds',
-        _SnapKind.safe => 'Safe',
-        _SnapKind.object => 'Align',
-      };
-
   void _dashed(Canvas canvas, Offset a, Offset b, Paint p) {
     final double total = (b - a).distance;
     if (total <= 0) return;
@@ -1138,49 +1123,29 @@ class _SnapGuidePainter extends CustomPainter {
     }
   }
 
-  void _tag(Canvas canvas, String text, Offset at, Color c) {
-    final tp = TextPainter(
-      text: TextSpan(
-          text: text,
-          style: TextStyle(color: c, fontSize: 9, fontWeight: FontWeight.w700)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    final Rect r = Rect.fromLTWH(at.dx, at.dy, tp.width + 8, tp.height + 4);
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(r, const Radius.circular(4)), Paint()..color = Colors.black87);
-    tp.paint(canvas, Offset(r.left + 4, r.top + 2));
-    tp.dispose();
-  }
-
   @override
   void paint(Canvas canvas, Size size) {
     final double k = size.width / designWToken;
-    final Paint idle = Paint()
-      ..color = Colors.white38
-      ..strokeWidth = 0.8;
+    final Paint p = Paint()
+      ..color = Colors.white.withValues(alpha: 0.7)
+      ..strokeWidth = 0.5;
 
     final bool vc = g.lines.any((l) => l.vertical && l.kind == _SnapKind.center);
     final bool hc = g.lines.any((l) => !l.vertical && l.kind == _SnapKind.center);
     if (!vc) {
-      _dashed(canvas, Offset(size.width / 2, 0), Offset(size.width / 2, size.height), idle);
+      _dashed(canvas, Offset(size.width / 2, 0), Offset(size.width / 2, size.height), p);
     }
     if (!hc) {
-      _dashed(canvas, Offset(0, size.height / 2), Offset(size.width, size.height / 2), idle);
+      _dashed(canvas, Offset(0, size.height / 2), Offset(size.width, size.height / 2), p);
     }
 
     for (final l in g.lines) {
-      final Color c = _color(l.kind);
-      final Paint p = Paint()
-        ..color = c
-        ..strokeWidth = 1.4;
       if (l.vertical) {
-        final double x = (l.pos * k).clamp(0.7, size.width - 0.7).toDouble();
+        final double x = (l.pos * k).clamp(0.5, size.width - 0.5).toDouble();
         _dashed(canvas, Offset(x, 0), Offset(x, size.height), p);
-        _tag(canvas, _label(l), Offset(math.min(x + 3, size.width - 52), 3), c);
       } else {
-        final double y = (l.pos * k).clamp(0.7, size.height - 0.7).toDouble();
+        final double y = (l.pos * k).clamp(0.5, size.height - 0.5).toDouble();
         _dashed(canvas, Offset(0, y), Offset(size.width, y), p);
-        _tag(canvas, _label(l), Offset(3, math.min(y + 3, size.height - 16)), c);
       }
     }
   }
@@ -1765,25 +1730,12 @@ class _GuidePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint p = Paint()
-      ..color = Colors.white30
-      ..strokeWidth = 0.7;
+      ..color = Colors.white.withValues(alpha: 0.5)
+      ..strokeWidth = 0.5;
     for (final double f in const <double>[1 / 3, 2 / 3]) {
       canvas.drawLine(Offset(size.width * f, 0), Offset(size.width * f, size.height), p);
       canvas.drawLine(Offset(0, size.height * f), Offset(size.width, size.height * f), p);
     }
-    final Rect safe = Rect.fromCenter(
-        center: size.center(Offset.zero),
-        width: size.width * 0.9,
-        height: size.height * 0.9);
-    canvas.drawRect(
-        safe,
-        Paint()
-          ..color = accentToken.withValues(alpha: 0.55)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1);
-    final Offset c = size.center(Offset.zero);
-    canvas.drawLine(c.translate(-8, 0), c.translate(8, 0), p);
-    canvas.drawLine(c.translate(0, -8), c.translate(0, 8), p);
   }
 
   @override

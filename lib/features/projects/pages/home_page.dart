@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -238,8 +239,14 @@ class _HomePageState extends State<HomePage> {
         Provider.of<ProjectsController>(context);
     final List<Project> projects = projectsController.projects;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.white,
       body: SafeArea(
         child: IndexedStack(
           index: _currentIndex,
@@ -298,6 +305,7 @@ class _HomePageState extends State<HomePage> {
             label: 'Projects',
           ),
         ],
+      ),
       ),
     );
   }
@@ -505,7 +513,7 @@ class _HomePageState extends State<HomePage> {
             backgroundColor: Colors.black,
             foregroundColor: Colors.white,
             elevation: 0,
-            shape: const StadiumBorder(),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
         ),
@@ -562,7 +570,7 @@ class _HomePageState extends State<HomePage> {
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.black,
               side: const BorderSide(color: Colors.grey),
-              shape: const StadiumBorder(),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
             child: const Text('Create project',

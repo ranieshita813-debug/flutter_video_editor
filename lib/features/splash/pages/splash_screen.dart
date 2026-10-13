@@ -53,8 +53,8 @@ class _SplashScreenState extends State<SplashScreen>
               opacity: _fade.value,
               child: SvgPicture.asset(
                 'assets/logo_black.svg',
-                width: 140,
-                height: 140,
+                width: 80,
+                height: 80,
               ),
             );
           },
