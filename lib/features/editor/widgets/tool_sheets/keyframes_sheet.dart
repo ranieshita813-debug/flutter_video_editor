@@ -1,11 +1,16 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:provider/provider.dart';
+
+import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+
 // ============================================================================
 // KEYFRAMES (Premiere Pro style)
 // ----------------------------------------------------------------------------
-// Drop-in replacement: delete the old "Keyframes" section (_Diamond and
-// KeyframeSheet) from your sheets file and paste this block in its place.
-// It must stay in the same file because it uses the private helpers
-// (_Card, _SectionLabel, _EmptyHint, _cap, _listPad, _outlineBtn, ...).
-//
 // Features
 //  - Prev / next keyframe navigator and a diamond toggle at the playhead
 //  - Timeline with one lane per property, ruler, playhead, frame snapping
@@ -14,15 +19,16 @@
 //  - Interpolation presets with curve thumbnails (applies to the selection)
 //  - Value graph and speed graph preview for the selected curve
 //  - Timecode readouts (mm:ss:ff) with tabular figures
-//
-// Assumptions about your models (isolated, easy to adjust):
-//  - Keyframe has: id, time (Duration), property, curveType, copyWith(...)
-//    including copyWith(time:) and copyWith(id:)   -> used by drag and paste
-//  - Keyframe may have a `value`; it is read dynamically in _valueText()
-//  - editor.addKeyframe(kf) replaces a keyframe that has the same id
 // ============================================================================
 
 const double _kfFps = 30;
+const Color _danger = Color(0xFFFF6B6B);
+const Color _canvasDark = Color(0xFF1B1B20);
+
+String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+EdgeInsets _listPad(BuildContext context) =>
+    EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.paddingOf(context).bottom);
 
 String _propName(Keyframe k) => _cap('${k.property}'.split('.').last);
 
@@ -36,29 +42,122 @@ String _timecode(double s) {
 }
 
 String _valueText(Keyframe k) {
-  try {
-    final dynamic v = (k as dynamic).value;
-    if (v == null) return '—';
-    if (v is num) return v.toStringAsFixed(2);
-    return '$v';
-  } catch (_) {
-    return '—';
-  }
+  return k.value.toStringAsFixed(2);
 }
 
 /// Easing shape used for the thumbnails and graphs, derived from the curve name.
 double _ease(CurveType c, double t) {
-  final String n = c.name.toLowerCase();
-  if (n.contains('hold') || n.contains('step')) return t < 1 ? 0 : 1;
-  if (n.contains('inout') || n.contains('smooth') || n.contains('bezier') || n.contains('auto')) {
-    return t * t * (3 - 2 * t);
+  switch (c) {
+    case CurveType.linear:
+      return t;
+    case CurveType.easeIn:
+      return Curves.easeIn.transform(t);
+    case CurveType.easeOut:
+      return Curves.easeOut.transform(t);
+    case CurveType.cubicBezier:
+      return Curves.easeInOut.transform(t);
   }
-  if (n.contains('in')) return t * t * t;
-  if (n.contains('out')) return 1 - math.pow(1 - t, 3).toDouble();
-  if (n.contains('bounce')) return Curves.bounceOut.transform(t);
-  if (n.contains('elastic')) return Curves.elasticOut.transform(t);
-  return t;
 }
+
+class _Card extends StatelessWidget {
+  const _Card({required this.child, this.padding = const EdgeInsets.all(12)});
+  final Widget child;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: padding,
+        decoration: BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(12)),
+        child: child,
+      );
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 20, bottom: 8),
+        child: Text(text, style: const TextStyle(color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
+      );
+}
+
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint({required this.text, this.icon = Icons.touch_app_outlined});
+  final String text;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, color: Colors.white24, size: 28),
+            const SizedBox(height: 8),
+            Text(text, textAlign: TextAlign.center, style: const TextStyle(color: mutedToken, fontSize: 12)),
+          ],
+        ),
+      );
+}
+
+class _ChipRow extends StatelessWidget {
+  const _ChipRow({required this.options, required this.selected, required this.onSelected});
+  final List<String> options;
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          for (final o in options)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(o),
+                selected: o == selected,
+                showCheckmark: false,
+                selectedColor: accentToken,
+                backgroundColor: cardToken,
+                side: BorderSide.none,
+                labelStyle: TextStyle(
+                  color: o == selected ? Colors.black : Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                onSelected: (_) {
+                  tapFeedback();
+                  onSelected(o);
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _outlineBtn(String label, VoidCallback? onPressed) => OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: dividerToken),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        minimumSize: const Size.fromHeight(46),
+        foregroundColor: Colors.white,
+        disabledForegroundColor: mutedToken,
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+      onPressed: onPressed == null
+          ? null
+          : () {
+              tapFeedback();
+              onPressed();
+            },
+      child: Text(label),
+    );
 
 class KeyframeSheet extends StatefulWidget {
   const KeyframeSheet({super.key});
@@ -322,7 +421,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                       _kv('Value', selected.length == 1 ? _valueText(selected.first) : 'Mixed'),
                       _kv('Curve', _cap(selected.first.curveType.name)),
                       const SizedBox(height: 6),
-                      Row(children: const <Widget>[
+                      const Row(children: <Widget>[
                         _Legend(color: accentToken, text: 'Value'),
                         SizedBox(width: 10),
                         _Legend(color: Colors.white38, text: 'Speed'),
