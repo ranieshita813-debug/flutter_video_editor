@@ -1,3 +1,116 @@
+import 'dart:math' as math;
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+
+const Color _danger = Color(0xFFFF4D4F);
+const Color _canvasDark = Color(0xFF141414);
+
+Widget _Card({required Widget child, EdgeInsetsGeometry? padding}) {
+  return Container(
+    padding: padding ?? const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: const Color(0xFF1F1F24),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: child,
+  );
+}
+
+Widget _SectionLabel(String label) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 16, bottom: 8, left: 4),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: Colors.white70,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
+}
+
+Widget _EmptyHint({IconData? icon, required String text}) {
+  return Container(
+    padding: const EdgeInsets.all(16),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: const Color(0xFF1F1F24),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (icon != null) ...[
+          Icon(icon, color: Colors.white38, size: 28),
+          const SizedBox(height: 8),
+        ],
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _ChipRow({
+  required List<String> options,
+  required String selected,
+  required ValueChanged<String> onSelected,
+}) {
+  return SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      children: options.map((opt) {
+        final bool isSelected = opt == selected;
+        return Padding(
+          padding: const EdgeInsets.only(right: 8),
+          child: ChoiceChip(
+            label: Text(opt),
+            selected: isSelected,
+            onSelected: (_) => onSelected(opt),
+            selectedColor: accentToken,
+            backgroundColor: const Color(0xFF26262B),
+            labelStyle: TextStyle(
+              color: isSelected ? Colors.black : Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      }).toList(),
+    ),
+  );
+}
+
+Widget _outlineBtn(String text, VoidCallback? onTap) {
+  return OutlinedButton(
+    onPressed: onTap,
+    style: OutlinedButton.styleFrom(
+      foregroundColor: _danger,
+      side: BorderSide(color: onTap != null ? _danger : Colors.white24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
+    child: Text(text),
+  );
+}
+
+EdgeInsets _listPad(BuildContext context) {
+  return const EdgeInsets.symmetric(horizontal: 16, vertical: 12);
+}
+
+String _cap(String s) {
+  if (s.isEmpty) return s;
+  return s[0].toUpperCase() + s.substring(1);
+}
+
 // ============================================================================
 // KEYFRAMES (Premiere Pro style)
 // ----------------------------------------------------------------------------
@@ -58,6 +171,58 @@ double _ease(CurveType c, double t) {
   if (n.contains('bounce')) return Curves.bounceOut.transform(t);
   if (n.contains('elastic')) return Curves.elasticOut.transform(t);
   return t;
+}
+
+class KeyframeSectionLabel extends StatelessWidget {
+  const KeyframeSectionLabel(this.label, {super.key});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8, left: 4),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white70,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class KeyframeEmptyHint extends StatelessWidget {
+  const KeyframeEmptyHint({super.key, this.icon, required this.text});
+  final IconData? icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFF1F1F24),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: Colors.white38, size: 28),
+            const SizedBox(height: 8),
+          ],
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class KeyframeSheet extends StatefulWidget {
@@ -237,11 +402,11 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
         ],
 
         // ---- Timeline -----------------------------------------------------
-        const _SectionLabel('Timeline'),
+        const KeyframeSectionLabel('Timeline'),
         if (clip == null)
-          const _EmptyHint(icon: Icons.diamond_outlined, text: 'Select a clip to animate it.')
+          const KeyframeEmptyHint(icon: Icons.diamond_outlined, text: 'Select a clip to animate it.')
         else if (all.isEmpty)
-          const _EmptyHint(
+          const KeyframeEmptyHint(
             icon: Icons.diamond_outlined,
             text: 'No keyframes yet. Move the playhead and tap the diamond.',
           )
@@ -294,9 +459,9 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
           ),
 
         // ---- Inspector: interpolation + graph -----------------------------
-        const _SectionLabel('Interpolation'),
+        const KeyframeSectionLabel('Interpolation'),
         if (selected.isEmpty)
-          const _EmptyHint(text: 'Select one or more keyframes to edit their curve.')
+          const KeyframeEmptyHint(text: 'Select one or more keyframes to edit their curve.')
         else ...<Widget>[
           _Card(
             padding: const EdgeInsets.all(12),
@@ -386,7 +551,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
 
         // ---- Keyframe list ------------------------------------------------
         if (visible.isNotEmpty) ...<Widget>[
-          _SectionLabel('Keyframes (${visible.length})'),
+          KeyframeSectionLabel('Keyframes (${visible.length})'),
           for (final kf in visible)
             Container(
               margin: const EdgeInsets.only(bottom: 6),
