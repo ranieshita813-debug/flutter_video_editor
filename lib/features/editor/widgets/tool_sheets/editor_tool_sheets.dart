@@ -10,6 +10,8 @@ import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 
+export 'package:flutter_video_editor/features/editor/widgets/tool_sheets/keyframes_sheet.dart' show KeyframeSheet;
+
 // ============================================================================
 // Design notes
 // ----------------------------------------------------------------------------
@@ -26,7 +28,6 @@ import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 // The frame needs a bounded height from its parent.
 // ============================================================================
 
-const Color _danger = Color(0xFFFF6B6B);
 const Color _canvasDark = Color(0xFF1B1B20);
 const double _pad = 16;
 
@@ -1529,170 +1530,6 @@ class _MaskSheetState extends State<MaskSheet> {
                   },
           ),
         ),
-      ],
-    );
-  }
-}
-
-// ----------------------------------------------------------------------------
-// Keyframes
-// ----------------------------------------------------------------------------
-class _Diamond extends StatelessWidget {
-  const _Diamond();
-
-  @override
-  Widget build(BuildContext context) => Transform.rotate(
-        angle: math.pi / 4,
-        child: Container(width: 8, height: 8, color: accentToken),
-      );
-}
-
-class KeyframeSheet extends StatelessWidget {
-  const KeyframeSheet({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final editor = context.read<EditorController>();
-    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
-    final keyframes = <Keyframe>[...?selectedClip?.keyframes]..sort((a, b) => a.time.compareTo(b.time));
-
-    return ListView(
-      padding: _listPad(context),
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            const Expanded(
-              child: Text('Keyframes',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
-            ),
-            if (keyframes.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: accentToken.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text('${keyframes.length}',
-                    style: const TextStyle(color: accentToken, fontSize: 11, fontWeight: FontWeight.w600)),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _primaryBtn(
-          HugeIcons.strokeRoundedAdd01,
-          'Add keyframes at playhead',
-          selectedClip == null
-              ? null
-              : () {
-                  final relTime = editor.playhead - selectedClip.start;
-                  if (relTime.isNegative || relTime > selectedClip.duration) {
-                    ScaffoldMessenger.maybeOf(context)
-                      ?..hideCurrentSnackBar()
-                      ..showSnackBar(const SnackBar(content: Text('Move the playhead inside the clip first.')));
-                    return;
-                  }
-                  editor.addKeyframeAtPlayhead();
-                },
-        ),
-        const SizedBox(height: 16),
-        if (keyframes.isEmpty)
-          _EmptyHint(
-            icon: Icons.diamond_outlined,
-            text: selectedClip == null
-                ? 'Select a clip to add keyframes.'
-                : 'No keyframes on this clip yet. Move the playhead and add one.',
-          ),
-        for (final kf in keyframes)
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.fromLTRB(12, 4, 4, 10),
-            decoration: BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(12)),
-            child: Column(
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    const _Diamond(),
-                    const SizedBox(width: 12),
-                    // Tap the row to jump the playhead to this keyframe.
-                    Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: selectedClip == null
-                            ? null
-                            : () {
-                                tapFeedback();
-                                seekPlayhead(editor, secondsOf(selectedClip.start + kf.time));
-                              },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: Text(
-                                  _cap('${kf.property}'.split('.').last),
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                              Text(
-                                '${secondsOf(kf.time).toStringAsFixed(1)}s',
-                                style: const TextStyle(
-                                  color: mutedToken,
-                                  fontSize: 12,
-                                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Remove keyframe',
-                      icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete02, color: _danger, size: 18),
-                      onPressed: () => editor.removeKeyframe(kf.id),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: <Widget>[
-                    const Text('Curve', style: TextStyle(color: mutedToken, fontSize: 11)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: <Widget>[
-                            for (final curve in CurveType.values)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: ChoiceChip(
-                                  label: Text(
-                                    _cap(curve.name),
-                                    style: TextStyle(
-                                      color: kf.curveType == curve ? Colors.black : Colors.white70,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  selected: kf.curveType == curve,
-                                  selectedColor: accentToken,
-                                  backgroundColor: surfaceToken,
-                                  side: BorderSide.none,
-                                  showCheckmark: false,
-                                  visualDensity: VisualDensity.compact,
-                                  onSelected: (_) => editor.addKeyframe(kf.copyWith(curveType: curve)),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
       ],
     );
   }
