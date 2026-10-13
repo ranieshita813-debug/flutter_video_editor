@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -21,44 +20,6 @@ Widget _Card({required Widget child, EdgeInsetsGeometry? padding}) {
   );
 }
 
-Widget _SectionLabel(String label) {
-  return Padding(
-    padding: const EdgeInsets.only(top: 16, bottom: 8, left: 4),
-    child: Text(
-      label,
-      style: const TextStyle(
-        color: Colors.white70,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
-}
-
-Widget _EmptyHint({IconData? icon, required String text}) {
-  return Container(
-    padding: const EdgeInsets.all(16),
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: const Color(0xFF1F1F24),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null) ...[
-          Icon(icon, color: Colors.white38, size: 28),
-          const SizedBox(height: 8),
-        ],
-        Text(
-          text,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white54, fontSize: 12),
-        ),
-      ],
-    ),
-  );
-}
 
 Widget _ChipRow({
   required List<String> options,

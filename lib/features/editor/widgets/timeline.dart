@@ -16,7 +16,6 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 const Color playheadBlue = Color(0xFF2D8CEB);
 const Color _timelineBg = Color(0xFF111111);
 const Color _overlayMediaColor = Color(0xFF673AB7);
-const int _fps = 30;
 
 /// Pixels per second at zoom 1.0.
 const double _basePps = 28.0;
