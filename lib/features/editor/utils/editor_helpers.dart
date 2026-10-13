@@ -75,6 +75,48 @@ bool isImagePath(String p) {
 
 void tapFeedback() => HapticFeedback.selectionClick();
 
+/// Calculates interpolated keyframe value for [property] at clip relative time [relativeTime].
+/// Returns [defaultValue] if the clip has no keyframes for [property].
+double getInterpolatedKeyframeValue(
+  TimelineClip clip,
+  KeyframeProperty property,
+  Duration relativeTime,
+  double defaultValue,
+) {
+  final ks = clip.keyframes.where((k) => k.property == property).toList()
+    ..sort((a, b) => a.time.compareTo(b.time));
+  if (ks.isEmpty) return defaultValue;
+
+  if (relativeTime <= ks.first.time) return ks.first.value;
+  if (relativeTime >= ks.last.time) return ks.last.value;
+
+  for (int i = 0; i < ks.length - 1; i++) {
+    final a = ks[i];
+    final b = ks[i + 1];
+    if (relativeTime >= a.time && relativeTime <= b.time) {
+      final int span = (b.time - a.time).inMicroseconds;
+      if (span <= 0) return b.value;
+      double t = (relativeTime - a.time).inMicroseconds / span;
+
+      switch (a.curveType) {
+        case CurveType.easeIn:
+          t = Curves.easeIn.transform(t);
+          break;
+        case CurveType.easeOut:
+          t = Curves.easeOut.transform(t);
+          break;
+        case CurveType.cubicBezier:
+          t = Curves.easeInOut.transform(t);
+          break;
+        case CurveType.linear:
+          break;
+      }
+      return a.value + (b.value - a.value) * t;
+    }
+  }
+  return ks.last.value;
+}
+
 bool isTypingActive() {
   final BuildContext? c = FocusManager.instance.primaryFocus?.context;
   if (c == null) return false;

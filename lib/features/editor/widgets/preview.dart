@@ -23,26 +23,6 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 // Shared helpers
 // ----------------------------------------------------------------------------
 
-/// Linear interpolation of a keyframed property at [rel] (time inside the
-/// clip). Returns null when the clip has no keyframes for [prop].
-double? _kfValue(TimelineClip c, KeyframeProperty prop, Duration rel) {
-  final ks = c.keyframes.where((k) => k.property == prop).toList()
-    ..sort((a, b) => a.time.compareTo(b.time));
-  if (ks.isEmpty) return null;
-  double v(dynamic k) => (k.value as num).toDouble();
-  if (rel <= ks.first.time) return v(ks.first);
-  if (rel >= ks.last.time) return v(ks.last);
-  for (int i = 0; i < ks.length - 1; i++) {
-    final a = ks[i], b = ks[i + 1];
-    if (rel >= a.time && rel <= b.time) {
-      final int span = (b.time - a.time).inMicroseconds;
-      if (span <= 0) return v(b);
-      final double t = (rel - a.time).inMicroseconds / span;
-      return v(a) + (v(b) - v(a)) * t;
-    }
-  }
-  return v(ks.last);
-}
 
 /// File existence is checked once per path instead of every frame.
 final Map<String, bool> _existsCache = <String, bool>{};
@@ -191,7 +171,9 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
       _speed = speed;
       await c.setPlaybackSpeed(speed);
     }
-    final double vol = clip.volume.clamp(0.0, 1.0).toDouble();
+    final relTime = _e.playhead - clip.start;
+    final double baseVol = getInterpolatedKeyframeValue(clip, KeyframeProperty.volume, relTime, clip.volume);
+    final double vol = baseVol.clamp(0.0, 1.0).toDouble();
     if (vol != _vol) {
       _vol = vol;
       await c.setVolume(vol);
@@ -374,10 +356,15 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     }
 
     if (clip != null && (_isImg || ready)) {
-      final double base =
-          _kfValue(clip, KeyframeProperty.scale, _e.playhead - clip.start) ?? clip.scale;
-      final double sc = base.clamp(0.2, 5.0).toDouble();
+      final relTime = _e.playhead - clip.start;
+      final double kScale = getInterpolatedKeyframeValue(clip, KeyframeProperty.scale, relTime, clip.scale);
+      final double kRot = getInterpolatedKeyframeValue(clip, KeyframeProperty.rotation, relTime, clip.rotation);
+      final double kOpacity = getInterpolatedKeyframeValue(clip, KeyframeProperty.opacity, relTime, clip.opacity);
+
+      final double sc = kScale.clamp(0.2, 5.0).toDouble();
       if (sc != 1.0) child = Transform.scale(scale: sc, child: child);
+      if (kRot != 0.0) child = Transform.rotate(angle: kRot * math.pi / 180, child: child);
+      if (kOpacity < 1.0) child = Opacity(opacity: kOpacity.clamp(0.0, 1.0).toDouble(), child: child);
     }
 
     if (clip != null && clip.chromaKey.enabled) {
@@ -1434,9 +1421,14 @@ class _OverlayClipState extends State<_OverlayClip> {
       }
     }
 
-    // Keyframed scale (relative to the clip's static scale).
-    final double? kfs = _kfValue(clip, KeyframeProperty.scale, playhead - clip.start);
-    if (kfs != null && clip.scale > 0) scaleMult *= kfs / clip.scale;
+    final relTime = playhead - clip.start;
+    final double kScale = getInterpolatedKeyframeValue(clip, KeyframeProperty.scale, relTime, clip.scale);
+    final double kRot = getInterpolatedKeyframeValue(clip, KeyframeProperty.rotation, relTime, clip.rotation);
+    final double kOpacity = getInterpolatedKeyframeValue(clip, KeyframeProperty.opacity, relTime, clip.opacity);
+
+    if (clip.scale > 0) scaleMult *= (kScale / clip.scale);
+    rot += kRot * math.pi / 180;
+    opacity *= kOpacity;
 
     Widget result = child;
     if (blur > 0.1) {
@@ -1472,9 +1464,14 @@ class _OverlayClipState extends State<_OverlayClip> {
   Widget build(BuildContext context) {
     final clip = widget.clip;
     final double u = widget.unit;
+    final editor = context.watch<EditorController>();
+    final relTime = editor.playhead - clip.start;
+    final double activeX = getInterpolatedKeyframeValue(clip, KeyframeProperty.positionX, relTime, clip.positionX);
+    final double activeY = getInterpolatedKeyframeValue(clip, KeyframeProperty.positionY, relTime, clip.positionY);
+
     return Positioned(
-      left: clip.positionX * u,
-      top: clip.positionY * u,
+      left: activeX * u,
+      top: activeY * u,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onSelect,
@@ -1920,8 +1917,10 @@ class _AudioClipsPreviewState extends State<_AudioClipsPreview> {
       if (!controller.value.isInitialized) continue;
 
       final double speed = clip.speed.clamp(0.1, 10.0).toDouble();
+      final relTime = _e.playhead - clip.start;
+      final double kVol = getInterpolatedKeyframeValue(clip, KeyframeProperty.volume, relTime, clip.volume);
       final double vol =
-          (clip.volume * clip.audioProperties.volume).clamp(0.0, 1.0).toDouble();
+          (kVol * clip.audioProperties.volume).clamp(0.0, 1.0).toDouble();
       await controller.setPlaybackSpeed(speed);
       await controller.setVolume(vol);
 

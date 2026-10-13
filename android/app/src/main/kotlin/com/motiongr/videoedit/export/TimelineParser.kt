@@ -78,6 +78,14 @@ data class ElementPropertiesSpec(
     val svgPath: String? = null
 )
 
+data class KeyframeSpec(
+    val id: String,
+    val timeMs: Long,
+    val property: String,
+    val value: Double,
+    val curveType: String = "linear"
+)
+
 data class ClipSpec(
     val id: String,
     val label: String,
@@ -108,7 +116,8 @@ data class ClipSpec(
     val strokes: List<DrawingStrokeSpec>,
     val stickerAssetPath: String?,
     val effect: String,
-    val svgPath: String? = null
+    val svgPath: String? = null,
+    val keyframes: List<KeyframeSpec> = emptyList()
 )
 
 data class TimelineSpec(
@@ -263,7 +272,26 @@ object TimelineParser {
                         strokes = strokes,
                         stickerAssetPath = if (clipObj.has("stickerAssetPath") && !clipObj.isNull("stickerAssetPath")) clipObj.getString("stickerAssetPath") else null,
                         effect = clipObj.optString("effect", "none"),
-                        svgPath = if (clipObj.has("svgPath") && !clipObj.isNull("svgPath")) clipObj.getString("svgPath") else null
+                        svgPath = if (clipObj.has("svgPath") && !clipObj.isNull("svgPath")) clipObj.getString("svgPath") else null,
+                        keyframes = run {
+                            val kfArray = clipObj.optJSONArray("keyframes")
+                            val kfList = mutableListOf<KeyframeSpec>()
+                            if (kfArray != null) {
+                                for (k in 0 until kfArray.length()) {
+                                    val kfObj = kfArray.getJSONObject(k)
+                                    kfList.add(
+                                        KeyframeSpec(
+                                            id = kfObj.optString("id", ""),
+                                            timeMs = kfObj.optLong("timeMs", 0L),
+                                            property = kfObj.optString("property", "positionX"),
+                                            value = kfObj.optDouble("value", 0.0),
+                                            curveType = kfObj.optString("curveType", "linear")
+                                        )
+                                    )
+                                }
+                            }
+                            kfList
+                        }
                     )
                 )
             }

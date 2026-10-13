@@ -84,6 +84,7 @@ class ClipDto {
     required this.stickerAssetPath,
     required this.effect,
     this.svgPath,
+    this.keyframes = const <Map<String, dynamic>>[],
   });
 
   final String id;
@@ -116,6 +117,7 @@ class ClipDto {
   final String? stickerAssetPath;
   final String effect;
   final String? svgPath;
+  final List<Map<String, dynamic>> keyframes;
 
   factory ClipDto.fromTimelineClip(TimelineClip clip) {
     return ClipDto(
@@ -204,6 +206,7 @@ class ClipDto {
       stickerAssetPath: clip.stickerAssetPath,
       effect: clip.effect.name,
       svgPath: clip.elementProperties.svgPath ?? clip.sourcePath,
+      keyframes: clip.keyframes.map((k) => k.toJson()).toList(),
     );
   }
 
@@ -239,6 +242,7 @@ class ClipDto {
       'stickerAssetPath': stickerAssetPath,
       'effect': effect,
       'svgPath': svgPath,
+      'keyframes': keyframes,
     };
   }
 
@@ -277,6 +281,10 @@ class ClipDto {
       stickerAssetPath: json['stickerAssetPath'] as String?,
       effect: json['effect'] as String? ?? 'none',
       svgPath: json['svgPath'] as String?,
+      keyframes: (json['keyframes'] as List<dynamic>?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          <Map<String, dynamic>>[],
     );
   }
 }

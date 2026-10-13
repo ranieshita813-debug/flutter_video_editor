@@ -120,16 +120,13 @@ class KeyframeControls extends StatelessWidget {
                   : () {
                       final TimelineClip c = clip;
                       if (has) {
-                        final kf = c.keyframes.firstWhere((k) =>
-                            (k.time.inMilliseconds - rel.inMilliseconds).abs() < 100);
-                        editor.removeKeyframe(kf.id);
+                        final kfs = c.keyframes.where((k) =>
+                            (k.time.inMilliseconds - rel.inMilliseconds).abs() < 100).toList();
+                        for (final k in kfs) {
+                          editor.removeKeyframe(k.id);
+                        }
                       } else {
-                        editor.addKeyframe(Keyframe(
-                          id: 'kf_${DateTime.now().millisecondsSinceEpoch}',
-                          time: rel,
-                          property: KeyframeProperty.scale,
-                          value: c.scale,
-                        ));
+                        editor.addKeyframeAtPlayhead();
                       }
                     },
             ),

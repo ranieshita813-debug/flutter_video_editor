@@ -137,8 +137,17 @@ class _EditorPageState extends State<EditorPage> {
                 _close();
               }
             },
-            child: Scaffold(
-              backgroundColor: bgToken,
+            child: AnnotatedRegion<SystemUiOverlayStyle>(
+              value: const SystemUiOverlayStyle(
+                statusBarColor: bgToken,
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark,
+                systemNavigationBarColor: bgToken,
+                systemNavigationBarIconBrightness: Brightness.light,
+                systemNavigationBarDividerColor: bgToken,
+              ),
+              child: Scaffold(
+                backgroundColor: bgToken,
               resizeToAvoidBottomInset: true,
               body: LayoutBuilder(builder: (context, c) {
                 // The panel never takes more than half of what is left, so an
@@ -302,6 +311,7 @@ class _EditorPageState extends State<EditorPage> {
           ),
         ),
       ),
+    ),
     );
   }
 }

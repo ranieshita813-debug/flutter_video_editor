@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
@@ -72,8 +73,17 @@ class _AuthPageState extends State<AuthPage> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
 
-    return Scaffold(
-      backgroundColor: EditorTokens.bg,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: EditorTokens.bg,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: EditorTokens.bg,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: EditorTokens.bg,
+      ),
+      child: Scaffold(
+        backgroundColor: EditorTokens.bg,
       appBar: AppBar(
         backgroundColor: EditorTokens.bg,
         elevation: 0,
@@ -319,6 +329,7 @@ class _AuthPageState extends State<AuthPage> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
