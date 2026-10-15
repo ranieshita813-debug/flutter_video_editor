@@ -132,7 +132,7 @@ class ToolPanel extends StatelessWidget {
   Widget _buildFooter() => Container(
         height: 52,
         decoration: const BoxDecoration(
-          color: Color(0xFF0E0E10),
+          color: bgToken,
           border: Border(top: BorderSide(color: dividerToken)),
         ),
         child: Row(
@@ -175,7 +175,7 @@ class ToolPanel extends StatelessWidget {
     if (docked) {
       return Container(
         decoration: const BoxDecoration(
-          color: surfaceToken,
+          color: bgToken,
           border: Border(left: BorderSide(color: dividerToken)),
         ),
         child: SafeArea(
@@ -194,7 +194,7 @@ class ToolPanel extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        color: surfaceToken,
+        color: bgToken,
         border: Border(top: BorderSide(color: dividerToken)),
       ),
       child: SafeArea(
