@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
@@ -40,10 +40,10 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: EditorTokens.bg,
         elevation: 0,
         leading: IconButton(
-          icon: const HugeIcon(
-            icon: HugeIcons.strokeRoundedArrowLeft01,
+          icon: const FaIcon(
+            FontAwesomeIcons.arrowLeft,
             color: EditorTokens.text,
-            size: 22,
+            size: 18,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -156,10 +156,10 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 children: <Widget>[
                   ListTile(
-                    leading: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedVideo01,
+                    leading: const FaIcon(
+                      FontAwesomeIcons.film,
                       color: EditorTokens.text,
-                      size: 20,
+                      size: 18,
                     ),
                     title: const Text('Default Resolution',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
@@ -169,10 +169,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       value: _resolution,
                       dropdownColor: EditorTokens.elevated,
                       underline: const SizedBox.shrink(),
-                      icon: const HugeIcon(
-                        icon: HugeIcons.strokeRoundedArrowDown01,
+                      icon: const FaIcon(
+                        FontAwesomeIcons.chevronDown,
                         color: EditorTokens.muted,
-                        size: 16,
+                        size: 14,
                       ),
                       items: const <String>[
                         '720p (HD)',
@@ -193,10 +193,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const Divider(height: 1, color: EditorTokens.border),
                   ListTile(
-                    leading: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedPlay,
+                    leading: const FaIcon(
+                      FontAwesomeIcons.play,
                       color: EditorTokens.text,
-                      size: 20,
+                      size: 18,
                     ),
                     title: const Text('Default Frame Rate',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
@@ -206,10 +206,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       value: _frameRate,
                       dropdownColor: EditorTokens.elevated,
                       underline: const SizedBox.shrink(),
-                      icon: const HugeIcon(
-                        icon: HugeIcons.strokeRoundedArrowDown01,
+                      icon: const FaIcon(
+                        FontAwesomeIcons.chevronDown,
                         color: EditorTokens.muted,
-                        size: 16,
+                        size: 14,
                       ),
                       items: const <String>['24 FPS', '30 FPS', '60 FPS']
                           .map((String value) {
@@ -227,10 +227,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const Divider(height: 1, color: EditorTokens.border),
                   ListTile(
-                    leading: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedFolder01,
+                    leading: const FaIcon(
+                      FontAwesomeIcons.folder,
                       color: EditorTokens.text,
-                      size: 20,
+                      size: 18,
                     ),
                     title: const Text('Export Storage Location',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
@@ -266,10 +266,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _hardwareAcceleration,
                     activeThumbColor: Colors.black,
                     activeTrackColor: EditorTokens.accent,
-                    secondary: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedCpu,
+                    secondary: const FaIcon(
+                      FontAwesomeIcons.microchip,
                       color: EditorTokens.text,
-                      size: 20,
+                      size: 18,
                     ),
                     title: const Text('GPU Hardware Encoding',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
@@ -282,10 +282,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _autoSave,
                     activeThumbColor: Colors.black,
                     activeTrackColor: EditorTokens.accent,
-                    secondary: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedPencilEdit02,
+                    secondary: const FaIcon(
+                      FontAwesomeIcons.floppyDisk,
                       color: EditorTokens.text,
-                      size: 20,
+                      size: 18,
                     ),
                     title: const Text('Auto Save Project Timeline',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
@@ -319,10 +319,10 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 children: <Widget>[
                   const ListTile(
-                    leading: HugeIcon(
-                      icon: HugeIcons.strokeRoundedInformationCircle,
+                    leading: FaIcon(
+                      FontAwesomeIcons.circleInfo,
                       color: EditorTokens.text,
-                      size: 20,
+                      size: 18,
                     ),
                     title: Text('App Version',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
@@ -331,17 +331,17 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const Divider(height: 1, color: EditorTokens.border),
                   ListTile(
-                    leading: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedShieldCheck,
+                    leading: const FaIcon(
+                      FontAwesomeIcons.shieldHalved,
                       color: EditorTokens.text,
-                      size: 20,
+                      size: 18,
                     ),
                     title: const Text('Privacy Policy',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
-                    trailing: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedArrowRight01,
+                    trailing: const FaIcon(
+                      FontAwesomeIcons.chevronRight,
                       color: EditorTokens.muted,
-                      size: 16,
+                      size: 14,
                     ),
                     onTap: () {},
                   ),

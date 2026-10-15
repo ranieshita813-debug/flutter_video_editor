@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/widgets/chroma_key_sheet.dart';
@@ -20,27 +20,27 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_st
 // Inline tools enum
 // ----------------------------------------------------------------------------
 enum EditorTool {
-  audio('Audio', HugeIcons.strokeRoundedVolumeHigh),
-  text('Text', HugeIcons.strokeRoundedTextFont),
-  stickers('Stickers', HugeIcons.strokeRoundedSmile),
-  filters('Filters', HugeIcons.strokeRoundedFilter),
-  effects('Effects', HugeIcons.strokeRoundedMagicWand01),
-  adjust('Adjust', HugeIcons.strokeRoundedLayers01),
-  crop('Canvas', HugeIcons.strokeRoundedCrop),
-  speed('Speed', HugeIcons.strokeRoundedTime01),
-  elements('Elements', HugeIcons.strokeRoundedShapes),
-  draw('Draw', HugeIcons.strokeRoundedPencilEdit02),
-  mask('Mask', HugeIcons.strokeRoundedSquare),
-  camera('Camera', HugeIcons.strokeRoundedCamera01),
-  track('Track', HugeIcons.strokeRoundedTarget01),
-  textStyle('Text Style', HugeIcons.strokeRoundedTextFont),
-  animation('Animation', HugeIcons.strokeRoundedPlay),
-  order('Order', HugeIcons.strokeRoundedArrowUpDown),
-  chromaKey('Chroma Key', HugeIcons.strokeRoundedFilter);
+  audio('Audio', FontAwesomeIcons.volumeHigh),
+  text('Text', FontAwesomeIcons.font),
+  stickers('Stickers', FontAwesomeIcons.faceSmile),
+  filters('Filters', FontAwesomeIcons.filter),
+  effects('Effects', FontAwesomeIcons.wandMagicSparkles),
+  adjust('Adjust', FontAwesomeIcons.sliders),
+  crop('Canvas', FontAwesomeIcons.crop),
+  speed('Speed', FontAwesomeIcons.gaugeHigh),
+  elements('Elements', FontAwesomeIcons.shapes),
+  draw('Draw', FontAwesomeIcons.pen),
+  mask('Mask', FontAwesomeIcons.square),
+  camera('Camera', FontAwesomeIcons.camera),
+  track('Track', FontAwesomeIcons.bullseye),
+  textStyle('Text Style', FontAwesomeIcons.font),
+  animation('Animation', FontAwesomeIcons.play),
+  order('Order', FontAwesomeIcons.sort),
+  chromaKey('Chroma Key', FontAwesomeIcons.eyeDropper);
 
   const EditorTool(this.title, this.icon);
   final String title;
-  final dynamic icon;
+  final FaIconData icon;
 
   Widget get body => switch (this) {
         EditorTool.audio => const AudioToolsSheet(),
@@ -116,7 +116,7 @@ class ToolPanel extends StatelessWidget {
   Widget _header() => Row(
         children: <Widget>[
           const SizedBox(width: 16),
-          HugeIcon(icon: tool.icon, color: Colors.white70, size: 18),
+          FaIcon(tool.icon, color: Colors.white70, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(tool.title,
@@ -139,7 +139,7 @@ class ToolPanel extends StatelessWidget {
           children: <Widget>[
             IconButton(
               tooltip: 'Cancel',
-              icon: const Icon(Icons.close_rounded, color: Colors.white),
+              icon: const FaIcon(FontAwesomeIcons.xmark, color: Colors.white, size: 18),
               onPressed: () {
                 tapFeedback();
                 onClose();
@@ -154,7 +154,7 @@ class ToolPanel extends StatelessWidget {
             const Spacer(),
             IconButton(
               tooltip: 'Apply',
-              icon: const Icon(Icons.check_rounded, color: accentToken, size: 26),
+              icon: const FaIcon(FontAwesomeIcons.check, color: accentToken, size: 20),
               onPressed: () {
                 tapFeedback();
                 onClose();

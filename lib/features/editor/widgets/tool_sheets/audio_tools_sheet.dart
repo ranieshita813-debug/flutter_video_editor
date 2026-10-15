@@ -1,6 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -31,10 +31,10 @@ class AudioToolsSheet extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const HugeIcon(
-                    icon: HugeIcons.strokeRoundedMusicNote01,
+                  const FaIcon(
+                    FontAwesomeIcons.music,
                     color: EditorTokens.text,
-                    size: 22,
+                    size: 18,
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -82,10 +82,10 @@ class AudioToolsSheet extends StatelessWidget {
                         }
                       } catch (_) {}
                     },
-                    icon: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedFolder01,
+                    icon: const FaIcon(
+                      FontAwesomeIcons.folder,
                       color: EditorTokens.bg,
-                      size: 16,
+                      size: 14,
                     ),
                     label: const Text(
                       'Import',
@@ -97,10 +97,10 @@ class AudioToolsSheet extends StatelessWidget {
               const Divider(height: 20, color: EditorTokens.border),
               Row(
                 children: [
-                  const HugeIcon(
-                    icon: HugeIcons.strokeRoundedScissors,
+                  const FaIcon(
+                    FontAwesomeIcons.scissors,
                     color: EditorTokens.text,
-                    size: 22,
+                    size: 18,
                   ),
                   const SizedBox(width: 12),
                   const Expanded(
@@ -137,10 +137,10 @@ class AudioToolsSheet extends StatelessWidget {
                     onPressed: () {
                       editor.extractAudioFromSelectedClip();
                     },
-                    icon: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedScissors,
+                    icon: const FaIcon(
+                      FontAwesomeIcons.scissors,
                       color: EditorTokens.text,
-                      size: 16,
+                      size: 14,
                     ),
                     label: const Text(
                       'Extract',

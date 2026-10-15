@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/models/shader_effect_model.dart';
@@ -232,10 +232,10 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
       color: EditorTokens.surface,
       child: Row(
         children: [
-          const HugeIcon(
-            icon: HugeIcons.strokeRoundedMagicWand01,
+          const FaIcon(
+            FontAwesomeIcons.wandMagicSparkles,
             color: EditorTokens.text,
-            size: 20,
+            size: 18,
           ),
           const SizedBox(width: 8),
           const Expanded(
@@ -252,10 +252,10 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
           IconButton(
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedCancel01,
+            icon: const FaIcon(
+              FontAwesomeIcons.xmark,
               color: EditorTokens.text,
-              size: 20,
+              size: 18,
             ),
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -304,12 +304,12 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
               onPressed: () {
                 setState(() => _isEditingParameters = !_isEditingParameters);
               },
-              icon: HugeIcon(
-                icon: _isEditingParameters
-                    ? HugeIcons.strokeRoundedGridView
-                    : HugeIcons.strokeRoundedFilter,
+              icon: FaIcon(
+                _isEditingParameters
+                    ? FontAwesomeIcons.borderAll
+                    : FontAwesomeIcons.filter,
                 color: EditorTokens.text,
-                size: 18,
+                size: 16,
               ),
               label: Text(
                 _isEditingParameters ? 'BROWSE' : 'CONTROLS',
@@ -337,10 +337,10 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
                       Navigator.of(context).pop(_previewClip);
                     }
                   : null,
-              icon: const HugeIcon(
-                icon: HugeIcons.strokeRoundedTick01,
+              icon: const FaIcon(
+                FontAwesomeIcons.check,
                 color: EditorTokens.bg,
-                size: 18,
+                size: 16,
               ),
               label: const Text(
                 'APPLY EFFECT',

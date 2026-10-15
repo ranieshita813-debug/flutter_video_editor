@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -15,7 +15,7 @@ class EditorToolbarItem {
 
   final String id;
   final String title;
-  final dynamic icon;
+  final FaIconData icon;
   final VoidCallback onTap;
 }
 
@@ -59,10 +59,10 @@ class EditorToolbar extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  HugeIcon(
-                    icon: item.icon,
+                  FaIcon(
+                    item.icon,
                     color: EditorTokens.text,
-                    size: 20.0,
+                    size: 18.0,
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -94,79 +94,79 @@ class EditorToolbar extends StatelessWidget {
         EditorToolbarItem(
           id: 'add_media',
           title: 'Add Media',
-          icon: HugeIcons.strokeRoundedAdd01,
+          icon: FontAwesomeIcons.plus,
           onTap: onAddMedia,
         ),
         EditorToolbarItem(
           id: 'overlay',
           title: 'Overlay',
-          icon: HugeIcons.strokeRoundedLayers01,
+          icon: FontAwesomeIcons.layerGroup,
           onTap: onAddOverlay,
         ),
         EditorToolbarItem(
           id: 'text',
           title: 'Text',
-          icon: HugeIcons.strokeRoundedTextFont,
+          icon: FontAwesomeIcons.font,
           onTap: () => onSelectToolSheet('text'),
         ),
         EditorToolbarItem(
           id: 'audio',
           title: 'Audio',
-          icon: HugeIcons.strokeRoundedVolumeHigh,
+          icon: FontAwesomeIcons.volumeHigh,
           onTap: () => onSelectToolSheet('audio'),
         ),
         EditorToolbarItem(
           id: 'adjust',
           title: 'Adjust',
-          icon: HugeIcons.strokeRoundedLayers01,
+          icon: FontAwesomeIcons.sliders,
           onTap: () => onSelectToolSheet('adjust'),
         ),
         EditorToolbarItem(
           id: 'effects',
           title: 'Effects',
-          icon: HugeIcons.strokeRoundedMagicWand01,
+          icon: FontAwesomeIcons.wandMagicSparkles,
           onTap: () => onSelectToolSheet('effects'),
         ),
         EditorToolbarItem(
           id: 'filters',
           title: 'Filters',
-          icon: HugeIcons.strokeRoundedFilter,
+          icon: FontAwesomeIcons.filter,
           onTap: () => onSelectToolSheet('filters'),
         ),
         EditorToolbarItem(
           id: 'crop',
           title: 'Canvas',
-          icon: HugeIcons.strokeRoundedCrop,
+          icon: FontAwesomeIcons.crop,
           onTap: () => onSelectToolSheet('crop'),
         ),
         EditorToolbarItem(
           id: 'elements',
           title: 'Elements',
-          icon: HugeIcons.strokeRoundedShapes,
+          icon: FontAwesomeIcons.shapes,
           onTap: () => onSelectToolSheet('elements'),
         ),
         EditorToolbarItem(
           id: 'stickers',
           title: 'Stickers',
-          icon: HugeIcons.strokeRoundedSmile,
+          icon: FontAwesomeIcons.faceSmile,
           onTap: () => onSelectToolSheet('stickers'),
         ),
         EditorToolbarItem(
           id: 'draw',
           title: 'Draw',
-          icon: HugeIcons.strokeRoundedPencilEdit02,
+          icon: FontAwesomeIcons.pen,
           onTap: () => onSelectToolSheet('draw'),
         ),
         EditorToolbarItem(
           id: 'auto_captions',
           title: 'Auto captions',
-          icon: HugeIcons.strokeRoundedTextFont,
+          icon: FontAwesomeIcons.closedCaptioning,
           onTap: () => editor.generateAutoCaptions(),
         ),
         EditorToolbarItem(
           id: 'track',
           title: 'Track',
-          icon: HugeIcons.strokeRoundedTarget01,
+          icon: FontAwesomeIcons.bullseye,
           onTap: () => onSelectToolSheet('track'),
         ),
       ];
@@ -181,74 +181,74 @@ class EditorToolbar extends StatelessWidget {
           EditorToolbarItem(
             id: 'split',
             title: 'Split',
-            icon: HugeIcons.strokeRoundedScissors,
+            icon: FontAwesomeIcons.scissors,
             onTap: () => editor.splitSelectedClip(),
           ),
           if (isOverlay)
             EditorToolbarItem(
               id: 'chroma_key',
               title: 'Chroma Key',
-              icon: HugeIcons.strokeRoundedFilter,
+              icon: FontAwesomeIcons.eyeDropper,
               onTap: () => onSelectToolSheet('chroma_key'),
             ),
           EditorToolbarItem(
             id: 'speed',
             title: 'Speed',
-            icon: HugeIcons.strokeRoundedTime01,
+            icon: FontAwesomeIcons.gaugeHigh,
             onTap: () => onSelectToolSheet('speed'),
           ),
           EditorToolbarItem(
             id: 'volume',
             title: 'Volume',
-            icon: HugeIcons.strokeRoundedVolumeHigh,
+            icon: FontAwesomeIcons.volumeHigh,
             onTap: () => onSelectToolSheet('audio'),
           ),
           EditorToolbarItem(
             id: 'crop',
             title: 'Canvas',
-            icon: HugeIcons.strokeRoundedCrop,
+            icon: FontAwesomeIcons.crop,
             onTap: () => onSelectToolSheet('crop'),
           ),
           EditorToolbarItem(
             id: 'adjust',
             title: 'Adjust',
-            icon: HugeIcons.strokeRoundedLayers01,
+            icon: FontAwesomeIcons.sliders,
             onTap: () => onSelectToolSheet('adjust'),
           ),
           EditorToolbarItem(
             id: 'filters',
             title: 'Filters',
-            icon: HugeIcons.strokeRoundedFilter,
+            icon: FontAwesomeIcons.filter,
             onTap: () => onSelectToolSheet('filters'),
           ),
           EditorToolbarItem(
             id: 'effects',
             title: 'Effects',
-            icon: HugeIcons.strokeRoundedMagicWand01,
+            icon: FontAwesomeIcons.wandMagicSparkles,
             onTap: () => onSelectToolSheet('effects'),
           ),
           EditorToolbarItem(
             id: 'animation',
             title: 'Animation',
-            icon: HugeIcons.strokeRoundedPlay,
+            icon: FontAwesomeIcons.play,
             onTap: () => onSelectToolSheet('animation'),
           ),
           EditorToolbarItem(
             id: 'mask',
             title: 'Mask',
-            icon: HugeIcons.strokeRoundedSquare,
+            icon: FontAwesomeIcons.square,
             onTap: () => onSelectToolSheet('mask'),
           ),
           EditorToolbarItem(
             id: 'duplicate',
             title: 'Duplicate',
-            icon: HugeIcons.strokeRoundedCopy01,
+            icon: FontAwesomeIcons.copy,
             onTap: () => editor.duplicateSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'delete',
             title: 'Delete',
-            icon: HugeIcons.strokeRoundedDelete02,
+            icon: FontAwesomeIcons.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
         ];
@@ -259,37 +259,37 @@ class EditorToolbar extends StatelessWidget {
           EditorToolbarItem(
             id: 'text_style',
             title: 'Text Style',
-            icon: HugeIcons.strokeRoundedTextFont,
+            icon: FontAwesomeIcons.font,
             onTap: () => onSelectToolSheet('text_style'),
           ),
           EditorToolbarItem(
             id: 'edit_text',
             title: 'Edit Text',
-            icon: HugeIcons.strokeRoundedPencilEdit02,
+            icon: FontAwesomeIcons.pen,
             onTap: () => onSelectToolSheet('text'),
           ),
           EditorToolbarItem(
             id: 'effects',
             title: 'Effects',
-            icon: HugeIcons.strokeRoundedMagicWand01,
+            icon: FontAwesomeIcons.wandMagicSparkles,
             onTap: () => onSelectToolSheet('effects'),
           ),
           EditorToolbarItem(
             id: 'animation',
             title: 'Animation',
-            icon: HugeIcons.strokeRoundedPlay,
+            icon: FontAwesomeIcons.play,
             onTap: () => onSelectToolSheet('animation'),
           ),
           EditorToolbarItem(
             id: 'duplicate',
             title: 'Duplicate',
-            icon: HugeIcons.strokeRoundedCopy01,
+            icon: FontAwesomeIcons.copy,
             onTap: () => editor.duplicateSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'delete',
             title: 'Delete',
-            icon: HugeIcons.strokeRoundedDelete02,
+            icon: FontAwesomeIcons.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
         ];
@@ -299,37 +299,37 @@ class EditorToolbar extends StatelessWidget {
           EditorToolbarItem(
             id: 'split',
             title: 'Split',
-            icon: HugeIcons.strokeRoundedScissors,
+            icon: FontAwesomeIcons.scissors,
             onTap: () => editor.splitSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'volume',
             title: 'Volume',
-            icon: HugeIcons.strokeRoundedVolumeHigh,
+            icon: FontAwesomeIcons.volumeHigh,
             onTap: () => onSelectToolSheet('audio'),
           ),
           EditorToolbarItem(
             id: 'speed',
             title: 'Speed',
-            icon: HugeIcons.strokeRoundedTime01,
+            icon: FontAwesomeIcons.gaugeHigh,
             onTap: () => onSelectToolSheet('speed'),
           ),
           EditorToolbarItem(
             id: 'effects',
             title: 'Effects',
-            icon: HugeIcons.strokeRoundedMagicWand01,
+            icon: FontAwesomeIcons.wandMagicSparkles,
             onTap: () => onSelectToolSheet('effects'),
           ),
           EditorToolbarItem(
             id: 'duplicate',
             title: 'Duplicate',
-            icon: HugeIcons.strokeRoundedCopy01,
+            icon: FontAwesomeIcons.copy,
             onTap: () => editor.duplicateSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'delete',
             title: 'Delete',
-            icon: HugeIcons.strokeRoundedDelete02,
+            icon: FontAwesomeIcons.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
         ];
@@ -339,25 +339,25 @@ class EditorToolbar extends StatelessWidget {
           EditorToolbarItem(
             id: 'effects',
             title: 'Effects',
-            icon: HugeIcons.strokeRoundedMagicWand01,
+            icon: FontAwesomeIcons.wandMagicSparkles,
             onTap: () => onSelectToolSheet('effects'),
           ),
           EditorToolbarItem(
             id: 'animation',
             title: 'Animation',
-            icon: HugeIcons.strokeRoundedPlay,
+            icon: FontAwesomeIcons.play,
             onTap: () => onSelectToolSheet('animation'),
           ),
           EditorToolbarItem(
             id: 'duplicate',
             title: 'Duplicate',
-            icon: HugeIcons.strokeRoundedCopy01,
+            icon: FontAwesomeIcons.copy,
             onTap: () => editor.duplicateSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'delete',
             title: 'Delete',
-            icon: HugeIcons.strokeRoundedDelete02,
+            icon: FontAwesomeIcons.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
         ];

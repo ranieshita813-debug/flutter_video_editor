@@ -23,7 +23,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -966,9 +966,9 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
   /// Joined icon segmented control, like Premiere's paragraph panel.
   Widget _alignSegments(EditorController editor, TextStyleProperties ts) {
     final items = <(TextAlign, dynamic, String)>[
-      (TextAlign.left, HugeIcons.strokeRoundedTextAlignLeft, 'Align left'),
-      (TextAlign.center, HugeIcons.strokeRoundedTextAlignCenter, 'Align center'),
-      (TextAlign.right, HugeIcons.strokeRoundedTextAlignRight, 'Align right'),
+      (TextAlign.left, FontAwesomeIcons.alignLeft, 'Align left'),
+      (TextAlign.center, FontAwesomeIcons.alignCenter, 'Align center'),
+      (TextAlign.right, FontAwesomeIcons.alignRight, 'Align right'),
     ];
     return Container(
       height: 40,
@@ -1001,10 +1001,10 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                       ),
                     ),
                     child: Center(
-                      child: HugeIcon(
-                        icon: items[i].$2,
+                      child: FaIcon(
+                        items[i].$2,
                         color: ts.textAlign == items[i].$1 ? _accent : EditorTokens.text,
-                        size: 18.0,
+                        size: 14.0,
                       ),
                     ),
                   ),

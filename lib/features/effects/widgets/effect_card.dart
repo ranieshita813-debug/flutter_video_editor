@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:flutter_video_editor/core/models/shader_effect_model.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
@@ -60,10 +60,10 @@ class EffectCard extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          HugeIcon(
-                            icon: _getCategoryIcon(effect.category),
+                          FaIcon(
+                            _getCategoryIcon(effect.category),
                             color: isSelected ? EditorTokens.text : EditorTokens.muted,
-                            size: 28,
+                            size: 24,
                           ),
                           const SizedBox(height: 4),
                           Text(
@@ -89,12 +89,12 @@ class EffectCard extends StatelessWidget {
                           color: EditorTokens.bg,
                           shape: BoxShape.circle,
                         ),
-                        child: HugeIcon(
-                          icon: effect.isFavorite
-                              ? HugeIcons.strokeRoundedFavourite
-                              : HugeIcons.strokeRoundedFavourite,
+                        child: FaIcon(
+                          effect.isFavorite
+                              ? FontAwesomeIcons.solidHeart
+                              : FontAwesomeIcons.heart,
                           color: effect.isFavorite ? Colors.redAccent : EditorTokens.muted,
-                          size: 14,
+                          size: 12,
                         ),
                       ),
                     ),
@@ -144,10 +144,10 @@ class EffectCard extends StatelessWidget {
                                       color: EditorTokens.text,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const HugeIcon(
-                                      icon: HugeIcons.strokeRoundedDownload01,
+                                    child: const FaIcon(
+                                      FontAwesomeIcons.download,
                                       color: EditorTokens.bg,
-                                      size: 16,
+                                      size: 14,
                                     ),
                                   ),
                                 ),
@@ -194,29 +194,29 @@ class EffectCard extends StatelessWidget {
     );
   }
 
-  dynamic _getCategoryIcon(ShaderEffectCategory cat) {
+  FaIconData _getCategoryIcon(ShaderEffectCategory cat) {
     switch (cat) {
       case ShaderEffectCategory.glow:
       case ShaderEffectCategory.neon:
-        return HugeIcons.strokeRoundedFlash;
+        return FontAwesomeIcons.bolt;
       case ShaderEffectCategory.blur:
-        return HugeIcons.strokeRoundedFilter;
+        return FontAwesomeIcons.filter;
       case ShaderEffectCategory.cinematic:
-        return HugeIcons.strokeRoundedCamera01;
+        return FontAwesomeIcons.video;
       case ShaderEffectCategory.vintage:
-        return HugeIcons.strokeRoundedTime01;
+        return FontAwesomeIcons.clock;
       case ShaderEffectCategory.noir:
-        return HugeIcons.strokeRoundedMoon02;
+        return FontAwesomeIcons.moon;
       case ShaderEffectCategory.glitch:
-        return HugeIcons.strokeRoundedFilter;
+        return FontAwesomeIcons.sliders;
       case ShaderEffectCategory.bloom:
       case ShaderEffectCategory.lightLeak:
-        return HugeIcons.strokeRoundedSun01;
+        return FontAwesomeIcons.sun;
       case ShaderEffectCategory.distortion:
-        return HugeIcons.strokeRoundedMagicWand01;
+        return FontAwesomeIcons.wandMagicSparkles;
       case ShaderEffectCategory.colorStyle:
       case ShaderEffectCategory.all:
-        return HugeIcons.strokeRoundedColors;
+        return FontAwesomeIcons.palette;
     }
   }
 }

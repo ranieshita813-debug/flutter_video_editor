@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
@@ -101,10 +101,10 @@ class _HomePageState extends State<HomePage> {
             ),
             const Divider(height: 1, color: EditorTokens.border),
             ListTile(
-              leading: const HugeIcon(
-                icon: HugeIcons.strokeRoundedEdit02,
+              leading: const FaIcon(
+                FontAwesomeIcons.penToSquare,
                 color: EditorTokens.text,
-                size: 20,
+                size: 18,
               ),
               title: const Text('Rename', style: TextStyle(color: EditorTokens.text)),
               onTap: () {
@@ -113,10 +113,10 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
-              leading: const HugeIcon(
-                icon: HugeIcons.strokeRoundedCopy01,
+              leading: const FaIcon(
+                FontAwesomeIcons.copy,
                 color: EditorTokens.text,
-                size: 20,
+                size: 18,
               ),
               title: const Text('Duplicate', style: TextStyle(color: EditorTokens.text)),
               onTap: () {
@@ -125,10 +125,10 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
-              leading: const HugeIcon(
-                icon: HugeIcons.strokeRoundedDelete02,
+              leading: const FaIcon(
+                FontAwesomeIcons.trash,
                 color: Colors.redAccent,
-                size: 20,
+                size: 18,
               ),
               title: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
               onTap: () {
@@ -269,41 +269,41 @@ class _HomePageState extends State<HomePage> {
         elevation: 8,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: HugeIcon(
-              icon: HugeIcons.strokeRoundedGridView,
+            icon: FaIcon(
+              FontAwesomeIcons.borderAll,
               color: Colors.grey,
-              size: 22,
+              size: 20,
             ),
-            activeIcon: HugeIcon(
-              icon: HugeIcons.strokeRoundedGridView,
+            activeIcon: FaIcon(
+              FontAwesomeIcons.borderAll,
               color: Colors.black,
-              size: 22,
+              size: 20,
             ),
             label: 'Template',
           ),
           BottomNavigationBarItem(
-            icon: HugeIcon(
-              icon: HugeIcons.strokeRoundedVideo01,
+            icon: FaIcon(
+              FontAwesomeIcons.video,
               color: Colors.grey,
-              size: 22,
+              size: 20,
             ),
-            activeIcon: HugeIcon(
-              icon: HugeIcons.strokeRoundedVideo01,
+            activeIcon: FaIcon(
+              FontAwesomeIcons.video,
               color: Colors.black,
-              size: 22,
+              size: 20,
             ),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: HugeIcon(
-              icon: HugeIcons.strokeRoundedFolder01,
+            icon: FaIcon(
+              FontAwesomeIcons.folder,
               color: Colors.grey,
-              size: 22,
+              size: 20,
             ),
-            activeIcon: HugeIcon(
-              icon: HugeIcons.strokeRoundedFolder01,
+            activeIcon: FaIcon(
+              FontAwesomeIcons.folder,
               color: Colors.black,
-              size: 22,
+              size: 20,
             ),
             label: 'Projects',
           ),
@@ -376,10 +376,10 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   onPressed: () => _createNewProject(context),
-                  icon: const HugeIcon(
-                    icon: HugeIcons.strokeRoundedAdd01,
+                  icon: const FaIcon(
+                    FontAwesomeIcons.plus,
                     color: Colors.black,
-                    size: 24,
+                    size: 20,
                   ),
                 ),
               ],
@@ -424,10 +424,10 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                HugeIcon(
-                  icon: HugeIcons.strokeRoundedGridView,
+                FaIcon(
+                  FontAwesomeIcons.borderAll,
                   color: Colors.grey,
-                  size: 48,
+                  size: 44,
                 ),
                 SizedBox(height: 16),
                 Text(
@@ -487,10 +487,10 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             tooltip: 'Settings',
             onPressed: () => _openSettings(context),
-            icon: const HugeIcon(
-              icon: HugeIcons.strokeRoundedSettings02,
+            icon: const FaIcon(
+              FontAwesomeIcons.gear,
               color: Colors.black,
-              size: 22,
+              size: 20,
             ),
           ),
         ],
@@ -506,10 +506,10 @@ class _HomePageState extends State<HomePage> {
         height: 54,
         child: ElevatedButton.icon(
           onPressed: () => _createNewProject(context),
-          icon: const HugeIcon(
-            icon: HugeIcons.strokeRoundedAdd01,
+          icon: const FaIcon(
+            FontAwesomeIcons.plus,
             color: Colors.white,
-            size: 22,
+            size: 18,
           ),
           label: const Text('New project'),
           style: ElevatedButton.styleFrom(
@@ -550,10 +550,10 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          const HugeIcon(
-            icon: HugeIcons.strokeRoundedVideo01,
+          const FaIcon(
+            FontAwesomeIcons.video,
             color: Colors.grey,
-            size: 48,
+            size: 44,
           ),
           const SizedBox(height: 16),
           const Text('Start your first project',
@@ -605,9 +605,9 @@ class _HomePageState extends State<HomePage> {
                   Container(
                     color: const Color(0xFFF0F0F0),
                     child: const Center(
-                      child: HugeIcon(
-                        icon: HugeIcons.strokeRoundedPlay,
-                        size: 28,
+                      child: FaIcon(
+                        FontAwesomeIcons.play,
+                        size: 24,
                         color: Colors.grey,
                       ),
                     ),
@@ -644,10 +644,12 @@ class _HomePageState extends State<HomePage> {
                           color: Colors.black.withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
-                        child: const HugeIcon(
-                          icon: HugeIcons.strokeRoundedMoreHorizontal,
-                          size: 16,
-                          color: Colors.white,
+                        child: const Center(
+                          child: FaIcon(
+                            FontAwesomeIcons.ellipsis,
+                            size: 14,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),

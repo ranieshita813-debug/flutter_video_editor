@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 
 class ToolSearchHeader extends StatefulWidget {
@@ -66,10 +66,10 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
           ),
           child: Row(
             children: [
-              const HugeIcon(
-                icon: HugeIcons.strokeRoundedSearch01,
+              const FaIcon(
+                FontAwesomeIcons.magnifyingGlass,
                 color: EditorTokens.muted,
-                size: 18.0,
+                size: 14.0,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -101,10 +101,10 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
                     widget.onSearchChanged('');
                     setState(() {});
                   },
-                  child: const HugeIcon(
-                    icon: HugeIcons.strokeRoundedCancel01,
+                  child: const FaIcon(
+                    FontAwesomeIcons.xmark,
                     color: EditorTokens.muted,
-                    size: 16.0,
+                    size: 14.0,
                   ),
                 ),
             ],

@@ -1,3 +1,12 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+
 // ============================================================================
 // KEYFRAMES: dark monochrome, CapCut style
 // ============================================================================
@@ -26,20 +35,16 @@ T? _kfFind<T>(Iterable<T> items, bool Function(T) test) {
 }
 
 class _CurveOption {
-  const _CurveOption(this.label, this.curve);
+  const _CurveOption(this.label, this.curveType);
   final String label;
-  final KeyframeCurve curve;
+  final CurveType curveType;
 }
 
 const List<_CurveOption> _kfOptions = <_CurveOption>[
-  _CurveOption('Linear', KeyframeCurve.linear),
-  _CurveOption('Ease in', KeyframeCurve.easeIn),
-  _CurveOption('Ease out', KeyframeCurve.easeOut),
-  _CurveOption('In-out', KeyframeCurve.easeInOut),
-  _CurveOption('Bounce', KeyframeCurve.bounce),
-  _CurveOption('Elastic', KeyframeCurve.elastic),
-  _CurveOption('Steps', KeyframeCurve.steps),
-  _CurveOption('Random', KeyframeCurve.random),
+  _CurveOption('Linear', CurveType.linear),
+  _CurveOption('Ease in', CurveType.easeIn),
+  _CurveOption('Ease out', CurveType.easeOut),
+  _CurveOption('Cubic Bezier', CurveType.cubicBezier),
 ];
 
 // ----------------------------------------------------------------------------
@@ -109,9 +114,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
 
     void pick(Keyframe kf, _CurveOption o) {
       tapFeedback();
-      final KeyframeCurve cur = kf.curve;
-      final bool reroll = o.curve.kind == CurveKind.random && cur.kind == CurveKind.random;
-      editor.addKeyframe(kf.copyWith(curve: reroll ? cur.copyWith(seed: cur.seed + 1) : o.curve));
+      editor.addKeyframe(kf.copyWith(curveType: o.curveType));
     }
 
     return ColoredBox(
@@ -192,26 +195,14 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
               ),
             ),
 
-          // ---- Curve graph + type tiles (শুধু সিলেক্ট করলে) -----------------
+          // ---- Curve type tiles (when selected) -----------------
           if (selected != null) ...<Widget>[
-            const SizedBox(height: 10),
-            _KfCard(
-              padding: EdgeInsets.zero,
-              child: _CurveEditor(
-                key: ValueKey<Object?>(selected.id),
-                curve: selected.curve,
-                onDragState: (b) {
-                  if (_lockScroll != b) setState(() => _lockScroll = b);
-                },
-                onChanged: (c) => editor.addKeyframe(selected.copyWith(curve: c)),
-              ),
-            ),
             const SizedBox(height: 10),
             GridView.count(
               crossAxisCount: 4,
               mainAxisSpacing: 6,
               crossAxisSpacing: 6,
-              childAspectRatio: 1.1,
+              childAspectRatio: 1.5,
               padding: EdgeInsets.zero,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -219,7 +210,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                 for (final _CurveOption o in _kfOptions)
                   _CurveTile(
                     option: o,
-                    on: o.curve.sameShape(selected.curve),
+                    on: o.curveType == selected.curveType,
                     onTap: () => pick(selected, o),
                   ),
               ],
@@ -361,29 +352,20 @@ class _CurveTile extends StatelessWidget {
         borderRadius: r,
         onTap: onTap,
         child: Container(
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: r,
             border: Border.all(color: on ? _kfText : _kfLine),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              CustomPaint(
-                size: const Size(28, 28),
-                painter: _CurveIconPainter(option.curve, on ? _kfBg : _kfMuted),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                option.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: on ? _kfBg : _kfMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+          child: Text(
+            option.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: on ? _kfBg : _kfMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -521,229 +503,4 @@ class _TrackPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TrackPainter o) => true;
-}
-
-// ----------------------------------------------------------------------------
-// Curve editor (bezier-এ হ্যান্ডেল টানা যায়, বাকিগুলোয় শুধু প্রিভিউ)
-// ----------------------------------------------------------------------------
-class _GraphMap {
-  const _GraphMap(this.size);
-  final Size size;
-
-  static const double pad = 16;
-  static const double yMin = -0.4;
-  static const double yMax = 1.4;
-
-  Rect get r => Rect.fromLTWH(pad, pad, size.width - pad * 2, size.height - pad * 2);
-
-  Offset toPx(double x, double y) => Offset(
-        r.left + x * r.width,
-        r.bottom - (y - yMin) / (yMax - yMin) * r.height,
-      );
-
-  double xOf(double px) => ((px - r.left) / r.width).clamp(0.0, 1.0).toDouble();
-
-  double yOf(double py) =>
-      (yMin + (r.bottom - py) / r.height * (yMax - yMin)).clamp(yMin, yMax).toDouble();
-}
-
-class _CurveEditor extends StatefulWidget {
-  const _CurveEditor({
-    super.key,
-    required this.curve,
-    required this.onChanged,
-    required this.onDragState,
-  });
-
-  final KeyframeCurve curve;
-  final ValueChanged<KeyframeCurve> onChanged;
-  final ValueChanged<bool> onDragState;
-
-  @override
-  State<_CurveEditor> createState() => _CurveEditorState();
-}
-
-class _CurveEditorState extends State<_CurveEditor> {
-  static const double _height = 200;
-
-  late KeyframeCurve _curve = widget.curve;
-  int _active = -1; // -1 = কিছু ধরা নেই, 0 = প্রথম হ্যান্ডেল, 1 = দ্বিতীয়
-
-  @override
-  void didUpdateWidget(covariant _CurveEditor old) {
-    super.didUpdateWidget(old);
-    if (_active == -1) _curve = widget.curve; // টাইল চাপলে বা বাইরে বদলালে সিঙ্ক
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, c) {
-      final _GraphMap map = _GraphMap(Size(c.maxWidth, _height));
-
-      void move(Offset p) {
-        final double x = map.xOf(p.dx);
-        final double y = map.yOf(p.dy);
-        setState(() {
-          _curve = _active == 0 ? _curve.copyWith(x1: x, y1: y) : _curve.copyWith(x2: x, y2: y);
-        });
-      }
-
-      void finish() {
-        if (_active == -1) return;
-        _active = -1;
-        widget.onDragState(false);
-        widget.onChanged(_curve); // আঙুল তুললে বা cancel হলেও সেভ হবে
-      }
-
-      // Listener ব্যবহার করেছি যাতে ListView-এর স্ক্রলের সাথে gesture লড়াই না হয়।
-      return Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: (e) {
-          if (!_curve.isBezier || _active != -1) return;
-          final double d0 = (map.toPx(_curve.x1, _curve.y1) - e.localPosition).distance;
-          final double d1 = (map.toPx(_curve.x2, _curve.y2) - e.localPosition).distance;
-          if (math.min(d0, d1) > 36) return;
-          _active = d0 <= d1 ? 0 : 1;
-          widget.onDragState(true);
-          move(e.localPosition);
-        },
-        onPointerMove: (e) {
-          if (_active != -1) move(e.localPosition);
-        },
-        onPointerUp: (_) => finish(),
-        onPointerCancel: (_) => finish(),
-        child: CustomPaint(
-          size: map.size,
-          painter: _CurveGraphPainter(_curve, map),
-        ),
-      );
-    });
-  }
-}
-
-class _CurveGraphPainter extends CustomPainter {
-  _CurveGraphPainter(this.curve, this.map);
-  final KeyframeCurve curve;
-  final _GraphMap map;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.clipRect(Offset.zero & size);
-
-    // গ্রিড
-    final Paint grid = Paint()
-      ..color = _kfLine
-      ..strokeWidth = 1;
-    for (int i = 0; i <= 4; i++) {
-      final double f = i / 4;
-      canvas.drawLine(map.toPx(f, 0), map.toPx(f, 1), grid);
-      canvas.drawLine(map.toPx(0, f), map.toPx(1, f), grid);
-    }
-    canvas.drawRect(
-      Rect.fromPoints(map.toPx(0, 1), map.toPx(1, 0)),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..color = _kfLineHi
-        ..strokeWidth = 1,
-    );
-
-    final Offset start = map.toPx(0, 0);
-    final Offset end = map.toPx(1, 1);
-    final Offset h1 = map.toPx(curve.x1, curve.y1);
-    final Offset h2 = map.toPx(curve.x2, curve.y2);
-
-    // হ্যান্ডেলের লাইন (শুধু bezier)
-    if (curve.isBezier) {
-      final Paint guide = Paint()
-        ..color = _kfDim
-        ..strokeWidth = 1.2;
-      canvas.drawLine(start, h1, guide);
-      canvas.drawLine(end, h2, guide);
-    }
-
-    // কার্ভ
-    const int n = 120;
-    final Path path = Path();
-    for (int i = 0; i <= n; i++) {
-      final double t = i / n;
-      final Offset o = map.toPx(t, curve.transform(t));
-      if (i == 0) {
-        path.moveTo(o.dx, o.dy);
-      } else {
-        path.lineTo(o.dx, o.dy);
-      }
-    }
-    canvas.drawPath(
-      path,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.6
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..color = _kfText,
-    );
-
-    // দুই প্রান্ত
-    final Paint dot = Paint()..color = _kfText;
-    canvas.drawCircle(start, 4, dot);
-    canvas.drawCircle(end, 4, dot);
-
-    // টানার হ্যান্ডেল (শুধু bezier)
-    if (curve.isBezier) {
-      for (final Offset o in <Offset>[h1, h2]) {
-        canvas.drawCircle(o, 10, Paint()..color = _kfText);
-        canvas.drawCircle(
-          o,
-          10,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2.5
-            ..color = _kfBg,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _CurveGraphPainter o) => o.curve != curve || o.map.size != map.size;
-}
-
-// ----------------------------------------------------------------------------
-// টাইলের ছোট আইকন (কার্ভের নিজের আকার)
-// ----------------------------------------------------------------------------
-class _CurveIconPainter extends CustomPainter {
-  _CurveIconPainter(this.curve, this.color);
-  final KeyframeCurve curve;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const double pad = 4;
-    final double w = size.width - pad * 2;
-    final double h = size.height - pad * 2;
-    final Path path = Path();
-    for (int i = 0; i <= 48; i++) {
-      final double t = i / 48;
-      final double y = curve.transform(t).clamp(-0.25, 1.25).toDouble();
-      final double px = pad + t * w;
-      final double py = size.height - pad - y * h;
-      if (i == 0) {
-        path.moveTo(px, py);
-      } else {
-        path.lineTo(px, py);
-      }
-    }
-    canvas.drawPath(
-      path,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.8
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round
-        ..color = color,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _CurveIconPainter o) => o.curve != curve || o.color != color;
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -71,10 +71,10 @@ class _EffectsSheetState extends State<EffectsSheet> {
           ),
           child: Row(
             children: [
-              const HugeIcon(
-                icon: HugeIcons.strokeRoundedMagicWand01,
+              const FaIcon(
+                FontAwesomeIcons.wandMagicSparkles,
                 color: EditorTokens.text,
-                size: 20,
+                size: 16,
               ),
               const SizedBox(width: 10),
               const Expanded(
@@ -108,10 +108,10 @@ class _EffectsSheetState extends State<EffectsSheet> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
                 onPressed: () => _openEffectsLibrary(context, editor),
-                icon: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedAdd01,
+                icon: const FaIcon(
+                  FontAwesomeIcons.plus,
                   color: EditorTokens.bg,
-                  size: 14,
+                  size: 12,
                 ),
                 label: const Text(
                   'BROWSE',
@@ -194,10 +194,10 @@ class _EffectsSheetState extends State<EffectsSheet> {
                             ),
                           ),
                           child: Center(
-                            child: HugeIcon(
-                              icon: _getEffectIcon(fx),
+                            child: FaIcon(
+                              _getEffectIcon(fx),
                               color: isSelected ? EditorTokens.text : Colors.white70,
-                              size: 26,
+                              size: 22,
                             ),
                           ),
                         ),
@@ -265,38 +265,38 @@ class _EffectsSheetState extends State<EffectsSheet> {
     }
   }
 
-  dynamic _getEffectIcon(VideoEffect fx) {
+  FaIconData _getEffectIcon(VideoEffect fx) {
     switch (fx) {
       case VideoEffect.none:
-        return HugeIcons.strokeRoundedCancel01;
+        return FontAwesomeIcons.ban;
       case VideoEffect.warm:
-        return HugeIcons.strokeRoundedSun01;
+        return FontAwesomeIcons.sun;
       case VideoEffect.cinematic:
-        return HugeIcons.strokeRoundedCamera01;
+        return FontAwesomeIcons.video;
       case VideoEffect.noir:
-        return HugeIcons.strokeRoundedMoon02;
+        return FontAwesomeIcons.moon;
       case VideoEffect.vibrant:
-        return HugeIcons.strokeRoundedFlash;
+        return FontAwesomeIcons.bolt;
       case VideoEffect.vintage:
-        return HugeIcons.strokeRoundedTime01;
+        return FontAwesomeIcons.clock;
       case VideoEffect.glitch:
-        return HugeIcons.strokeRoundedMagicWand01;
+        return FontAwesomeIcons.sliders;
       case VideoEffect.blur:
-        return HugeIcons.strokeRoundedFilter;
+        return FontAwesomeIcons.filter;
       case VideoEffect.glow:
-        return HugeIcons.strokeRoundedSparkles;
+        return FontAwesomeIcons.wandMagicSparkles;
       case VideoEffect.retro:
-        return HugeIcons.strokeRoundedVideo01;
+        return FontAwesomeIcons.film;
       case VideoEffect.matrix:
-        return HugeIcons.strokeRoundedCode;
+        return FontAwesomeIcons.code;
       case VideoEffect.flame:
-        return HugeIcons.strokeRoundedFire;
+        return FontAwesomeIcons.fire;
       case VideoEffect.vhs:
-        return HugeIcons.strokeRoundedTv01;
+        return FontAwesomeIcons.tv;
       case VideoEffect.wave:
-        return HugeIcons.strokeRoundedMagicWand01;
+        return FontAwesomeIcons.water;
       case VideoEffect.vignette:
-        return HugeIcons.strokeRoundedCircle;
+        return FontAwesomeIcons.circle;
     }
   }
 }
