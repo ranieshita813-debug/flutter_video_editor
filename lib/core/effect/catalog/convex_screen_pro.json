@@ -1,0 +1,54 @@
+{
+  "id": "convex_screen_pro",
+  "name": "Convex Screen",
+  "category": "Distortion",
+  "version": 2,
+  "type": "shader",
+  "thumbnail": "https://YOUR-CDN/effects/convex_screen_pro/thumb.webp",
+  "preview": "https://YOUR-CDN/effects/convex_screen_pro/preview.mp4",
+  "assets": {
+    "shader": "https://YOUR-CDN/effects/convex_screen_pro/convex_screen_pro.frag"
+  },
+  "params": [
+    { "key": "strength",  "label": "Strength",     "type": "slider", "min": 0.0, "max": 1.0, "default": 0.55, "keyframe": true },
+    { "key": "radius",    "label": "Size",         "type": "slider", "min": 0.2, "max": 1.5, "default": 0.75, "keyframe": true },
+    { "key": "centerX",   "label": "Position X",   "type": "slider", "min": 0.0, "max": 1.0, "default": 0.5,  "keyframe": true },
+    { "key": "centerY",   "label": "Position Y",   "type": "slider", "min": 0.0, "max": 1.0, "default": 0.5,  "keyframe": true },
+    { "key": "shape",     "label": "Shape",        "type": "choice", "options": ["Circle", "Screen", "Cylinder"], "default": 0 },
+    { "key": "anim",      "label": "Motion",       "type": "choice", "options": ["None", "Pulse", "Wobble", "Ripple", "In / Out"], "default": 1 },
+    { "key": "speed",     "label": "Speed",        "type": "slider", "min": 0.5, "max": 10.0, "default": 3.0 },
+    { "key": "chroma",    "label": "Color fringe", "type": "slider", "min": 0.0, "max": 1.0, "default": 0.3,  "keyframe": true },
+    { "key": "shade",     "label": "Glass shade",  "type": "slider", "min": 0.0, "max": 1.0, "default": 0.5,  "keyframe": true },
+    { "key": "reflect",   "label": "Reflection",   "type": "slider", "min": 0.0, "max": 1.0, "default": 0.4,  "keyframe": true },
+    { "key": "blur",      "label": "Edge blur",    "type": "slider", "min": 0.0, "max": 1.0, "default": 0.2,  "keyframe": true },
+    { "key": "scan",      "label": "Scanlines",    "type": "slider", "min": 0.0, "max": 1.0, "default": 0.0 },
+    { "key": "vignette",  "label": "Vignette",     "type": "slider", "min": 0.0, "max": 1.0, "default": 0.15 },
+    { "key": "twist",     "label": "Twist",        "type": "slider", "min": -1.0, "max": 1.0, "default": 0.0, "keyframe": true },
+    { "key": "falloff",   "label": "Lens curve",   "type": "slider", "min": 0.5, "max": 3.0, "default": 1.0 },
+    { "key": "zoom",      "label": "Zoom",         "type": "slider", "min": 0.5, "max": 2.0, "default": 1.0, "keyframe": true },
+    { "key": "border",    "label": "Edges",        "type": "choice", "options": ["Stretch", "Mirror", "Black"], "default": 0 }
+  ],
+  "uniformOrder": [
+    "strength", "radius", "centerX", "centerY", "shape", "anim", "speed",
+    "chroma", "shade", "reflect", "blur", "scan", "vignette", "twist",
+    "falloff", "zoom", "border"
+  ],
+  "uniformOffset": 4,
+  "presets": [
+    { "name": "Classic", "values": { "strength": 0.55, "radius": 0.75, "shape": 0, "anim": 1, "chroma": 0.3, "shade": 0.5, "reflect": 0.4, "blur": 0.2 } },
+    { "name": "Fish pop", "values": { "strength": 0.9, "radius": 1.0, "shape": 0, "anim": 4, "chroma": 0.5, "shade": 0.3, "reflect": 0.2, "blur": 0.1, "falloff": 1.4 } },
+    { "name": "Retro TV", "values": { "strength": 0.45, "radius": 0.9, "shape": 1, "anim": 0, "chroma": 0.4, "shade": 0.7, "reflect": 0.6, "blur": 0.3, "scan": 0.6, "vignette": 0.5, "border": 2 } },
+    { "name": "Cylinder", "values": { "strength": 0.6, "radius": 0.7, "shape": 2, "anim": 2, "chroma": 0.2, "shade": 0.4, "reflect": 0.3 } },
+    { "name": "Ripple lens", "values": { "strength": 0.5, "radius": 0.9, "shape": 0, "anim": 3, "speed": 4.0, "chroma": 0.6, "twist": 0.2 } },
+    { "name": "Whirl bulge", "values": { "strength": 0.7, "radius": 0.8, "shape": 0, "anim": 1, "twist": 0.7, "chroma": 0.3, "falloff": 1.2 } }
+  ],
+  "export": {
+    "mode": "shader-frames",
+    "note": "Exact output requires rendering each frame through the shader (see renderConvexFrame in convex_screen_pro.dart) and piping RGBA frames to FFmpeg.",
+    "ffmpegFallback": {
+      "filter": "lenscorrection=cx={centerX}:cy={centerY}:k1=-{k}:k2=-{k}",
+      "map": { "k": "strength * 0.6" },
+      "note": "Static approximation only. Motion, chroma, shade, blur, scanlines, twist are not reproduced. Flip the sign of k if the result pinches instead of bulging."
+    }
+  }
+}
