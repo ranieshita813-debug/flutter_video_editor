@@ -15,7 +15,7 @@ class FxDef {
   final String label;
   final List<FxParam> params; // order MUST match the .frag uniforms
   final bool isText;
-  String get asset => 'assets/shaders/$id.frag';
+  String get asset => 'shaders/$id.frag';
 }
 
 abstract final class FxShaders {

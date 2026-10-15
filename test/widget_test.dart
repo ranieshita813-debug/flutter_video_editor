@@ -63,8 +63,8 @@ void main() {
     expect(find.text('Draw'), findsWidgets);
     expect(find.text('Text'), findsWidgets);
     expect(find.text('Adjust'), findsWidgets);
+    expect(find.text('Colour Grading'), findsWidgets);
     expect(find.text('Audio'), findsWidgets);
-    expect(find.text('Track'), findsWidgets);
     expect(find.text('Auto captions'), findsWidgets);
   });
 

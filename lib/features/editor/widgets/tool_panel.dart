@@ -13,6 +13,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/element
 import 'package:flutter_video_editor/features/editor/widgets/adjustments_sheet.dart';
 
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/color_grading_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_style_sheet.dart';
 
@@ -26,6 +27,7 @@ enum EditorTool {
   filters('Filters', FontAwesomeIcons.filter),
   effects('Effects', FontAwesomeIcons.wandMagicSparkles),
   adjust('Adjust', FontAwesomeIcons.sliders),
+  colorGrading('Colour Grading', FontAwesomeIcons.palette),
   crop('Canvas', FontAwesomeIcons.crop),
   speed('Speed', FontAwesomeIcons.gaugeHigh),
   elements('Elements', FontAwesomeIcons.shapes),
@@ -63,6 +65,16 @@ enum EditorTool {
                 },
                 onApply: (settings) {
                   editor.updateColorGrading(settings.toColorGrading());
+                },
+                onClose: () {},
+              );
+            },
+          ),
+        EditorTool.colorGrading => Builder(
+            builder: (ctx) {
+              return ColorGradeSheet(
+                onApply: (grade) {
+                  // Apply color grade
                 },
                 onClose: () {},
               );
@@ -132,7 +144,7 @@ class ToolPanel extends StatelessWidget {
   Widget _buildFooter() => Container(
         height: 52,
         decoration: const BoxDecoration(
-          color: Color(0xFF0E0E10),
+          color: bgToken,
           border: Border(top: BorderSide(color: dividerToken)),
         ),
         child: Row(
