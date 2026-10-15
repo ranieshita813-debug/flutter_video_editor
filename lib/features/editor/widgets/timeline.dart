@@ -222,7 +222,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
 
   double _s = 1;
   double get _rulerH => 30 * _s;
-  double get _textH => 52 * _s;
+  double get _textH => 38 * _s;
   double get _videoH => 52 * _s;
   double get _audioH => 44 * _s;
   double get _topH => 30 * _s;
@@ -600,18 +600,6 @@ class _TimelineWidgetState extends State<TimelineWidget> {
           padding: EdgeInsets.only(left: 14 * _s, right: 6 * _s),
           child: Row(
             children: <Widget>[
-              ValueListenableBuilder<Duration>(
-                valueListenable: editor.playheadListenable,
-                builder: (_, p, __) => Text(
-                  _tcFrames(secondsOf(p)),
-                  style: TextStyle(
-                    color: const Color(0xFFBDBDBD),
-                    fontSize: 13 * _s,
-                    fontWeight: FontWeight.w500,
-                    fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
-                  ),
-                ),
-              ),
               const Spacer(),
               ValueListenableBuilder<bool>(
                 valueListenable: _snap,
@@ -1092,8 +1080,7 @@ class _ClipBlockState extends State<_ClipBlock> {
             : (drawing
                 ? Icons.brush_rounded
                 : (sticker ? Icons.emoji_emotions_rounded : Icons.title_rounded));
-        // The row only contains what actually fits, so very short clips can no
-        // longer overflow. Selected clips leave room for the trim handles.
+        // Selected clips leave room for the trim handles.
         final double pad = widget.selected ? 16.0 : 10.0;
         final double inner = clipW - 2 * pad;
         final bool showIcon = inner >= 15;
@@ -1104,25 +1091,32 @@ class _ClipBlockState extends State<_ClipBlock> {
               ? ClipRect(
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: pad),
-                    child: Row(children: <Widget>[
-                      Icon(icon, size: 15, color: Colors.white),
-                      if (showLabel) ...<Widget>[
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(clip.label,
-                              maxLines: 1,
-                              softWrap: false,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontSize: 12)),
-                        ),
-                      ] else
-                        const Spacer(),
-                      if (showLock)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 4),
-                          child: Icon(Icons.lock_rounded, size: 12, color: Colors.white70),
-                        ),
-                    ]),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(icon, size: 14, color: Colors.white),
+                          if (showLabel) ...<Widget>[
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                clip.label,
+                                maxLines: 1,
+                                softWrap: false,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.white, fontSize: 11, height: 1.1),
+                              ),
+                            ),
+                          ],
+                          if (showLock)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(Icons.lock_rounded, size: 11, color: Colors.white70),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 )
               : const SizedBox.expand(),

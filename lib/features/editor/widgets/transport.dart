@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,42 +23,13 @@ class TransportBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double s = scaleOf(MediaQuery.sizeOf(context));
-    const List<FontFeature> tab = <FontFeature>[FontFeature.tabularFigures()];
 
     return Container(
       color: bgToken,
       padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 2 * s),
       child: Row(
         children: <Widget>[
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ValueListenableBuilder<Duration>(
-                valueListenable: editor.playheadListenable,
-                builder: (_, p, __) => FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Text(formatTimecode(secondsOf(p)),
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              fontFeatures: tab)),
-                      Text(
-                          formatTimecode(
-                              math.max(secondsOf(editor.project.totalDuration), 1.0)),
-                          style: const TextStyle(
-                              color: mutedToken, fontSize: 9, fontFeatures: tab)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          const Expanded(child: SizedBox.shrink()),
           _icon(Icons.skip_previous_rounded, 'Previous frame',
               () => seekPlayhead(editor, secondsOf(editor.playhead) - 1 / fpsToken), s),
           Selector<EditorController, bool>(

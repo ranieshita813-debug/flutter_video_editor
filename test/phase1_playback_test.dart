@@ -38,7 +38,7 @@ void main() {
       ),
     );
 
-    expect(find.text('00:00:00:00'), findsOneWidget);
+    expect(editor.isPlaying, isFalse);
 
     await tester.runAsync(() async {
       editor.togglePlayback();
@@ -47,7 +47,6 @@ void main() {
     await tester.pump();
 
     expect(editor.isPlaying, isTrue);
-    expect(find.text('00:00:00:00'), findsNothing);
     expect(editor.playhead > Duration.zero, isTrue);
 
     editor.togglePlayback();
