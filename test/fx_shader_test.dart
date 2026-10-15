@@ -26,9 +26,9 @@ void main() {
       expect(FxShaders.byId.containsKey('text_glass_shine'), isTrue);
     });
 
-    test('FxDef asset paths match expected assets/shaders directory structure', () {
+    test('FxDef asset paths match expected shaders directory structure', () {
       for (final def in FxShaders.all) {
-        expect(def.asset, equals('assets/shaders/${def.id}.frag'));
+        expect(def.asset, equals('shaders/${def.id}.frag'));
       }
     });
 
