@@ -837,40 +837,8 @@ class _TimelineWidgetState extends State<TimelineWidget> {
         child: Stack(
           clipBehavior: Clip.none,
           children: <Widget>[
-            for (int i = 0; i < list.length; i++) ...<Widget>[
+            for (int i = 0; i < list.length; i++)
               _buildClip(l, list, i, pps, half, m, isVideo),
-              // A transition only makes sense between clips that touch.
-              if (isVideo &&
-                  i < list.length - 1 &&
-                  (list[i + 1].startSec - list[i].endSec).abs() <= _adjacentEps)
-                Positioned(
-                  key: ValueKey<String>('tr_${list[i].id}'),
-                  // Centred exactly on the cut between two clips.
-                  left: half + list[i].endSec * pps - 12 * _s - _clipGap / 2,
-                  top: l.h / 2 - 12 * _s,
-                  child: Semantics(
-                    button: true,
-                    label: 'Edit transition',
-                    excludeSemantics: true,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        tapFeedback();
-                        editor.selectClip(list[i].id);
-                        showTransitionSheet(context);
-                      },
-                      child: Container(
-                        width: 24 * _s,
-                        height: 24 * _s,
-                        decoration: const BoxDecoration(
-                            color: Colors.white, shape: BoxShape.circle),
-                        child: Icon(Icons.join_inner_rounded,
-                            size: 14 * _s, color: Colors.black),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
             if (l.add)
               _addButton(half + (list.isEmpty ? 0 : list.last.endSec * pps) + 16 * _s, l.h),
             if (l.add && list.isEmpty)
@@ -885,6 +853,37 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                   ),
                 ),
               ),
+            // Transitions rendered on top of all clips
+            if (isVideo)
+              for (int i = 0; i < list.length - 1; i++)
+                if ((list[i + 1].startSec - list[i].endSec).abs() <= _adjacentEps)
+                  Positioned(
+                    key: ValueKey<String>('tr_${list[i].id}'),
+                    // Centred exactly on the cut between two clips.
+                    left: half + list[i].endSec * pps - 12 * _s - _clipGap / 2,
+                    top: l.h / 2 - 12 * _s,
+                    child: Semantics(
+                      button: true,
+                      label: 'Edit transition',
+                      excludeSemantics: true,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          tapFeedback();
+                          editor.selectClip(list[i].id);
+                          showTransitionSheet(context);
+                        },
+                        child: Container(
+                          width: 24 * _s,
+                          height: 24 * _s,
+                          decoration: const BoxDecoration(
+                              color: Colors.white, shape: BoxShape.circle),
+                          child: Icon(Icons.join_inner_rounded,
+                              size: 14 * _s, color: Colors.black),
+                        ),
+                      ),
+                    ),
+                  ),
           ],
         ),
       ),

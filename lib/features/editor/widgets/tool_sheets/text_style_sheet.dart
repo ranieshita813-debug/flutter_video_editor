@@ -257,9 +257,11 @@ class _FontEntry {
 
 enum _Tab {
   font('Font'),
+  templates('Templates'),
   effects('Effects'),
   color('Color'),
-  layout('Layout');
+  layout('Layout'),
+  tools('Tools');
 
   const _Tab(this.label);
   final String label;
@@ -376,9 +378,11 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
 
     final Widget body = switch (_tab) {
       _Tab.font => _fontTab(editor, clip),
+      _Tab.templates => _templatesTab(editor, ts),
       _Tab.effects => _effectsTab(editor, ts),
       _Tab.color => _colorTab(editor, ts),
       _Tab.layout => _layoutTab(editor, ts),
+      _Tab.tools => _captionToolsTab(editor, clip),
     };
 
     return Column(
@@ -707,6 +711,158 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
           ),
         ),
       ),
+    );
+  }
+
+  // ---- Templates Tab (Caption Presets & Highlights) -------------------------
+
+  Widget _templatesTab(EditorController editor, TextStyleProperties ts) {
+    final templates = <(String, TextStyleProperties)>[
+      (
+        'Classic Sub',
+        const TextStyleProperties(
+          textColor: Colors.yellow,
+          strokeColor: Colors.black,
+          strokeWidth: 2.5,
+          fontSize: 28,
+        )
+      ),
+      (
+        'Neon Highlight',
+        const TextStyleProperties(
+          textColor: Color(0xFF00E5FF),
+          shadowColor: Color(0xFF00E5FF),
+          shadowBlurRadius: 14,
+          textEffect: 'neon',
+          fontSize: 28,
+        )
+      ),
+      (
+        'Boxed Dark',
+        const TextStyleProperties(
+          textColor: Colors.white,
+          backgroundColor: Colors.black87,
+          backgroundPadding: 10,
+          fontSize: 26,
+        )
+      ),
+      (
+        'Karaoke Gold',
+        const TextStyleProperties(
+          textColor: Color(0xFFFFD700),
+          strokeColor: Colors.black,
+          strokeWidth: 3.0,
+          textEffect: 'glow',
+          shadowColor: Color(0xFFFFD700),
+          shadowBlurRadius: 8,
+          fontSize: 30,
+        )
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _bar('Caption Templates & Styles'),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 2.2,
+            ),
+            itemCount: templates.length,
+            itemBuilder: (context, index) {
+              final item = templates[index];
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  editor.updateSelectedClipTextStyle(item.$2);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _field,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _line),
+                  ),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.all(8),
+                  child: Text(
+                    item.$1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: item.$2.textColor,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Poppins',
+                      shadows: item.$2.shadowBlurRadius > 0
+                          ? [Shadow(color: item.$2.shadowColor, blurRadius: item.$2.shadowBlurRadius)]
+                          : null,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---- Caption Tools Tab ----------------------------------------------------
+
+  Widget _captionToolsTab(EditorController editor, dynamic clip) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _bar('Caption Editing & Tools'),
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              ListTile(
+                tileColor: _field,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                leading: const FaIcon(FontAwesomeIcons.scissors, color: _accent, size: 18),
+                title: const Text('Split Caption', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Poppins')),
+                subtitle: const Text('Split subtitle at current playhead', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Poppins')),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  editor.splitCaptionClip();
+                },
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                tileColor: _field,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                leading: const FaIcon(FontAwesomeIcons.objectGroup, color: _accent, size: 18),
+                title: const Text('Merge Next Subtitle', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Poppins')),
+                subtitle: const Text('Combine this caption with the next one', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Poppins')),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  editor.mergeNextCaptionClip();
+                },
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                tileColor: _field,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                leading: const FaIcon(FontAwesomeIcons.closedCaptioning, color: _accent, size: 18),
+                title: const Text('Regenerate Auto Captions', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Poppins')),
+                subtitle: const Text('Re-align captions for all media clips', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Poppins')),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  editor.generateAutoCaptions();
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
