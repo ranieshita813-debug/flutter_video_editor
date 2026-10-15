@@ -299,6 +299,10 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
     'shadow',
     'glow',
     'neon',
+    'shiny',
+    'gold_foil',
+    'holographic',
+    'glass_shine',
     '3d',
   ];
 
@@ -789,6 +793,10 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
       'shadow' => const [Shadow(color: Colors.black, offset: Offset(2, 2), blurRadius: 3)],
       'glow' => const [Shadow(color: cyan, blurRadius: 10)],
       'neon' => const [Shadow(color: cyan, blurRadius: 4), Shadow(color: cyan, blurRadius: 12)],
+      'shiny' => const [Shadow(color: Colors.white, blurRadius: 8), Shadow(color: cyan, blurRadius: 16)],
+      'gold_foil' => const [Shadow(color: Color(0xFFFFD700), blurRadius: 10)],
+      'holographic' => const [Shadow(color: Color(0xFFFF00CC), blurRadius: 10)],
+      'glass_shine' => const [Shadow(color: Colors.white70, blurRadius: 6)],
       '3d' => const [
           Shadow(color: Color(0xFF777777), offset: Offset(1, 1)),
           Shadow(color: Color(0xFF555555), offset: Offset(2, 2)),
@@ -823,6 +831,30 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
               textColor: const Color(0xFF00E5FF),
               shadowColor: const Color(0xFF00E5FF),
               shadowBlurRadius: 16.0,
+            );
+          } else if (effect == 'shiny') {
+            updated = updated.copyWith(
+              textColor: Colors.white,
+              shadowColor: const Color(0xFF00E5FF),
+              shadowBlurRadius: 12.0,
+            );
+          } else if (effect == 'gold_foil') {
+            updated = updated.copyWith(
+              textColor: const Color(0xFFFFD700),
+              shadowColor: const Color(0xFFFFA500),
+              shadowBlurRadius: 10.0,
+            );
+          } else if (effect == 'holographic') {
+            updated = updated.copyWith(
+              textColor: const Color(0xFF00FFCC),
+              shadowColor: const Color(0xFFFF00CC),
+              shadowBlurRadius: 12.0,
+            );
+          } else if (effect == 'glass_shine') {
+            updated = updated.copyWith(
+              textColor: Colors.white,
+              shadowColor: Colors.white70,
+              shadowBlurRadius: 8.0,
             );
           }
           editor.updateSelectedClipTextStyle(updated);

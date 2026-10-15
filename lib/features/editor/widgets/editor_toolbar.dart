@@ -122,6 +122,12 @@ class EditorToolbar extends StatelessWidget {
           onTap: () => onSelectToolSheet('adjust'),
         ),
         EditorToolbarItem(
+          id: 'color_grading',
+          title: 'Colour Grading',
+          icon: FontAwesomeIcons.palette,
+          onTap: () => onSelectToolSheet('color_grading'),
+        ),
+        EditorToolbarItem(
           id: 'effects',
           title: 'Effects',
           icon: FontAwesomeIcons.wandMagicSparkles,
@@ -214,6 +220,12 @@ class EditorToolbar extends StatelessWidget {
             title: 'Adjust',
             icon: FontAwesomeIcons.sliders,
             onTap: () => onSelectToolSheet('adjust'),
+          ),
+          EditorToolbarItem(
+            id: 'color_grading',
+            title: 'Colour Grading',
+            icon: FontAwesomeIcons.palette,
+            onTap: () => onSelectToolSheet('color_grading'),
           ),
           EditorToolbarItem(
             id: 'filters',

@@ -1299,6 +1299,30 @@ class _OverlayClipState extends State<_OverlayClip> {
           );
         }
 
+        final editor = context.read<EditorController>();
+        if (ts.textEffect == 'text_gold_foil' || ts.textEffect == 'gold_foil') {
+          textWidget = FxShaders.applyText(
+            child: textWidget,
+            effectId: 'text_gold_foil',
+            time: editor.playhead,
+            intensity: 1.0,
+          );
+        } else if (ts.textEffect == 'text_holographic' || ts.textEffect == 'holographic') {
+          textWidget = FxShaders.applyText(
+            child: textWidget,
+            effectId: 'text_holographic',
+            time: editor.playhead,
+            intensity: 1.0,
+          );
+        } else if (ts.textEffect == 'text_glass_shine' || ts.textEffect == 'glass_shine' || ts.textEffect == 'shiny') {
+          textWidget = FxShaders.applyText(
+            child: textWidget,
+            effectId: 'text_glass_shine',
+            time: editor.playhead,
+            intensity: 1.0,
+          );
+        }
+
         return _applyAnimations(textWidget, clip);
       case ClipType.element:
         return _applyAnimations(_elementWidget(clip, u), clip);
@@ -1366,6 +1390,69 @@ class _OverlayClipState extends State<_OverlayClip> {
     double flipX = 0.0; // radians around Y
     double flipY = 0.0; // radians around X
     double blur = 0.0;
+
+    if (clip.clipType == ClipType.text || clip.clipType == ClipType.caption) {
+      final textAnim = clip.textAnimationStyle;
+      if (textAnim != TextAnimationStyle.none && playhead >= clip.start) {
+        final int elapsed = (playhead - clip.start).inMilliseconds;
+        final int animDur = math.max(300, math.min(1500, clip.duration.inMilliseconds ~/ 2));
+        final double t = (elapsed / animDur).clamp(0.0, 1.0).toDouble();
+        switch (textAnim) {
+          case TextAnimationStyle.typewriter:
+            if (t < 1.0 && clip.label.isNotEmpty) {
+              final int charCount = (t * clip.label.length).round().clamp(1, clip.label.length);
+              child = Text(
+                clip.label.substring(0, charCount),
+                textAlign: clip.textStyle.textAlign,
+                style: TextStyle(
+                  color: clip.textStyle.textColor,
+                  fontSize: clip.textStyle.fontSize * clip.scale * widget.unit,
+                  fontFamily: clip.fontFamily,
+                  fontWeight: FontWeight.bold,
+                  height: clip.textStyle.lineHeight,
+                ),
+              );
+            }
+          case TextAnimationStyle.fadeIn:
+            opacity *= t;
+          case TextAnimationStyle.slideUp:
+            transX += 0;
+            rot += 0;
+            child = Transform.translate(
+              offset: Offset(0, (1.0 - t) * 30),
+              child: child,
+            );
+          case TextAnimationStyle.bounce:
+            scaleMult *= math.max(0.01, Curves.elasticOut.transform(t));
+          case TextAnimationStyle.scaleUp:
+            scaleMult *= (0.2 + 0.8 * t);
+          case TextAnimationStyle.fadeWord:
+          case TextAnimationStyle.wipeIn:
+            child = ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: t,
+                child: child,
+              ),
+            );
+          case TextAnimationStyle.waveText:
+            child = Transform.translate(
+              offset: Offset(0, math.sin(t * math.pi * 4) * 8 * (1.0 - t)),
+              child: child,
+            );
+          case TextAnimationStyle.flipIn:
+            flipX = (1.0 - t) * math.pi / 2;
+          case TextAnimationStyle.glitchText:
+            final double shift = (t < 1.0) ? (math.sin(t * 30) * 8 * (1.0 - t)) : 0.0;
+            transX += shift;
+          case TextAnimationStyle.rotateIn:
+            rot = -(1.0 - t) * math.pi / 2;
+            opacity *= t;
+          default:
+            break;
+        }
+      }
+    }
 
     if (clip.inAnimation != ClipAnimation.none && playhead >= clip.start) {
       final int elapsed = (playhead - clip.start).inMilliseconds;

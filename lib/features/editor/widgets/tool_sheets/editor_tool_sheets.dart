@@ -867,6 +867,32 @@ class _AnimatedTextTile extends StatelessWidget {
         return Transform.scale(scale: 0.6 + 0.5 * val, child: const Text('Aa', style: _sample));
       case TextAnimationStyle.rotateIn:
         return Transform.rotate(angle: (1 - val) * math.pi / 2, child: const Text('Aa', style: _sample));
+      case TextAnimationStyle.fadeWord:
+      case TextAnimationStyle.wipeIn:
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            widthFactor: val,
+            child: const Text('Aa', style: _sample),
+          ),
+        );
+      case TextAnimationStyle.waveText:
+        return Transform.translate(
+          offset: Offset(0, math.sin(val * math.pi * 2) * 6),
+          child: const Text('Aa', style: _sample),
+        );
+      case TextAnimationStyle.flipIn:
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()..rotateY((1 - val) * math.pi / 2),
+          child: const Text('Aa', style: _sample),
+        );
+      case TextAnimationStyle.glitchText:
+        final double offset = (val > 0.5 ? 1 : -1) * (1 - val) * 4;
+        return Transform.translate(
+          offset: Offset(offset, 0),
+          child: Text('Aa', style: _sample.copyWith(color: Colors.cyanAccent)),
+        );
       case TextAnimationStyle.glowPulse:
       case TextAnimationStyle.neonFlicker:
         return Text('Aa',
