@@ -2,13 +2,14 @@ import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+export 'keyframes_sheet.dart';
 
 // ============================================================================
 // Design notes
@@ -112,12 +113,12 @@ class _SheetHeader extends StatelessWidget {
 // ----------------------------------------------------------------------------
 enum TransitionType { none, fade, slide, zoom, blur }
 
-IconData _transitionIcon(TransitionType t) => switch (t) {
-      TransitionType.none => Icons.block_rounded,
-      TransitionType.fade => Icons.blur_on_rounded,
-      TransitionType.slide => Icons.swipe_rounded,
-      TransitionType.zoom => Icons.zoom_in_rounded,
-      TransitionType.blur => Icons.blur_circular_rounded,
+FaIconData _transitionIcon(TransitionType t) => switch (t) {
+      TransitionType.none => FontAwesomeIcons.ban,
+      TransitionType.fade => FontAwesomeIcons.braille,
+      TransitionType.slide => FontAwesomeIcons.sliders,
+      TransitionType.zoom => FontAwesomeIcons.magnifyingGlassPlus,
+      TransitionType.blur => FontAwesomeIcons.circle,
     };
 
 /// Opens the transition sheet. Returns the chosen type when applied, or null
@@ -260,9 +261,9 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _EmptyHint extends StatelessWidget {
-  const _EmptyHint({required this.text, this.icon = Icons.touch_app_outlined});
+  const _EmptyHint({required this.text, this.icon = FontAwesomeIcons.handPointer});
   final String text;
-  final IconData icon;
+  final FaIconData icon;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -270,7 +271,7 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(icon, color: Colors.white24, size: 28),
+            FaIcon(icon, color: Colors.white24, size: 28),
             const SizedBox(height: 8),
             Text(text, textAlign: TextAlign.center, style: const TextStyle(color: mutedToken, fontSize: 12)),
           ],
@@ -412,9 +413,7 @@ class _SliderRow extends StatelessWidget {
   }
 }
 
-/// Pill button in the accent color. [icon] is a HugeIcons value, so its type
-/// depends on your hugeicons version; it is passed straight to [HugeIcon].
-Widget _primaryBtn(dynamic icon, String label, VoidCallback? onPressed) => SizedBox(
+Widget _primaryBtn(FaIconData? icon, String label, VoidCallback? onPressed) => SizedBox(
       width: double.infinity,
       height: 46,
       child: ElevatedButton(
@@ -438,7 +437,7 @@ Widget _primaryBtn(dynamic icon, String label, VoidCallback? onPressed) => Sized
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (icon != null) ...<Widget>[
-              HugeIcon(icon: icon, color: onPressed == null ? mutedToken : Colors.black, size: 18),
+              FaIcon(icon, color: onPressed == null ? mutedToken : Colors.black, size: 16),
               const SizedBox(width: 8),
             ],
             Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
@@ -531,7 +530,7 @@ class _ThumbTile extends StatelessWidget {
   final VoidCallback onTap;
   final bool selected;
   final Gradient? gradient;
-  final IconData? icon;
+  final FaIconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -561,7 +560,7 @@ class _ThumbTile extends StatelessWidget {
                       ),
                       child: icon == null
                           ? null
-                          : Center(child: Icon(icon, size: 22, color: selected ? accentToken : Colors.white70)),
+                          : Center(child: FaIcon(icon, size: 22, color: selected ? accentToken : Colors.white70)),
                     ),
                   ),
                   if (selected)
@@ -572,7 +571,7 @@ class _ThumbTile extends StatelessWidget {
                         width: 16,
                         height: 16,
                         decoration: const BoxDecoration(color: accentToken, shape: BoxShape.circle),
-                        child: const Icon(Icons.check_rounded, size: 12, color: Colors.black),
+                        child: const FaIcon(FontAwesomeIcons.check, size: 10, color: Colors.black),
                       ),
                     ),
                 ],
@@ -696,7 +695,7 @@ class AudioToolsSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(
-                  child: HugeIcon(icon: HugeIcons.strokeRoundedMusicNote01, color: accentToken, size: 20),
+                  child: FaIcon(FontAwesomeIcons.music, color: accentToken, size: 16),
                 ),
               ),
               const SizedBox(width: 12),
@@ -727,7 +726,7 @@ class AudioToolsSheet extends StatelessWidget {
                         _pickAudio(context, editor);
                       },
                       child: const Center(
-                        child: HugeIcon(icon: HugeIcons.strokeRoundedAdd01, color: Colors.black, size: 20),
+                        child: FaIcon(FontAwesomeIcons.plus, color: Colors.black, size: 16),
                       ),
                     ),
                   ),
@@ -1150,7 +1149,7 @@ class EffectsSheet extends StatelessWidget {
               return _ThumbTile(
                 label: _cap(fx.name),
                 selected: fx == currentEffect,
-                icon: isNone ? Icons.block_rounded : null,
+                icon: isNone ? FontAwesomeIcons.ban : null,
                 gradient: isNone ? null : _thumbGradient(i),
                 onTap: () => editor.applyEffect(fx),
               );
@@ -1452,7 +1451,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
                           border: Border.all(color: _color == c ? Colors.white : Colors.transparent, width: 2),
                         ),
                         child: _color == c
-                            ? const HugeIcon(icon: HugeIcons.strokeRoundedTick01, size: 16, color: Colors.black)
+                            ? const FaIcon(FontAwesomeIcons.check, size: 14, color: Colors.black)
                             : null,
                       ),
                     ),
@@ -1534,169 +1533,6 @@ class _MaskSheetState extends State<MaskSheet> {
   }
 }
 
-// ----------------------------------------------------------------------------
-// Keyframes
-// ----------------------------------------------------------------------------
-class _Diamond extends StatelessWidget {
-  const _Diamond();
-
-  @override
-  Widget build(BuildContext context) => Transform.rotate(
-        angle: math.pi / 4,
-        child: Container(width: 8, height: 8, color: accentToken),
-      );
-}
-
-class KeyframeSheet extends StatelessWidget {
-  const KeyframeSheet({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final editor = context.read<EditorController>();
-    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
-    final keyframes = <Keyframe>[...?selectedClip?.keyframes]..sort((a, b) => a.time.compareTo(b.time));
-
-    return ListView(
-      padding: _listPad(context),
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            const Expanded(
-              child: Text('Keyframes',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
-            ),
-            if (keyframes.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: accentToken.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text('${keyframes.length}',
-                    style: const TextStyle(color: accentToken, fontSize: 11, fontWeight: FontWeight.w600)),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _primaryBtn(
-          HugeIcons.strokeRoundedAdd01,
-          'Add keyframes at playhead',
-          selectedClip == null
-              ? null
-              : () {
-                  final relTime = editor.playhead - selectedClip.start;
-                  if (relTime.isNegative || relTime > selectedClip.duration) {
-                    ScaffoldMessenger.maybeOf(context)
-                      ?..hideCurrentSnackBar()
-                      ..showSnackBar(const SnackBar(content: Text('Move the playhead inside the clip first.')));
-                    return;
-                  }
-                  editor.addKeyframeAtPlayhead();
-                },
-        ),
-        const SizedBox(height: 16),
-        if (keyframes.isEmpty)
-          _EmptyHint(
-            icon: Icons.diamond_outlined,
-            text: selectedClip == null
-                ? 'Select a clip to add keyframes.'
-                : 'No keyframes on this clip yet. Move the playhead and add one.',
-          ),
-        for (final kf in keyframes)
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.fromLTRB(12, 4, 4, 10),
-            decoration: BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(12)),
-            child: Column(
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    const _Diamond(),
-                    const SizedBox(width: 12),
-                    // Tap the row to jump the playhead to this keyframe.
-                    Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: selectedClip == null
-                            ? null
-                            : () {
-                                tapFeedback();
-                                seekPlayhead(editor, secondsOf(selectedClip.start + kf.time));
-                              },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Row(
-                            children: <Widget>[
-                              Expanded(
-                                child: Text(
-                                  _cap('${kf.property}'.split('.').last),
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                              Text(
-                                '${secondsOf(kf.time).toStringAsFixed(1)}s',
-                                style: const TextStyle(
-                                  color: mutedToken,
-                                  fontSize: 12,
-                                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Remove keyframe',
-                      icon: const HugeIcon(icon: HugeIcons.strokeRoundedDelete02, color: _danger, size: 18),
-                      onPressed: () => editor.removeKeyframe(kf.id),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: <Widget>[
-                    const Text('Curve', style: TextStyle(color: mutedToken, fontSize: 11)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: <Widget>[
-                            for (final curve in CurveType.values)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: ChoiceChip(
-                                  label: Text(
-                                    _cap(curve.name),
-                                    style: TextStyle(
-                                      color: kf.curveType == curve ? Colors.black : Colors.white70,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  selected: kf.curveType == curve,
-                                  selectedColor: accentToken,
-                                  backgroundColor: surfaceToken,
-                                  side: BorderSide.none,
-                                  showCheckmark: false,
-                                  visualDensity: VisualDensity.compact,
-                                  onSelected: (_) => editor.addKeyframe(kf.copyWith(curveType: curve)),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
 
 // ----------------------------------------------------------------------------
 // Camera
@@ -1765,7 +1601,7 @@ class CameraTrackingPanel extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _primaryBtn(
-          HugeIcons.strokeRoundedTarget01,
+          FontAwesomeIcons.bullseye,
           active ? 'Stop tracking' : 'Start auto-tracking',
           selectedClip == null
               ? null
@@ -1792,7 +1628,7 @@ class PluginsSheet extends StatelessWidget {
     final plugins = PluginManager().activePlugins;
 
     if (plugins.isEmpty) {
-      return const Center(child: _EmptyHint(icon: Icons.extension_outlined, text: 'No active plug-ins.'));
+      return const Center(child: _EmptyHint(icon: FontAwesomeIcons.plug, text: 'No active plug-ins.'));
     }
 
     return ListView.builder(
@@ -1813,7 +1649,7 @@ class PluginsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Center(
-                    child: HugeIcon(icon: HugeIcons.strokeRoundedGridView, color: accentToken, size: 20),
+                    child: FaIcon(FontAwesomeIcons.borderAll, color: accentToken, size: 16),
                   ),
                 ),
                 const SizedBox(width: 12),

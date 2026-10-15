@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -164,10 +164,10 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
                   child: Container(
                     color: EditorTokens.elevated,
                     child: Center(
-                      child: HugeIcon(
-                        icon: _getAnimationIcon(anim),
+                      child: FaIcon(
+                        _getAnimationIcon(anim),
                         color: isSelected ? EditorTokens.text : EditorTokens.text.withValues(alpha: 0.8),
-                        size: 26.0,
+                        size: 22.0,
                       ),
                     ),
                   ),
@@ -236,40 +236,40 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
     }
   }
 
-  dynamic _getAnimationIcon(ClipAnimation anim) {
+  FaIconData _getAnimationIcon(ClipAnimation anim) {
     switch (anim) {
       case ClipAnimation.none:
-        return HugeIcons.strokeRoundedCancel01;
+        return FontAwesomeIcons.ban;
       case ClipAnimation.fadeIn:
       case ClipAnimation.fadeOut:
-        return HugeIcons.strokeRoundedCircle;
+        return FontAwesomeIcons.circle;
       case ClipAnimation.slideLeft:
-        return HugeIcons.strokeRoundedArrowLeft01;
+        return FontAwesomeIcons.arrowLeft;
       case ClipAnimation.slideRight:
-        return HugeIcons.strokeRoundedArrowRight01;
+        return FontAwesomeIcons.arrowRight;
       case ClipAnimation.zoomIn:
-        return HugeIcons.strokeRoundedZoomIn;
+        return FontAwesomeIcons.magnifyingGlassPlus;
       case ClipAnimation.zoomOut:
-        return HugeIcons.strokeRoundedZoomOut;
+        return FontAwesomeIcons.magnifyingGlassMinus;
       case ClipAnimation.bounce:
-        return HugeIcons.strokeRoundedPlay;
+        return FontAwesomeIcons.play;
       case ClipAnimation.spin:
-        return HugeIcons.strokeRoundedLoading01;
+        return FontAwesomeIcons.arrowsRotate;
       case ClipAnimation.glitch:
-        return HugeIcons.strokeRoundedMagicWand01;
+        return FontAwesomeIcons.wandMagicSparkles;
       case ClipAnimation.rotateIn:
-        return HugeIcons.strokeRoundedRotate360;
+        return FontAwesomeIcons.rotate;
       case ClipAnimation.flipHorizontal:
       case ClipAnimation.flipVertical:
-        return HugeIcons.strokeRoundedFlipRight;
+        return FontAwesomeIcons.repeat;
       case ClipAnimation.elasticBounce:
-        return HugeIcons.strokeRoundedSparkles;
+        return FontAwesomeIcons.bolt;
       case ClipAnimation.blurFade:
-        return HugeIcons.strokeRoundedFilter;
+        return FontAwesomeIcons.filter;
       case ClipAnimation.shakeSlide:
-        return HugeIcons.strokeRoundedFlash;
+        return FontAwesomeIcons.sliders;
       case ClipAnimation.zoomRotate:
-        return HugeIcons.strokeRoundedZoomIn;
+        return FontAwesomeIcons.magnifyingGlassPlus;
     }
   }
 }

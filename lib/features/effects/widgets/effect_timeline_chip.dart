@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
@@ -40,12 +40,12 @@ class EffectTimelineChip extends StatelessWidget {
           children: [
             GestureDetector(
               onTap: onToggleEnabled,
-              child: HugeIcon(
-                icon: effectClip.isEnabled
-                    ? HugeIcons.strokeRoundedMagicWand01
-                    : HugeIcons.strokeRoundedViewOff,
+              child: FaIcon(
+                effectClip.isEnabled
+                    ? FontAwesomeIcons.wandMagicSparkles
+                    : FontAwesomeIcons.eyeSlash,
                 color: effectClip.isEnabled ? EditorTokens.accent : EditorTokens.muted,
-                size: 14,
+                size: 12,
               ),
             ),
             const SizedBox(width: 6),
@@ -64,20 +64,20 @@ class EffectTimelineChip extends StatelessWidget {
             ),
             if (effectClip.keyframeAnimations.isNotEmpty) ...[
               const SizedBox(width: 6),
-              const HugeIcon(
-                icon: HugeIcons.strokeRoundedBookmark02,
+              const FaIcon(
+                FontAwesomeIcons.bookmark,
                 color: EditorTokens.accent,
-                size: 12,
+                size: 10,
               ),
             ],
             if (onRemove != null) ...[
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: onRemove,
-                child: const HugeIcon(
-                  icon: HugeIcons.strokeRoundedDelete02,
+                child: const FaIcon(
+                  FontAwesomeIcons.trash,
                   color: EditorTokens.muted,
-                  size: 14,
+                  size: 12,
                 ),
               ),
             ],

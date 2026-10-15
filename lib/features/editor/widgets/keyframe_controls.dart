@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -26,8 +26,7 @@ class PreviewControlsBar extends StatelessWidget {
           ValueListenableBuilder<Duration>(
             valueListenable: editor.playheadListenable,
             builder: (_, p, __) => Text(
-              '${formatTimecodeShort(secondsOf(p))} / '
-              '${formatTimecodeShort(secondsOf(editor.project.totalDuration))}',
+              '${formatTimecodeMMSS(secondsOf(p))}/${formatTimecodeMMSS(secondsOf(editor.project.totalDuration))}',
               style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 12,
@@ -71,13 +70,11 @@ class KeyframeControls extends StatelessWidget {
     );
   }
 
-  Widget _hugeIcon(dynamic icon, {bool active = false}) => HugeIcon(
-        icon: icon,
-        size: 20,
+  Widget _faIcon(FaIconData icon, {bool active = false}) => FaIcon(
+        icon,
+        size: 18,
         color: active ? accentToken : Colors.white,
       );
-
-  Widget _arrow(IconData d) => Icon(d, size: 22, color: Colors.white);
 
   @override
   Widget build(BuildContext context) {
@@ -105,13 +102,13 @@ class KeyframeControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             _btn(
-              _arrow(Icons.keyboard_arrow_left_rounded),
+              _faIcon(FontAwesomeIcons.chevronLeft),
               'Previous keyframe',
               prev == null ? null : () => seekPlayhead(editor, secondsOf(prev!)),
             ),
             _btn(
-              _hugeIcon(
-                has ? HugeIcons.strokeRoundedRemove01 : HugeIcons.strokeRoundedAdd01,
+              _faIcon(
+                has ? FontAwesomeIcons.minus : FontAwesomeIcons.plus,
                 active: has,
               ),
               has ? 'Remove keyframe' : 'Add keyframe',
@@ -131,12 +128,12 @@ class KeyframeControls extends StatelessWidget {
                     },
             ),
             _btn(
-              _arrow(Icons.keyboard_arrow_right_rounded),
+              _faIcon(FontAwesomeIcons.chevronRight),
               'Next keyframe',
               next == null ? null : () => seekPlayhead(editor, secondsOf(next!)),
             ),
             _btn(
-              _hugeIcon(HugeIcons.strokeRoundedAnalytics01),
+              _faIcon(FontAwesomeIcons.chartLine),
               'Keyframe curve',
               clip == null
                   ? null

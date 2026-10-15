@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
@@ -88,10 +88,10 @@ class _AuthPageState extends State<AuthPage> {
         backgroundColor: EditorTokens.bg,
         elevation: 0,
         leading: IconButton(
-          icon: const HugeIcon(
-            icon: HugeIcons.strokeRoundedArrowLeft01,
+          icon: const FaIcon(
+            FontAwesomeIcons.arrowLeft,
             color: EditorTokens.text,
-            size: 22,
+            size: 18,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -138,10 +138,13 @@ class _AuthPageState extends State<AuthPage> {
                   decoration: InputDecoration(
                     labelText: 'Full Name',
                     labelStyle: const TextStyle(color: EditorTokens.muted),
-                    prefixIcon: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedUser,
-                      color: EditorTokens.muted,
-                      size: 20,
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: FaIcon(
+                        FontAwesomeIcons.user,
+                        color: EditorTokens.muted,
+                        size: 16,
+                      ),
                     ),
                     filled: true,
                     fillColor: EditorTokens.surface,
@@ -160,10 +163,13 @@ class _AuthPageState extends State<AuthPage> {
                 decoration: InputDecoration(
                   labelText: 'Email Address',
                   labelStyle: const TextStyle(color: EditorTokens.muted),
-                  prefixIcon: const HugeIcon(
-                    icon: HugeIcons.strokeRoundedMail01,
-                    color: EditorTokens.muted,
-                    size: 20,
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: FaIcon(
+                      FontAwesomeIcons.envelope,
+                      color: EditorTokens.muted,
+                      size: 16,
+                    ),
                   ),
                   filled: true,
                   fillColor: EditorTokens.surface,
@@ -181,10 +187,13 @@ class _AuthPageState extends State<AuthPage> {
                 decoration: InputDecoration(
                   labelText: 'Password',
                   labelStyle: const TextStyle(color: EditorTokens.muted),
-                  prefixIcon: const HugeIcon(
-                    icon: HugeIcons.strokeRoundedLockPassword,
-                    color: EditorTokens.muted,
-                    size: 20,
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: FaIcon(
+                      FontAwesomeIcons.lock,
+                      color: EditorTokens.muted,
+                      size: 16,
+                    ),
                   ),
                   filled: true,
                   fillColor: EditorTokens.surface,
@@ -262,10 +271,10 @@ class _AuthPageState extends State<AuthPage> {
                         ),
                       ),
                       onPressed: () => _socialSignIn('Google'),
-                      icon: const HugeIcon(
-                        icon: HugeIcons.strokeRoundedGoogle,
+                      icon: const FaIcon(
+                        FontAwesomeIcons.google,
                         color: EditorTokens.text,
-                        size: 20,
+                        size: 16,
                       ),
                       label: const Text(
                         'Google',
@@ -284,10 +293,10 @@ class _AuthPageState extends State<AuthPage> {
                         ),
                       ),
                       onPressed: () => _socialSignIn('Facebook'),
-                      icon: const HugeIcon(
-                        icon: HugeIcons.strokeRoundedFacebook01,
+                      icon: const FaIcon(
+                        FontAwesomeIcons.facebook,
                         color: EditorTokens.text,
-                        size: 20,
+                        size: 16,
                       ),
                       label: const Text(
                         'Facebook',

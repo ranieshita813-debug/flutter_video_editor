@@ -57,6 +57,13 @@ String formatTimecodeShort(double s) {
   return '${twoDigits(sec ~/ 60)}:${twoDigits(sec % 60)}.${twoDigits(f % fpsToken)}';
 }
 
+String formatTimecodeMMSS(double s) {
+  final int sec = math.max(s, 0).floor();
+  final int m = sec ~/ 60;
+  final int remainingSec = sec % 60;
+  return '${twoDigits(m)}:${twoDigits(remainingSec)}';
+}
+
 void seekPlayhead(EditorController e, double s) {
   final double total = math.max(secondsOf(e.project.totalDuration), 1.0);
   final double c = s.clamp(0.0, total).toDouble();

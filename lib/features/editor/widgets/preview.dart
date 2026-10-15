@@ -6,7 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
@@ -538,7 +538,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
     super.dispose();
   }
 
-  Widget _roundBtn(dynamic icon, String tip, VoidCallback onTap,
+  Widget _roundBtn(FaIconData icon, String tip, VoidCallback onTap,
           {double size = 36, double iconSize = 17, bool on = false}) =>
       Semantics(
         button: true,
@@ -558,8 +558,8 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                   color: on ? Colors.white : const Color(0xFF1B1B20),
                   shape: BoxShape.circle),
               child: Center(
-                child: HugeIcon(
-                  icon: icon,
+                child: FaIcon(
+                  icon,
                   color: on ? Colors.black : Colors.white,
                   size: iconSize,
                 ),
@@ -585,7 +585,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
             padding: EdgeInsets.symmetric(horizontal: 10 * s),
             child: Row(
               children: <Widget>[
-                _roundBtn(HugeIcons.strokeRoundedArrowLeft01, 'Back',
+                _roundBtn(FontAwesomeIcons.arrowLeft, 'Back',
                     () => Navigator.of(context).maybePop(),
                     size: btn, iconSize: 16 * s),
                 if (showLogo) ...<Widget>[
@@ -646,9 +646,9 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                                   fontSize: 11.5 * s,
                                   fontWeight: FontWeight.w600)),
                           SizedBox(width: 4 * s),
-                          HugeIcon(
-                            icon: HugeIcons.strokeRoundedArrowDown01,
-                            size: 14 * s,
+                          FaIcon(
+                            FontAwesomeIcons.chevronDown,
+                            size: 12 * s,
                             color: Colors.white70,
                           ),
                         ],
@@ -659,15 +659,15 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                 SizedBox(width: 6 * s),
                 _roundBtn(
                     _fill
-                        ? HugeIcons.strokeRoundedZoomOut
-                        : HugeIcons.strokeRoundedZoomIn,
+                        ? FontAwesomeIcons.magnifyingGlassMinus
+                        : FontAwesomeIcons.magnifyingGlassPlus,
                     _fill ? 'Fit video' : 'Fill canvas',
                     () => setState(() => _fill = !_fill),
                     size: btn,
                     iconSize: 17 * s,
                     on: _fill),
                 SizedBox(width: 6 * s),
-                _roundBtn(HugeIcons.strokeRoundedGrid, _grid ? 'Hide guides' : 'Show guides',
+                _roundBtn(FontAwesomeIcons.tableCells, _grid ? 'Hide guides' : 'Show guides',
                     () => setState(() => _grid = !_grid),
                     size: btn, iconSize: 17 * s, on: _grid),
                 SizedBox(width: 8 * s),
@@ -687,10 +687,10 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            HugeIcon(
-                              icon: HugeIcons.strokeRoundedShare01,
+                            FaIcon(
+                              FontAwesomeIcons.arrowUpFromBracket,
                               color: Colors.black,
-                              size: 15 * s,
+                              size: 14 * s,
                             ),
                             SizedBox(width: 5 * s),
                             Text('Export',

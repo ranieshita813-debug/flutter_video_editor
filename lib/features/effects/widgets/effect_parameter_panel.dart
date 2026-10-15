@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hugeicons/hugeicons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/models/shader_effect_model.dart';
@@ -58,10 +58,10 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
             ),
             child: Row(
               children: [
-                const HugeIcon(
-                  icon: HugeIcons.strokeRoundedFilter,
+                const FaIcon(
+                  FontAwesomeIcons.filter,
                   color: EditorTokens.text,
-                  size: 20,
+                  size: 14,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -132,12 +132,12 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                             tooltip: hasKeyframeAtTime ? 'Remove Keyframe' : 'Add Keyframe',
-                            icon: HugeIcon(
-                              icon: hasKeyframeAtTime
-                                  ? HugeIcons.strokeRoundedBookmark02
-                                  : HugeIcons.strokeRoundedAdd01,
+                            icon: FaIcon(
+                              hasKeyframeAtTime
+                                  ? FontAwesomeIcons.bookmark
+                                  : FontAwesomeIcons.plus,
                               color: hasKeyframeAtTime ? EditorTokens.accent : EditorTokens.muted,
-                              size: 18,
+                              size: 16,
                             ),
                             onPressed: () {
                               if (hasKeyframeAtTime) {
