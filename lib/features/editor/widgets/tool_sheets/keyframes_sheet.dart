@@ -77,7 +77,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
     final double total = clip == null ? 1.0 : math.max(secondsOf(clip.duration), 0.1);
     final double rel = clip == null ? 0.0 : secondsOf(playhead - clip.start);
     final bool inClip = clip != null && rel >= 0 && rel <= total;
-    final double tol = 0.5 / _kfFps;
+    const double tol = 0.5 / _kfFps;
 
     final Keyframe? atHead = _kfFind(all, (k) => (secondsOf(k.time) - rel).abs() < tol);
     final Keyframe? selected = _selId == null ? null : _kfFind(all, (k) => k.id == _selId);

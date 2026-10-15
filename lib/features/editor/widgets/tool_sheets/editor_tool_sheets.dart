@@ -27,7 +27,6 @@ export 'keyframes_sheet.dart';
 // The frame needs a bounded height from its parent.
 // ============================================================================
 
-const Color _danger = Color(0xFFFF6B6B);
 const Color _canvasDark = Color(0xFF1B1B20);
 const double _pad = 16;
 
