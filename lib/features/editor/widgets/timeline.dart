@@ -13,9 +13,13 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 // ----------------------------------------------------------------------------
 // Constants & helpers
 // ----------------------------------------------------------------------------
-const Color playheadBlue = Color(0xFF2D8CEB);
-const Color _timelineBg = Color(0xFF111111);
-const Color _overlayMediaColor = Color(0xFF673AB7);
+
+/// Playhead colour. The name is kept so other files that import it still
+/// compile; in the monochrome theme it is plain white.
+const Color playheadBlue = Color(0xFFFFFFFF);
+const Color _timelineBg = Color(0xFF0A0A0A);
+const Color _overlayMediaColor = Color(0xFF454545);
+const double _clipRadius = 6;
 const int _fps = 30;
 
 /// Pixels per second at zoom 1.0.
@@ -517,8 +521,8 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                   width: 34 * _s,
                   height: 22 * _s,
                   decoration: BoxDecoration(
-                    color: on ? Colors.white : const Color(0xFF262626),
-                    borderRadius: BorderRadius.circular(6),
+                    color: on ? Colors.white : const Color(0xFF1C1C1C),
+                    borderRadius: BorderRadius.circular(11 * _s),
                   ),
                   child: Icon(Icons.align_horizontal_center_rounded,
                       size: 15 * _s, color: on ? Colors.black : Colors.white),
@@ -601,7 +605,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                 builder: (_, p, __) => Text(
                   _tcFrames(secondsOf(p)),
                   style: TextStyle(
-                    color: playheadBlue,
+                    color: const Color(0xFFBDBDBD),
                     fontSize: 13 * _s,
                     fontWeight: FontWeight.w500,
                     fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
@@ -623,25 +627,33 @@ class _TimelineWidgetState extends State<TimelineWidget> {
         child: Padding(
           // Keeps the thumb fully inside the bar at both ends.
           padding: EdgeInsets.symmetric(horizontal: 12 * _s),
-          child: Material(
-            type: MaterialType.transparency,
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 8,
-                activeTrackColor: const Color(0xFF3A3A3A),
-                inactiveTrackColor: const Color(0xFF1E1E1E),
-                thumbColor: const Color(0xFFB0B0B0),
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                overlayShape: SliderComponentShape.noOverlay,
-                trackShape: const RoundedRectSliderTrackShape(),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.zoom_out_rounded, size: 15 * _s, color: Colors.white38),
+              Expanded(
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 4,
+                      activeTrackColor: const Color(0xFF555555),
+                      inactiveTrackColor: const Color(0xFF222222),
+                      thumbColor: const Color(0xFFBDBDBD),
+                      thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                      overlayShape: SliderComponentShape.noOverlay,
+                      trackShape: const RoundedRectSliderTrackShape(),
+                    ),
+                    child: Slider(
+                      value: _zoomToSlider(zoom),
+                      semanticFormatterCallback: (v) =>
+                          'Timeline zoom ${_sliderToZoom(v).toStringAsFixed(1)} times',
+                      onChanged: (v) => _applyZoom(_sliderToZoom(v)),
+                    ),
+                  ),
+                ),
               ),
-              child: Slider(
-                value: _zoomToSlider(zoom),
-                semanticFormatterCallback: (v) =>
-                    'Timeline zoom ${_sliderToZoom(v).toStringAsFixed(1)} times',
-                onChanged: (v) => _applyZoom(_sliderToZoom(v)),
-              ),
-            ),
+              Icon(Icons.zoom_in_rounded, size: 15 * _s, color: Colors.white38),
+            ],
           ),
         ),
       );
@@ -767,7 +779,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                               ),
                             ),
                           ),
-                          // Playhead: blue head + hairline, fixed on screen.
+                          // Playhead: white rounded head + hairline, fixed on screen.
                           Positioned(
                             left: half - 8,
                             top: 0,
@@ -997,14 +1009,16 @@ class _ClipBlockState extends State<_ClipBlock> {
 
   /// Selection border is a foreground decoration, so it never changes the
   /// clip's size or shifts the content inside it. White = the selected clip,
-  /// accent = a clip picked in multi-select mode.
+  /// dimmer white = a clip picked in multi-select mode.
   Widget _frame(Widget child, {Color? color, required bool inMulti}) {
     final Color border = widget.selected
         ? Colors.white
-        : (inMulti ? accentToken : Colors.transparent);
+        : (inMulti ? Colors.white54 : Colors.transparent);
+    final BorderRadius radius = BorderRadius.circular(_clipRadius);
     return Container(
-      decoration: BoxDecoration(color: color),
+      decoration: BoxDecoration(color: color, borderRadius: radius),
       foregroundDecoration: BoxDecoration(
+        borderRadius: radius,
         border: Border.all(color: border, width: 2),
       ),
       clipBehavior: Clip.antiAlias,
@@ -1238,7 +1252,7 @@ class _ClipBlockState extends State<_ClipBlock> {
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
-                          color: accentToken,
+                          color: Colors.white,
                           border: Border.all(color: Colors.black, width: 1.5),
                           borderRadius: BorderRadius.circular(2),
                         ),
@@ -1311,7 +1325,8 @@ class _ClipBlockState extends State<_ClipBlock> {
                     const Positioned(
                       top: 4,
                       left: 6,
-                      child: Icon(Icons.check_circle_rounded, size: 14, color: accentToken),
+                      child: Icon(Icons.check_circle_rounded,
+                          size: 14, color: Colors.white),
                     ),
                 ],
               ),
@@ -1438,13 +1453,13 @@ class _FilmPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF2A2A30));
+    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF2A2A2A));
     final double fw = math.max(14, size.height * 0.85);
     int i = 0;
     for (double x = 0; x < size.width; x += fw) {
       canvas.drawRect(
         Rect.fromLTWH(x, 0, fw - 1, size.height),
-        Paint()..color = (i++ % 2 == 0) ? const Color(0xFF383840) : const Color(0xFF42424C),
+        Paint()..color = (i++ % 2 == 0) ? const Color(0xFF383838) : const Color(0xFF424242),
       );
     }
   }
@@ -1500,7 +1515,7 @@ class _WavePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (amps.isEmpty) return;
     final Paint p = Paint()
-      ..color = const Color(0xFF7FD6E8)
+      ..color = const Color(0xFFCFCFCF)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
     final double gap = size.width / amps.length;
@@ -1517,7 +1532,7 @@ class _WavePainter extends CustomPainter {
 }
 
 // ----------------------------------------------------------------------------
-// Premiere-style ruler & playhead
+// Ruler & playhead
 // ----------------------------------------------------------------------------
 
 /// Paints only the part of the ruler that is on screen. The canvas is as wide
@@ -1539,7 +1554,7 @@ class _RulerPainter extends CustomPainter {
   final ScrollController scroll;
   final double viewW;
 
-  static const Color _bg = Color(0xFF1A1A1A);
+  static const Color _bg = Color(0xFF0A0A0A);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1564,7 +1579,7 @@ class _RulerPainter extends CustomPainter {
           Offset(endX, 0),
           Offset(endX, h),
           Paint()
-            ..color = playheadBlue.withValues(alpha: 0.6)
+            ..color = Colors.white.withValues(alpha: 0.5)
             ..strokeWidth = 1);
     }
 
@@ -1577,13 +1592,13 @@ class _RulerPainter extends CustomPainter {
     final double minor = major / div;
 
     final Paint pMajor = Paint()
-      ..color = const Color(0xFF9A9A9A)
+      ..color = const Color(0xFF8A8A8A)
       ..strokeWidth = 1;
     final Paint pMid = Paint()
-      ..color = const Color(0xFF6E6E6E)
+      ..color = const Color(0xFF5E5E5E)
       ..strokeWidth = 1;
     final Paint pSmall = Paint()
-      ..color = const Color(0xFF4A4A4A)
+      ..color = const Color(0xFF3E3E3E)
       ..strokeWidth = 1;
 
     final int first = math.max(0, ((x0 - leftPad) / pps / minor).floor());
@@ -1598,7 +1613,7 @@ class _RulerPainter extends CustomPainter {
           text: TextSpan(
             text: _tcFrames(t),
             style: TextStyle(
-              color: t > totalSec + 1e-6 ? Colors.white38 : const Color(0xFFB0B0B0),
+              color: t > totalSec + 1e-6 ? Colors.white38 : const Color(0xFF9A9A9A),
               fontSize: 11,
               fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
             ),
@@ -1615,7 +1630,7 @@ class _RulerPainter extends CustomPainter {
     }
 
     canvas.drawLine(Offset(x0, h - 0.5), Offset(x1, h - 0.5),
-        Paint()..color = const Color(0xFF262626));
+        Paint()..color = const Color(0xFF1C1C1C));
   }
 
   @override
@@ -1634,17 +1649,18 @@ class _PlayheadPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Paint p = Paint()..color = playheadBlue;
     final double w = size.width;
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, 0)
-        ..lineTo(w, 0)
-        ..lineTo(w, 10)
-        ..lineTo(w / 2, 18)
-        ..lineTo(0, 10)
-        ..close(),
+    // Rounded head, CapCut style.
+    canvas.drawRRect(
+      RRect.fromRectAndCorners(
+        Rect.fromLTWH(0, 0, w, 12),
+        topLeft: const Radius.circular(4),
+        topRight: const Radius.circular(4),
+        bottomLeft: const Radius.circular(8),
+        bottomRight: const Radius.circular(8),
+      ),
       p,
     );
-    canvas.drawRect(Rect.fromLTWH(w / 2 - 0.75, 18, 1.5, size.height - 18), p);
+    canvas.drawRect(Rect.fromLTWH(w / 2 - 1, 12, 2, size.height - 12), p);
   }
 
   @override

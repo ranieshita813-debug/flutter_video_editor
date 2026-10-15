@@ -20,9 +20,14 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 
 // ----------------------------------------------------------------------------
+// Monochrome palette
+// ----------------------------------------------------------------------------
+const Color _chipBg = Color(0xFF1C1C1C);
+const Color _stageBg = Color(0xFF050505);
+
+// ----------------------------------------------------------------------------
 // Shared helpers
 // ----------------------------------------------------------------------------
-
 
 /// File existence is checked once per path instead of every frame.
 final Map<String, bool> _existsCache = <String, bool>{};
@@ -488,21 +493,22 @@ class _TrackingPainter extends CustomPainter {
     canvas.drawRect(
         rect,
         Paint()
-          ..color = accentToken
+          ..color = Colors.white
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5);
+    // Accent is white now, so the label text is black for contrast.
     final tp = TextPainter(
       text: TextSpan(
           text: label,
           style: const TextStyle(
-              fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700)),
+              fontSize: 10, color: Colors.black, fontWeight: FontWeight.w700)),
       textDirection: TextDirection.ltr,
       maxLines: 1,
       ellipsis: '…',
     )..layout(maxWidth: math.max(40, rect.width));
     final double lw = tp.width + 12;
     final double top = math.max(0, rect.top - 16);
-    canvas.drawRect(Rect.fromLTWH(rect.left, top, lw, 16), Paint()..color = accentToken);
+    canvas.drawRect(Rect.fromLTWH(rect.left, top, lw, 16), Paint()..color = Colors.white);
     tp.paint(canvas, Offset(rect.left + 6, top + 2));
     tp.dispose();
   }
@@ -555,8 +561,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
               width: size,
               height: size,
               decoration: BoxDecoration(
-                  color: on ? Colors.white : const Color(0xFF1B1B20),
-                  shape: BoxShape.circle),
+                  color: on ? Colors.white : _chipBg, shape: BoxShape.circle),
               child: Center(
                 child: FaIcon(
                   icon,
@@ -596,7 +601,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1B1B20),
+                    color: _chipBg,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -625,8 +630,9 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                           value: v,
                           child: Text(v.label,
                               style: TextStyle(
-                                  color: v == r ? accentToken : Colors.white,
-                                  fontWeight: FontWeight.w600)),
+                                  color: v == r ? Colors.white : Colors.white54,
+                                  fontWeight:
+                                      v == r ? FontWeight.w700 : FontWeight.w500)),
                         ),
                     ],
                     child: Container(
@@ -634,8 +640,8 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                       alignment: Alignment.center,
                       padding: EdgeInsets.symmetric(horizontal: 10 * s),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1B1B20),
-                        borderRadius: BorderRadius.circular(8),
+                        color: _chipBg,
+                        borderRadius: BorderRadius.circular(15 * s),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -721,14 +727,13 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
           RepaintBoundary(
             key: _boundaryKey,
             child: DecoratedBox(
+              // Flat canvas on near-black, no border or glow.
               decoration: BoxDecoration(
                 color: Colors.black,
-                border: Border.all(color: Colors.white12),
-                boxShadow: const <BoxShadow>[
-                  BoxShadow(color: Colors.black87, blurRadius: 18, spreadRadius: 1),
-                ],
+                borderRadius: BorderRadius.circular(4),
               ),
-              child: ClipRect(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
                 child: LayoutBuilder(builder: (context, fc) {
                   final double unit = fc.maxWidth / designWToken;
                   final double designH = fc.maxHeight / unit;
@@ -872,7 +877,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
             children: <Widget>[
               Positioned.fill(
                 child: Container(
-                  color: const Color(0xFF07080B),
+                  color: _stageBg,
                   child: ClipRect(
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
@@ -902,7 +907,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                   listenable: _tf,
                   builder: (_, __) => _tf.value.getMaxScaleOnAxis() > 1.01
                       ? Material(
-                          color: const Color(0xFF1B1B20),
+                          color: _chipBg,
                           borderRadius: BorderRadius.circular(16),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(16),
@@ -963,7 +968,7 @@ class PaneDivider extends StatelessWidget {
               width: 38,
               height: 5,
               decoration: BoxDecoration(
-                color: const Color(0xFF3A3A44),
+                color: const Color(0xFF3A3A3A),
                 borderRadius: BorderRadius.circular(3),
               ),
             ),
@@ -2049,7 +2054,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        const Icon(Icons.colorize_rounded, color: accentToken, size: 16),
+                        const Icon(Icons.colorize_rounded, color: Colors.white, size: 16),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
@@ -2114,7 +2119,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                       const SizedBox(width: 12),
                       FloatingActionButton.extended(
                         elevation: 4,
-                        backgroundColor: accentToken,
+                        backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
                         icon: const Icon(Icons.check_rounded),
                         label: const Text('Apply Color',
