@@ -61,16 +61,16 @@ class EditorToolbar extends StatelessWidget {
                 children: [
                   FaIcon(
                     item.icon,
-                    color: EditorTokens.text,
-                    size: 18.0,
+                    color: EditorTokens.text.withValues(alpha: 0.9),
+                    size: 15.0,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     item.title,
-                    style: const TextStyle(
-                      color: EditorTokens.text,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
+                    style: TextStyle(
+                      color: EditorTokens.text.withValues(alpha: 0.85),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w400,
                       fontFamily: 'Poppins',
                     ),
                   ),

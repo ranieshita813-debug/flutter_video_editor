@@ -1219,6 +1219,65 @@ class EditorController extends ChangeNotifier {
   }
 
   // Auto Captions Generator
+  void splitCaptionClip() {
+    final current = selectedClip;
+    if (current == null || (current.clipType != ClipType.caption && current.clipType != ClipType.text)) return;
+    if (playhead <= current.start || playhead >= current.end) return;
+
+    _saveState();
+    final leftText = current.label;
+    final rightText = current.label;
+
+    final left = current.copyWith(
+      id: '${current.id}_cap1',
+      end: playhead,
+      label: leftText,
+    );
+
+    final right = current.copyWith(
+      id: '${current.id}_cap2',
+      start: playhead,
+      label: rightText,
+    );
+
+    final index = _project.clips.indexOf(current);
+    _project.clips
+      ..removeAt(index)
+      ..insertAll(index, <TimelineClip>[left, right]);
+
+    _selectedClipId = right.id;
+    _autosave();
+    notifyListeners();
+  }
+
+  void mergeNextCaptionClip() {
+    final current = selectedClip;
+    if (current == null || (current.clipType != ClipType.caption && current.clipType != ClipType.text)) return;
+
+    final captions = _project.clips
+        .where((c) => c.clipType == current.clipType && c.layerIndex == current.layerIndex)
+        .toList()
+      ..sort((a, b) => a.start.compareTo(b.start));
+
+    final index = captions.indexWhere((c) => c.id == current.id);
+    if (index == -1 || index >= captions.length - 1) return;
+
+    final nextClip = captions[index + 1];
+    _saveState();
+
+    final mergedClip = current.copyWith(
+      end: nextClip.end,
+      label: '${current.label} ${nextClip.label}'.trim(),
+    );
+
+    _project.clips.removeWhere((c) => c.id == current.id || c.id == nextClip.id);
+    _project.clips.add(mergedClip);
+    _selectedClipId = mergedClip.id;
+
+    _autosave();
+    notifyListeners();
+  }
+
   void generateAutoCaptions() {
     _saveState();
     _project.captions.clear();

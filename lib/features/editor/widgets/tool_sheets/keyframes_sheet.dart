@@ -195,25 +195,52 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
               ),
             ),
 
-          // ---- Curve type tiles (when selected) -----------------
+          // ---- Curve type tiles & CapCut Curve Graph (when selected) ------------
           if (selected != null) ...<Widget>[
-            const SizedBox(height: 10),
-            GridView.count(
-              crossAxisCount: 4,
-              mainAxisSpacing: 6,
-              crossAxisSpacing: 6,
-              childAspectRatio: 1.5,
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: <Widget>[
-                for (final _CurveOption o in _kfOptions)
-                  _CurveTile(
-                    option: o,
-                    on: o.curveType == selected.curveType,
-                    onTap: () => pick(selected, o),
+            const SizedBox(height: 12),
+            _KfCard(
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      'ANIMATION GRAPH / CURVE',
+                      style: TextStyle(
+                        color: _kfMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
                   ),
-              ],
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 120,
+                    width: double.infinity,
+                    child: CustomPaint(
+                      painter: _CurveGraphPainter(curveType: selected.curveType),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  GridView.count(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 6,
+                    crossAxisSpacing: 6,
+                    childAspectRatio: 1.5,
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: <Widget>[
+                      for (final _CurveOption o in _kfOptions)
+                        _CurveTile(
+                          option: o,
+                          on: o.curveType == selected.curveType,
+                          onTap: () => pick(selected, o),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ] else if (all.isNotEmpty)
             const Padding(
@@ -503,4 +530,81 @@ class _TrackPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TrackPainter o) => true;
+}
+
+// ----------------------------------------------------------------------------
+// Curve Graph Painter (CapCut Velocity / Curve Visualization)
+// ----------------------------------------------------------------------------
+class _CurveGraphPainter extends CustomPainter {
+  _CurveGraphPainter({required this.curveType});
+  final CurveType curveType;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+    const double pad = 16.0;
+
+    // Grid lines
+    final Paint gridPaint = Paint()
+      ..color = _kfLine
+      ..strokeWidth = 1.0;
+
+    for (int i = 1; i <= 3; i++) {
+      final double x = pad + (w - 2 * pad) * (i / 4);
+      final double y = pad + (h - 2 * pad) * (i / 4);
+      canvas.drawLine(Offset(x, pad), Offset(x, h - pad), gridPaint);
+      canvas.drawLine(Offset(pad, y), Offset(w - pad, y), gridPaint);
+    }
+
+    // Outer border
+    final Rect rect = Rect.fromLTRB(pad, pad, w - pad, h - pad);
+    canvas.drawRect(rect, gridPaint);
+
+    // Curve Path
+    final Path curvePath = Path();
+    curvePath.moveTo(pad, h - pad);
+
+    const int steps = 50;
+    for (int i = 0; i <= steps; i++) {
+      final double t = i / steps;
+      final double val = _evaluateCurve(t, curveType);
+      final double px = pad + t * (w - 2 * pad);
+      final double py = (h - pad) - val * (h - 2 * pad);
+      if (i == 0) {
+        curvePath.moveTo(px, py);
+      } else {
+        curvePath.lineTo(px, py);
+      }
+    }
+
+    final Paint pathPaint = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawPath(curvePath, pathPaint);
+
+    // Keyframe End Points
+    final Paint pointPaint = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(pad, h - pad), 4.0, pointPaint);
+    canvas.drawCircle(Offset(w - pad, pad), 4.0, pointPaint);
+  }
+
+  double _evaluateCurve(double t, CurveType type) {
+    switch (type) {
+      case CurveType.linear:
+        return t;
+      case CurveType.easeIn:
+        return t * t;
+      case CurveType.easeOut:
+        return t * (2 - t);
+      case CurveType.cubicBezier:
+        return Curves.easeInOutCubic.transform(t.clamp(0.0, 1.0));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurveGraphPainter oldDelegate) =>
+      oldDelegate.curveType != curveType;
 }

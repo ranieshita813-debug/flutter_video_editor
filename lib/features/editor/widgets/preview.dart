@@ -728,12 +728,12 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
             key: _boundaryKey,
             child: DecoratedBox(
               // Flat canvas on near-black, no border or glow.
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.black,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.zero,
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.zero,
                 child: LayoutBuilder(builder: (context, fc) {
                   final double unit = fc.maxWidth / designWToken;
                   final double designH = fc.maxHeight / unit;
