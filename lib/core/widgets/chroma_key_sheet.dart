@@ -18,9 +18,7 @@ import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// FIX: the package is phosphor_flutter (phosphor_icons does not exist on pub).
-// pubspec.yaml:  phosphor_flutter: ^2.1.0
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_preview.dart'
     show ChromaBackground;
@@ -138,7 +136,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           ),
           IconButton(
             tooltip: 'Done',
-            icon: const Icon(PhosphorIconsRegular.check, color: _accent),
+            icon: Icon(PhosphorIconsRegular.check, color: _accent),
             onPressed: widget.onClose,
           ),
         ]),
@@ -192,7 +190,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                 color: _accent,
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Row(children: [
+              child: Row(children: [
                 Icon(PhosphorIconsRegular.eyedropper, color: Colors.black, size: 20),
                 SizedBox(width: 8),
                 Text('Pick colour',
@@ -375,7 +373,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           ),
           IconButton(
             tooltip: 'Done',
-            icon: const Icon(PhosphorIconsRegular.check, color: _accent),
+            icon: PhosphorIcon(PhosphorIconsRegular.check, color: _accent),
             onPressed: widget.onClose,
           ),
         ]),
@@ -418,7 +416,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                     ),
                   ),
                   child: b == ChromaBackground.checker
-                      ? const Icon(PhosphorIconsRegular.gridNine, size: 13, color: Colors.white54)
+                      ? Icon(PhosphorIconsRegular.gridNine, size: 13, color: Colors.white54)
                       : null,
                 ),
               ),
@@ -555,7 +553,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(PhosphorIconsRegular.eyedropper, color: _accent, size: 20),
+              Icon(PhosphorIconsRegular.eyedropper, color: _accent, size: 20),
               const SizedBox(width: 6),
               const Text('Pick', style: TextStyle(color: Colors.white, fontSize: 13.5)),
             ]),

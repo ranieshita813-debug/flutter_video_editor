@@ -60,11 +60,11 @@ void main() {
     expect(find.text('Export'), findsOneWidget);
     expect(find.text('1080p'), findsOneWidget);
 
+    expect(find.text('AI Generate', skipOffstage: false), findsWidgets);
     expect(find.text('Draw', skipOffstage: false), findsWidgets);
     expect(find.text('Text', skipOffstage: false), findsWidgets);
     expect(find.text('Adjust', skipOffstage: false), findsWidgets);
     expect(find.text('Audio', skipOffstage: false), findsWidgets);
-    expect(find.text('Track', skipOffstage: false), findsWidgets);
     expect(find.text('Auto captions', skipOffstage: false), findsWidgets);
   });
 

@@ -93,6 +93,12 @@ class EditorToolbar extends StatelessWidget {
       // Common Global Tools (No clip selected)
       return [
         EditorToolbarItem(
+          id: 'ai_generate',
+          title: 'AI Generate',
+          icon: PhosphorIconsRegular.sparkle,
+          onTap: () => onSelectToolSheet('ai'),
+        ),
+        EditorToolbarItem(
           id: 'add_media',
           title: 'Add Media',
           icon: PhosphorIconsRegular.plus,
@@ -179,6 +185,12 @@ class EditorToolbar extends StatelessWidget {
       case ClipType.image:
         final bool isOverlay = clip.layerIndex > 0;
         return [
+          EditorToolbarItem(
+            id: 'ai_generate',
+            title: 'AI Generate',
+            icon: PhosphorIconsRegular.sparkle,
+            onTap: () => onSelectToolSheet('ai'),
+          ),
           EditorToolbarItem(
             id: 'split',
             title: 'Split',

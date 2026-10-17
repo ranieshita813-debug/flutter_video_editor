@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/editor_toolbar.dart';
 import 'package:flutter_video_editor/features/editor/widgets/preview.dart';
 import 'package:flutter_video_editor/features/editor/widgets/timeline.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_panel.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/gen.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/editor/widgets/transport.dart';
 import 'package:flutter_video_editor/features/media_picker/pages/media_picker_page.dart';
@@ -39,8 +41,13 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _openSheet(String sheetName) {
+    if (sheetName == 'ai' || sheetName == 'ai_generate') {
+      _openAiGenerateSheet();
+      return;
+    }
     EditorTool? target;
     switch (sheetName) {
+      case 'ai': target = EditorTool.ai; break;
       case 'audio': target = EditorTool.audio; break;
       case 'text': target = EditorTool.text; break;
       case 'stickers': target = EditorTool.stickers; break;
@@ -62,6 +69,45 @@ class _EditorPageState extends State<EditorPage> {
     if (target != null) {
       _open(target);
     }
+  }
+
+  void _openAiGenerateSheet() {
+    tapFeedback();
+    final editor = context.read<EditorController>();
+    showAiGenerateSheet(
+      context,
+      onGenerate: (AiGenerationRequest request) async {
+        final String id = 'ai_${DateTime.now().millisecondsSinceEpoch}';
+        final bool isVideo = request.type == AiMediaType.video;
+        final int durationSec = request.durationSeconds ?? (isVideo ? 5 : 4);
+        final Duration duration = Duration(seconds: durationSec);
+        final Duration start = editor.playhead;
+
+        final TimelineClip newClip = TimelineClip(
+          id: id,
+          label: isVideo ? 'AI Video (${request.modelId})' : 'AI Image (${request.modelId})',
+          start: start,
+          end: start + duration,
+          clipType: isVideo ? ClipType.video : ClipType.image,
+          sourcePath: request.referenceImagePath ?? 'assets/placeholder.png',
+        );
+
+        editor.addClip(newClip);
+        editor.selectClip(newClip.id);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${isVideo ? 'AI Video' : 'AI Image'} added to timeline!',
+                style: const TextStyle(fontFamily: 'Ubuntu'),
+              ),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+    );
   }
 
   void _close() => setState(() => _tool = null);

@@ -12,6 +12,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/element
 
 import 'package:flutter_video_editor/features/editor/widgets/adjustments_sheet.dart';
 
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/gen.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_style_sheet.dart';
@@ -20,6 +21,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_st
 // Inline tools enum
 // ----------------------------------------------------------------------------
 enum EditorTool {
+  ai('AI Generate', PhosphorIconsRegular.sparkle),
   audio('Audio', PhosphorIconsRegular.speakerHigh),
   text('Text', PhosphorIconsRegular.textAa),
   stickers('Stickers', PhosphorIconsRegular.smiley),
@@ -90,6 +92,52 @@ enum EditorTool {
                     editor.setChromaKey(clip.id, k);
                   }
                 },
+              );
+            },
+          ),
+        EditorTool.ai => Builder(
+            builder: (ctx) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    onPressed: () {
+                      final editor = ctx.read<EditorController>();
+                      showAiGenerateSheet(
+                        ctx,
+                        onGenerate: (AiGenerationRequest request) async {
+                          final String id = 'ai_${DateTime.now().millisecondsSinceEpoch}';
+                          final bool isVideo = request.type == AiMediaType.video;
+                          final int durationSec = request.durationSeconds ?? (isVideo ? 5 : 4);
+                          final Duration duration = Duration(seconds: durationSec);
+                          final Duration start = editor.playhead;
+
+                          final TimelineClip newClip = TimelineClip(
+                            id: id,
+                            label: isVideo ? 'AI Video (${request.modelId})' : 'AI Image (${request.modelId})',
+                            start: start,
+                            end: start + duration,
+                            clipType: isVideo ? ClipType.video : ClipType.image,
+                            sourcePath: request.referenceImagePath ?? 'assets/placeholder.png',
+                          );
+
+                          editor.addClip(newClip);
+                          editor.selectClip(newClip.id);
+                        },
+                      );
+                    },
+                    icon: const PhosphorIcon(PhosphorIconsRegular.sparkle, size: 20),
+                    label: const Text(
+                      'Open AI Generator',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Ubuntu Sans'),
+                    ),
+                  ),
+                ),
               );
             },
           ),
