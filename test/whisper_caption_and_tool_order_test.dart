@@ -93,7 +93,7 @@ Second imported caption line
 
   group('TextStyleProperties & Caption Models Unit Tests', () {
     test('TextStyleProperties serializes and deserializes highlight settings', () {
-      final style = const TextStyleProperties(
+      const style = TextStyleProperties(
         fontSize: 32.0,
         highlightColor: Color(0xFF00FF66),
         highlightBackgroundColor: Color(0xFF111111),
@@ -136,7 +136,7 @@ Second imported caption line
 
   group('EditorTool Panel Ordering & Icon Unit Tests', () {
     test('EditorTool.ai is the LAST enum value and uses PhosphorIconsFill.sparkle icon', () {
-      final tools = EditorTool.values;
+      const tools = EditorTool.values;
       final lastTool = tools.last;
 
       expect(lastTool, equals(EditorTool.ai));

@@ -319,7 +319,7 @@ class _CaptionsSheetState extends State<CaptionsSheet> with SingleTickerProvider
           value: style.enableHighlight,
           title: const Text('Word-by-Word Highlight (Karaoke)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
           subtitle: const Text('Highlights active spoken words in real time', style: TextStyle(color: EditorTokens.muted, fontSize: 12)),
-          activeColor: EditorTokens.accent,
+          activeThumbColor: EditorTokens.accent,
           onChanged: (val) {
             final updated = style.copyWith(enableHighlight: val);
             editor.updateSelectedClipTextStyle(updated);

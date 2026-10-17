@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 
@@ -143,7 +142,7 @@ class WhisperService {
     } else if (json['text'] != null && (json['text'] as String).trim().isNotEmpty) {
       final text = (json['text'] as String).trim();
       final totalSec = (json['duration'] as num?)?.toDouble() ?? 5.0;
-      final start = Duration.zero;
+      const start = Duration.zero;
       final end = Duration(milliseconds: (totalSec * 1000).round());
       cues.add(CaptionCue(
         id: 'whisper_cue_1_${DateTime.now().millisecondsSinceEpoch}',
