@@ -35,6 +35,19 @@ T? _kfFind<T>(Iterable<T> items, bool Function(T) test) {
   return null;
 }
 
+double _kfEval(double t, CurveType type) {
+  switch (type) {
+    case CurveType.linear:
+      return t;
+    case CurveType.easeIn:
+      return t * t;
+    case CurveType.easeOut:
+      return t * (2 - t);
+    case CurveType.cubicBezier:
+      return Curves.easeInOutCubic.transform(t.clamp(0.0, 1.0));
+  }
+}
+
 class _CurveOption {
   const _CurveOption(this.label, this.curveType);
   final String label;
@@ -45,7 +58,7 @@ const List<_CurveOption> _kfOptions = <_CurveOption>[
   _CurveOption('Linear', CurveType.linear),
   _CurveOption('Ease in', CurveType.easeIn),
   _CurveOption('Ease out', CurveType.easeOut),
-  _CurveOption('Cubic Bezier', CurveType.cubicBezier),
+  _CurveOption('Bezier', CurveType.cubicBezier),
 ];
 
 // ----------------------------------------------------------------------------
@@ -122,11 +135,11 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
       color: _kfBg,
       child: ListView(
         physics: (_lockScroll && selected != null) ? const NeverScrollableScrollPhysics() : null,
-        padding: EdgeInsets.fromLTRB(12, 12, 12, 16 + MediaQuery.paddingOf(context).bottom),
+        padding: EdgeInsets.fromLTRB(0, 4, 0, 12 + MediaQuery.paddingOf(context).bottom),
         children: <Widget>[
-          // ---- prev / diamond / next / timecode / delete --------------------
-          _KfCard(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          // ---- toolbar: prev / diamond / next | timecode | delete -----------
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: <Widget>[
                 _KfAction(
@@ -135,7 +148,9 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                   onTap: clip == null ? null : prev,
                 ),
                 _KfAction(
-                  icon: atHead != null ? PhosphorIcons.diamond(PhosphorIconsStyle.fill) : PhosphorIconsRegular.diamond,
+                  icon: atHead != null
+                      ? PhosphorIcons.diamond(PhosphorIconsStyle.fill)
+                      : PhosphorIconsRegular.diamond,
                   tooltip: atHead != null ? 'Remove keyframe' : 'Add keyframe',
                   active: atHead != null,
                   onTap: clip == null ? null : toggle,
@@ -170,15 +185,14 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
               ],
             ),
           ),
+          const Divider(height: 1, thickness: 0.5, color: _kfLine),
 
-          // ---- Track ---------------------------------------------------------
-          const SizedBox(height: 10),
+          // ---- track ---------------------------------------------------------
           if (clip == null)
             const _KfHint('Select a clip to animate it.')
-          else if (all.isEmpty)
-            const _KfHint('No keyframes yet. Move the playhead and tap the diamond.')
-          else
-            _KfCard(
+          else ...<Widget>[
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
               child: _KfTrack(
                 keys: all,
                 selectedId: selected?.id,
@@ -195,75 +209,76 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                 },
               ),
             ),
+            if (all.isEmpty)
+              const _KfHint('No keyframes yet. Move the playhead and tap the diamond.'),
+          ],
 
-          // ---- Curve type tiles & CapCut Curve Graph (when selected) ------------
+          // ---- curve editor (when a keyframe is selected) -------------------
           if (selected != null) ...<Widget>[
+            const SizedBox(height: 14),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Curve',
+                style: TextStyle(color: _kfText, fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: _KfCard(
+                child: SizedBox(
+                  height: 160,
+                  width: double.infinity,
+                  child: CustomPaint(
+                    painter: _CurveGraphPainter(curveType: selected.curveType),
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
-            _KfCard(
-              child: Column(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
-                    child: Text(
-                      'ANIMATION GRAPH / CURVE',
-                      style: TextStyle(
-                        color: _kfMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.1,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: <Widget>[
+                  for (int i = 0; i < _kfOptions.length; i++) ...<Widget>[
+                    SizedBox(
+                      width: 56,
+                      child: _CurveTile(
+                        option: _kfOptions[i],
+                        on: _kfOptions[i].curveType == selected.curveType,
+                        onTap: () => pick(selected, _kfOptions[i]),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  SizedBox(
-                    height: 120,
-                    width: double.infinity,
-                    child: CustomPaint(
-                      painter: _CurveGraphPainter(curveType: selected.curveType),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  GridView.count(
-                    crossAxisCount: 4,
-                    mainAxisSpacing: 6,
-                    crossAxisSpacing: 6,
-                    childAspectRatio: 1.5,
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: <Widget>[
-                      for (final _CurveOption o in _kfOptions)
-                        _CurveTile(
-                          option: o,
-                          on: o.curveType == selected.curveType,
-                          onTap: () => pick(selected, o),
-                        ),
-                    ],
-                  ),
+                  ],
                 ],
               ),
             ),
           ] else if (all.isNotEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 12),
-              child: _KfHint('Tap a diamond to edit its curve.'),
-            ),
+            const _KfHint('Tap a diamond to edit its curve.'),
 
-          const SizedBox(height: 16),
-          _kfOutlineButton(
-            'Clear all keyframes',
-            all.isEmpty
-                ? null
-                : () {
-                    for (final Keyframe k in all) {
-                      editor.removeKeyframe(k.id);
-                    }
-                    setState(() {
-                      _selId = null;
-                      _lockScroll = false;
-                    });
-                  },
-          ),
+          // ---- clear ---------------------------------------------------------
+          if (all.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 8),
+            Center(
+              child: TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: _kfMuted),
+                onPressed: () {
+                  tapFeedback();
+                  for (final Keyframe k in all) {
+                    editor.removeKeyframe(k.id);
+                  }
+                  setState(() {
+                    _selId = null;
+                    _lockScroll = false;
+                  });
+                },
+                icon: const Icon(PhosphorIconsRegular.trash, size: 16),
+                label: const Text('Clear all keyframes', style: TextStyle(fontSize: 12)),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -274,17 +289,15 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
 // Small widgets
 // ----------------------------------------------------------------------------
 class _KfCard extends StatelessWidget {
-  const _KfCard({required this.child, this.padding = const EdgeInsets.all(6)});
+  const _KfCard({required this.child});
   final Widget child;
-  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: padding,
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: _kfCard,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _kfLine),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: child,
       );
@@ -296,33 +309,14 @@ class _KfHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: const TextStyle(color: _kfMuted, fontSize: 13),
+          style: const TextStyle(color: _kfMuted, fontSize: 12),
         ),
       );
 }
-
-Widget _kfOutlineButton(String label, VoidCallback? onTap) => SizedBox(
-      height: 44,
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: _kfText,
-          disabledForegroundColor: _kfDim,
-          side: BorderSide(color: onTap == null ? _kfLine : _kfLineHi),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        onPressed: onTap == null
-            ? null
-            : () {
-                tapFeedback();
-                onTap();
-              },
-        child: Text(label),
-      ),
-    );
 
 class _KfAction extends StatelessWidget {
   const _KfAction({
@@ -350,14 +344,14 @@ class _KfAction extends StatelessWidget {
                 onTap!();
               },
         child: Container(
-          width: 44,
-          height: 44,
+          width: 42,
+          height: 42,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: active ? _kfText : Colors.transparent,
           ),
-          child: Icon(icon, size: 22, color: fg),
+          child: Icon(icon, size: 21, color: fg),
         ),
       ),
     );
@@ -372,37 +366,79 @@ class _CurveTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius r = BorderRadius.circular(10);
-    return Material(
-      color: on ? _kfText : _kfCard,
-      borderRadius: r,
-      child: InkWell(
-        borderRadius: r,
-        onTap: onTap,
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: r,
-            border: Border.all(color: on ? _kfText : _kfLine),
+    final BorderRadius r = BorderRadius.circular(8);
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        children: <Widget>[
+          AspectRatio(
+            aspectRatio: 1,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              decoration: BoxDecoration(
+                color: _kfCard,
+                borderRadius: r,
+                border: Border.all(color: on ? _kfText : Colors.transparent, width: 2),
+              ),
+              padding: const EdgeInsets.all(12),
+              child: CustomPaint(
+                painter: _CurveThumbPainter(curveType: option.curveType, on: on),
+              ),
+            ),
           ),
-          child: Text(
+          const SizedBox(height: 5),
+          Text(
             option.label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: on ? _kfBg : _kfMuted,
+              color: on ? _kfText : _kfMuted,
               fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontWeight: on ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 }
 
+class _CurveThumbPainter extends CustomPainter {
+  _CurveThumbPainter({required this.curveType, required this.on});
+  final CurveType curveType;
+  final bool on;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Path p = Path();
+    const int steps = 24;
+    for (int i = 0; i <= steps; i++) {
+      final double t = i / steps;
+      final double x = t * size.width;
+      final double y = size.height - _kfEval(t, curveType) * size.height;
+      if (i == 0) {
+        p.moveTo(x, y);
+      } else {
+        p.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(
+      p,
+      Paint()
+        ..color = on ? _kfText : _kfMuted
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurveThumbPainter o) => o.curveType != curveType || o.on != on;
+}
+
 // ----------------------------------------------------------------------------
-// Track (single lane)
+// Track: ruler + single lane
 // ----------------------------------------------------------------------------
 class _KfTrack extends StatelessWidget {
   const _KfTrack({
@@ -421,8 +457,8 @@ class _KfTrack extends StatelessWidget {
   final ValueChanged<double> onSeek;
   final ValueChanged<Keyframe?> onSelect;
 
-  static const double _pad = 16;
-  static const double _h = 56;
+  static const double _pad = 20;
+  static const double _h = 72;
 
   @override
   Widget build(BuildContext context) {
@@ -458,6 +494,7 @@ class _KfTrack extends StatelessWidget {
           painter: _TrackPainter(
             keys: keys,
             selectedId: selectedId,
+            total: total,
             xOf: xOf,
             playheadX: xOf(playhead.clamp(0.0, total).toDouble()),
           ),
@@ -471,25 +508,59 @@ class _TrackPainter extends CustomPainter {
   _TrackPainter({
     required this.keys,
     required this.selectedId,
+    required this.total,
     required this.xOf,
     required this.playheadX,
   });
 
   final List<Keyframe> keys;
   final Object? selectedId;
+  final double total;
   final double Function(double) xOf;
   final double playheadX;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double cy = size.height / 2;
+    const double rulerH = 22;
+    final double cy = rulerH + (size.height - rulerH) / 2;
 
+    // ruler ticks + labels
+    const List<double> steps = <double>[0.5, 1, 2, 5, 10, 30, 60];
+    double step = steps.last;
+    for (final double s in steps) {
+      if ((xOf(s) - xOf(0)) >= 48) {
+        step = s;
+        break;
+      }
+    }
+    final Paint tick = Paint()
+      ..color = _kfDim
+      ..strokeWidth = 1;
+    for (double t = 0; t <= total + 0.0001; t += step) {
+      final double x = xOf(t);
+      canvas.drawLine(Offset(x, rulerH - 6), Offset(x, rulerH - 1), tick);
+      final TextPainter tp = TextPainter(
+        text: TextSpan(
+          text: step < 1 ? '${t.toStringAsFixed(1)}s' : '${t.toInt()}s',
+          style: const TextStyle(color: _kfMuted, fontSize: 9.5),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(x - tp.width / 2, 0));
+      final double mid = xOf(t + step / 2);
+      if (t + step / 2 <= total) {
+        canvas.drawLine(Offset(mid, rulerH - 4), Offset(mid, rulerH - 1), tick);
+      }
+    }
+
+    // lane
     canvas.drawLine(
-      Offset(16, cy),
-      Offset(size.width - 16, cy),
+      Offset(xOf(0), cy),
+      Offset(xOf(total), cy),
       Paint()
-        ..color = _kfLineHi
-        ..strokeWidth = 2,
+        ..color = _kfLine
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round,
     );
 
     final Paint seg = Paint()
@@ -522,11 +593,12 @@ class _TrackPainter extends CustomPainter {
       );
     }
 
+    // playhead
     final Paint ph = Paint()
       ..color = _kfText
-      ..strokeWidth = 2;
-    canvas.drawLine(Offset(playheadX, 6), Offset(playheadX, size.height - 4), ph);
-    canvas.drawCircle(Offset(playheadX, 6), 3.5, ph);
+      ..strokeWidth = 1.5;
+    canvas.drawLine(Offset(playheadX, 4), Offset(playheadX, size.height), ph);
+    canvas.drawCircle(Offset(playheadX, 4), 3.5, ph);
   }
 
   @override
@@ -534,7 +606,7 @@ class _TrackPainter extends CustomPainter {
 }
 
 // ----------------------------------------------------------------------------
-// Curve Graph Painter (CapCut Velocity / Curve Visualization)
+// Curve graph
 // ----------------------------------------------------------------------------
 class _CurveGraphPainter extends CustomPainter {
   _CurveGraphPainter({required this.curveType});
@@ -546,32 +618,23 @@ class _CurveGraphPainter extends CustomPainter {
     final double h = size.height;
     const double pad = 16.0;
 
-    // Grid lines
     final Paint gridPaint = Paint()
       ..color = _kfLine
-      ..strokeWidth = 1.0;
+      ..strokeWidth = 0.8;
 
-    for (int i = 1; i <= 3; i++) {
+    for (int i = 0; i <= 4; i++) {
       final double x = pad + (w - 2 * pad) * (i / 4);
       final double y = pad + (h - 2 * pad) * (i / 4);
       canvas.drawLine(Offset(x, pad), Offset(x, h - pad), gridPaint);
       canvas.drawLine(Offset(pad, y), Offset(w - pad, y), gridPaint);
     }
 
-    // Outer border
-    final Rect rect = Rect.fromLTRB(pad, pad, w - pad, h - pad);
-    canvas.drawRect(rect, gridPaint);
-
-    // Curve Path
     final Path curvePath = Path();
-    curvePath.moveTo(pad, h - pad);
-
     const int steps = 50;
     for (int i = 0; i <= steps; i++) {
       final double t = i / steps;
-      final double val = _evaluateCurve(t, curveType);
       final double px = pad + t * (w - 2 * pad);
-      final double py = (h - pad) - val * (h - 2 * pad);
+      final double py = (h - pad) - _kfEval(t, curveType) * (h - 2 * pad);
       if (i == 0) {
         curvePath.moveTo(px, py);
       } else {
@@ -579,29 +642,24 @@ class _CurveGraphPainter extends CustomPainter {
       }
     }
 
-    final Paint pathPaint = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
+    final Path fill = Path.from(curvePath)
+      ..lineTo(w - pad, h - pad)
+      ..lineTo(pad, h - pad)
+      ..close();
+    canvas.drawPath(fill, Paint()..color = Colors.white.withValues(alpha: 0.06));
 
-    canvas.drawPath(curvePath, pathPaint);
+    canvas.drawPath(
+      curvePath,
+      Paint()
+        ..color = Colors.white
+        ..strokeWidth = 2.5
+        ..strokeCap = StrokeCap.round
+        ..style = PaintingStyle.stroke,
+    );
 
-    // Keyframe End Points
-    final Paint pointPaint = Paint()..color = Colors.white;
-    canvas.drawCircle(Offset(pad, h - pad), 4.0, pointPaint);
-    canvas.drawCircle(Offset(w - pad, pad), 4.0, pointPaint);
-  }
-
-  double _evaluateCurve(double t, CurveType type) {
-    switch (type) {
-      case CurveType.linear:
-        return t;
-      case CurveType.easeIn:
-        return t * t;
-      case CurveType.easeOut:
-        return t * (2 - t);
-      case CurveType.cubicBezier:
-        return Curves.easeInOutCubic.transform(t.clamp(0.0, 1.0));
+    for (final Offset o in <Offset>[Offset(pad, h - pad), Offset(w - pad, pad)]) {
+      canvas.drawCircle(o, 6, Paint()..color = _kfBg);
+      canvas.drawCircle(o, 4.5, Paint()..color = Colors.white);
     }
   }
 
