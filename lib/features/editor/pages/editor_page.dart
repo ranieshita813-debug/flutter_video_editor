@@ -65,6 +65,7 @@ class _EditorPageState extends State<EditorPage> {
       case 'animation': target = EditorTool.animation; break;
       case 'order': target = EditorTool.order; break;
       case 'chroma_key': target = EditorTool.chromaKey; break;
+      case 'captions': target = EditorTool.captions; break;
     }
     if (target != null) {
       _open(target);

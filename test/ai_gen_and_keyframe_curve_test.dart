@@ -101,6 +101,13 @@ void main() {
         ),
       );
 
+      await tester.scrollUntilVisible(
+        find.text('AI Generate'),
+        200.0,
+        scrollable: find.byType(Scrollable),
+      );
+      await tester.pumpAndSettle();
+
       expect(find.text('AI Generate'), findsOneWidget);
     });
 

@@ -93,12 +93,6 @@ class EditorToolbar extends StatelessWidget {
       // Common Global Tools (No clip selected)
       return [
         EditorToolbarItem(
-          id: 'ai_generate',
-          title: 'AI Generate',
-          icon: PhosphorIconsRegular.sparkle,
-          onTap: () => onSelectToolSheet('ai'),
-        ),
-        EditorToolbarItem(
           id: 'add_media',
           title: 'Add Media',
           icon: PhosphorIconsRegular.plus,
@@ -168,13 +162,19 @@ class EditorToolbar extends StatelessWidget {
           id: 'auto_captions',
           title: 'Auto captions',
           icon: PhosphorIconsRegular.closedCaptioning,
-          onTap: () => editor.generateAutoCaptions(),
+          onTap: () => onSelectToolSheet('captions'),
         ),
         EditorToolbarItem(
           id: 'track',
           title: 'Track',
           icon: PhosphorIconsRegular.crosshair,
           onTap: () => onSelectToolSheet('track'),
+        ),
+        EditorToolbarItem(
+          id: 'ai_generate',
+          title: 'AI Generate',
+          icon: PhosphorIconsFill.sparkle,
+          onTap: () => onSelectToolSheet('ai'),
         ),
       ];
     }
@@ -185,12 +185,6 @@ class EditorToolbar extends StatelessWidget {
       case ClipType.image:
         final bool isOverlay = clip.layerIndex > 0;
         return [
-          EditorToolbarItem(
-            id: 'ai_generate',
-            title: 'AI Generate',
-            icon: PhosphorIconsRegular.sparkle,
-            onTap: () => onSelectToolSheet('ai'),
-          ),
           EditorToolbarItem(
             id: 'split',
             title: 'Split',
@@ -264,6 +258,12 @@ class EditorToolbar extends StatelessWidget {
             icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
+          EditorToolbarItem(
+            id: 'ai_generate',
+            title: 'AI Generate',
+            icon: PhosphorIconsFill.sparkle,
+            onTap: () => onSelectToolSheet('ai'),
+          ),
         ];
 
       case ClipType.text:
@@ -305,6 +305,12 @@ class EditorToolbar extends StatelessWidget {
             icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
+          EditorToolbarItem(
+            id: 'ai_generate',
+            title: 'AI Generate',
+            icon: PhosphorIconsFill.sparkle,
+            onTap: () => onSelectToolSheet('ai'),
+          ),
         ];
 
       case ClipType.audio:
@@ -345,6 +351,12 @@ class EditorToolbar extends StatelessWidget {
             icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
+          EditorToolbarItem(
+            id: 'ai_generate',
+            title: 'AI Generate',
+            icon: PhosphorIconsFill.sparkle,
+            onTap: () => onSelectToolSheet('ai'),
+          ),
         ];
 
       default:
@@ -372,6 +384,12 @@ class EditorToolbar extends StatelessWidget {
             title: 'Delete',
             icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
+          ),
+          EditorToolbarItem(
+            id: 'ai_generate',
+            title: 'AI Generate',
+            icon: PhosphorIconsFill.sparkle,
+            onTap: () => onSelectToolSheet('ai'),
           ),
         ];
     }

@@ -1267,18 +1267,30 @@ class _OverlayClipState extends State<_OverlayClip> {
           shadows.add(const Shadow(blurRadius: 4, color: Colors.black, offset: Offset(1, 1)));
         }
 
-        Widget textWidget = Text(
-          clip.label,
-          textAlign: ts.textAlign,
-          style: TextStyle(
-            color: ts.textColor,
-            fontSize: effectiveSize,
-            fontFamily: clip.fontFamily,
-            fontWeight: FontWeight.bold,
-            height: ts.lineHeight,
+        Widget textWidget;
+        final bool isCaption = clip.clipType == ClipType.caption;
+        if (isCaption && ts.enableHighlight) {
+          textWidget = _buildHighlightedCaptionText(
+            clip: clip,
+            playhead: context.read<EditorController>().playhead,
+            effectiveSize: effectiveSize,
             shadows: shadows,
-          ),
-        );
+            u: u,
+          );
+        } else {
+          textWidget = Text(
+            clip.label,
+            textAlign: ts.textAlign,
+            style: TextStyle(
+              color: ts.textColor,
+              fontSize: effectiveSize,
+              fontFamily: clip.fontFamily,
+              fontWeight: FontWeight.bold,
+              height: ts.lineHeight,
+              shadows: shadows,
+            ),
+          );
+        }
 
         if (ts.strokeWidth > 0 && ts.strokeColor != Colors.transparent) {
           textWidget = Stack(
@@ -1366,6 +1378,80 @@ class _OverlayClipState extends State<_OverlayClip> {
       );
     }
     return shape();
+  }
+
+  Widget _buildHighlightedCaptionText({
+    required TimelineClip clip,
+    required Duration playhead,
+    required double effectiveSize,
+    required List<Shadow> shadows,
+    required double u,
+  }) {
+    final ts = clip.textStyle;
+    final text = clip.label.trim();
+    if (text.isEmpty) {
+      return Text('', style: TextStyle(fontSize: effectiveSize));
+    }
+
+    final words = text.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) {
+      return Text(text, style: TextStyle(fontSize: effectiveSize, color: ts.textColor));
+    }
+
+    int activeIndex = -1;
+
+    if (clip.words.isNotEmpty) {
+      for (int i = 0; i < clip.words.length; i++) {
+        final w = clip.words[i];
+        if (playhead >= w.start && playhead <= w.end) {
+          activeIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (activeIndex == -1 && words.isNotEmpty) {
+      final clipDurationMs = clip.duration.inMilliseconds;
+      if (clipDurationMs > 0) {
+        final elapsedMs = (playhead - clip.start).inMilliseconds.clamp(0, clipDurationMs);
+        final fraction = elapsedMs / clipDurationMs;
+        activeIndex = (fraction * words.length).floor().clamp(0, words.length - 1);
+      }
+    }
+
+    final spans = <TextSpan>[];
+    for (int i = 0; i < words.length; i++) {
+      final isWordActive = (i == activeIndex);
+      final wordStr = words[i];
+
+      final Color textColor = isWordActive ? ts.highlightColor : ts.textColor;
+      final Color bg = (isWordActive && ts.highlightBackgroundColor != Colors.transparent)
+          ? ts.highlightBackgroundColor
+          : Colors.transparent;
+      final double fontSize = (isWordActive && ts.highlightStyle == 'scale')
+          ? effectiveSize * 1.15
+          : effectiveSize;
+
+      spans.add(
+        TextSpan(
+          text: wordStr + (i == words.length - 1 ? '' : ' '),
+          style: TextStyle(
+            color: textColor,
+            backgroundColor: bg,
+            fontSize: fontSize,
+            fontFamily: clip.fontFamily,
+            fontWeight: isWordActive ? FontWeight.w900 : FontWeight.bold,
+            height: ts.lineHeight,
+            shadows: shadows,
+          ),
+        ),
+      );
+    }
+
+    return Text.rich(
+      TextSpan(children: spans),
+      textAlign: ts.textAlign,
+    );
   }
 
   Widget _applyAnimations(Widget child, TimelineClip clip) {
