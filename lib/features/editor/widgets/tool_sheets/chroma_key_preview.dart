@@ -1,15 +1,13 @@
 // widgets/chroma_key_preview.dart
 //
-// Wrap your VideoPlayer with this widget in the preview canvas:
-//
 //   ChromaKeyPreview(
 //     chroma: clip.chromaKey,
 //     background: bg,
 //     child: VideoPlayer(controller),
 //   )
 //
-// Requires Impeller (default on iOS and on Android with recent Flutter).
-// On Skia, or if the shader fails to load, the child is shown unkeyed.
+// Requires Impeller. On Skia, or if the shader fails to load, the child is
+// shown unkeyed.
 //
 // pubspec.yaml:
 //   flutter:
@@ -19,6 +17,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
 
 enum ChromaBackground { checker, black, white, gray }
@@ -50,23 +49,35 @@ class _ChromaKeyPreviewState extends State<ChromaKeyPreview> {
     _program ??= ui.FragmentProgram.fromAsset('shaders/chroma_key.frag');
     _program!.then((p) {
       if (mounted) setState(() => _p = p);
-    }).catchError((_) {});
+    }).catchError((_) {
+      // Allow a retry next time (hot reload, etc.).
+      _program = null;
+    });
   }
 
   @override
   void dispose() {
-    _shader?.dispose();
+    _disposeShader(_shader);
     _shader = null;
     super.dispose();
+  }
+
+  // FIX: the previous shader may still be referenced by the frame being
+  // rendered, so dispose it only after the frame has finished.
+  void _disposeShader(ui.FragmentShader? s) {
+    if (s == null) return;
+    SchedulerBinding.instance.addPostFrameCallback((_) => s.dispose());
   }
 
   ui.ImageFilter? _filter(ChromaKey k, Size size) {
     final p = _p;
     if (p == null) return null;
     try {
-      _shader?.dispose();
+      final old = _shader;
       final s = p.fragmentShader();
       _shader = s;
+      _disposeShader(old);
+
       final double width = math.max(1.0, size.width);
       final double height = math.max(1.0, size.height);
       s.setFloat(0, width);
@@ -121,8 +132,7 @@ class _ChromaKeyPreviewState extends State<ChromaKeyPreview> {
         return Stack(
           fit: StackFit.passthrough,
           children: [
-            if (showBg)
-              Positioned.fill(child: _Background(widget.background)),
+            if (showBg) Positioned.fill(child: _Background(widget.background)),
             ImageFiltered(imageFilter: filter, child: widget.child),
           ],
         );
@@ -145,12 +155,14 @@ class _Background extends StatelessWidget {
       case ChromaBackground.gray:
         return const ColoredBox(color: Color(0xFF7F7F7F));
       case ChromaBackground.checker:
-        return CustomPaint(painter: _CheckerPainter());
+        return const RepaintBoundary(child: CustomPaint(painter: _CheckerPainter()));
     }
   }
 }
 
 class _CheckerPainter extends CustomPainter {
+  const _CheckerPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     const s = 12.0;
