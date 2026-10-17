@@ -16,7 +16,7 @@ class CaptionImportService {
       final path = result?.files.single.path;
       if (path == null) return null;
 
-      return parseCaptionFile(path);
+      return await parseCaptionFile(path);
     } catch (e, st) {
       AppLogger.error('[CaptionImportService] Failed to pick caption file', error: e, stackTrace: st);
       return null;
