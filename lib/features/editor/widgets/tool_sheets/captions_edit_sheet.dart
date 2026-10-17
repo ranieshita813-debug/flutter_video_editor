@@ -5,7 +5,7 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
-import 'caption_widgets.dart';
+import 'package:flutter_video_editor/core/widgets/caption_widgets.dart';
 
 /// Sheet 1 of 2: edit caption text and timing. Styling lives in
 /// [CaptionStyleSheet].

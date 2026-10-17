@@ -6,6 +6,7 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 
@@ -845,12 +846,16 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
   Widget _body() {
     if (_perm == _Perm.checking) {
-      return const Center(child: CircularProgressIndicator(color: _accent));
+      return const Center(
+        child: TextShimmerWave('Checking permissions…'),
+      );
     }
     if (_perm == _Perm.denied) return _deniedView();
 
     if (_loading && _assets.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: _accent));
+      return const Center(
+        child: TextShimmerWave('Loading media…'),
+      );
     }
 
     if (_assets.isEmpty) {
@@ -1214,11 +1219,14 @@ class _GradientButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   if (loading)
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: _onAccent),
+                    TextShimmerWave(
+                      'Adding…',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      baseColor: _onAccent.withValues(alpha: 0.5),
+                      waveColor: _onAccent,
                     )
                   else
                     Text(

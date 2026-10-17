@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
+import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 import 'package:flutter_video_editor/core/services/permission_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
@@ -408,10 +409,12 @@ class _ExportModalState extends State<ExportModal> {
             ),
           ),
           const SizedBox(height: 24),
-          Text(stage,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+          TextShimmerWave(
+            stage,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            baseColor: _muted,
+            waveColor: _text,
+          ),
           const SizedBox(height: 4),
           Text(
             '${selectedResolution.label}  ·  $selectedFps fps  ·  ${selectedCodec == 'h264' ? 'H.264' : 'HEVC'}',

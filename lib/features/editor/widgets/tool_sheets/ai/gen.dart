@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
+import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 
 // ───────────────────────── Models ─────────────────────────
 
@@ -614,16 +615,19 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
               ),
               onPressed: _busy ? null : _generate,
               icon: _busy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                  ? const TextShimmerWave(
+                      'Generating…',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Ubuntu'),
+                      baseColor: Colors.black45,
+                      waveColor: Colors.black,
                     )
                   : const PhosphorIcon(PhosphorIconsRegular.sparkle, size: 18),
-              label: Text(
-                _busy ? 'Generating…' : 'Generate · $_credits credits',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Ubuntu'),
-              ),
+              label: _busy
+                  ? const SizedBox.shrink()
+                  : Text(
+                      'Generate · $_credits credits',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Ubuntu'),
+                    ),
             ),
           ),
         ),

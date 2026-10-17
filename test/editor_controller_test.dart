@@ -4,12 +4,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 
+import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_video_editor/core/services/whisper_service.dart';
+
+class MockWhisperService extends WhisperService {
+  @override
+  Future<List<CaptionCue>> transcribeAudio({
+    required String audioFilePath,
+    String model = 'whisper-large-v3',
+    String? language,
+  }) async {
+    return [
+      CaptionCue(
+        id: 'mock_1',
+        start: Duration.zero,
+        end: const Duration(seconds: 4),
+        text: 'Transcribed test caption',
+      ),
+    ];
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(const MethodChannel('plugins.flutter.io/path_provider'), (call) async {
+      return '/tmp';
+    });
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(const MethodChannel('editor/export'), (call) async {
       if (call.method == 'export') {
@@ -168,7 +193,11 @@ void main() {
       expect(controller.selectedClip?.audioProperties.equalizerPreset, equals('Rock'));
     });
 
-    test('Auto Captions generation adds caption clips', () async {
+    test('Auto Captions generation adds caption clips using Whisper pipeline', () async {
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/test_audio.wav');
+      await tempFile.writeAsBytes(<int>[0, 0, 0, 0]);
+
       controller.addClip(
         TimelineClip(
           id: 'c1',
@@ -176,11 +205,14 @@ void main() {
           start: Duration.zero,
           end: const Duration(seconds: 8),
           clipType: ClipType.audio,
+          sourcePath: tempFile.path,
         ),
       );
 
-      await controller.generateAutoCaptions();
+      await controller.generateWhisperCaptions(whisperService: MockWhisperService());
+
       expect(controller.project.captions.isNotEmpty, isTrue);
+      expect(controller.project.captions.first.text, equals('Transcribed test caption'));
       expect(controller.clips.any((c) => c.clipType == ClipType.caption), isTrue);
     });
 

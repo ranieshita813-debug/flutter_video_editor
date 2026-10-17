@@ -26,8 +26,8 @@ class WhisperService {
     final bool fileExists = await file.exists();
 
     if (!fileExists) {
-      AppLogger.warning('[WhisperService] File does not exist at $audioFilePath. Falling back to generated cues.');
-      return _generateFallbackCues(audioFilePath);
+      AppLogger.error('[WhisperService] File does not exist at $audioFilePath.');
+      throw Exception('Audio file not found at $audioFilePath');
     }
 
     try {
@@ -55,11 +55,22 @@ class WhisperService {
         addField('language', language);
       }
 
-      // Add audio file
+      // Add audio/video file
       final fileName = audioFilePath.split(Platform.pathSeparator).last;
+      final ext = fileName.split('.').last.toLowerCase();
+      final contentType = switch (ext) {
+        'mp3' => 'audio/mpeg',
+        'wav' => 'audio/wav',
+        'm4a' || 'mp4' => 'audio/mp4',
+        'aac' => 'audio/aac',
+        'ogg' => 'audio/ogg',
+        'flac' => 'audio/flac',
+        _ => 'application/octet-stream',
+      };
+
       bodyBytes.addAll(utf8.encode('--$boundary\r\n'));
       bodyBytes.addAll(utf8.encode('Content-Disposition: form-data; name="file"; filename="$fileName"\r\n'));
-      bodyBytes.addAll(utf8.encode('Content-Type: audio/wav\r\n\r\n'));
+      bodyBytes.addAll(utf8.encode('Content-Type: $contentType\r\n\r\n'));
 
       final fileBytes = await file.readAsBytes();
       bodyBytes.addAll(fileBytes);
@@ -77,11 +88,11 @@ class WhisperService {
         return parseWhisperVerboseJson(json);
       } else {
         AppLogger.error('[WhisperService] API error (${resp.statusCode}): $responseBody');
-        return _generateFallbackCues(audioFilePath);
+        throw Exception('Whisper API transcription failed (${resp.statusCode}): $responseBody');
       }
     } catch (e, st) {
       AppLogger.error('[WhisperService] Exception transcribing audio', error: e, stackTrace: st);
-      return _generateFallbackCues(audioFilePath);
+      rethrow;
     }
   }
 
@@ -177,22 +188,5 @@ class WhisperService {
       ));
     }
     return result;
-  }
-
-  /// Fallback generator when local audio is unreadable or offline.
-  List<CaptionCue> _generateFallbackCues(String path) {
-    final name = path.split(Platform.pathSeparator).last;
-    final text = 'Transcribed audio from $name';
-    final words = _distributeWordTimings(text, Duration.zero, const Duration(seconds: 4));
-
-    return <CaptionCue>[
-      CaptionCue(
-        id: 'whisper_cue_fb_${DateTime.now().millisecondsSinceEpoch}',
-        start: Duration.zero,
-        end: const Duration(seconds: 4),
-        text: text,
-        words: words,
-      ),
-    ];
   }
 }

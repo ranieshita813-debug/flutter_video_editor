@@ -5,7 +5,7 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
-import 'caption_widgets.dart';
+import 'package:flutter_video_editor/core/widgets/caption_widgets.dart';
 
 /// Sheet 2 of 2: caption styling. Text/timing lives in [CaptionsEditSheet].
 class CaptionStyleSheet extends StatefulWidget {
@@ -57,7 +57,7 @@ class _CaptionStyleSheetState extends State<CaptionStyleSheet> {
 
     // No caption selected -> can only target all captions.
     final all = !hasCaptionSelected || (_scopeAll ?? false);
-    final style = (hasCaptionSelected ? sel?.textStyle : null) ??
+    final style = (hasCaptionSelected ? sel.textStyle : null) ??
         const TextStyleProperties();
 
     return Container(
