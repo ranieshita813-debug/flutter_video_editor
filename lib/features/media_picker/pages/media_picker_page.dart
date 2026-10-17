@@ -573,7 +573,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: Icon(PhosphorIconsRegular.x, color: _text),
+            icon: const Icon(PhosphorIconsRegular.x, color: _text),
             tooltip: 'Close',
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -606,7 +606,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                               ),
                             ),
                             if (_albums.isNotEmpty)
-                              Icon(PhosphorIconsRegular.caretDown,
+                              const Icon(PhosphorIconsRegular.caretDown,
                                   color: _text, size: 20),
                           ],
                         ),
@@ -635,7 +635,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             onPressed: _cycleDensity,
           ),
           IconButton(
-            icon: Icon(PhosphorIconsRegular.folderOpen, color: _text),
+            icon: const Icon(PhosphorIconsRegular.folderOpen, color: _text),
             tooltip: 'Browse files',
             onPressed: _browseFiles,
           ),
@@ -702,7 +702,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       ),
       child: Row(
         children: <Widget>[
-          Icon(PhosphorIconsRegular.info, size: 16, color: _muted),
+          const Icon(PhosphorIconsRegular.info, size: 16, color: _muted),
           const SizedBox(width: 8),
           const Expanded(
             child: Text('Limited access: only selected items are shown.',
@@ -768,7 +768,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                           color: Colors.black.withAlpha(140),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(PhosphorIconsRegular.play,
+                        child: const Icon(PhosphorIconsRegular.play,
                             color: Colors.white, size: 20),
                       ),
                     ),
@@ -868,7 +868,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 color: _surface,
                 shape: BoxShape.circle,
               ),
-              child: Icon(PhosphorIconsRegular.images,
+              child: const Icon(PhosphorIconsRegular.images,
                   size: 38, color: _muted),
             ),
             const SizedBox(height: 14),
@@ -894,7 +894,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(22)),
                 ),
-                icon: Icon(PhosphorIconsRegular.folderOpen, size: 18),
+                icon: const Icon(PhosphorIconsRegular.folderOpen, size: 18),
                 label: const Text('Browse audio files'),
               ),
             ],
@@ -943,7 +943,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 color: _surface,
                 shape: BoxShape.circle,
               ),
-              child: Icon(PhosphorIconsRegular.images,
+              child: const Icon(PhosphorIconsRegular.images,
                   size: 44, color: _accent),
             ),
           ),
@@ -992,7 +992,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             padding: const EdgeInsets.only(right: 12),
             child: Row(
               children: <Widget>[
-                Icon(PhosphorIconsRegular.rows,
+                const Icon(PhosphorIconsRegular.rows,
                     size: 15, color: _muted),
                 const SizedBox(width: 6),
                 const Text('Sequence',
@@ -1082,7 +1082,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                         shape: BoxShape.circle,
                       ),
                       child: Text('${i + 1}',
-                          style: TextStyle(
+                          style: const TextStyle(
                               color: _onAccent,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800)),
@@ -1115,7 +1115,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                           color: Colors.black.withAlpha(190),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(PhosphorIconsRegular.x,
+                        child: const Icon(PhosphorIconsRegular.x,
                             size: 12, color: Colors.white),
                       ),
                     ),
@@ -1219,7 +1219,7 @@ class _GradientButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   if (loading)
-                    SizedBox(
+                    const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(

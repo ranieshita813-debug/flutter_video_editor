@@ -66,7 +66,7 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
           ),
           child: Row(
             children: [
-              PhosphorIcon(
+              const PhosphorIcon(
                 PhosphorIconsRegular.magnifyingGlass,
                 color: EditorTokens.muted,
                 size: 14.0,
@@ -101,7 +101,7 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
                     widget.onSearchChanged('');
                     setState(() {});
                   },
-                  child: PhosphorIcon(
+                  child: const PhosphorIcon(
                     PhosphorIconsRegular.x,
                     color: EditorTokens.muted,
                     size: 14.0,

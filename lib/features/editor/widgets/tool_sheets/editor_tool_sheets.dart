@@ -84,7 +84,7 @@ class _SheetHeader extends StatelessWidget {
               tapFeedback();
               onClose();
             },
-            icon: Icon(PhosphorIconsRegular.x, color: Colors.white, size: 22),
+            icon: const Icon(PhosphorIconsRegular.x, color: Colors.white, size: 22),
           ),
           Expanded(
             child: Text(
@@ -99,7 +99,7 @@ class _SheetHeader extends StatelessWidget {
               tapFeedback();
               onApply();
             },
-            icon: Icon(PhosphorIconsRegular.check, color: accentToken, size: 24),
+            icon: const Icon(PhosphorIconsRegular.check, color: accentToken, size: 24),
           ),
         ],
       ),
@@ -260,7 +260,7 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _EmptyHint extends StatelessWidget {
-  _EmptyHint({required this.text, this.icon = PhosphorIconsRegular.handPointing});
+  const _EmptyHint({required this.text, this.icon = PhosphorIconsRegular.handPointing});
   final String text;
   final PhosphorIconData icon;
 
@@ -570,7 +570,7 @@ class _ThumbTile extends StatelessWidget {
                         width: 16,
                         height: 16,
                         decoration: const BoxDecoration(color: accentToken, shape: BoxShape.circle),
-                        child: PhosphorIcon(PhosphorIconsRegular.check, size: 10, color: Colors.black),
+                        child: const PhosphorIcon(PhosphorIconsRegular.check, size: 10, color: Colors.black),
                       ),
                     ),
                 ],
@@ -739,7 +739,7 @@ class AudioToolsSheet extends StatelessWidget {
           _outlineBtn('Extract audio from video', editor.extractAudioFromSelectedClip),
         ],
         if (!hasAudio)
-          _EmptyHint(text: 'Select an audio or video clip to adjust its sound.')
+          const _EmptyHint(text: 'Select an audio or video clip to adjust its sound.')
         else ...<Widget>[
           const _SectionLabel('Levels'),
           _Card(
@@ -1006,7 +1006,7 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               suffixIcon: IconButton(
                 tooltip: 'Clear text',
-                icon: Icon(PhosphorIconsRegular.xCircle, color: mutedToken, size: 18),
+                icon: const Icon(PhosphorIconsRegular.xCircle, color: mutedToken, size: 18),
                 onPressed: () {
                   _ctrl.clear();
                   if (editing) {
@@ -1182,7 +1182,7 @@ class ColorGradingSheet extends StatelessWidget {
     return ListView(
       padding: _listPad(context),
       children: <Widget>[
-        if (!hasClip) _EmptyHint(text: 'Select a clip to grade its color.'),
+        if (!hasClip) const _EmptyHint(text: 'Select a clip to grade its color.'),
         _Card(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
           child: Column(
@@ -1344,7 +1344,7 @@ class CropSheet extends StatelessWidget {
             onChanged: hasClip ? (v) => editor.updateTranslation(scale: v) : null,
           ),
         ),
-        if (!hasClip) _EmptyHint(text: 'Select a clip to zoom it.'),
+        if (!hasClip) const _EmptyHint(text: 'Select a clip to zoom it.'),
       ],
     );
   }
@@ -1450,7 +1450,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
                           border: Border.all(color: _color == c ? Colors.white : Colors.transparent, width: 2),
                         ),
                         child: _color == c
-                            ? PhosphorIcon(PhosphorIconsRegular.check, size: 14, color: Colors.black)
+                            ? const PhosphorIcon(PhosphorIconsRegular.check, size: 14, color: Colors.black)
                             : null,
                       ),
                     ),
@@ -1548,7 +1548,7 @@ class CameraSettingsSheet extends StatelessWidget {
     return ListView(
       padding: _listPad(context),
       children: <Widget>[
-        if (selectedClip == null) _EmptyHint(text: 'Select a clip to change its camera.'),
+        if (selectedClip == null) const _EmptyHint(text: 'Select a clip to change its camera.'),
         _Card(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
           child: _SliderRow(
@@ -1610,7 +1610,7 @@ class CameraTrackingPanel extends StatelessWidget {
                     rect: const Rect.fromLTWH(0.2, 0.2, 0.6, 0.6),
                   )),
         ),
-        if (selectedClip == null) _EmptyHint(text: 'Select a clip to track a subject.'),
+        if (selectedClip == null) const _EmptyHint(text: 'Select a clip to track a subject.'),
       ],
     );
   }
@@ -1627,7 +1627,7 @@ class PluginsSheet extends StatelessWidget {
     final plugins = PluginManager().activePlugins;
 
     if (plugins.isEmpty) {
-      return Center(child: _EmptyHint(icon: PhosphorIconsRegular.plug, text: 'No active plug-ins.'));
+      return const Center(child: _EmptyHint(icon: PhosphorIconsRegular.plug, text: 'No active plug-ins.'));
     }
 
     return ListView.builder(

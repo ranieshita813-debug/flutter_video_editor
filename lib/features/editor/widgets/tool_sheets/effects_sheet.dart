@@ -71,7 +71,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
           ),
           child: Row(
             children: [
-              PhosphorIcon(
+              const PhosphorIcon(
                 PhosphorIconsRegular.magicWand,
                 color: EditorTokens.text,
                 size: 16,
@@ -108,7 +108,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
                 onPressed: () => _openEffectsLibrary(context, editor),
-                icon: PhosphorIcon(
+                icon: const PhosphorIcon(
                   PhosphorIconsRegular.plus,
                   color: EditorTokens.bg,
                   size: 12,

@@ -224,7 +224,7 @@ class _ExportModalState extends State<ExportModal> {
             height: 54,
             decoration:
                 BoxDecoration(color: _track, borderRadius: BorderRadius.circular(10)),
-            child: Icon(Icons.movie_creation_outlined, color: _muted),
+            child: const Icon(Icons.movie_creation_outlined, color: _muted),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -277,7 +277,7 @@ class _ExportModalState extends State<ExportModal> {
             elevation: 0,
             shape: _pill,
           ),
-          icon: Icon(Icons.ios_share_rounded, size: 20),
+          icon: const Icon(Icons.ios_share_rounded, size: 20),
           label: const Text('Export',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           onPressed: () async {
@@ -327,7 +327,7 @@ class _ExportModalState extends State<ExportModal> {
                   color: state == 0 ? _track : Colors.black, width: state == 1 ? 2 : 1.5),
             ),
             child: state == 2
-                ? Icon(PhosphorIconsRegular.check, size: 16, color: Colors.white)
+                ? const Icon(PhosphorIconsRegular.check, size: 16, color: Colors.white)
                 : state == 1
                     ? const Center(
                         child: SizedBox(
@@ -440,7 +440,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(50),
               shape: _pill,
             ),
-            icon: Icon(PhosphorIconsRegular.x, size: 18),
+            icon: const Icon(PhosphorIconsRegular.x, size: 18),
             label: const Text('Cancel export'),
             onPressed: () => exportCtrl?.cancelExport(),
           ),
@@ -485,7 +485,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(52),
               shape: _pill,
             ),
-            icon: Icon(Icons.share_rounded, size: 18),
+            icon: const Icon(Icons.share_rounded, size: 18),
             label: const Text('Share video', style: TextStyle(fontWeight: FontWeight.w700)),
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Share option ready')),
@@ -499,7 +499,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(52),
               shape: _pill,
             ),
-            icon: Icon(Icons.save_alt_rounded, size: 18),
+            icon: const Icon(Icons.save_alt_rounded, size: 18),
             label: const Text('Save to gallery'),
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Video saved to device gallery')),

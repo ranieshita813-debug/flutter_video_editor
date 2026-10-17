@@ -40,7 +40,7 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: EditorTokens.bg,
         elevation: 0,
         leading: IconButton(
-          icon: PhosphorIcon(
+          icon: const PhosphorIcon(
             PhosphorIconsRegular.arrowLeft,
             color: EditorTokens.text,
             size: 18,
@@ -156,7 +156,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 children: <Widget>[
                   ListTile(
-                    leading: PhosphorIcon(
+                    leading: const PhosphorIcon(
                       PhosphorIconsRegular.filmStrip,
                       color: EditorTokens.text,
                       size: 18,
@@ -169,7 +169,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       value: _resolution,
                       dropdownColor: EditorTokens.elevated,
                       underline: const SizedBox.shrink(),
-                      icon: PhosphorIcon(
+                      icon: const PhosphorIcon(
                         PhosphorIconsRegular.caretDown,
                         color: EditorTokens.muted,
                         size: 14,
@@ -193,7 +193,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const Divider(height: 1, color: EditorTokens.border),
                   ListTile(
-                    leading: PhosphorIcon(
+                    leading: const PhosphorIcon(
                       PhosphorIconsRegular.play,
                       color: EditorTokens.text,
                       size: 18,
@@ -206,7 +206,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       value: _frameRate,
                       dropdownColor: EditorTokens.elevated,
                       underline: const SizedBox.shrink(),
-                      icon: PhosphorIcon(
+                      icon: const PhosphorIcon(
                         PhosphorIconsRegular.caretDown,
                         color: EditorTokens.muted,
                         size: 14,
@@ -227,7 +227,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const Divider(height: 1, color: EditorTokens.border),
                   ListTile(
-                    leading: PhosphorIcon(
+                    leading: const PhosphorIcon(
                       PhosphorIconsRegular.folder,
                       color: EditorTokens.text,
                       size: 18,
@@ -266,7 +266,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _hardwareAcceleration,
                     activeThumbColor: Colors.black,
                     activeTrackColor: EditorTokens.accent,
-                    secondary: PhosphorIcon(
+                    secondary: const PhosphorIcon(
                       PhosphorIconsRegular.cpu,
                       color: EditorTokens.text,
                       size: 18,
@@ -282,7 +282,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _autoSave,
                     activeThumbColor: Colors.black,
                     activeTrackColor: EditorTokens.accent,
-                    secondary: PhosphorIcon(
+                    secondary: const PhosphorIcon(
                       PhosphorIconsRegular.floppyDisk,
                       color: EditorTokens.text,
                       size: 18,
@@ -318,27 +318,27 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               child: Column(
                 children: <Widget>[
-                  ListTile(
+                  const ListTile(
                     leading: PhosphorIcon(
                       PhosphorIconsRegular.info,
                       color: EditorTokens.text,
                       size: 18,
                     ),
-                    title: const Text('App Version',
+                    title: Text('App Version',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
-                    trailing: const Text('1.0.0 (v1)',
+                    trailing: Text('1.0.0 (v1)',
                         style: TextStyle(color: EditorTokens.muted, fontSize: 13)),
                   ),
                   const Divider(height: 1, color: EditorTokens.border),
                   ListTile(
-                    leading: PhosphorIcon(
+                    leading: const PhosphorIcon(
                       PhosphorIconsRegular.shieldCheck,
                       color: EditorTokens.text,
                       size: 18,
                     ),
                     title: const Text('Privacy Policy',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
-                    trailing: PhosphorIcon(
+                    trailing: const PhosphorIcon(
                       PhosphorIconsRegular.caretRight,
                       color: EditorTokens.muted,
                       size: 14,

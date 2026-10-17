@@ -292,7 +292,7 @@ class _ColorGradeSheetState extends State<ColorGradeSheet> {
           children: <Widget>[
             IconButton(
               tooltip: 'Cancel',
-              icon: Icon(PhosphorIconsRegular.x, color: _text),
+              icon: const Icon(PhosphorIconsRegular.x, color: _text),
               onPressed: _cancel,
             ),
             // Press and hold to preview the original.
@@ -397,7 +397,7 @@ class _ColorGradeSheetState extends State<ColorGradeSheet> {
                           ),
                   ),
                   child: look == null
-                      ? Icon(Icons.block_rounded, color: _muted, size: 20)
+                      ? const Icon(Icons.block_rounded, color: _muted, size: 20)
                       : null,
                 ),
                 const SizedBox(height: 5),

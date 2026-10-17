@@ -374,7 +374,7 @@ class _AdjustSheetState extends State<AdjustSheet> {
           children: <Widget>[
             IconButton(
               tooltip: 'Cancel',
-              icon: Icon(PhosphorIconsRegular.x, color: _text),
+              icon: const Icon(PhosphorIconsRegular.x, color: _text),
               onPressed: _cancel,
             ),
             // Press and hold to preview the original.

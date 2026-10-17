@@ -587,7 +587,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
             const SizedBox(height: 14),
             OutlinedButton.icon(
               onPressed: _importing ? null : () => _import(editor),
-              icon: Icon(PhosphorIconsRegular.uploadSimple, size: 18),
+              icon: const Icon(PhosphorIconsRegular.uploadSimple, size: 18),
               label: const Text('Import font'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _accent,
@@ -628,7 +628,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: _accent),
                   )
                 else
-                  Icon(PhosphorIconsRegular.filePlus, size: 22, color: _accent),
+                  const Icon(PhosphorIconsRegular.filePlus, size: 22, color: _accent),
                 const SizedBox(height: 6),
                 const Text('Import',
                     style: TextStyle(
@@ -827,7 +827,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
               ListTile(
                 tileColor: _field,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                leading: PhosphorIcon(PhosphorIconsRegular.scissors, color: _accent, size: 18),
+                leading: const PhosphorIcon(PhosphorIconsRegular.scissors, color: _accent, size: 18),
                 title: const Text('Split Caption', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Ubuntu')),
                 subtitle: const Text('Split subtitle at current playhead', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Ubuntu')),
                 onTap: () {
@@ -839,7 +839,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
               ListTile(
                 tileColor: _field,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                leading: PhosphorIcon(PhosphorIconsRegular.squaresFour, color: _accent, size: 18),
+                leading: const PhosphorIcon(PhosphorIconsRegular.squaresFour, color: _accent, size: 18),
                 title: const Text('Merge Next Subtitle', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Ubuntu')),
                 subtitle: const Text('Combine this caption with the next one', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Ubuntu')),
                 onTap: () {
@@ -851,7 +851,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
               ListTile(
                 tileColor: _field,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                leading: PhosphorIcon(PhosphorIconsRegular.closedCaptioning, color: _accent, size: 18),
+                leading: const PhosphorIcon(PhosphorIconsRegular.closedCaptioning, color: _accent, size: 18),
                 title: const Text('Regenerate Auto Captions', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Ubuntu')),
                 subtitle: const Text('Re-align captions for all media clips', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Ubuntu')),
                 onTap: () {

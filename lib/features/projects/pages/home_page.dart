@@ -101,7 +101,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const Divider(height: 1, color: EditorTokens.border),
             ListTile(
-              leading: PhosphorIcon(
+              leading: const PhosphorIcon(
                 PhosphorIconsRegular.pencilSimple,
                 color: EditorTokens.text,
                 size: 18,
@@ -113,7 +113,7 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
-              leading: PhosphorIcon(
+              leading: const PhosphorIcon(
                 PhosphorIconsRegular.copy,
                 color: EditorTokens.text,
                 size: 18,
@@ -125,7 +125,7 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
-              leading: PhosphorIcon(
+              leading: const PhosphorIcon(
                 PhosphorIconsRegular.trash,
                 color: Colors.redAccent,
                 size: 18,
@@ -376,7 +376,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   onPressed: () => _createNewProject(context),
-                  icon: PhosphorIcon(
+                  icon: const PhosphorIcon(
                     PhosphorIconsRegular.plus,
                     color: Colors.black,
                     size: 20,
@@ -487,7 +487,7 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             tooltip: 'Settings',
             onPressed: () => _openSettings(context),
-            icon: PhosphorIcon(
+            icon: const PhosphorIcon(
               PhosphorIconsRegular.gear,
               color: Colors.black,
               size: 20,
@@ -506,7 +506,7 @@ class _HomePageState extends State<HomePage> {
         height: 54,
         child: ElevatedButton.icon(
           onPressed: () => _createNewProject(context),
-          icon: PhosphorIcon(
+          icon: const PhosphorIcon(
             PhosphorIconsRegular.plus,
             color: Colors.white,
             size: 18,
@@ -550,7 +550,7 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          PhosphorIcon(
+          const PhosphorIcon(
             PhosphorIconsRegular.videoCamera,
             color: Colors.grey,
             size: 44,

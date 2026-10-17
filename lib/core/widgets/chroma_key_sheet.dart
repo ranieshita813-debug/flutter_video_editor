@@ -134,7 +134,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           const Spacer(),
           IconButton(
             tooltip: 'Reset',
-            icon: Icon(Icons.restart_alt_rounded, color: _dim),
+            icon: const Icon(Icons.restart_alt_rounded, color: _dim),
             onPressed: () {
               HapticFeedback.lightImpact();
               _set(_k.reset());
@@ -142,7 +142,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           ),
           IconButton(
             tooltip: 'Done',
-            icon: Icon(PhosphorIconsRegular.check, color: _accent),
+            icon: const Icon(PhosphorIconsRegular.check, color: _accent),
             onPressed: widget.onClose,
           ),
         ]),
@@ -186,7 +186,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                     ),
                   ),
                   child: b == ChromaBackground.checker
-                      ? Icon(PhosphorIconsRegular.gridNine, size: 13, color: Colors.white54)
+                      ? const Icon(PhosphorIconsRegular.gridNine, size: 13, color: Colors.white54)
                       : null,
                 ),
               ),
@@ -329,7 +329,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(PhosphorIconsRegular.eyedropper, color: _accent, size: 20),
+              const Icon(PhosphorIconsRegular.eyedropper, color: _accent, size: 20),
               const SizedBox(width: 6),
               const Text('Pick', style: TextStyle(color: Colors.white, fontSize: 13.5)),
             ]),

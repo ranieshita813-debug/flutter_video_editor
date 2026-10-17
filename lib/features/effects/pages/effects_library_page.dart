@@ -232,7 +232,7 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
       color: EditorTokens.surface,
       child: Row(
         children: [
-          PhosphorIcon(
+          const PhosphorIcon(
             PhosphorIconsRegular.magicWand,
             color: EditorTokens.text,
             size: 18,
@@ -252,7 +252,7 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
           IconButton(
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
-            icon: PhosphorIcon(
+            icon: const PhosphorIcon(
               PhosphorIconsRegular.x,
               color: EditorTokens.text,
               size: 18,
@@ -337,7 +337,7 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
                       Navigator.of(context).pop(_previewClip);
                     }
                   : null,
-              icon: PhosphorIcon(
+              icon: const PhosphorIcon(
                 PhosphorIconsRegular.check,
                 color: EditorTokens.bg,
                 size: 16,

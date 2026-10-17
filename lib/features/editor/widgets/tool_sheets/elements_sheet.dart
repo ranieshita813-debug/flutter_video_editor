@@ -160,18 +160,18 @@ class _ElementsSheetState extends State<ElementsSheet> {
           IconButton(
               tooltip: 'Draw new (pen tool)',
               onPressed: _draw,
-              icon: Icon(Icons.draw_outlined, size: 18, color: Colors.white70)),
+              icon: const Icon(Icons.draw_outlined, size: 18, color: Colors.white70)),
           IconButton(
               tooltip: 'Paste SVG code',
               onPressed: _pasteCode,
-              icon: Icon(Icons.code, size: 18, color: Colors.white70)),
+              icon: const Icon(Icons.code, size: 18, color: Colors.white70)),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                   backgroundColor: _accent, foregroundColor: Colors.black, visualDensity: VisualDensity.compact),
               onPressed: _importFile,
-              icon: Icon(PhosphorIconsRegular.uploadSimple, size: 16),
+              icon: const Icon(PhosphorIconsRegular.uploadSimple, size: 16),
               label: const Text('Import SVG', style: TextStyle(fontSize: 12)),
             ),
           ),

@@ -31,7 +31,7 @@ class AudioToolsSheet extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  PhosphorIcon(
+                  const PhosphorIcon(
                     PhosphorIconsRegular.musicNote,
                     color: EditorTokens.text,
                     size: 18,
@@ -82,7 +82,7 @@ class AudioToolsSheet extends StatelessWidget {
                         }
                       } catch (_) {}
                     },
-                    icon: PhosphorIcon(
+                    icon: const PhosphorIcon(
                       PhosphorIconsRegular.folder,
                       color: EditorTokens.bg,
                       size: 14,
@@ -97,7 +97,7 @@ class AudioToolsSheet extends StatelessWidget {
               const Divider(height: 20, color: EditorTokens.border),
               Row(
                 children: [
-                  PhosphorIcon(
+                  const PhosphorIcon(
                     PhosphorIconsRegular.scissors,
                     color: EditorTokens.text,
                     size: 18,
@@ -137,7 +137,7 @@ class AudioToolsSheet extends StatelessWidget {
                     onPressed: () {
                       editor.extractAudioFromSelectedClip();
                     },
-                    icon: PhosphorIcon(
+                    icon: const PhosphorIcon(
                       PhosphorIconsRegular.scissors,
                       color: EditorTokens.text,
                       size: 14,

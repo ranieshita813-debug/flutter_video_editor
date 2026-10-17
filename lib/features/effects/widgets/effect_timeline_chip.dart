@@ -64,7 +64,7 @@ class EffectTimelineChip extends StatelessWidget {
             ),
             if (effectClip.keyframeAnimations.isNotEmpty) ...[
               const SizedBox(width: 6),
-              PhosphorIcon(
+              const PhosphorIcon(
                 PhosphorIconsRegular.bookmark,
                 color: EditorTokens.accent,
                 size: 10,
@@ -74,7 +74,7 @@ class EffectTimelineChip extends StatelessWidget {
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: onRemove,
-                child: PhosphorIcon(
+                child: const PhosphorIcon(
                   PhosphorIconsRegular.trash,
                   color: EditorTokens.muted,
                   size: 12,

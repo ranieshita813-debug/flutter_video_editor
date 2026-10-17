@@ -144,7 +144,7 @@ class EffectCard extends StatelessWidget {
                                       color: EditorTokens.text,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: PhosphorIcon(
+                                    child: const PhosphorIcon(
                                       PhosphorIconsRegular.download,
                                       color: EditorTokens.bg,
                                       size: 14,

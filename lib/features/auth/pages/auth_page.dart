@@ -88,7 +88,7 @@ class _AuthPageState extends State<AuthPage> {
         backgroundColor: EditorTokens.bg,
         elevation: 0,
         leading: IconButton(
-          icon: PhosphorIcon(
+          icon: const PhosphorIcon(
             PhosphorIconsRegular.arrowLeft,
             color: EditorTokens.text,
             size: 18,
@@ -271,7 +271,7 @@ class _AuthPageState extends State<AuthPage> {
                         ),
                       ),
                       onPressed: () => _socialSignIn('Google'),
-                      icon: PhosphorIcon(
+                      icon: const PhosphorIcon(
                         PhosphorIconsRegular.googleLogo,
                         color: EditorTokens.text,
                         size: 16,
@@ -293,7 +293,7 @@ class _AuthPageState extends State<AuthPage> {
                         ),
                       ),
                       onPressed: () => _socialSignIn('Facebook'),
-                      icon: PhosphorIcon(
+                      icon: const PhosphorIcon(
                         PhosphorIconsRegular.facebookLogo,
                         color: EditorTokens.text,
                         size: 16,

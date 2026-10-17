@@ -312,7 +312,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
           IconButton(
             tooltip: 'Close',
             iconSize: 24,
-            icon: Icon(PhosphorIconsRegular.x, color: _text),
+            icon: const Icon(PhosphorIconsRegular.x, color: _text),
             onPressed: _close,
           ),
           const Spacer(),
@@ -782,7 +782,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
                   border: Border.all(color: value ? _accent : _track, width: 1.6),
                 ),
                 child: value
-                    ? Icon(PhosphorIconsRegular.check, size: 15, color: Colors.black)
+                    ? const Icon(PhosphorIconsRegular.check, size: 15, color: Colors.black)
                     : null,
               ),
               const SizedBox(width: 12),

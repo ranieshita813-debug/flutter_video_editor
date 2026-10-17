@@ -139,7 +139,7 @@ class ToolPanel extends StatelessWidget {
           children: <Widget>[
             IconButton(
               tooltip: 'Cancel',
-              icon: PhosphorIcon(PhosphorIconsRegular.x, color: Colors.white, size: 18),
+              icon: const PhosphorIcon(PhosphorIconsRegular.x, color: Colors.white, size: 18),
               onPressed: () {
                 tapFeedback();
                 onClose();
@@ -154,7 +154,7 @@ class ToolPanel extends StatelessWidget {
             const Spacer(),
             IconButton(
               tooltip: 'Apply',
-              icon: PhosphorIcon(PhosphorIconsRegular.check, color: accentToken, size: 20),
+              icon: const PhosphorIcon(PhosphorIconsRegular.check, color: accentToken, size: 20),
               onPressed: () {
                 tapFeedback();
                 onClose();

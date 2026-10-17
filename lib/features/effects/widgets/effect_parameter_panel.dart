@@ -58,7 +58,7 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
             ),
             child: Row(
               children: [
-                PhosphorIcon(
+                const PhosphorIcon(
                   PhosphorIconsRegular.funnel,
                   color: EditorTokens.text,
                   size: 14,

@@ -2064,7 +2064,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        Icon(PhosphorIconsRegular.eyedropper, color: Colors.white, size: 16),
+                        const Icon(PhosphorIconsRegular.eyedropper, color: Colors.white, size: 16),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
@@ -2122,7 +2122,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                   children: <Widget>[
                     IconButton.filledTonal(
                       tooltip: 'Cancel',
-                      icon: Icon(PhosphorIconsRegular.x, color: Colors.white),
+                      icon: const Icon(PhosphorIconsRegular.x, color: Colors.white),
                       onPressed: () => widget.editor.cancelEyedropper(),
                     ),
                     if (_sampledColor != null) ...<Widget>[
@@ -2131,7 +2131,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                         elevation: 4,
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
-                        icon: Icon(PhosphorIconsRegular.check),
+                        icon: const Icon(PhosphorIconsRegular.check),
                         label: const Text('Apply Color',
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         onPressed: () => widget.editor.completeEyedropper(_sampledColor),
