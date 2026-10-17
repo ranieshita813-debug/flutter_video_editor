@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
@@ -1312,18 +1315,41 @@ class EditorController extends ChangeNotifier {
   }
 
   /// Generates captions using OpenAI Whisper Large (v3) via Pollinations API.
-  Future<void> generateWhisperCaptions({String? audioFilePath}) async {
+  Future<void> generateWhisperCaptions({
+    String? audioFilePath,
+    WhisperService? whisperService,
+  }) async {
     _saveState();
     _project.captions.clear();
     _project.clips.removeWhere((TimelineClip c) => c.clipType == ClipType.caption);
 
-    final String path = audioFilePath ??
-        selectedClip?.sourcePath ??
-        _project.clips.firstWhere((c) => (c.clipType == ClipType.video || c.clipType == ClipType.audio) && c.sourcePath != null, orElse: () => TimelineClip(id: '', label: '', start: Duration.zero, end: Duration.zero, clipType: ClipType.video)).sourcePath ??
-        'sample.wav';
+    String? path = audioFilePath ?? selectedClip?.sourcePath;
+    if (path == null || path.isEmpty) {
+      for (final clip in _project.clips) {
+        if ((clip.clipType == ClipType.video || clip.clipType == ClipType.audio) &&
+            clip.sourcePath != null &&
+            clip.sourcePath!.isNotEmpty) {
+          path = clip.sourcePath;
+          break;
+        }
+      }
+    }
 
-    final whisper = WhisperService();
-    final newCaptions = await whisper.transcribeAudio(audioFilePath: path);
+    if (path == null || path.isEmpty) {
+      throw Exception('No video or audio clip found on timeline to transcribe.');
+    }
+
+    String targetPath = path;
+    if (path.startsWith('assets/')) {
+      final byteData = await rootBundle.load(path);
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/${path.split('/').last}');
+      await tempFile.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+      targetPath = tempFile.path;
+    }
+
+    final whisper = whisperService ?? WhisperService();
+    final newCaptions = await whisper.transcribeAudio(audioFilePath: targetPath);
 
     _project.captions.addAll(newCaptions);
 

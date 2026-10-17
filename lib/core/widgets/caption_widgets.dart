@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
+import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 
 /// Shared monochrome building blocks for the caption sheets.
 /// Palette: black / white / greys only. Corners are small (6px), never pills.
@@ -75,23 +76,31 @@ class MonoButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (busy)
-          SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+          TextShimmerWave(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              fontFamily: CaptionMono.font,
+            ),
+            baseColor: fg.withValues(alpha: 0.5),
+            waveColor: fg,
           )
-        else if (icon != null)
-          PhosphorIcon(icon!, size: 16, color: fg),
-        if (busy || icon != null) const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            color: fg,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            fontFamily: CaptionMono.font,
+        else ...[
+          if (icon != null) ...[
+            PhosphorIcon(icon!, size: 16, color: fg),
+            const SizedBox(width: 8),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              fontFamily: CaptionMono.font,
+            ),
           ),
-        ),
+        ],
       ],
     );
 

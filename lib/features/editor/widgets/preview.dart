@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
@@ -284,10 +285,11 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   Widget _placeholder(String text, {IconData icon = PhosphorIconsRegular.filmStrip}) {
     if (_loading) {
       return const Center(
-        child: SizedBox(
-          width: 26,
-          height: 26,
-          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white38),
+        child: TextShimmerWave(
+          'Loading clip…',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          baseColor: Colors.white38,
+          waveColor: Colors.white,
         ),
       );
     }
@@ -444,10 +446,11 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
         child,
         if (_loading && ready)
           const Center(
-            child: SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
+            child: TextShimmerWave(
+              'Loading clip…',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              baseColor: Colors.white38,
+              waveColor: Colors.white,
             ),
           ),
       ],

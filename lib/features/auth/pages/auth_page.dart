@@ -5,6 +5,7 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
+import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 
 class AuthPage extends StatefulWidget {
@@ -223,13 +224,14 @@ class _AuthPageState extends State<AuthPage> {
                   ),
                   onPressed: auth.isLoading ? null : _submit,
                   child: auth.isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.black,
+                      ? const TextShimmerWave(
+                          'Authenticating…',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
                           ),
+                          baseColor: Colors.black45,
+                          waveColor: Colors.black,
                         )
                       : Text(
                           _isSignUp ? 'Create Account' : 'Sign In',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
+import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 import 'package:flutter_video_editor/core/theme/app_colors.dart';
 
 class AuthSheet extends StatefulWidget {
@@ -220,10 +221,11 @@ class _AuthSheetState extends State<AuthSheet> {
                             }
                           },
                     child: authController.isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                        ? const TextShimmerWave(
+                            'Authenticating…',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            baseColor: Colors.black45,
+                            waveColor: Colors.black,
                           )
                         : Text(isSignUp ? 'Sign Up' : 'Sign In'),
                   ),
