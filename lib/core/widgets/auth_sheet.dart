@@ -68,7 +68,7 @@ class _AuthSheetState extends State<AuthSheet> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                    icon: Icon(Icons.close, color: AppColors.textSecondary),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -115,7 +115,7 @@ class _AuthSheetState extends State<AuthSheet> {
                     side: const BorderSide(color: AppColors.error),
                     minimumSize: const Size.fromHeight(48),
                   ),
-                  icon: const Icon(Icons.logout),
+                  icon: Icon(Icons.logout),
                   label: const Text('Sign Out'),
                   onPressed: () async {
                     final navigator = Navigator.of(context);

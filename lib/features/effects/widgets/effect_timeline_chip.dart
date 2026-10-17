@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
@@ -40,10 +40,10 @@ class EffectTimelineChip extends StatelessWidget {
           children: [
             GestureDetector(
               onTap: onToggleEnabled,
-              child: FaIcon(
+              child: PhosphorIcon(
                 effectClip.isEnabled
-                    ? FontAwesomeIcons.wandMagicSparkles
-                    : FontAwesomeIcons.eyeSlash,
+                    ? PhosphorIconsRegular.magicWand
+                    : PhosphorIconsRegular.eyeSlash,
                 color: effectClip.isEnabled ? EditorTokens.accent : EditorTokens.muted,
                 size: 12,
               ),
@@ -59,13 +59,13 @@ class EffectTimelineChip extends StatelessWidget {
                     : EditorTokens.muted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                fontFamily: 'Poppins',
+                fontFamily: 'Ubuntu',
               ),
             ),
             if (effectClip.keyframeAnimations.isNotEmpty) ...[
               const SizedBox(width: 6),
-              const FaIcon(
-                FontAwesomeIcons.bookmark,
+              PhosphorIcon(
+                PhosphorIconsRegular.bookmark,
                 color: EditorTokens.accent,
                 size: 10,
               ),
@@ -74,8 +74,8 @@ class EffectTimelineChip extends StatelessWidget {
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: onRemove,
-                child: const FaIcon(
-                  FontAwesomeIcons.trash,
+                child: PhosphorIcon(
+                  PhosphorIconsRegular.trash,
                   color: EditorTokens.muted,
                   size: 12,
                 ),

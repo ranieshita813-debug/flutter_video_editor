@@ -1,3 +1,4 @@
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 // sheets/chroma_key_sheet.dart
 //
 // Pro chroma-key panel (Ultra-Key style): Key / Matte / Cleanup / Spill / Color.
@@ -133,7 +134,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           const Spacer(),
           IconButton(
             tooltip: 'Reset',
-            icon: const Icon(Icons.restart_alt_rounded, color: _dim),
+            icon: Icon(Icons.restart_alt_rounded, color: _dim),
             onPressed: () {
               HapticFeedback.lightImpact();
               _set(_k.reset());
@@ -141,7 +142,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           ),
           IconButton(
             tooltip: 'Done',
-            icon: const Icon(Icons.check_rounded, color: _accent),
+            icon: Icon(PhosphorIconsRegular.check, color: _accent),
             onPressed: widget.onClose,
           ),
         ]),
@@ -185,7 +186,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                     ),
                   ),
                   child: b == ChromaBackground.checker
-                      ? const Icon(Icons.grid_on_rounded, size: 13, color: Colors.white54)
+                      ? Icon(PhosphorIconsRegular.gridNine, size: 13, color: Colors.white54)
                       : null,
                 ),
               ),
@@ -328,7 +329,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(Icons.colorize_rounded, color: _accent, size: 20),
+              Icon(PhosphorIconsRegular.eyedropper, color: _accent, size: 20),
               const SizedBox(width: 6),
               const Text('Pick', style: TextStyle(color: Colors.white, fontSize: 13.5)),
             ]),

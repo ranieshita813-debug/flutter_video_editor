@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/models/shader_effect_model.dart';
@@ -232,8 +232,8 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
       color: EditorTokens.surface,
       child: Row(
         children: [
-          const FaIcon(
-            FontAwesomeIcons.wandMagicSparkles,
+          PhosphorIcon(
+            PhosphorIconsRegular.magicWand,
             color: EditorTokens.text,
             size: 18,
           ),
@@ -245,15 +245,15 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
                 color: EditorTokens.text,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                fontFamily: 'Poppins',
+                fontFamily: 'Ubuntu',
               ),
             ),
           ),
           IconButton(
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
-            icon: const FaIcon(
-              FontAwesomeIcons.xmark,
+            icon: PhosphorIcon(
+              PhosphorIconsRegular.x,
               color: EditorTokens.text,
               size: 18,
             ),
@@ -275,7 +275,7 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
         labelStyle: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          fontFamily: 'Poppins',
+          fontFamily: 'Ubuntu',
         ),
         tabs: const [
           Tab(text: 'ALL EFFECTS'),
@@ -304,10 +304,10 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
               onPressed: () {
                 setState(() => _isEditingParameters = !_isEditingParameters);
               },
-              icon: FaIcon(
+              icon: PhosphorIcon(
                 _isEditingParameters
-                    ? FontAwesomeIcons.borderAll
-                    : FontAwesomeIcons.filter,
+                    ? PhosphorIconsRegular.gridFour
+                    : PhosphorIconsRegular.funnel,
                 color: EditorTokens.text,
                 size: 16,
               ),
@@ -316,7 +316,7 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
                 style: const TextStyle(
                   color: EditorTokens.text,
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
+                  fontFamily: 'Ubuntu',
                 ),
               ),
             ),
@@ -337,8 +337,8 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
                       Navigator.of(context).pop(_previewClip);
                     }
                   : null,
-              icon: const FaIcon(
-                FontAwesomeIcons.check,
+              icon: PhosphorIcon(
+                PhosphorIconsRegular.check,
                 color: EditorTokens.bg,
                 size: 16,
               ),
@@ -346,7 +346,7 @@ class _EffectsLibraryPageState extends State<EffectsLibraryPage>
                 'APPLY EFFECT',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
+                  fontFamily: 'Ubuntu',
                 ),
               ),
             ),

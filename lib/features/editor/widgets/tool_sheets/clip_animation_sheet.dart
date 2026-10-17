@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -60,7 +60,7 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
         alignment: Alignment.center,
         child: const Text(
           'Select a clip to apply animations',
-          style: TextStyle(color: EditorTokens.muted, fontFamily: 'Poppins'),
+          style: TextStyle(color: EditorTokens.muted, fontFamily: 'Ubuntu'),
         ),
       );
     }
@@ -80,7 +80,7 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
           labelStyle: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 13,
-            fontFamily: 'Poppins',
+            fontFamily: 'Ubuntu',
           ),
           tabs: const [
             Tab(text: 'In Animation'),
@@ -164,7 +164,7 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
                   child: Container(
                     color: EditorTokens.elevated,
                     child: Center(
-                      child: FaIcon(
+                      child: PhosphorIcon(
                         _getAnimationIcon(anim),
                         color: isSelected ? EditorTokens.text : EditorTokens.text.withValues(alpha: 0.8),
                         size: 22.0,
@@ -185,7 +185,7 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
                       color: isSelected ? EditorTokens.bg : EditorTokens.text,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Ubuntu',
                     ),
                   ),
                 ),
@@ -236,40 +236,40 @@ class _ClipAnimationSheetState extends State<ClipAnimationSheet> with SingleTick
     }
   }
 
-  FaIconData _getAnimationIcon(ClipAnimation anim) {
+  PhosphorIconData _getAnimationIcon(ClipAnimation anim) {
     switch (anim) {
       case ClipAnimation.none:
-        return FontAwesomeIcons.ban;
+        return PhosphorIconsRegular.prohibit;
       case ClipAnimation.fadeIn:
       case ClipAnimation.fadeOut:
-        return FontAwesomeIcons.circle;
+        return PhosphorIconsRegular.circle;
       case ClipAnimation.slideLeft:
-        return FontAwesomeIcons.arrowLeft;
+        return PhosphorIconsRegular.arrowLeft;
       case ClipAnimation.slideRight:
-        return FontAwesomeIcons.arrowRight;
+        return PhosphorIconsRegular.arrowRight;
       case ClipAnimation.zoomIn:
-        return FontAwesomeIcons.magnifyingGlassPlus;
+        return PhosphorIconsRegular.magnifyingGlassPlus;
       case ClipAnimation.zoomOut:
-        return FontAwesomeIcons.magnifyingGlassMinus;
+        return PhosphorIconsRegular.magnifyingGlassMinus;
       case ClipAnimation.bounce:
-        return FontAwesomeIcons.play;
+        return PhosphorIconsRegular.play;
       case ClipAnimation.spin:
-        return FontAwesomeIcons.arrowsRotate;
+        return PhosphorIconsRegular.arrowsClockwise;
       case ClipAnimation.glitch:
-        return FontAwesomeIcons.wandMagicSparkles;
+        return PhosphorIconsRegular.magicWand;
       case ClipAnimation.rotateIn:
-        return FontAwesomeIcons.rotate;
+        return PhosphorIconsRegular.arrowClockwise;
       case ClipAnimation.flipHorizontal:
       case ClipAnimation.flipVertical:
-        return FontAwesomeIcons.repeat;
+        return PhosphorIconsRegular.repeat;
       case ClipAnimation.elasticBounce:
-        return FontAwesomeIcons.bolt;
+        return PhosphorIconsRegular.lightning;
       case ClipAnimation.blurFade:
-        return FontAwesomeIcons.filter;
+        return PhosphorIconsRegular.funnel;
       case ClipAnimation.shakeSlide:
-        return FontAwesomeIcons.sliders;
+        return PhosphorIconsRegular.sliders;
       case ClipAnimation.zoomRotate:
-        return FontAwesomeIcons.magnifyingGlassPlus;
+        return PhosphorIconsRegular.magnifyingGlassPlus;
     }
   }
 }

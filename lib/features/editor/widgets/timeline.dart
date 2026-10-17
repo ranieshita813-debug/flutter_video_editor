@@ -1,3 +1,4 @@
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -1075,7 +1076,7 @@ class _ClipBlockState extends State<_ClipBlock> {
         final IconData icon = overlayMedia
             ? (clip.type == ClipType.video
                 ? Icons.video_library_rounded
-                : Icons.image_rounded)
+                : PhosphorIconsRegular.image)
             : (drawing
                 ? Icons.brush_rounded
                 : (sticker ? Icons.emoji_emotions_rounded : Icons.title_rounded));

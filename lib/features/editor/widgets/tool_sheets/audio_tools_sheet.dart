@@ -1,6 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -31,8 +31,8 @@ class AudioToolsSheet extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const FaIcon(
-                    FontAwesomeIcons.music,
+                  PhosphorIcon(
+                    PhosphorIconsRegular.musicNote,
                     color: EditorTokens.text,
                     size: 18,
                   ),
@@ -47,7 +47,7 @@ class AudioToolsSheet extends StatelessWidget {
                             color: EditorTokens.text,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Ubuntu',
                           ),
                         ),
                         Text(
@@ -55,7 +55,7 @@ class AudioToolsSheet extends StatelessWidget {
                           style: TextStyle(
                             color: EditorTokens.muted,
                             fontSize: 11,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Ubuntu',
                           ),
                         ),
                       ],
@@ -82,14 +82,14 @@ class AudioToolsSheet extends StatelessWidget {
                         }
                       } catch (_) {}
                     },
-                    icon: const FaIcon(
-                      FontAwesomeIcons.folder,
+                    icon: PhosphorIcon(
+                      PhosphorIconsRegular.folder,
                       color: EditorTokens.bg,
                       size: 14,
                     ),
                     label: const Text(
                       'Import',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Ubuntu'),
                     ),
                   ),
                 ],
@@ -97,8 +97,8 @@ class AudioToolsSheet extends StatelessWidget {
               const Divider(height: 20, color: EditorTokens.border),
               Row(
                 children: [
-                  const FaIcon(
-                    FontAwesomeIcons.scissors,
+                  PhosphorIcon(
+                    PhosphorIconsRegular.scissors,
                     color: EditorTokens.text,
                     size: 18,
                   ),
@@ -113,7 +113,7 @@ class AudioToolsSheet extends StatelessWidget {
                             color: EditorTokens.text,
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Ubuntu',
                           ),
                         ),
                         Text(
@@ -121,7 +121,7 @@ class AudioToolsSheet extends StatelessWidget {
                           style: TextStyle(
                             color: EditorTokens.muted,
                             fontSize: 11,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Ubuntu',
                           ),
                         ),
                       ],
@@ -137,14 +137,14 @@ class AudioToolsSheet extends StatelessWidget {
                     onPressed: () {
                       editor.extractAudioFromSelectedClip();
                     },
-                    icon: const FaIcon(
-                      FontAwesomeIcons.scissors,
+                    icon: PhosphorIcon(
+                      PhosphorIconsRegular.scissors,
                       color: EditorTokens.text,
                       size: 14,
                     ),
                     label: const Text(
                       'Extract',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Poppins'),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Ubuntu'),
                     ),
                   ),
                 ],
@@ -173,7 +173,7 @@ class AudioToolsSheet extends StatelessWidget {
                         color: EditorTokens.text,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Ubuntu',
                       ),
                     ),
                     Text(
@@ -181,7 +181,7 @@ class AudioToolsSheet extends StatelessWidget {
                       style: const TextStyle(
                         color: EditorTokens.muted,
                         fontSize: 12,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Ubuntu',
                       ),
                     ),
                   ],

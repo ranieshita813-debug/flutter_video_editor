@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 
 class EditorToolbarItem {
-  const EditorToolbarItem({
+  EditorToolbarItem({
     required this.id,
     required this.title,
     required this.icon,
@@ -15,7 +15,7 @@ class EditorToolbarItem {
 
   final String id;
   final String title;
-  final FaIconData icon;
+  final PhosphorIconData icon;
   final VoidCallback onTap;
 }
 
@@ -59,7 +59,7 @@ class EditorToolbar extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FaIcon(
+                  PhosphorIcon(
                     item.icon,
                     color: EditorTokens.text.withValues(alpha: 0.9),
                     size: 15.0,
@@ -71,7 +71,7 @@ class EditorToolbar extends StatelessWidget {
                       color: EditorTokens.text.withValues(alpha: 0.85),
                       fontSize: 9.5,
                       fontWeight: FontWeight.w400,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Ubuntu',
                     ),
                   ),
                 ],
@@ -94,79 +94,79 @@ class EditorToolbar extends StatelessWidget {
         EditorToolbarItem(
           id: 'add_media',
           title: 'Add Media',
-          icon: FontAwesomeIcons.plus,
+          icon: PhosphorIconsRegular.plus,
           onTap: onAddMedia,
         ),
         EditorToolbarItem(
           id: 'overlay',
           title: 'Overlay',
-          icon: FontAwesomeIcons.layerGroup,
+          icon: PhosphorIconsRegular.squareSplitVertical,
           onTap: onAddOverlay,
         ),
         EditorToolbarItem(
           id: 'text',
           title: 'Text',
-          icon: FontAwesomeIcons.font,
+          icon: PhosphorIconsRegular.textAa,
           onTap: () => onSelectToolSheet('text'),
         ),
         EditorToolbarItem(
           id: 'audio',
           title: 'Audio',
-          icon: FontAwesomeIcons.volumeHigh,
+          icon: PhosphorIconsRegular.speakerHigh,
           onTap: () => onSelectToolSheet('audio'),
         ),
         EditorToolbarItem(
           id: 'adjust',
           title: 'Adjust',
-          icon: FontAwesomeIcons.sliders,
+          icon: PhosphorIconsRegular.sliders,
           onTap: () => onSelectToolSheet('adjust'),
         ),
         EditorToolbarItem(
           id: 'effects',
           title: 'Effects',
-          icon: FontAwesomeIcons.wandMagicSparkles,
+          icon: PhosphorIconsRegular.magicWand,
           onTap: () => onSelectToolSheet('effects'),
         ),
         EditorToolbarItem(
           id: 'filters',
           title: 'Filters',
-          icon: FontAwesomeIcons.filter,
+          icon: PhosphorIconsRegular.funnel,
           onTap: () => onSelectToolSheet('filters'),
         ),
         EditorToolbarItem(
           id: 'crop',
           title: 'Canvas',
-          icon: FontAwesomeIcons.crop,
+          icon: PhosphorIconsRegular.crop,
           onTap: () => onSelectToolSheet('crop'),
         ),
         EditorToolbarItem(
           id: 'elements',
           title: 'Elements',
-          icon: FontAwesomeIcons.shapes,
+          icon: PhosphorIconsRegular.shapes,
           onTap: () => onSelectToolSheet('elements'),
         ),
         EditorToolbarItem(
           id: 'stickers',
           title: 'Stickers',
-          icon: FontAwesomeIcons.faceSmile,
+          icon: PhosphorIconsRegular.smiley,
           onTap: () => onSelectToolSheet('stickers'),
         ),
         EditorToolbarItem(
           id: 'draw',
           title: 'Draw',
-          icon: FontAwesomeIcons.pen,
+          icon: PhosphorIconsRegular.pencilSimple,
           onTap: () => onSelectToolSheet('draw'),
         ),
         EditorToolbarItem(
           id: 'auto_captions',
           title: 'Auto captions',
-          icon: FontAwesomeIcons.closedCaptioning,
+          icon: PhosphorIconsRegular.closedCaptioning,
           onTap: () => editor.generateAutoCaptions(),
         ),
         EditorToolbarItem(
           id: 'track',
           title: 'Track',
-          icon: FontAwesomeIcons.bullseye,
+          icon: PhosphorIconsRegular.crosshair,
           onTap: () => onSelectToolSheet('track'),
         ),
       ];
@@ -181,74 +181,74 @@ class EditorToolbar extends StatelessWidget {
           EditorToolbarItem(
             id: 'split',
             title: 'Split',
-            icon: FontAwesomeIcons.scissors,
+            icon: PhosphorIconsRegular.scissors,
             onTap: () => editor.splitSelectedClip(),
           ),
           if (isOverlay)
             EditorToolbarItem(
               id: 'chroma_key',
               title: 'Chroma Key',
-              icon: FontAwesomeIcons.eyeDropper,
+              icon: PhosphorIconsRegular.eyedropper,
               onTap: () => onSelectToolSheet('chroma_key'),
             ),
           EditorToolbarItem(
             id: 'speed',
             title: 'Speed',
-            icon: FontAwesomeIcons.gaugeHigh,
+            icon: PhosphorIconsRegular.gauge,
             onTap: () => onSelectToolSheet('speed'),
           ),
           EditorToolbarItem(
             id: 'volume',
             title: 'Volume',
-            icon: FontAwesomeIcons.volumeHigh,
+            icon: PhosphorIconsRegular.speakerHigh,
             onTap: () => onSelectToolSheet('audio'),
           ),
           EditorToolbarItem(
             id: 'crop',
             title: 'Canvas',
-            icon: FontAwesomeIcons.crop,
+            icon: PhosphorIconsRegular.crop,
             onTap: () => onSelectToolSheet('crop'),
           ),
           EditorToolbarItem(
             id: 'adjust',
             title: 'Adjust',
-            icon: FontAwesomeIcons.sliders,
+            icon: PhosphorIconsRegular.sliders,
             onTap: () => onSelectToolSheet('adjust'),
           ),
           EditorToolbarItem(
             id: 'filters',
             title: 'Filters',
-            icon: FontAwesomeIcons.filter,
+            icon: PhosphorIconsRegular.funnel,
             onTap: () => onSelectToolSheet('filters'),
           ),
           EditorToolbarItem(
             id: 'effects',
             title: 'Effects',
-            icon: FontAwesomeIcons.wandMagicSparkles,
+            icon: PhosphorIconsRegular.magicWand,
             onTap: () => onSelectToolSheet('effects'),
           ),
           EditorToolbarItem(
             id: 'animation',
             title: 'Animation',
-            icon: FontAwesomeIcons.play,
+            icon: PhosphorIconsRegular.play,
             onTap: () => onSelectToolSheet('animation'),
           ),
           EditorToolbarItem(
             id: 'mask',
             title: 'Mask',
-            icon: FontAwesomeIcons.square,
+            icon: PhosphorIconsRegular.square,
             onTap: () => onSelectToolSheet('mask'),
           ),
           EditorToolbarItem(
             id: 'duplicate',
             title: 'Duplicate',
-            icon: FontAwesomeIcons.copy,
+            icon: PhosphorIconsRegular.copy,
             onTap: () => editor.duplicateSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'delete',
             title: 'Delete',
-            icon: FontAwesomeIcons.trash,
+            icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
         ];
@@ -259,37 +259,37 @@ class EditorToolbar extends StatelessWidget {
           EditorToolbarItem(
             id: 'text_style',
             title: 'Text Style',
-            icon: FontAwesomeIcons.font,
+            icon: PhosphorIconsRegular.textAa,
             onTap: () => onSelectToolSheet('text_style'),
           ),
           EditorToolbarItem(
             id: 'edit_text',
             title: 'Edit Text',
-            icon: FontAwesomeIcons.pen,
+            icon: PhosphorIconsRegular.pencilSimple,
             onTap: () => onSelectToolSheet('text'),
           ),
           EditorToolbarItem(
             id: 'effects',
             title: 'Effects',
-            icon: FontAwesomeIcons.wandMagicSparkles,
+            icon: PhosphorIconsRegular.magicWand,
             onTap: () => onSelectToolSheet('effects'),
           ),
           EditorToolbarItem(
             id: 'animation',
             title: 'Animation',
-            icon: FontAwesomeIcons.play,
+            icon: PhosphorIconsRegular.play,
             onTap: () => onSelectToolSheet('animation'),
           ),
           EditorToolbarItem(
             id: 'duplicate',
             title: 'Duplicate',
-            icon: FontAwesomeIcons.copy,
+            icon: PhosphorIconsRegular.copy,
             onTap: () => editor.duplicateSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'delete',
             title: 'Delete',
-            icon: FontAwesomeIcons.trash,
+            icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
         ];
@@ -299,37 +299,37 @@ class EditorToolbar extends StatelessWidget {
           EditorToolbarItem(
             id: 'split',
             title: 'Split',
-            icon: FontAwesomeIcons.scissors,
+            icon: PhosphorIconsRegular.scissors,
             onTap: () => editor.splitSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'volume',
             title: 'Volume',
-            icon: FontAwesomeIcons.volumeHigh,
+            icon: PhosphorIconsRegular.speakerHigh,
             onTap: () => onSelectToolSheet('audio'),
           ),
           EditorToolbarItem(
             id: 'speed',
             title: 'Speed',
-            icon: FontAwesomeIcons.gaugeHigh,
+            icon: PhosphorIconsRegular.gauge,
             onTap: () => onSelectToolSheet('speed'),
           ),
           EditorToolbarItem(
             id: 'effects',
             title: 'Effects',
-            icon: FontAwesomeIcons.wandMagicSparkles,
+            icon: PhosphorIconsRegular.magicWand,
             onTap: () => onSelectToolSheet('effects'),
           ),
           EditorToolbarItem(
             id: 'duplicate',
             title: 'Duplicate',
-            icon: FontAwesomeIcons.copy,
+            icon: PhosphorIconsRegular.copy,
             onTap: () => editor.duplicateSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'delete',
             title: 'Delete',
-            icon: FontAwesomeIcons.trash,
+            icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
         ];
@@ -339,25 +339,25 @@ class EditorToolbar extends StatelessWidget {
           EditorToolbarItem(
             id: 'effects',
             title: 'Effects',
-            icon: FontAwesomeIcons.wandMagicSparkles,
+            icon: PhosphorIconsRegular.magicWand,
             onTap: () => onSelectToolSheet('effects'),
           ),
           EditorToolbarItem(
             id: 'animation',
             title: 'Animation',
-            icon: FontAwesomeIcons.play,
+            icon: PhosphorIconsRegular.play,
             onTap: () => onSelectToolSheet('animation'),
           ),
           EditorToolbarItem(
             id: 'duplicate',
             title: 'Duplicate',
-            icon: FontAwesomeIcons.copy,
+            icon: PhosphorIconsRegular.copy,
             onTap: () => editor.duplicateSelectedClip(),
           ),
           EditorToolbarItem(
             id: 'delete',
             title: 'Delete',
-            icon: FontAwesomeIcons.trash,
+            icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
         ];

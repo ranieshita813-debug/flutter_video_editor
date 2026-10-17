@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
@@ -40,8 +40,8 @@ class _SettingsPageState extends State<SettingsPage> {
         backgroundColor: EditorTokens.bg,
         elevation: 0,
         leading: IconButton(
-          icon: const FaIcon(
-            FontAwesomeIcons.arrowLeft,
+          icon: PhosphorIcon(
+            PhosphorIconsRegular.arrowLeft,
             color: EditorTokens.text,
             size: 18,
           ),
@@ -156,8 +156,8 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 children: <Widget>[
                   ListTile(
-                    leading: const FaIcon(
-                      FontAwesomeIcons.film,
+                    leading: PhosphorIcon(
+                      PhosphorIconsRegular.filmStrip,
                       color: EditorTokens.text,
                       size: 18,
                     ),
@@ -169,8 +169,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       value: _resolution,
                       dropdownColor: EditorTokens.elevated,
                       underline: const SizedBox.shrink(),
-                      icon: const FaIcon(
-                        FontAwesomeIcons.chevronDown,
+                      icon: PhosphorIcon(
+                        PhosphorIconsRegular.caretDown,
                         color: EditorTokens.muted,
                         size: 14,
                       ),
@@ -193,8 +193,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const Divider(height: 1, color: EditorTokens.border),
                   ListTile(
-                    leading: const FaIcon(
-                      FontAwesomeIcons.play,
+                    leading: PhosphorIcon(
+                      PhosphorIconsRegular.play,
                       color: EditorTokens.text,
                       size: 18,
                     ),
@@ -206,8 +206,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       value: _frameRate,
                       dropdownColor: EditorTokens.elevated,
                       underline: const SizedBox.shrink(),
-                      icon: const FaIcon(
-                        FontAwesomeIcons.chevronDown,
+                      icon: PhosphorIcon(
+                        PhosphorIconsRegular.caretDown,
                         color: EditorTokens.muted,
                         size: 14,
                       ),
@@ -227,8 +227,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   const Divider(height: 1, color: EditorTokens.border),
                   ListTile(
-                    leading: const FaIcon(
-                      FontAwesomeIcons.folder,
+                    leading: PhosphorIcon(
+                      PhosphorIconsRegular.folder,
                       color: EditorTokens.text,
                       size: 18,
                     ),
@@ -266,8 +266,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _hardwareAcceleration,
                     activeThumbColor: Colors.black,
                     activeTrackColor: EditorTokens.accent,
-                    secondary: const FaIcon(
-                      FontAwesomeIcons.microchip,
+                    secondary: PhosphorIcon(
+                      PhosphorIconsRegular.cpu,
                       color: EditorTokens.text,
                       size: 18,
                     ),
@@ -282,8 +282,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _autoSave,
                     activeThumbColor: Colors.black,
                     activeTrackColor: EditorTokens.accent,
-                    secondary: const FaIcon(
-                      FontAwesomeIcons.floppyDisk,
+                    secondary: PhosphorIcon(
+                      PhosphorIconsRegular.floppyDisk,
                       color: EditorTokens.text,
                       size: 18,
                     ),
@@ -318,28 +318,28 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               child: Column(
                 children: <Widget>[
-                  const ListTile(
-                    leading: FaIcon(
-                      FontAwesomeIcons.circleInfo,
+                  ListTile(
+                    leading: PhosphorIcon(
+                      PhosphorIconsRegular.info,
                       color: EditorTokens.text,
                       size: 18,
                     ),
-                    title: Text('App Version',
+                    title: const Text('App Version',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
-                    trailing: Text('1.0.0 (v1)',
+                    trailing: const Text('1.0.0 (v1)',
                         style: TextStyle(color: EditorTokens.muted, fontSize: 13)),
                   ),
                   const Divider(height: 1, color: EditorTokens.border),
                   ListTile(
-                    leading: const FaIcon(
-                      FontAwesomeIcons.shieldHalved,
+                    leading: PhosphorIcon(
+                      PhosphorIconsRegular.shieldCheck,
                       color: EditorTokens.text,
                       size: 18,
                     ),
                     title: const Text('Privacy Policy',
                         style: TextStyle(color: EditorTokens.text, fontSize: 14)),
-                    trailing: const FaIcon(
-                      FontAwesomeIcons.chevronRight,
+                    trailing: PhosphorIcon(
+                      PhosphorIconsRegular.caretRight,
                       color: EditorTokens.muted,
                       size: 14,
                     ),

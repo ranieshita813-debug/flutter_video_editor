@@ -1,3 +1,4 @@
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -129,7 +130,7 @@ class _ExportModalState extends State<ExportModal> {
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: Icon(Icons.close_rounded,
+            icon: Icon(PhosphorIconsRegular.x,
                 color: isExporting ? Colors.black26 : _text, size: 26),
             tooltip: 'Close',
             onPressed: isExporting
@@ -223,7 +224,7 @@ class _ExportModalState extends State<ExportModal> {
             height: 54,
             decoration:
                 BoxDecoration(color: _track, borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.movie_creation_outlined, color: _muted),
+            child: Icon(Icons.movie_creation_outlined, color: _muted),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -276,7 +277,7 @@ class _ExportModalState extends State<ExportModal> {
             elevation: 0,
             shape: _pill,
           ),
-          icon: const Icon(Icons.ios_share_rounded, size: 20),
+          icon: Icon(Icons.ios_share_rounded, size: 20),
           label: const Text('Export',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           onPressed: () async {
@@ -326,7 +327,7 @@ class _ExportModalState extends State<ExportModal> {
                   color: state == 0 ? _track : Colors.black, width: state == 1 ? 2 : 1.5),
             ),
             child: state == 2
-                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                ? Icon(PhosphorIconsRegular.check, size: 16, color: Colors.white)
                 : state == 1
                     ? const Center(
                         child: SizedBox(
@@ -439,7 +440,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(50),
               shape: _pill,
             ),
-            icon: const Icon(Icons.close_rounded, size: 18),
+            icon: Icon(PhosphorIconsRegular.x, size: 18),
             label: const Text('Cancel export'),
             onPressed: () => exportCtrl?.cancelExport(),
           ),
@@ -466,7 +467,7 @@ class _ExportModalState extends State<ExportModal> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _statusIcon(Icons.check_rounded, _green, _doneBtn),
+          _statusIcon(PhosphorIconsRegular.check, _green, _doneBtn),
           const SizedBox(height: 18),
           const Text('Export complete',
               textAlign: TextAlign.center,
@@ -484,7 +485,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(52),
               shape: _pill,
             ),
-            icon: const Icon(Icons.share_rounded, size: 18),
+            icon: Icon(Icons.share_rounded, size: 18),
             label: const Text('Share video', style: TextStyle(fontWeight: FontWeight.w700)),
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Share option ready')),
@@ -498,7 +499,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(52),
               shape: _pill,
             ),
-            icon: const Icon(Icons.save_alt_rounded, size: 18),
+            icon: Icon(Icons.save_alt_rounded, size: 18),
             label: const Text('Save to gallery'),
             onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Video saved to device gallery')),

@@ -1,3 +1,4 @@
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 // lib/features/editor/widgets/speed_sheet.dart
 //
 // Speed tool, CapCut x Premiere Pro hybrid (same language as AdjustSheet).
@@ -311,7 +312,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
           IconButton(
             tooltip: 'Close',
             iconSize: 24,
-            icon: const Icon(Icons.close_rounded, color: _text),
+            icon: Icon(PhosphorIconsRegular.x, color: _text),
             onPressed: _close,
           ),
           const Spacer(),
@@ -328,7 +329,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
           IconButton(
             tooltip: 'Apply',
             iconSize: 26,
-            icon: Icon(Icons.check_rounded, color: _dirty ? _accent : _text),
+            icon: Icon(PhosphorIconsRegular.check, color: _dirty ? _accent : _text),
             onPressed: () => _confirm(c),
           ),
         ],
@@ -781,7 +782,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
                   border: Border.all(color: value ? _accent : _track, width: 1.6),
                 ),
                 child: value
-                    ? const Icon(Icons.check_rounded, size: 15, color: Colors.black)
+                    ? Icon(PhosphorIconsRegular.check, size: 15, color: Colors.black)
                     : null,
               ),
               const SizedBox(width: 12),

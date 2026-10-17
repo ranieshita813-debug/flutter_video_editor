@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/models/shader_effect_model.dart';
@@ -58,8 +58,8 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
             ),
             child: Row(
               children: [
-                const FaIcon(
-                  FontAwesomeIcons.filter,
+                PhosphorIcon(
+                  PhosphorIconsRegular.funnel,
                   color: EditorTokens.text,
                   size: 14,
                 ),
@@ -71,7 +71,7 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
                       color: EditorTokens.text,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Ubuntu',
                     ),
                   ),
                 ),
@@ -114,7 +114,7 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
                                 color: EditorTokens.text,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                fontFamily: 'Poppins',
+                                fontFamily: 'Ubuntu',
                               ),
                             ),
                           ),
@@ -124,7 +124,7 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
                               color: EditorTokens.accent,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              fontFamily: 'Poppins',
+                              fontFamily: 'Ubuntu',
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -132,10 +132,10 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(),
                             tooltip: hasKeyframeAtTime ? 'Remove Keyframe' : 'Add Keyframe',
-                            icon: FaIcon(
+                            icon: PhosphorIcon(
                               hasKeyframeAtTime
-                                  ? FontAwesomeIcons.bookmark
-                                  : FontAwesomeIcons.plus,
+                                  ? PhosphorIconsRegular.bookmark
+                                  : PhosphorIconsRegular.plus,
                               color: hasKeyframeAtTime ? EditorTokens.accent : EditorTokens.muted,
                               size: 16,
                             ),
@@ -181,7 +181,7 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
           style: const TextStyle(
             color: EditorTokens.text,
             fontSize: 11,
-            fontFamily: 'Poppins',
+            fontFamily: 'Ubuntu',
           ),
           items: AnimationEasing.values.map((easing) {
             return DropdownMenuItem<AnimationEasing>(
@@ -259,7 +259,7 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
           dense: true,
           title: Text(
             val ? 'Enabled' : 'Disabled',
-            style: const TextStyle(color: EditorTokens.muted, fontSize: 12, fontFamily: 'Poppins'),
+            style: const TextStyle(color: EditorTokens.muted, fontSize: 12, fontFamily: 'Ubuntu'),
           ),
           value: val,
           activeTrackColor: EditorTokens.text,
@@ -271,7 +271,7 @@ class _EffectParameterPanelState extends State<EffectParameterPanel> {
           value: param.options.contains(val) ? val : (param.options.isNotEmpty ? param.options.first : null),
           dropdownColor: EditorTokens.elevated,
           isExpanded: true,
-          style: const TextStyle(color: EditorTokens.text, fontSize: 12, fontFamily: 'Poppins'),
+          style: const TextStyle(color: EditorTokens.text, fontSize: 12, fontFamily: 'Ubuntu'),
           items: param.options.map((opt) {
             return DropdownMenuItem<String>(
               value: opt,

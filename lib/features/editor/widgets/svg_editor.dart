@@ -13,8 +13,8 @@ const _panel = Color(0xFF232323);
 const _panelHi = Color(0xFF2C2C2C);
 const _bg = Color(0xFF181818);
 const _line = Color(0x1FFFFFFF);
-const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Poppins');
-const _lblStrong = TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'Poppins');
+const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Ubuntu');
+const _lblStrong = TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'Ubuntu');
 
 enum Tool { select, node, pen, pencil }
 
@@ -602,12 +602,12 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
           Text(widget.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14, color: Colors.white, fontFamily: 'Poppins')),
+              style: const TextStyle(fontSize: 14, color: Colors.white, fontFamily: 'Ubuntu')),
           Text('Vector editor', style: _lbl.copyWith(fontSize: 10)),
         ]),
         actions: [
-          IconButton(tooltip: 'Undo', onPressed: _undo.isEmpty ? null : undo, icon: const Icon(Icons.undo, size: 20)),
-          IconButton(tooltip: 'Redo', onPressed: _redo.isEmpty ? null : redo, icon: const Icon(Icons.redo, size: 20)),
+          IconButton(tooltip: 'Undo', onPressed: _undo.isEmpty ? null : undo, icon: Icon(Icons.undo, size: 20)),
+          IconButton(tooltip: 'Redo', onPressed: _redo.isEmpty ? null : redo, icon: Icon(Icons.redo, size: 20)),
           Padding(
             padding: const EdgeInsets.only(right: 10, left: 4),
             child: FilledButton(
@@ -627,7 +627,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.error_outline, color: Colors.redAccent, size: 36),
+            Icon(Icons.error_outline, color: Colors.redAccent, size: 36),
             const SizedBox(height: 10),
             const Text('Cannot open this SVG', style: _lblStrong),
             const SizedBox(height: 6),
@@ -1059,7 +1059,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
                     width: 22,
                     margin: const EdgeInsets.only(right: 6),
                     decoration: BoxDecoration(border: Border.all(color: value == 'none' ? _accent : Colors.white24, width: 1.5), borderRadius: BorderRadius.circular(4)),
-                    child: const Icon(Icons.block, size: 14, color: Colors.redAccent)),
+                    child: Icon(Icons.block, size: 14, color: Colors.redAccent)),
               ),
               for (final s in _swatches)
                 GestureDetector(
@@ -1252,12 +1252,12 @@ class _CodeTabState extends State<_CodeTab> {
           Row(mainAxisAlignment: MainAxisAlignment.end, children: [
             TextButton.icon(
               onPressed: () => c.text = widget.source,
-              icon: const Icon(Icons.restart_alt, size: 16),
+              icon: Icon(Icons.restart_alt, size: 16),
               label: const Text('Reset'),
             ),
             TextButton.icon(
               onPressed: () => widget.onApply(c.text),
-              icon: const Icon(Icons.check, size: 16),
+              icon: Icon(Icons.check, size: 16),
               label: const Text('Apply code'),
             ),
           ]),

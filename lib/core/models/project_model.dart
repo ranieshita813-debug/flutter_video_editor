@@ -30,8 +30,20 @@ enum VideoEffect {
   matrix,
   flame,
   vhs,
+  vhsTape,
   wave,
+  liquidWave,
   vignette,
+  cinematicVignette,
+  chromaticAberration,
+  filmGrain,
+  dreamBloom,
+  mosaicPixelate,
+  crispSharpen,
+  lensDistortion,
+  convexScreenPro,
+  speedZoomBlur,
+  lightLeak,
 }
 
 enum TextAnimationStyle {
@@ -871,7 +883,7 @@ class TimelineClip {
     this.effect = VideoEffect.none,
     this.sourcePath,
     this.stickerAssetPath,
-    this.fontFamily = 'Poppins',
+    this.fontFamily = 'Ubuntu',
     this.textAnimationStyle = TextAnimationStyle.none,
     this.textStyle = const TextStyleProperties(),
     this.colorGrading = const ColorGradingSettings(),
@@ -1095,7 +1107,7 @@ class TimelineClip {
       ),
       sourcePath: json['sourcePath'] as String?,
       stickerAssetPath: json['stickerAssetPath'] as String?,
-      fontFamily: json['fontFamily'] as String? ?? 'Poppins',
+      fontFamily: json['fontFamily'] as String? ?? 'Ubuntu',
       textAnimationStyle: TextAnimationStyle.values.firstWhere(
         (e) => e.name == json['textAnimationStyle'],
         orElse: () => TextAnimationStyle.none,
@@ -1174,7 +1186,7 @@ class Project {
             <String>[
               'Roboto',
               'Montserrat',
-              'Poppins',
+              'Ubuntu',
               'Playfair Display',
               'Bebas Neue',
               'Caveat'

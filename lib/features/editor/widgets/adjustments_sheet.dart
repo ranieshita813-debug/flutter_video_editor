@@ -1,3 +1,4 @@
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 // lib/features/editor/widgets/adjust_sheet.dart
 //
 // Adjust tool, CapCut x Premiere Pro hybrid.
@@ -251,7 +252,7 @@ class _AdjustSheetState extends State<AdjustSheet> {
                             onTap: () => _set(0),
                             child: const Padding(
                               padding: EdgeInsets.all(8),
-                              child: Icon(Icons.undo_rounded, size: 16, color: _muted),
+                              child: Icon(PhosphorIconsRegular.arrowUUpLeft, size: 16, color: _muted),
                             ),
                           ),
                         const Spacer(),
@@ -373,7 +374,7 @@ class _AdjustSheetState extends State<AdjustSheet> {
           children: <Widget>[
             IconButton(
               tooltip: 'Cancel',
-              icon: const Icon(Icons.close_rounded, color: _text),
+              icon: Icon(PhosphorIconsRegular.x, color: _text),
               onPressed: _cancel,
             ),
             // Press and hold to preview the original.
@@ -404,7 +405,7 @@ class _AdjustSheetState extends State<AdjustSheet> {
             const SizedBox(width: 48),
             IconButton(
               tooltip: 'Apply',
-              icon: Icon(Icons.check_rounded,
+              icon: Icon(PhosphorIconsRegular.check,
                   color: _s != widget.initial ? _accent : _text, size: 26),
               onPressed: _apply,
             ),

@@ -1,3 +1,4 @@
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 // pubspec.yaml additions:
 //   flutter_svg: ^2.0.10
 //   xml: ^6.5.0
@@ -22,7 +23,7 @@ import 'package:flutter_video_editor/features/editor/widgets/svg_editor.dart';
 const _accent = Color(0xFF9999FF); // Premiere purple
 const _panel = Color(0xFF232323);
 const _bg = Color(0xFF181818);
-const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Poppins');
+const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Ubuntu');
 
 // ───────────────────────── ELEMENTS LIBRARY SHEET ─────────────────────────
 
@@ -159,18 +160,18 @@ class _ElementsSheetState extends State<ElementsSheet> {
           IconButton(
               tooltip: 'Draw new (pen tool)',
               onPressed: _draw,
-              icon: const Icon(Icons.draw_outlined, size: 18, color: Colors.white70)),
+              icon: Icon(Icons.draw_outlined, size: 18, color: Colors.white70)),
           IconButton(
               tooltip: 'Paste SVG code',
               onPressed: _pasteCode,
-              icon: const Icon(Icons.code, size: 18, color: Colors.white70)),
+              icon: Icon(Icons.code, size: 18, color: Colors.white70)),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                   backgroundColor: _accent, foregroundColor: Colors.black, visualDensity: VisualDensity.compact),
               onPressed: _importFile,
-              icon: const Icon(Icons.file_upload_outlined, size: 16),
+              icon: Icon(PhosphorIconsRegular.uploadSimple, size: 16),
               label: const Text('Import SVG', style: TextStyle(fontSize: 12)),
             ),
           ),
@@ -209,7 +210,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                      color: EditorTokens.text, fontSize: 10.5, fontFamily: 'Poppins'))),
+                                      color: EditorTokens.text, fontSize: 10.5, fontFamily: 'Ubuntu'))),
                           Positioned(
                             top: 2,
                             right: 2,
@@ -241,7 +242,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
                   color: _tab == i ? Colors.white : Colors.white54,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Poppins')),
+                  fontFamily: 'Ubuntu')),
         ),
       );
 }
