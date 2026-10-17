@@ -47,17 +47,17 @@ class TransportBar extends StatelessWidget {
                   editor.togglePlayback();
                 },
                 child: Container(
-                  width: 48 * s,
-                  height: 48 * s,
+                  width: 36 * s,
+                  height: 36 * s,
                   margin: EdgeInsets.symmetric(horizontal: 2 * s),
                   alignment: Alignment.center,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 150),
                     child: Icon(
-                        playing ? PhosphorIconsRegular.pause : PhosphorIconsRegular.play,
+                        playing ? PhosphorIconsFill.pause : PhosphorIconsFill.play,
                         key: ValueKey<bool>(playing),
                         color: Colors.white,
-                        size: 38 * s),
+                        size: 24 * s),
                   ),
                 ),
               ),
