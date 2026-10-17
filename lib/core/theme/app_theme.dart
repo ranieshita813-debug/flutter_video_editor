@@ -5,26 +5,26 @@ import 'package:flutter_video_editor/core/theme/app_colors.dart';
 class AppTheme {
   static ThemeData get darkTheme {
     final baseTextTheme = ThemeData.dark().textTheme;
-    final ubuntuTheme = GoogleFonts.ubuntuTextTheme(baseTextTheme).copyWith(
-      headlineMedium: GoogleFonts.ubuntu(
+    final ubuntuTheme = GoogleFonts.ubuntuSansTextTheme(baseTextTheme).copyWith(
+      headlineMedium: GoogleFonts.ubuntuSans(
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
-      titleMedium: GoogleFonts.ubuntu(
+      titleMedium: GoogleFonts.ubuntuSans(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      bodyLarge: GoogleFonts.ubuntu(
+      bodyLarge: GoogleFonts.ubuntuSans(
         fontSize: 14,
         color: AppColors.textPrimary,
       ),
-      bodyMedium: GoogleFonts.ubuntu(
+      bodyMedium: GoogleFonts.ubuntuSans(
         fontSize: 12,
         color: AppColors.textSecondary,
       ),
-      labelSmall: GoogleFonts.ubuntu(
+      labelSmall: GoogleFonts.ubuntuSans(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
@@ -35,7 +35,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
-      fontFamily: 'Ubuntu',
+      fontFamily: 'Ubuntu Sans',
       colorScheme: const ColorScheme.dark(
         primary: AppColors.accent,
         secondary: AppColors.accent,

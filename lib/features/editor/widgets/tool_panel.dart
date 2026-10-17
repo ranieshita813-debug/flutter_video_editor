@@ -116,21 +116,21 @@ class ToolPanel extends StatelessWidget {
   Widget _header() => Row(
         children: <Widget>[
           const SizedBox(width: 16),
-          PhosphorIcon(tool.icon, color: Colors.white70, size: 16),
+          PhosphorIcon(tool.icon, color: Colors.white70, size: 22),
           const SizedBox(width: 8),
           Expanded(
             child: Text(tool.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, fontFamily: 'Ubuntu Sans')),
           ),
           const SizedBox(width: 16),
         ],
       );
 
   Widget _buildFooter() => Container(
-        height: 52,
+        height: 56,
         decoration: const BoxDecoration(
           color: bgToken,
           border: Border(top: BorderSide(color: dividerToken)),
@@ -139,7 +139,7 @@ class ToolPanel extends StatelessWidget {
           children: <Widget>[
             IconButton(
               tooltip: 'Cancel',
-              icon: const PhosphorIcon(PhosphorIconsRegular.x, color: Colors.white, size: 18),
+              icon: const PhosphorIcon(PhosphorIconsRegular.x, color: Colors.white, size: 22),
               onPressed: () {
                 tapFeedback();
                 onClose();
@@ -149,12 +149,12 @@ class ToolPanel extends StatelessWidget {
             Text(
               tool.title,
               style: const TextStyle(
-                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700, fontFamily: 'Ubuntu Sans'),
             ),
             const Spacer(),
             IconButton(
               tooltip: 'Apply',
-              icon: const PhosphorIcon(PhosphorIconsRegular.check, color: accentToken, size: 20),
+              icon: const PhosphorIcon(PhosphorIconsRegular.check, color: accentToken, size: 24),
               onPressed: () {
                 tapFeedback();
                 onClose();

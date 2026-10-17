@@ -20,7 +20,6 @@ import 'package:flutter_video_editor/features/projects/controllers/projects_cont
 const Color _bg = Color(0xFFFFFFFF);
 const Color _surface = Color(0xFFF5F5F5);
 const Color _elevated = Color(0xFFEEEEEE);
-const Color _border = Color(0xFFE0E0E0);
 const Color _text = Color(0xFF000000);
 const Color _muted = Color(0xFF666666);
 const Color _accent = Color(0xFF000000);
@@ -735,7 +734,6 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       decoration: BoxDecoration(
         color: _surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _border),
       ),
       child: Row(
         children: <Widget>[
@@ -829,7 +827,6 @@ class _MediaPickerPageState extends State<MediaPickerPage>
               decoration: BoxDecoration(
                 color: sel ? _text : _elevated,
                 borderRadius: BorderRadius.circular(16),
-                border: sel ? null : Border.all(color: _border),
               ),
               child: Text(
                 sel ? 'Selected' : 'Select',
@@ -888,7 +885,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 onPressed: _browseFiles,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _text,
-                  side: const BorderSide(color: _border),
+                  side: BorderSide.none,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -981,7 +978,6 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     return Container(
       decoration: const BoxDecoration(
         color: _surface,
-        border: Border(top: BorderSide(color: _border)),
       ),
       padding: const EdgeInsets.fromLTRB(12, 8, 0, 8),
       child: Column(
@@ -1138,7 +1134,6 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
       decoration: const BoxDecoration(
         color: _bg,
-        border: Border(top: BorderSide(color: _border)),
       ),
       child: Row(
         children: <Widget>[
@@ -1338,19 +1333,6 @@ class _Cell extends StatelessWidget {
 
           // Dim + frame when selected.
           if (sel) Container(color: Colors.black.withAlpha(40)),
-          if (sel || focused)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: sel ? _text : Colors.black.withAlpha(100),
-                      width: sel ? 2.5 : 1.5,
-                    ),
-                  ),
-                ),
-              ),
-            ),
 
           // Premiere-style label strip for the media type.
           Positioned(
@@ -1393,9 +1375,6 @@ class _Cell extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: sel ? Colors.white : Colors.black.withAlpha(90),
-                border: sel
-                    ? null
-                    : Border.all(color: Colors.white, width: 1.5),
               ),
               child: sel
                   ? Center(

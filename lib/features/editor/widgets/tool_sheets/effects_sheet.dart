@@ -21,6 +21,7 @@ class EffectsSheet extends StatefulWidget {
 class _EffectsSheetState extends State<EffectsSheet> {
   String _searchQuery = '';
   String _selectedTag = 'All';
+  VideoEffect? _configuringFx;
 
   void _openEffectsLibrary(BuildContext context, EditorController editor) async {
     final clip = editor.selectedClip;
@@ -49,6 +50,14 @@ class _EffectsSheetState extends State<EffectsSheet> {
     final currentEffect = selectedClip?.effect ?? VideoEffect.none;
     final appliedShaderEffects = selectedClip?.shaderEffects ?? const <ShaderEffectClip>[];
 
+    if (_configuringFx != null) {
+      return _EffectConfigView(
+        fx: _configuringFx!,
+        clip: selectedClip,
+        onBack: () => setState(() => _configuringFx = null),
+      );
+    }
+
     final filtered = VideoEffect.values.where((fx) {
       final nameMatches = fx.name.toLowerCase().contains(_searchQuery.toLowerCase());
       if (!nameMatches) return false;
@@ -74,7 +83,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
               const PhosphorIcon(
                 PhosphorIconsRegular.magicWand,
                 color: EditorTokens.text,
-                size: 16,
+                size: 18,
               ),
               const SizedBox(width: 10),
               const Expanded(
@@ -85,17 +94,17 @@ class _EffectsSheetState extends State<EffectsSheet> {
                       'Shader Effects Store',
                       style: TextStyle(
                         color: EditorTokens.text,
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        fontFamily: 'Ubuntu',
+                        fontFamily: 'Ubuntu Sans',
                       ),
                     ),
                     Text(
                       'Browse CapCut-style shader effects & keyframes',
                       style: TextStyle(
                         color: EditorTokens.muted,
-                        fontSize: 10,
-                        fontFamily: 'Ubuntu',
+                        fontSize: 11,
+                        fontFamily: 'Ubuntu Sans',
                       ),
                     ),
                   ],
@@ -111,20 +120,59 @@ class _EffectsSheetState extends State<EffectsSheet> {
                 icon: const PhosphorIcon(
                   PhosphorIconsRegular.plus,
                   color: EditorTokens.bg,
-                  size: 12,
+                  size: 14,
                 ),
                 label: const Text(
                   'BROWSE',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    fontFamily: 'Ubuntu',
+                    fontFamily: 'Ubuntu Sans',
                   ),
                 ),
               ),
             ],
           ),
         ),
+        if (currentEffect != VideoEffect.none) ...[
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: EditorTokens.elevated,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: EditorTokens.border),
+            ),
+            child: Row(
+              children: [
+                PhosphorIcon(
+                  _getEffectIcon(currentEffect),
+                  color: EditorTokens.accent,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Active: ${currentEffect.name.toUpperCase()}',
+                  style: const TextStyle(
+                    color: EditorTokens.text,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Ubuntu Sans',
+                  ),
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => setState(() => _configuringFx = currentEffect),
+                  icon: const PhosphorIcon(PhosphorIconsRegular.slidersHorizontal, size: 14, color: EditorTokens.accent),
+                  label: const Text(
+                    'CONFIGURE',
+                    style: TextStyle(color: EditorTokens.accent, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'Ubuntu Sans'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (appliedShaderEffects.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -170,7 +218,12 @@ class _EffectsSheetState extends State<EffectsSheet> {
               final fx = filtered[index];
               final isSelected = fx == currentEffect;
               return GestureDetector(
-                onTap: () => editor.applyEffect(fx),
+                onTap: () {
+                  editor.applyEffect(fx);
+                  if (fx != VideoEffect.none) {
+                    setState(() => _configuringFx = fx);
+                  }
+                },
                 child: Container(
                   decoration: BoxDecoration(
                     color: EditorTokens.surface,
@@ -193,12 +246,39 @@ class _EffectsSheetState extends State<EffectsSheet> {
                               colors: _getEffectGradient(fx),
                             ),
                           ),
-                          child: Center(
-                            child: PhosphorIcon(
-                              _getEffectIcon(fx),
-                              color: isSelected ? EditorTokens.text : Colors.white70,
-                              size: 22,
-                            ),
+                          child: Stack(
+                            children: [
+                              Center(
+                                child: PhosphorIcon(
+                                  _getEffectIcon(fx),
+                                  color: isSelected ? EditorTokens.text : Colors.white70,
+                                  size: 24,
+                                ),
+                              ),
+                              if (fx != VideoEffect.none)
+                                Positioned(
+                                  top: 4,
+                                  right: 4,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      editor.applyEffect(fx);
+                                      setState(() => _configuringFx = fx);
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withValues(alpha: 0.6),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const PhosphorIcon(
+                                        PhosphorIconsRegular.slidersHorizontal,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                       ),
@@ -213,9 +293,9 @@ class _EffectsSheetState extends State<EffectsSheet> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: isSelected ? EditorTokens.bg : EditorTokens.text,
-                            fontSize: 10,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            fontFamily: 'Ubuntu',
+                            fontFamily: 'Ubuntu Sans',
                           ),
                         ),
                       ),
@@ -340,5 +420,288 @@ class _EffectsSheetState extends State<EffectsSheet> {
       case VideoEffect.lightLeak:
         return PhosphorIconsRegular.sun;
     }
+  }
+}
+
+class _EffectParamSpec {
+  const _EffectParamSpec({
+    required this.id,
+    required this.label,
+    required this.min,
+    required this.max,
+    required this.def,
+  });
+
+  final String id;
+  final String label;
+  final double min;
+  final double max;
+  final double def;
+}
+
+class _EffectConfigView extends StatelessWidget {
+  const _EffectConfigView({
+    required this.fx,
+    required this.clip,
+    required this.onBack,
+  });
+
+  final VideoEffect fx;
+  final TimelineClip? clip;
+  final VoidCallback onBack;
+
+  List<_EffectParamSpec> _getSpecsForEffect(VideoEffect effect) {
+    switch (effect) {
+      case VideoEffect.glitch:
+        return const [
+          _EffectParamSpec(id: 'amount', label: 'Distortion Amount', min: 0.0, max: 1.0, def: 0.7),
+          _EffectParamSpec(id: 'speed', label: 'Glitch Speed', min: 0.2, max: 4.0, def: 1.5),
+        ];
+      case VideoEffect.blur:
+        return const [
+          _EffectParamSpec(id: 'blurAmount', label: 'Blur Strength', min: 0.0, max: 5.0, def: 1.5),
+        ];
+      case VideoEffect.glow:
+      case VideoEffect.dreamBloom:
+        return const [
+          _EffectParamSpec(id: 'intensity', label: 'Bloom Intensity', min: 0.0, max: 1.0, def: 0.5),
+          _EffectParamSpec(id: 'threshold', label: 'Luminance Threshold', min: 0.2, max: 0.95, def: 0.6),
+          _EffectParamSpec(id: 'radius', label: 'Bloom Radius', min: 0.1, max: 1.0, def: 0.5),
+        ];
+      case VideoEffect.vhs:
+        return const [
+          _EffectParamSpec(id: 'distortion', label: 'VHS Distortion', min: 0.0, max: 2.0, def: 1.0),
+          _EffectParamSpec(id: 'scanlines', label: 'Scanline Intensity', min: 0.0, max: 1.0, def: 0.5),
+          _EffectParamSpec(id: 'noise', label: 'Tape Noise', min: 0.0, max: 1.0, def: 0.5),
+        ];
+      case VideoEffect.vhsTape:
+        return const [
+          _EffectParamSpec(id: 'amount', label: 'Tape Distortion', min: 0.0, max: 1.0, def: 0.7),
+          _EffectParamSpec(id: 'speed', label: 'Flicker Speed', min: 0.2, max: 4.0, def: 1.0),
+        ];
+      case VideoEffect.wave:
+        return const [
+          _EffectParamSpec(id: 'frequency', label: 'Wave Frequency', min: 1.0, max: 30.0, def: 10.0),
+          _EffectParamSpec(id: 'amplitude', label: 'Wave Amplitude', min: 0.0, max: 5.0, def: 1.0),
+        ];
+      case VideoEffect.liquidWave:
+        return const [
+          _EffectParamSpec(id: 'amount', label: 'Liquid Amount', min: 0.0, max: 2.0, def: 1.0),
+          _EffectParamSpec(id: 'freq', label: 'Frequency', min: 0.5, max: 6.0, def: 2.0),
+          _EffectParamSpec(id: 'speed', label: 'Flow Speed', min: 0.2, max: 4.0, def: 1.0),
+        ];
+      case VideoEffect.vignette:
+        return const [
+          _EffectParamSpec(id: 'radius', label: 'Vignette Radius', min: 0.0, max: 1.0, def: 0.8),
+          _EffectParamSpec(id: 'softness', label: 'Edge Softness', min: 0.0, max: 1.0, def: 0.5),
+        ];
+      case VideoEffect.cinematicVignette:
+        return const [
+          _EffectParamSpec(id: 'strength', label: 'Darkening Strength', min: 0.0, max: 1.0, def: 0.6),
+          _EffectParamSpec(id: 'softness', label: 'Falloff Softness', min: 0.0, max: 1.0, def: 0.6),
+        ];
+      case VideoEffect.chromaticAberration:
+        return const [
+          _EffectParamSpec(id: 'amount', label: 'Color Shift Amount', min: 0.0, max: 1.0, def: 0.5),
+        ];
+      case VideoEffect.filmGrain:
+        return const [
+          _EffectParamSpec(id: 'amount', label: 'Grain Intensity', min: 0.0, max: 1.0, def: 0.5),
+          _EffectParamSpec(id: 'sizePx', label: 'Particle Size', min: 1.0, max: 4.0, def: 1.5),
+        ];
+      case VideoEffect.mosaicPixelate:
+        return const [
+          _EffectParamSpec(id: 'sizePx', label: 'Pixel Size (px)', min: 2.0, max: 64.0, def: 12.0),
+        ];
+      case VideoEffect.crispSharpen:
+        return const [
+          _EffectParamSpec(id: 'amount', label: 'Sharpen Strength', min: 0.0, max: 1.0, def: 0.5),
+        ];
+      case VideoEffect.lensDistortion:
+        return const [
+          _EffectParamSpec(id: 'amount', label: 'Distortion (-1 to 1)', min: -1.0, max: 1.0, def: 0.4),
+        ];
+      case VideoEffect.convexScreenPro:
+        return const [
+          _EffectParamSpec(id: 'strength', label: 'Curvature Strength', min: 0.0, max: 1.0, def: 0.5),
+          _EffectParamSpec(id: 'radius', label: 'Screen Radius', min: 0.2, max: 1.5, def: 0.8),
+        ];
+      case VideoEffect.speedZoomBlur:
+        return const [
+          _EffectParamSpec(id: 'amount', label: 'Zoom Blur Amount', min: 0.0, max: 1.0, def: 0.5),
+        ];
+      case VideoEffect.lightLeak:
+        return const [
+          _EffectParamSpec(id: 'intensity', label: 'Leak Intensity', min: 0.0, max: 1.0, def: 0.6),
+          _EffectParamSpec(id: 'speed', label: 'Animation Speed', min: 0.2, max: 3.0, def: 1.0),
+        ];
+      case VideoEffect.warm:
+        return const [
+          _EffectParamSpec(id: 'warmth', label: 'Warmth Shift', min: 0.0, max: 1.0, def: 0.5),
+          _EffectParamSpec(id: 'intensity', label: 'Color Intensity', min: 0.0, max: 1.0, def: 0.5),
+        ];
+      case VideoEffect.cinematic:
+        return const [
+          _EffectParamSpec(id: 'contrast', label: 'Cinematic Contrast', min: 0.5, max: 2.0, def: 1.2),
+          _EffectParamSpec(id: 'tealShift', label: 'Teal/Orange Boost', min: 0.0, max: 1.0, def: 0.6),
+        ];
+      case VideoEffect.noir:
+        return const [
+          _EffectParamSpec(id: 'contrast', label: 'B&W Contrast', min: 0.5, max: 2.5, def: 1.5),
+          _EffectParamSpec(id: 'grain', label: 'Film Grain', min: 0.0, max: 1.0, def: 0.3),
+        ];
+      case VideoEffect.vibrant:
+        return const [
+          _EffectParamSpec(id: 'saturation', label: 'Color Saturation', min: 0.5, max: 2.0, def: 1.3),
+          _EffectParamSpec(id: 'boost', label: 'Vibrance Boost', min: 0.0, max: 1.0, def: 0.5),
+        ];
+      case VideoEffect.vintage:
+        return const [
+          _EffectParamSpec(id: 'sepia', label: 'Sepia Tone', min: 0.0, max: 1.0, def: 0.7),
+          _EffectParamSpec(id: 'fade', label: 'Fading Amount', min: 0.0, max: 1.0, def: 0.4),
+        ];
+      case VideoEffect.retro:
+        return const [
+          _EffectParamSpec(id: 'grain', label: 'Retro Grain', min: 0.0, max: 1.0, def: 0.5),
+          _EffectParamSpec(id: 'warmth', label: 'Warmth', min: 0.0, max: 1.0, def: 0.6),
+        ];
+      case VideoEffect.matrix:
+        return const [
+          _EffectParamSpec(id: 'density', label: 'Matrix Density', min: 0.0, max: 1.0, def: 0.7),
+          _EffectParamSpec(id: 'speed', label: 'Code Speed', min: 0.2, max: 3.0, def: 1.0),
+        ];
+      case VideoEffect.flame:
+        return const [
+          _EffectParamSpec(id: 'heat', label: 'Fire Heat', min: 0.0, max: 1.0, def: 0.7),
+          _EffectParamSpec(id: 'speed', label: 'Flame Speed', min: 0.2, max: 3.0, def: 1.0),
+        ];
+      case VideoEffect.none:
+        return const [];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final editor = context.read<EditorController>();
+    final specs = _getSpecsForEffect(fx);
+    final currentParams = clip?.effectParameters ?? const <String, double>{};
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: EditorTokens.border)),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const PhosphorIcon(PhosphorIconsRegular.arrowLeft, color: EditorTokens.text, size: 20),
+                onPressed: onBack,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Configure ${fx.name.toUpperCase()}',
+                  style: const TextStyle(
+                    color: EditorTokens.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Ubuntu Sans',
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  final Map<String, double> defaults = {};
+                  for (final s in specs) {
+                    defaults[s.id] = s.def;
+                  }
+                  editor.updateEffectParameters(defaults);
+                },
+                child: const Text('RESET', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Ubuntu Sans')),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: specs.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No configurable parameters for this effect.',
+                    style: TextStyle(color: EditorTokens.muted, fontSize: 13, fontFamily: 'Ubuntu Sans'),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: specs.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 16),
+                  itemBuilder: (context, index) {
+                    final spec = specs[index];
+                    final double val = currentParams[spec.id] ?? spec.def;
+
+                    return Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: EditorTokens.elevated,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: EditorTokens.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  spec.label,
+                                  style: const TextStyle(
+                                    color: EditorTokens.text,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Ubuntu Sans',
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                val.toStringAsFixed(2),
+                                style: const TextStyle(
+                                  color: EditorTokens.accent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Ubuntu Sans',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          SliderTheme(
+                            data: const SliderThemeData(
+                              trackHeight: 3,
+                              thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7),
+                              overlayShape: RoundSliderOverlayShape(overlayRadius: 12),
+                              activeTrackColor: EditorTokens.text,
+                              inactiveTrackColor: EditorTokens.border,
+                              thumbColor: EditorTokens.text,
+                            ),
+                            child: Slider(
+                              value: val.clamp(spec.min, spec.max),
+                              min: spec.min,
+                              max: spec.max,
+                              onChanged: (newVal) {
+                                editor.updateEffectParameter(spec.id, newVal);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
   }
 }

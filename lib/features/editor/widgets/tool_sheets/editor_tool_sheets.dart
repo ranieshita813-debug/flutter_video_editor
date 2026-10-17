@@ -941,12 +941,12 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
   final TextEditingController _ctrl = TextEditingController(text: 'Sample text');
   late final AnimationController _pulse =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
-  String _selectedFont = 'Ubuntu';
+  String _selectedFont = 'Ubuntu Sans';
   TextAnimationStyle _anim = TextAnimationStyle.fadeIn;
   int _tab = 0;
   String? _syncedId;
 
-  static const List<String> _fonts = <String>['Ubuntu', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'];
+  static const List<String> _fonts = <String>['Ubuntu Sans', 'Ubuntu', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'];
 
   @override
   void dispose() {
@@ -1103,7 +1103,7 @@ class StickersSheet extends StatelessWidget {
       itemCount: _emojis.length,
       minTile: 64,
       itemBuilder: (context, i) => _tile(
-        onTap: () => editor.addTextOverlay(_emojis[i], fontFamily: 'Ubuntu'),
+        onTap: () => editor.addTextOverlay(_emojis[i], fontFamily: 'Ubuntu Sans'),
         child: Text(_emojis[i], style: const TextStyle(fontSize: 26)),
       ),
     );

@@ -39,7 +39,7 @@ class EditorToolbar extends StatelessWidget {
     final List<EditorToolbarItem> items = _getToolbarItems(context, editor, clip);
 
     return Container(
-      height: 64,
+      height: 72,
       decoration: const BoxDecoration(
         color: EditorTokens.bg,
         border: Border(top: BorderSide(color: EditorTokens.border, width: 1)),
@@ -62,16 +62,16 @@ class EditorToolbar extends StatelessWidget {
                   PhosphorIcon(
                     item.icon,
                     color: EditorTokens.text.withValues(alpha: 0.9),
-                    size: 15.0,
+                    size: 22.0,
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   Text(
                     item.title,
                     style: TextStyle(
-                      color: EditorTokens.text.withValues(alpha: 0.85),
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w400,
-                      fontFamily: 'Ubuntu',
+                      color: EditorTokens.text.withValues(alpha: 0.9),
+                      fontSize: 12.0,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Ubuntu Sans',
                     ),
                   ),
                 ],

@@ -311,15 +311,19 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     );
   }
 
-  Widget _applyVideoEffectPreset(Widget child, VideoEffect fx, Duration playhead) {
+  Widget _applyVideoEffectPreset(Widget child, VideoEffect fx, Duration playhead, TimelineClip? clip) {
     final List<double>? m = _fxMatrices[fx];
     if (m != null) return ColorFiltered(colorFilter: ColorFilter.matrix(m), child: child);
     final shader = _fxShaders[fx];
     if (shader != null) {
+      final mergedParams = Map<String, double>.from(shader.$2);
+      if (clip != null && clip.effectParameters.isNotEmpty) {
+        mergedParams.addAll(clip.effectParameters);
+      }
       return FxShaders.applyVideo(
         child: child,
         effectId: shader.$1,
-        params: shader.$2,
+        params: mergedParams,
         time: playhead,
       );
     }
@@ -413,7 +417,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
 
     final fxPreset = clip?.effect ?? VideoEffect.none;
     if (fxPreset != VideoEffect.none && clip != null) {
-      child = _applyVideoEffectPreset(child, fxPreset, _e.playhead);
+      child = _applyVideoEffectPreset(child, fxPreset, _e.playhead, clip);
     }
 
     final shaderEffects = clip?.shaderEffects ?? const [];

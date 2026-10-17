@@ -881,9 +881,10 @@ class TimelineClip {
     this.anchorX = 0.5,
     this.anchorY = 0.5,
     this.effect = VideoEffect.none,
+    this.effectParameters = const <String, double>{},
     this.sourcePath,
     this.stickerAssetPath,
-    this.fontFamily = 'Ubuntu',
+    this.fontFamily = 'Ubuntu Sans',
     this.textAnimationStyle = TextAnimationStyle.none,
     this.textStyle = const TextStyleProperties(),
     this.colorGrading = const ColorGradingSettings(),
@@ -923,6 +924,7 @@ class TimelineClip {
   final double anchorX;
   final double anchorY;
   final VideoEffect effect;
+  final Map<String, double> effectParameters;
   final String? sourcePath;
   final String? stickerAssetPath;
   final String fontFamily;
@@ -967,6 +969,7 @@ class TimelineClip {
     double? anchorX,
     double? anchorY,
     VideoEffect? effect,
+    Map<String, double>? effectParameters,
     String? sourcePath,
     String? stickerAssetPath,
     String? fontFamily,
@@ -1009,6 +1012,7 @@ class TimelineClip {
       anchorX: anchorX ?? this.anchorX,
       anchorY: anchorY ?? this.anchorY,
       effect: effect ?? this.effect,
+      effectParameters: effectParameters != null ? Map<String, double>.from(effectParameters) : Map<String, double>.from(this.effectParameters),
       sourcePath: sourcePath ?? this.sourcePath,
       stickerAssetPath: stickerAssetPath ?? this.stickerAssetPath,
       fontFamily: fontFamily ?? this.fontFamily,
@@ -1054,6 +1058,7 @@ class TimelineClip {
       'anchorX': anchorX,
       'anchorY': anchorY,
       'effect': effect.name,
+      'effectParameters': effectParameters,
       'sourcePath': sourcePath,
       'stickerAssetPath': stickerAssetPath,
       'fontFamily': fontFamily,
@@ -1105,9 +1110,13 @@ class TimelineClip {
         (e) => e.name == json['effect'],
         orElse: () => VideoEffect.none,
       ),
+      effectParameters: (json['effectParameters'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, (v as num).toDouble()),
+          ) ??
+          const <String, double>{},
       sourcePath: json['sourcePath'] as String?,
       stickerAssetPath: json['stickerAssetPath'] as String?,
-      fontFamily: json['fontFamily'] as String? ?? 'Ubuntu',
+      fontFamily: json['fontFamily'] as String? ?? 'Ubuntu Sans',
       textAnimationStyle: TextAnimationStyle.values.firstWhere(
         (e) => e.name == json['textAnimationStyle'],
         orElse: () => TextAnimationStyle.none,
@@ -1186,7 +1195,7 @@ class Project {
             <String>[
               'Roboto',
               'Montserrat',
-              'Ubuntu',
+              'Ubuntu Sans',
               'Playfair Display',
               'Bebas Neue',
               'Caveat'
