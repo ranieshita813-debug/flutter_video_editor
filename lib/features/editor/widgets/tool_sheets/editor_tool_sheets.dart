@@ -9,6 +9,7 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/plugins/plugin_manager.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+export 'effects_sheet.dart';
 export 'keyframes_sheet.dart';
 
 // ============================================================================
@@ -1106,56 +1107,6 @@ class StickersSheet extends StatelessWidget {
         onTap: () => editor.addTextOverlay(_emojis[i], fontFamily: 'Ubuntu Sans'),
         child: Text(_emojis[i], style: const TextStyle(fontSize: 26)),
       ),
-    );
-  }
-}
-
-// ----------------------------------------------------------------------------
-// Effects and filters
-// ----------------------------------------------------------------------------
-class EffectsSheet extends StatelessWidget {
-  const EffectsSheet({super.key, required this.isFilterMode});
-  final bool isFilterMode;
-
-  @override
-  Widget build(BuildContext context) {
-    final editor = context.read<EditorController>();
-    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
-    final currentEffect = selectedClip?.effect ?? VideoEffect.none;
-
-    return Column(
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(_pad, 14, _pad, 0),
-          child: Row(
-            children: <Widget>[
-              Text(isFilterMode ? 'Filters' : 'Effects',
-                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-              const Spacer(),
-              if (selectedClip == null)
-                const Text('Select a clip to apply', style: TextStyle(color: mutedToken, fontSize: 11)),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _ResponsiveGrid(
-            itemCount: VideoEffect.values.length,
-            minTile: 76,
-            aspect: 0.8,
-            itemBuilder: (context, i) {
-              final fx = VideoEffect.values[i];
-              final bool isNone = fx == VideoEffect.none;
-              return _ThumbTile(
-                label: _cap(fx.name),
-                selected: fx == currentEffect,
-                icon: isNone ? PhosphorIconsRegular.prohibit : null,
-                gradient: isNone ? null : _thumbGradient(i),
-                onTap: () => editor.applyEffect(fx),
-              );
-            },
-          ),
-        ),
-      ],
     );
   }
 }

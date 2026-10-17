@@ -135,41 +135,45 @@ class _EffectsSheetState extends State<EffectsSheet> {
           ),
         ),
         if (currentEffect != VideoEffect.none) ...[
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: EditorTokens.elevated,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: EditorTokens.border),
-            ),
-            child: Row(
-              children: [
-                PhosphorIcon(
-                  _getEffectIcon(currentEffect),
-                  color: EditorTokens.accent,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Active: ${currentEffect.name.toUpperCase()}',
-                  style: const TextStyle(
-                    color: EditorTokens.text,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Ubuntu Sans',
+          GestureDetector(
+            onTap: () => setState(() => _configuringFx = currentEffect),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: EditorTokens.elevated,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: EditorTokens.border),
+              ),
+              child: Row(
+                children: [
+                  PhosphorIcon(
+                    _getEffectIcon(currentEffect),
+                    color: EditorTokens.accent,
+                    size: 18,
                   ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: () => setState(() => _configuringFx = currentEffect),
-                  icon: const PhosphorIcon(PhosphorIconsRegular.slidersHorizontal, size: 14, color: EditorTokens.accent),
-                  label: const Text(
-                    'CONFIGURE',
-                    style: TextStyle(color: EditorTokens.accent, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'Ubuntu Sans'),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Active: ${currentEffect.name.toUpperCase()}',
+                    style: const TextStyle(
+                      color: EditorTokens.text,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Ubuntu Sans',
+                    ),
                   ),
-                ),
-              ],
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () => setState(() => _configuringFx = currentEffect),
+                    icon: const PhosphorIcon(PhosphorIconsRegular.slidersHorizontal, size: 14, color: EditorTokens.accent),
+                    label: const Text(
+                      'CONFIGURE',
+                      style: TextStyle(color: EditorTokens.accent, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: 'Ubuntu Sans'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
