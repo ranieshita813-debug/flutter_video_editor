@@ -19,9 +19,9 @@ void main() {
     });
 
     test('Keyframe custom Bezier control points serialize and deserialize losslessly', () {
-      final kf = Keyframe(
+      const kf = Keyframe(
         id: 'kf_1',
-        time: const Duration(seconds: 1),
+        time: Duration(seconds: 1),
         property: KeyframeProperty.scale,
         value: 1.5,
         curveType: CurveType.cubicBezier,

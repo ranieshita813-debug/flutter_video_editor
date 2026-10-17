@@ -314,7 +314,7 @@ class _EditorSlider extends StatelessWidget {
         activeTrackColor: EditorTokens.text,
         inactiveTrackColor: EditorTokens.border,
         thumbColor: EditorTokens.text,
-        overlayColor: EditorTokens.text.withOpacity(0.12),
+        overlayColor: EditorTokens.text.withValues(alpha: 0.12),
         trackHeight: 3,
         thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
       ),
