@@ -15,7 +15,6 @@ import 'package:flutter_video_editor/features/editor/controllers/editor_controll
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
 import 'package:flutter_video_editor/features/editor/widgets/fx_shader.dart';
-import 'package:flutter_video_editor/features/editor/widgets/keyframe_controls.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_preview.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 
