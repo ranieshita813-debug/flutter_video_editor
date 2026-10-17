@@ -1,4 +1,4 @@
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 // pubspec.yaml additions:
 //   flutter_svg: ^2.0.10
 //   xml: ^6.5.0

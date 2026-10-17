@@ -1,4 +1,4 @@
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 // lib/features/editor/widgets/color_grade_sheet.dart
 //
 // Advanced color grading, CapCut x Premiere Pro (Lumetri) hybrid.

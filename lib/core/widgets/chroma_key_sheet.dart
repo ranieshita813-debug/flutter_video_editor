@@ -1,4 +1,4 @@
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 // sheets/chroma_key_sheet.dart
 //
 // Pro chroma-key panel (Ultra-Key style): Key / Matte / Cleanup / Spill / Color.
