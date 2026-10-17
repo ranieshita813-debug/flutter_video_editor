@@ -16,7 +16,6 @@ const double _kfFps = 30;
 const Color _kfBg = Color(0xFF0D0D0D);
 const Color _kfCard = Color(0xFF171717);
 const Color _kfLine = Color(0xFF2A2A2A);
-const Color _kfLineHi = Color(0xFF3A3A3A);
 const Color _kfText = Color(0xFFF2F2F2);
 const Color _kfMuted = Color(0xFF8A8A8A);
 const Color _kfDim = Color(0xFF555555);

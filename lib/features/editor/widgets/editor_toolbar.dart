@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
+import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 
 class EditorToolbarItem {
   EditorToolbarItem({
@@ -41,7 +42,7 @@ class EditorToolbar extends StatelessWidget {
     return Container(
       height: 72,
       decoration: const BoxDecoration(
-        color: EditorTokens.bg,
+        color: bgToken,
         border: Border(top: BorderSide(color: EditorTokens.border, width: 1)),
       ),
       child: ListView.separated(
