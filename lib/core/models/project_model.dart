@@ -124,6 +124,10 @@ class Keyframe {
     required this.property,
     required this.value,
     this.curveType = CurveType.linear,
+    this.cp1x = 0.25,
+    this.cp1y = 0.10,
+    this.cp2x = 0.25,
+    this.cp2y = 1.00,
   });
 
   final String id;
@@ -131,6 +135,10 @@ class Keyframe {
   final KeyframeProperty property;
   final double value;
   final CurveType curveType;
+  final double cp1x;
+  final double cp1y;
+  final double cp2x;
+  final double cp2y;
 
   Keyframe copyWith({
     String? id,
@@ -138,6 +146,10 @@ class Keyframe {
     KeyframeProperty? property,
     double? value,
     CurveType? curveType,
+    double? cp1x,
+    double? cp1y,
+    double? cp2x,
+    double? cp2y,
   }) {
     return Keyframe(
       id: id ?? this.id,
@@ -145,6 +157,10 @@ class Keyframe {
       property: property ?? this.property,
       value: value ?? this.value,
       curveType: curveType ?? this.curveType,
+      cp1x: cp1x ?? this.cp1x,
+      cp1y: cp1y ?? this.cp1y,
+      cp2x: cp2x ?? this.cp2x,
+      cp2y: cp2y ?? this.cp2y,
     );
   }
 
@@ -155,6 +171,10 @@ class Keyframe {
       'property': property.name,
       'value': value,
       'curveType': curveType.name,
+      'cp1x': cp1x,
+      'cp1y': cp1y,
+      'cp2x': cp2x,
+      'cp2y': cp2y,
     };
   }
 
@@ -171,6 +191,10 @@ class Keyframe {
         (e) => e.name == json['curveType'],
         orElse: () => CurveType.linear,
       ),
+      cp1x: (json['cp1x'] as num?)?.toDouble() ?? 0.25,
+      cp1y: (json['cp1y'] as num?)?.toDouble() ?? 0.10,
+      cp2x: (json['cp2x'] as num?)?.toDouble() ?? 0.25,
+      cp2y: (json['cp2y'] as num?)?.toDouble() ?? 1.00,
     );
   }
 }

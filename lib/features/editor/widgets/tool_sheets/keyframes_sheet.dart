@@ -34,7 +34,7 @@ T? _kfFind<T>(Iterable<T> items, bool Function(T) test) {
   return null;
 }
 
-double _kfEval(double t, CurveType type) {
+double _kfEval(double t, CurveType type, [double cp1x = 0.25, double cp1y = 0.1, double cp2x = 0.25, double cp2y = 1.0]) {
   switch (type) {
     case CurveType.linear:
       return t;
@@ -43,21 +43,35 @@ double _kfEval(double t, CurveType type) {
     case CurveType.easeOut:
       return t * (2 - t);
     case CurveType.cubicBezier:
-      return Curves.easeInOutCubic.transform(t.clamp(0.0, 1.0));
+      return solveCubicBezierY(t, cp1x, cp1y, cp2x, cp2y);
   }
 }
 
 class _CurveOption {
-  const _CurveOption(this.label, this.curveType);
+  const _CurveOption(
+    this.label,
+    this.curveType, [
+    this.cp1x = 0.25,
+    this.cp1y = 0.10,
+    this.cp2x = 0.25,
+    this.cp2y = 1.00,
+  ]);
   final String label;
   final CurveType curveType;
+  final double cp1x;
+  final double cp1y;
+  final double cp2x;
+  final double cp2y;
 }
 
 const List<_CurveOption> _kfOptions = <_CurveOption>[
-  _CurveOption('Linear', CurveType.linear),
-  _CurveOption('Ease in', CurveType.easeIn),
-  _CurveOption('Ease out', CurveType.easeOut),
-  _CurveOption('Bezier', CurveType.cubicBezier),
+  _CurveOption('Linear', CurveType.linear, 0.0, 0.0, 1.0, 1.0),
+  _CurveOption('Ease in', CurveType.easeIn, 0.42, 0.0, 1.0, 1.0),
+  _CurveOption('Ease out', CurveType.easeOut, 0.0, 0.0, 0.58, 1.0),
+  _CurveOption('Custom', CurveType.cubicBezier, 0.25, 0.10, 0.25, 1.00),
+  _CurveOption('Bounce', CurveType.cubicBezier, 0.34, 1.56, 0.64, 1.00),
+  _CurveOption('Fast Start', CurveType.cubicBezier, 0.05, 0.70, 0.10, 1.00),
+  _CurveOption('Slow Down', CurveType.cubicBezier, 0.90, 0.00, 0.95, 0.30),
 ];
 
 // ----------------------------------------------------------------------------
@@ -127,7 +141,17 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
 
     void pick(Keyframe kf, _CurveOption o) {
       tapFeedback();
-      editor.addKeyframe(kf.copyWith(curveType: o.curveType));
+      editor.addKeyframe(kf.copyWith(
+        curveType: o.curveType,
+        cp1x: o.cp1x,
+        cp1y: o.cp1y,
+        cp2x: o.cp2x,
+        cp2y: o.cp2y,
+      ));
+    }
+
+    void updateCurve(Keyframe updated) {
+      editor.addKeyframe(updated);
     }
 
     return ColoredBox(
@@ -218,40 +242,46 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Curve',
+                'Animation Curve Customization',
                 style: TextStyle(color: _kfText, fontSize: 14, fontWeight: FontWeight.w700),
               ),
             ),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: _KfCard(
-                child: SizedBox(
-                  height: 160,
-                  width: double.infinity,
-                  child: CustomPaint(
-                    painter: _CurveGraphPainter(curveType: selected.curveType),
-                  ),
-                ),
+              child: _InteractiveCurveEditor(
+                keyframe: selected,
+                onChanged: updateCurve,
+                onDragStateChanged: (dragging) {
+                  setState(() => _lockScroll = dragging);
+                },
               ),
             ),
             const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: <Widget>[
-                  for (int i = 0; i < _kfOptions.length; i++) ...<Widget>[
-                    SizedBox(
-                      width: 56,
-                      child: _CurveTile(
-                        option: _kfOptions[i],
-                        on: _kfOptions[i].curveType == selected.curveType,
-                        onTap: () => pick(selected, _kfOptions[i]),
-                      ),
+            SizedBox(
+              height: 76,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: _kfOptions.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, i) {
+                  final opt = _kfOptions[i];
+                  final bool isSel = opt.curveType == selected.curveType &&
+                      (opt.curveType != CurveType.cubicBezier ||
+                          ((opt.cp1x - selected.cp1x).abs() < 0.05 &&
+                              (opt.cp1y - selected.cp1y).abs() < 0.05 &&
+                              (opt.cp2x - selected.cp2x).abs() < 0.05 &&
+                              (opt.cp2y - selected.cp2y).abs() < 0.05));
+                  return SizedBox(
+                    width: 58,
+                    child: _CurveTile(
+                      option: opt,
+                      on: isSel,
+                      onTap: () => pick(selected, opt),
                     ),
-                  ],
-                ],
+                  );
+                },
               ),
             ),
           ] else if (all.isNotEmpty)
@@ -382,7 +412,7 @@ class _CurveTile extends StatelessWidget {
               ),
               padding: const EdgeInsets.all(12),
               child: CustomPaint(
-                painter: _CurveThumbPainter(curveType: option.curveType, on: on),
+                painter: _CurveThumbPainter(option: option, on: on),
               ),
             ),
           ),
@@ -404,8 +434,11 @@ class _CurveTile extends StatelessWidget {
 }
 
 class _CurveThumbPainter extends CustomPainter {
-  _CurveThumbPainter({required this.curveType, required this.on});
-  final CurveType curveType;
+  _CurveThumbPainter({
+    required this.option,
+    required this.on,
+  });
+  final _CurveOption option;
   final bool on;
 
   @override
@@ -415,7 +448,8 @@ class _CurveThumbPainter extends CustomPainter {
     for (int i = 0; i <= steps; i++) {
       final double t = i / steps;
       final double x = t * size.width;
-      final double y = size.height - _kfEval(t, curveType) * size.height;
+      final double val = _kfEval(t, option.curveType, option.cp1x, option.cp1y, option.cp2x, option.cp2y);
+      final double y = size.height - val.clamp(0.0, 1.0) * size.height;
       if (i == 0) {
         p.moveTo(x, y);
       } else {
@@ -433,7 +467,7 @@ class _CurveThumbPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _CurveThumbPainter o) => o.curveType != curveType || o.on != on;
+  bool shouldRepaint(covariant _CurveThumbPainter o) => o.option != option || o.on != on;
 }
 
 // ----------------------------------------------------------------------------
@@ -605,45 +639,221 @@ class _TrackPainter extends CustomPainter {
 }
 
 // ----------------------------------------------------------------------------
-// Curve graph
+// Interactive curve editor & painter
 // ----------------------------------------------------------------------------
-class _CurveGraphPainter extends CustomPainter {
-  _CurveGraphPainter({required this.curveType});
+class _InteractiveCurveEditor extends StatefulWidget {
+  const _InteractiveCurveEditor({
+    required this.keyframe,
+    required this.onChanged,
+    required this.onDragStateChanged,
+  });
+
+  final Keyframe keyframe;
+  final ValueChanged<Keyframe> onChanged;
+  final ValueChanged<bool> onDragStateChanged;
+
+  @override
+  State<_InteractiveCurveEditor> createState() => _InteractiveCurveEditorState();
+}
+
+class _InteractiveCurveEditorState extends State<_InteractiveCurveEditor> {
+  int? _activeHandle;
+
+  @override
+  Widget build(BuildContext context) {
+    final kf = widget.keyframe;
+    return Column(
+      children: [
+        _KfCard(
+          child: SizedBox(
+            height: 180,
+            width: double.infinity,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final Size canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+                const double pad = 24.0;
+                final double usableW = canvasSize.width - pad * 2;
+                final double usableH = canvasSize.height - pad * 2;
+
+                Offset pointToOffset(double normX, double normY) {
+                  final double x = pad + normX.clamp(0.0, 1.0) * usableW;
+                  final double y = (canvasSize.height - pad) - normY.clamp(-0.5, 1.5) * usableH;
+                  return Offset(x, y);
+                }
+
+                void updateHandle(Offset localPosition) {
+                  final double normX = ((localPosition.dx - pad) / usableW).clamp(0.0, 1.0);
+                  final double normY = (((canvasSize.height - pad) - localPosition.dy) / usableH).clamp(-0.5, 1.5);
+
+                  if (_activeHandle == 1) {
+                    widget.onChanged(kf.copyWith(
+                      curveType: CurveType.cubicBezier,
+                      cp1x: normX,
+                      cp1y: normY,
+                    ));
+                  } else if (_activeHandle == 2) {
+                    widget.onChanged(kf.copyWith(
+                      curveType: CurveType.cubicBezier,
+                      cp2x: normX,
+                      cp2y: normY,
+                    ));
+                  }
+                }
+
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onPanStart: (details) {
+                    final p1 = pointToOffset(kf.cp1x, kf.cp1y);
+                    final p2 = pointToOffset(kf.cp2x, kf.cp2y);
+                    final pos = details.localPosition;
+
+                    final d1 = (p1 - pos).distance;
+                    final d2 = (p2 - pos).distance;
+
+                    if (d1 < 32 && d1 <= d2) {
+                      _activeHandle = 1;
+                    } else if (d2 < 32) {
+                      _activeHandle = 2;
+                    } else if (d1 < 60) {
+                      _activeHandle = 1;
+                    } else if (d2 < 60) {
+                      _activeHandle = 2;
+                    } else {
+                      _activeHandle = null;
+                    }
+
+                    if (_activeHandle != null) {
+                      widget.onDragStateChanged(true);
+                      updateHandle(pos);
+                    }
+                  },
+                  onPanUpdate: (details) {
+                    if (_activeHandle != null) {
+                      updateHandle(details.localPosition);
+                    }
+                  },
+                  onPanEnd: (_) {
+                    if (_activeHandle != null) {
+                      _activeHandle = null;
+                      widget.onDragStateChanged(false);
+                    }
+                  },
+                  onPanCancel: () {
+                    if (_activeHandle != null) {
+                      _activeHandle = null;
+                      widget.onDragStateChanged(false);
+                    }
+                  },
+                  child: CustomPaint(
+                    size: canvasSize,
+                    painter: _InteractiveCurvePainter(
+                      cp1x: kf.cp1x,
+                      cp1y: kf.cp1y,
+                      cp2x: kf.cp2x,
+                      cp2y: kf.cp2y,
+                      curveType: kf.curveType,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'P1 (${kf.cp1x.toStringAsFixed(2)}, ${kf.cp1y.toStringAsFixed(2)})',
+                style: const TextStyle(color: _kfMuted, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+              const Text(
+                'Drag handles to customize curve',
+                style: TextStyle(color: _kfMuted, fontSize: 10, fontStyle: FontStyle.italic),
+              ),
+              Text(
+                'P2 (${kf.cp2x.toStringAsFixed(2)}, ${kf.cp2y.toStringAsFixed(2)})',
+                style: const TextStyle(color: _kfMuted, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InteractiveCurvePainter extends CustomPainter {
+  _InteractiveCurvePainter({
+    required this.cp1x,
+    required this.cp1y,
+    required this.cp2x,
+    required this.cp2y,
+    required this.curveType,
+  });
+
+  final double cp1x;
+  final double cp1y;
+  final double cp2x;
+  final double cp2y;
   final CurveType curveType;
 
   @override
   void paint(Canvas canvas, Size size) {
     final double w = size.width;
     final double h = size.height;
-    const double pad = 16.0;
+    const double pad = 24.0;
+    final double usableW = w - pad * 2;
+    final double usableH = h - pad * 2;
+
+    Offset pointToOffset(double normX, double normY) {
+      final double x = pad + normX.clamp(0.0, 1.0) * usableW;
+      final double y = (h - pad) - normY.clamp(-0.5, 1.5) * usableH;
+      return Offset(x, y);
+    }
 
     final Paint gridPaint = Paint()
       ..color = _kfLine
       ..strokeWidth = 0.8;
 
     for (int i = 0; i <= 4; i++) {
-      final double x = pad + (w - 2 * pad) * (i / 4);
-      final double y = pad + (h - 2 * pad) * (i / 4);
+      final double x = pad + usableW * (i / 4);
+      final double y = pad + usableH * (i / 4);
       canvas.drawLine(Offset(x, pad), Offset(x, h - pad), gridPaint);
       canvas.drawLine(Offset(pad, y), Offset(w - pad, y), gridPaint);
     }
+
+    final Offset start = pointToOffset(0.0, 0.0);
+    final Offset end = pointToOffset(1.0, 1.0);
+    final Offset p1 = pointToOffset(cp1x, cp1y);
+    final Offset p2 = pointToOffset(cp2x, cp2y);
+
+    final Paint handleLinePaint = Paint()
+      ..color = Colors.white38
+      ..strokeWidth = 1.2;
+
+    canvas.drawLine(start, p1, handleLinePaint);
+    canvas.drawLine(end, p2, handleLinePaint);
 
     final Path curvePath = Path();
     const int steps = 50;
     for (int i = 0; i <= steps; i++) {
       final double t = i / steps;
-      final double px = pad + t * (w - 2 * pad);
-      final double py = (h - pad) - _kfEval(t, curveType) * (h - 2 * pad);
+      final double val = _kfEval(t, curveType, cp1x, cp1y, cp2x, cp2y);
+      final Offset pt = pointToOffset(t, val);
       if (i == 0) {
-        curvePath.moveTo(px, py);
+        curvePath.moveTo(pt.dx, pt.dy);
       } else {
-        curvePath.lineTo(px, py);
+        curvePath.lineTo(pt.dx, pt.dy);
       }
     }
 
     final Path fill = Path.from(curvePath)
-      ..lineTo(w - pad, h - pad)
-      ..lineTo(pad, h - pad)
+      ..lineTo(end.dx, end.dy)
+      ..lineTo(end.dx, start.dy)
+      ..lineTo(start.dx, start.dy)
       ..close();
     canvas.drawPath(fill, Paint()..color = Colors.white.withValues(alpha: 0.06));
 
@@ -656,13 +866,26 @@ class _CurveGraphPainter extends CustomPainter {
         ..style = PaintingStyle.stroke,
     );
 
-    for (final Offset o in <Offset>[Offset(pad, h - pad), Offset(w - pad, pad)]) {
+    // Draw handles P1 & P2
+    for (final entry in [(p1, 'P1'), (p2, 'P2')]) {
+      final pt = entry.$1;
+      canvas.drawCircle(pt, 8, Paint()..color = _kfBg);
+      canvas.drawCircle(pt, 6, Paint()..color = const Color(0xFF5B8CFF));
+      canvas.drawCircle(pt, 3, Paint()..color = Colors.white);
+    }
+
+    // Draw end points
+    for (final Offset o in [start, end]) {
       canvas.drawCircle(o, 6, Paint()..color = _kfBg);
       canvas.drawCircle(o, 4.5, Paint()..color = Colors.white);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _CurveGraphPainter oldDelegate) =>
-      oldDelegate.curveType != curveType;
+  bool shouldRepaint(covariant _InteractiveCurvePainter old) =>
+      old.cp1x != cp1x ||
+      old.cp1y != cp1y ||
+      old.cp2x != cp2x ||
+      old.cp2y != cp2y ||
+      old.curveType != curveType;
 }

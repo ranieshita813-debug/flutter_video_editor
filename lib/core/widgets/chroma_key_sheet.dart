@@ -14,13 +14,9 @@
 //     onClose: provider.closeTool,
 //   )
 
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// FIX: the package is phosphor_flutter (phosphor_icons does not exist on pub).
-// pubspec.yaml:  phosphor_flutter: ^2.1.0
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_preview.dart'
     show ChromaBackground;
@@ -375,7 +371,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           ),
           IconButton(
             tooltip: 'Done',
-            icon: const Icon(PhosphorIconsRegular.check, color: _accent),
+            icon: const PhosphorIcon(PhosphorIconsRegular.check, color: _accent),
             onPressed: widget.onClose,
           ),
         ]),

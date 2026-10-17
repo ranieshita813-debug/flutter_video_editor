@@ -82,6 +82,40 @@ bool isImagePath(String p) {
 
 void tapFeedback() => HapticFeedback.selectionClick();
 
+/// Solves unit cubic bezier Y value for a given progress [t] and control points.
+double solveCubicBezierY(double t, double cp1x, double cp1y, double cp2x, double cp2y) {
+  if (t <= 0) return 0.0;
+  if (t >= 1) return 1.0;
+
+  double sampleX(double u) {
+    final double om = 1.0 - u;
+    return 3.0 * om * om * u * cp1x + 3.0 * om * u * u * cp2x + u * u * u;
+  }
+
+  double sampleY(double u) {
+    final double om = 1.0 - u;
+    return 3.0 * om * om * u * cp1y + 3.0 * om * u * u * cp2y + u * u * u;
+  }
+
+  double low = 0.0;
+  double high = 1.0;
+  double u = t;
+
+  for (int i = 0; i < 12; i++) {
+    final double x = sampleX(u);
+    final double diff = x - t;
+    if (diff.abs() < 1e-4) break;
+    if (diff > 0) {
+      high = u;
+    } else {
+      low = u;
+    }
+    u = (low + high) / 2.0;
+  }
+
+  return sampleY(u);
+}
+
 /// Calculates interpolated keyframe value for [property] at clip relative time [relativeTime].
 /// Returns [defaultValue] if the clip has no keyframes for [property].
 double getInterpolatedKeyframeValue(
@@ -113,7 +147,7 @@ double getInterpolatedKeyframeValue(
           t = Curves.easeOut.transform(t);
           break;
         case CurveType.cubicBezier:
-          t = Curves.easeInOut.transform(t);
+          t = solveCubicBezierY(t, a.cp1x, a.cp1y, a.cp2x, a.cp2y);
           break;
         case CurveType.linear:
           break;
