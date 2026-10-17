@@ -269,7 +269,7 @@ class ClipDto {
       audioProperties: json['audioProperties'] as Map<String, dynamic>? ?? <String, dynamic>{},
       chromaKey: json['chromaKey'] as Map<String, dynamic>? ?? <String, dynamic>{},
       elementProperties: json['elementProperties'] as Map<String, dynamic>? ?? <String, dynamic>{},
-      fontFamily: json['fontFamily'] as String? ?? 'Ubuntu',
+      fontFamily: json['fontFamily'] as String? ?? 'Ubuntu Sans',
       textAnimationStyle: json['textAnimationStyle'] as String? ?? 'none',
       textStyle: json['textStyle'] as Map<String, dynamic>? ?? <String, dynamic>{},
       inAnimation: json['inAnimation'] as String? ?? 'none',

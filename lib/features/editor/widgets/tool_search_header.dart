@@ -69,7 +69,7 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
               const PhosphorIcon(
                 PhosphorIconsRegular.magnifyingGlass,
                 color: EditorTokens.muted,
-                size: 14.0,
+                size: 18.0,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -78,15 +78,15 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
                   onChanged: widget.onSearchChanged,
                   style: const TextStyle(
                     color: EditorTokens.text,
-                    fontSize: 13,
-                    fontFamily: 'Ubuntu',
+                    fontSize: 15,
+                    fontFamily: 'Ubuntu Sans',
                   ),
                   decoration: InputDecoration(
                     hintText: widget.placeholder,
                     hintStyle: const TextStyle(
                       color: EditorTokens.muted,
-                      fontSize: 13,
-                      fontFamily: 'Ubuntu',
+                      fontSize: 15,
+                      fontFamily: 'Ubuntu Sans',
                     ),
                     border: InputBorder.none,
                     isDense: true,
@@ -104,7 +104,7 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
                   child: const PhosphorIcon(
                     PhosphorIconsRegular.x,
                     color: EditorTokens.muted,
-                    size: 14.0,
+                    size: 18.0,
                   ),
                 ),
             ],

@@ -64,6 +64,24 @@ flutter:
     - shaders/convex_screen_pro.frag
 
   fonts:
+    - family: Ubuntu Sans
+      fonts:
+        - asset: assets/fonts/UbuntuSans-Regular.ttf
+        - asset: assets/fonts/UbuntuSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/UbuntuSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/UbuntuSans-Bold.ttf
+          weight: 700
+    - family: Ubuntu
+      fonts:
+        - asset: assets/fonts/UbuntuSans-Regular.ttf
+        - asset: assets/fonts/UbuntuSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/UbuntuSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/UbuntuSans-Bold.ttf
+          weight: 700
     - family: Poppins
       fonts:
         - asset: assets/fonts/Poppins-Regular.ttf

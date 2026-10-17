@@ -72,6 +72,33 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateEffectParameter(String paramName, double value) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveStateCoalesced('fxparam:$_selectedClipId:$paramName');
+    final clip = _project.clips[index];
+    final updatedParams = Map<String, double>.from(clip.effectParameters);
+    updatedParams[paramName] = value;
+    _project.clips[index] = clip.copyWith(effectParameters: updatedParams);
+    _autosave();
+    notifyListeners();
+  }
+
+  void updateEffectParameters(Map<String, double> params) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveStateCoalesced('fxparams:$_selectedClipId');
+    final clip = _project.clips[index];
+    final updatedParams = Map<String, double>.from(clip.effectParameters)..addAll(params);
+    _project.clips[index] = clip.copyWith(effectParameters: updatedParams);
+    _autosave();
+    notifyListeners();
+  }
+
   void extractAudioFromSelectedClip() {
     final current = selectedClip;
     if (current == null || current.sourcePath == null) return;
@@ -713,7 +740,7 @@ class EditorController extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   void addTextOverlay(
     String text, {
-    String fontFamily = 'Ubuntu',
+    String fontFamily = 'Ubuntu Sans',
     TextAnimationStyle animationStyle = TextAnimationStyle.fadeIn,
   }) {
     _saveState();
@@ -739,7 +766,7 @@ class EditorController extends ChangeNotifier {
 
   List<String> get availableFonts {
     final list = <String>[
-      'Ubuntu',
+      'Ubuntu Sans',
       'Unbounded',
       'Roboto',
       'Montserrat',
@@ -1316,7 +1343,7 @@ class EditorController extends ChangeNotifier {
         end: cue.end,
         clipType: ClipType.caption,
         layerIndex: _freeOverlayLayer(4, cue.start, cue.end),
-        fontFamily: 'Ubuntu',
+        fontFamily: 'Ubuntu Sans',
       );
       _project.addClip(clip);
     }
