@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 
 import 'package:flutter_video_editor/core/models/shader_effect_model.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
@@ -60,7 +60,7 @@ class EffectCard extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          FaIcon(
+                          PhosphorIcon(
                             _getCategoryIcon(effect.category),
                             color: isSelected ? EditorTokens.text : EditorTokens.muted,
                             size: 24,
@@ -71,7 +71,7 @@ class EffectCard extends StatelessWidget {
                             style: const TextStyle(
                               color: EditorTokens.faint,
                               fontSize: 9,
-                              fontFamily: 'Poppins',
+                              fontFamily: 'Ubuntu',
                             ),
                           ),
                         ],
@@ -89,10 +89,10 @@ class EffectCard extends StatelessWidget {
                           color: EditorTokens.bg,
                           shape: BoxShape.circle,
                         ),
-                        child: FaIcon(
+                        child: PhosphorIcon(
                           effect.isFavorite
-                              ? FontAwesomeIcons.solidHeart
-                              : FontAwesomeIcons.heart,
+                              ? PhosphorIconsFill.heart
+                              : PhosphorIconsRegular.heart,
                           color: effect.isFavorite ? Colors.redAccent : EditorTokens.muted,
                           size: 12,
                         ),
@@ -116,7 +116,7 @@ class EffectCard extends StatelessWidget {
                             color: EditorTokens.accent,
                             fontSize: 8,
                             fontWeight: FontWeight.bold,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Ubuntu',
                           ),
                         ),
                       ),
@@ -144,8 +144,8 @@ class EffectCard extends StatelessWidget {
                                       color: EditorTokens.text,
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const FaIcon(
-                                      FontAwesomeIcons.download,
+                                    child: const PhosphorIcon(
+                                      PhosphorIconsRegular.download,
                                       color: EditorTokens.bg,
                                       size: 14,
                                     ),
@@ -171,7 +171,7 @@ class EffectCard extends StatelessWidget {
                       color: isSelected ? EditorTokens.text : EditorTokens.text.withValues(alpha: 0.87),
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Ubuntu',
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -182,7 +182,7 @@ class EffectCard extends StatelessWidget {
                     style: const TextStyle(
                       color: EditorTokens.muted,
                       fontSize: 9,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Ubuntu',
                     ),
                   ),
                 ],
@@ -194,29 +194,29 @@ class EffectCard extends StatelessWidget {
     );
   }
 
-  FaIconData _getCategoryIcon(ShaderEffectCategory cat) {
+  PhosphorIconData _getCategoryIcon(ShaderEffectCategory cat) {
     switch (cat) {
       case ShaderEffectCategory.glow:
       case ShaderEffectCategory.neon:
-        return FontAwesomeIcons.bolt;
+        return PhosphorIconsRegular.lightning;
       case ShaderEffectCategory.blur:
-        return FontAwesomeIcons.filter;
+        return PhosphorIconsRegular.funnel;
       case ShaderEffectCategory.cinematic:
-        return FontAwesomeIcons.video;
+        return PhosphorIconsRegular.videoCamera;
       case ShaderEffectCategory.vintage:
-        return FontAwesomeIcons.clock;
+        return PhosphorIconsRegular.clock;
       case ShaderEffectCategory.noir:
-        return FontAwesomeIcons.moon;
+        return PhosphorIconsRegular.moon;
       case ShaderEffectCategory.glitch:
-        return FontAwesomeIcons.sliders;
+        return PhosphorIconsRegular.sliders;
       case ShaderEffectCategory.bloom:
       case ShaderEffectCategory.lightLeak:
-        return FontAwesomeIcons.sun;
+        return PhosphorIconsRegular.sun;
       case ShaderEffectCategory.distortion:
-        return FontAwesomeIcons.wandMagicSparkles;
+        return PhosphorIconsRegular.magicWand;
       case ShaderEffectCategory.colorStyle:
       case ShaderEffectCategory.all:
-        return FontAwesomeIcons.palette;
+        return PhosphorIconsRegular.palette;
     }
   }
 }

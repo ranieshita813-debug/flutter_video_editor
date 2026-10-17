@@ -25,8 +25,20 @@ enum VideoEffect {
   matrix,
   flame,
   vhs,
+  vhsTape,
   wave,
+  liquidWave,
   vignette,
+  cinematicVignette,
+  chromaticAberration,
+  filmGrain,
+  dreamBloom,
+  mosaicPixelate,
+  crispSharpen,
+  lensDistortion,
+  convexScreenPro,
+  speedZoomBlur,
+  lightLeak,
 }
 
 enum TextAnimationStyle {

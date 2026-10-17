@@ -23,7 +23,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
@@ -369,7 +369,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
         alignment: Alignment.center,
         child: const Text(
           'Select a text clip to customize style',
-          style: TextStyle(color: EditorTokens.muted, fontFamily: 'Poppins'),
+          style: TextStyle(color: EditorTokens.muted, fontFamily: 'Ubuntu'),
         ),
       );
     }
@@ -430,7 +430,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                           color: t == _tab ? EditorTokens.text : EditorTokens.muted,
                           fontSize: 13.5,
                           fontWeight: FontWeight.w700,
-                          fontFamily: 'Poppins',
+                          fontFamily: 'Ubuntu',
                         ),
                       ),
                       const SizedBox(height: 7),
@@ -469,7 +469,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
             color: EditorTokens.text,
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Poppins',
+            fontFamily: 'Ubuntu',
           ),
         ),
       );
@@ -546,7 +546,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (f == _FontFilter.imported) ...[
-                      Icon(Icons.file_upload_outlined,
+                      Icon(PhosphorIconsRegular.uploadSimple,
                           size: 14, color: on ? _accent : EditorTokens.muted),
                       const SizedBox(width: 5),
                     ],
@@ -556,7 +556,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                         color: on ? _accent : EditorTokens.muted,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Ubuntu',
                       ),
                     ),
                   ],
@@ -581,13 +581,13 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                 : 'No fonts in this category',
             textAlign: TextAlign.center,
             style: const TextStyle(
-                color: EditorTokens.muted, fontSize: 12, fontFamily: 'Poppins'),
+                color: EditorTokens.muted, fontSize: 12, fontFamily: 'Ubuntu'),
           ),
           if (imp) ...[
             const SizedBox(height: 14),
             OutlinedButton.icon(
               onPressed: _importing ? null : () => _import(editor),
-              icon: const Icon(Icons.file_upload_outlined, size: 18),
+              icon: const Icon(PhosphorIconsRegular.uploadSimple, size: 18),
               label: const Text('Import font'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _accent,
@@ -628,14 +628,14 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: _accent),
                   )
                 else
-                  const Icon(Icons.note_add_outlined, size: 22, color: _accent),
+                  const Icon(PhosphorIconsRegular.filePlus, size: 22, color: _accent),
                 const SizedBox(height: 6),
                 const Text('Import',
                     style: TextStyle(
                         color: _accent,
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'Poppins')),
+                        fontFamily: 'Ubuntu')),
               ],
             ),
           ),
@@ -682,7 +682,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                           style: TextStyle(
                               color: on ? _accent : EditorTokens.muted,
                               fontSize: 9.5,
-                              fontFamily: 'Poppins')),
+                              fontFamily: 'Ubuntu')),
                     ),
                   ],
                 ),
@@ -702,7 +702,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                       },
                       child: const Padding(
                         padding: EdgeInsets.all(5),
-                        child: Icon(Icons.close_rounded, size: 13, color: EditorTokens.muted),
+                        child: Icon(PhosphorIconsRegular.x, size: 13, color: EditorTokens.muted),
                       ),
                     ),
                   ),
@@ -798,7 +798,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                       color: item.$2.textColor,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Ubuntu',
                       shadows: item.$2.shadowBlurRadius > 0
                           ? [Shadow(color: item.$2.shadowColor, blurRadius: item.$2.shadowBlurRadius)]
                           : null,
@@ -827,9 +827,9 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
               ListTile(
                 tileColor: _field,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                leading: const FaIcon(FontAwesomeIcons.scissors, color: _accent, size: 18),
-                title: const Text('Split Caption', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Poppins')),
-                subtitle: const Text('Split subtitle at current playhead', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Poppins')),
+                leading: const PhosphorIcon(PhosphorIconsRegular.scissors, color: _accent, size: 18),
+                title: const Text('Split Caption', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Ubuntu')),
+                subtitle: const Text('Split subtitle at current playhead', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Ubuntu')),
                 onTap: () {
                   HapticFeedback.selectionClick();
                   editor.splitCaptionClip();
@@ -839,9 +839,9 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
               ListTile(
                 tileColor: _field,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                leading: const FaIcon(FontAwesomeIcons.objectGroup, color: _accent, size: 18),
-                title: const Text('Merge Next Subtitle', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Poppins')),
-                subtitle: const Text('Combine this caption with the next one', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Poppins')),
+                leading: const PhosphorIcon(PhosphorIconsRegular.squaresFour, color: _accent, size: 18),
+                title: const Text('Merge Next Subtitle', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Ubuntu')),
+                subtitle: const Text('Combine this caption with the next one', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Ubuntu')),
                 onTap: () {
                   HapticFeedback.selectionClick();
                   editor.mergeNextCaptionClip();
@@ -851,9 +851,9 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
               ListTile(
                 tileColor: _field,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                leading: const FaIcon(FontAwesomeIcons.closedCaptioning, color: _accent, size: 18),
-                title: const Text('Regenerate Auto Captions', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Poppins')),
-                subtitle: const Text('Re-align captions for all media clips', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Poppins')),
+                leading: const PhosphorIcon(PhosphorIconsRegular.closedCaptioning, color: _accent, size: 18),
+                title: const Text('Regenerate Auto Captions', style: TextStyle(color: EditorTokens.text, fontSize: 13, fontFamily: 'Ubuntu')),
+                subtitle: const Text('Re-align captions for all media clips', style: TextStyle(color: EditorTokens.muted, fontSize: 11, fontFamily: 'Ubuntu')),
                 onTap: () {
                   HapticFeedback.selectionClick();
                   editor.generateAutoCaptions();
@@ -999,7 +999,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                   color: effect == 'neon' ? cyan : Colors.white,
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  fontFamily: 'Poppins',
+                  fontFamily: 'Ubuntu',
                   shadows: shadows,
                 ),
               ),
@@ -1010,7 +1010,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                   color: on ? _accent : EditorTokens.muted,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Poppins',
+                  fontFamily: 'Ubuntu',
                 ),
               ),
             ],
@@ -1122,9 +1122,9 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
   /// Joined icon segmented control, like Premiere's paragraph panel.
   Widget _alignSegments(EditorController editor, TextStyleProperties ts) {
     final items = <(TextAlign, dynamic, String)>[
-      (TextAlign.left, FontAwesomeIcons.alignLeft, 'Align left'),
-      (TextAlign.center, FontAwesomeIcons.alignCenter, 'Align center'),
-      (TextAlign.right, FontAwesomeIcons.alignRight, 'Align right'),
+      (TextAlign.left, PhosphorIconsRegular.textAlignLeft, 'Align left'),
+      (TextAlign.center, PhosphorIconsRegular.textAlignCenter, 'Align center'),
+      (TextAlign.right, PhosphorIconsRegular.textAlignRight, 'Align right'),
     ];
     return Container(
       height: 40,
@@ -1157,7 +1157,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                       ),
                     ),
                     child: Center(
-                      child: FaIcon(
+                      child: PhosphorIcon(
                         items[i].$2,
                         color: ts.textAlign == items[i].$1 ? _accent : EditorTokens.text,
                         size: 14.0,
@@ -1251,7 +1251,7 @@ class _ParamSlider extends StatelessWidget {
                       color: changed ? EditorTokens.text : EditorTokens.muted,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w500,
-                      fontFamily: 'Poppins')),
+                      fontFamily: 'Ubuntu')),
               if (changed)
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
@@ -1261,7 +1261,7 @@ class _ParamSlider extends StatelessWidget {
                   },
                   child: const Padding(
                     padding: EdgeInsets.all(8),
-                    child: Icon(Icons.undo_rounded, size: 14, color: EditorTokens.muted),
+                    child: Icon(PhosphorIconsRegular.arrowUUpLeft, size: 14, color: EditorTokens.muted),
                   ),
                 ),
               const Spacer(),
@@ -1286,7 +1286,7 @@ class _ParamSlider extends StatelessWidget {
                       color: changed ? _accent : EditorTokens.text,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Ubuntu',
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),

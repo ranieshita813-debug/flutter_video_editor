@@ -6,7 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
@@ -15,7 +15,6 @@ import 'package:flutter_video_editor/features/editor/controllers/editor_controll
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/export_dialog.dart';
 import 'package:flutter_video_editor/features/editor/widgets/fx_shader.dart';
-import 'package:flutter_video_editor/features/editor/widgets/keyframe_controls.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/chroma_key_preview.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 
@@ -97,12 +96,24 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
 
   static const Map<VideoEffect, (String, Map<String, double>)> _fxShaders =
       <VideoEffect, (String, Map<String, double>)>{
-    VideoEffect.glitch: ('glitch', <String, double>{'distortionAmount': 0.8, 'speed': 2.0}),
+    VideoEffect.glitch: ('digital_glitch', <String, double>{'amount': 0.7, 'speed': 1.5}),
     VideoEffect.blur: ('blur', <String, double>{'blurAmount': 1.5}),
-    VideoEffect.glow: ('glow', <String, double>{'glowStrength': 1.2}),
-    VideoEffect.vhs: ('vhs', <String, double>{'distortionAmount': 1.0, 'speed': 1.0}),
-    VideoEffect.wave: ('wave', <String, double>{'distortionAmount': 1.0, 'speed': 1.0}),
-    VideoEffect.vignette: ('vignette', <String, double>{'vignette': 0.8}),
+    VideoEffect.glow: ('dream_bloom', <String, double>{'intensity': 0.5, 'threshold': 0.6, 'radius': 0.5}),
+    VideoEffect.vhs: ('vhs', <String, double>{'distortion': 1.0, 'scanlines': 0.5, 'noise': 0.5}),
+    VideoEffect.vhsTape: ('vhs_tape', <String, double>{'amount': 0.7, 'speed': 1.0}),
+    VideoEffect.wave: ('wave', <String, double>{'frequency': 10.0, 'amplitude': 1.0}),
+    VideoEffect.liquidWave: ('liquid_wave', <String, double>{'amount': 1.0, 'freq': 2.0, 'speed': 1.0}),
+    VideoEffect.vignette: ('vignette', <String, double>{'radius': 0.8, 'softness': 0.5}),
+    VideoEffect.cinematicVignette: ('cinematic_vignette', <String, double>{'strength': 0.6, 'softness': 0.6}),
+    VideoEffect.chromaticAberration: ('chromatic_aberration', <String, double>{'amount': 0.5}),
+    VideoEffect.filmGrain: ('film_grain', <String, double>{'amount': 0.5, 'sizePx': 1.5}),
+    VideoEffect.dreamBloom: ('dream_bloom', <String, double>{'intensity': 0.5, 'threshold': 0.6, 'radius': 0.5}),
+    VideoEffect.mosaicPixelate: ('mosaic_pixelate', <String, double>{'sizePx': 12.0}),
+    VideoEffect.crispSharpen: ('crisp_sharpen', <String, double>{'amount': 0.5}),
+    VideoEffect.lensDistortion: ('lens_distortion', <String, double>{'amount': 0.4}),
+    VideoEffect.convexScreenPro: ('convex_screen_pro', <String, double>{'progress': 0.0, 'strength': 0.5, 'radius': 0.8, 'centerX': 0.5, 'centerY': 0.5, 'shape': 1.0, 'anim': 0.0}),
+    VideoEffect.speedZoomBlur: ('speed_zoom_blur', <String, double>{'amount': 0.5, 'centerX': 0.5, 'centerY': 0.5}),
+    VideoEffect.lightLeak: ('light_leak', <String, double>{'intensity': 0.6, 'speed': 1.0}),
   };
 
   @override
@@ -270,7 +281,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     await _swap(c);
   }
 
-  Widget _placeholder(String text, {IconData icon = Icons.movie_rounded}) {
+  Widget _placeholder(String text, {IconData icon = PhosphorIconsRegular.filmStrip}) {
     if (_loading) {
       return const Center(
         child: SizedBox(
@@ -338,7 +349,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
           fit: fit,
           gaplessPlayback: true,
           errorBuilder: (_, __, ___) =>
-              _placeholder("Can't open this image", icon: Icons.broken_image_rounded),
+              _placeholder("Can't open this image", icon: PhosphorIconsRegular.imageBroken),
         ),
       );
     } else if (ready) {
@@ -355,7 +366,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
         ),
       );
     } else if (_failed) {
-      child = _placeholder("Can't play this file", icon: Icons.error_rounded);
+      child = _placeholder("Can't play this file", icon: PhosphorIconsRegular.warningCircle);
     } else {
       child = _placeholder('Add media to start editing');
     }
@@ -544,7 +555,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
     super.dispose();
   }
 
-  Widget _roundBtn(FaIconData icon, String tip, VoidCallback onTap,
+  Widget _roundBtn(PhosphorIconData icon, String tip, VoidCallback onTap,
           {double size = 36, double iconSize = 17, bool on = false}) =>
       Semantics(
         button: true,
@@ -563,7 +574,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
               decoration: BoxDecoration(
                   color: on ? Colors.white : _chipBg, shape: BoxShape.circle),
               child: Center(
-                child: FaIcon(
+                child: PhosphorIcon(
                   icon,
                   color: on ? Colors.black : Colors.white,
                   size: iconSize,
@@ -590,7 +601,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
             padding: EdgeInsets.symmetric(horizontal: 10 * s),
             child: Row(
               children: <Widget>[
-                _roundBtn(FontAwesomeIcons.arrowLeft, 'Back',
+                _roundBtn(PhosphorIconsRegular.arrowLeft, 'Back',
                     () => Navigator.of(context).maybePop(),
                     size: btn, iconSize: 16 * s),
                 if (showLogo) ...<Widget>[
@@ -652,8 +663,8 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                                   fontSize: 11.5 * s,
                                   fontWeight: FontWeight.w600)),
                           SizedBox(width: 4 * s),
-                          FaIcon(
-                            FontAwesomeIcons.chevronDown,
+                          PhosphorIcon(
+                            PhosphorIconsRegular.caretDown,
                             size: 12 * s,
                             color: Colors.white70,
                           ),
@@ -665,15 +676,15 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                 SizedBox(width: 6 * s),
                 _roundBtn(
                     _fill
-                        ? FontAwesomeIcons.magnifyingGlassMinus
-                        : FontAwesomeIcons.magnifyingGlassPlus,
+                        ? PhosphorIconsRegular.magnifyingGlassMinus
+                        : PhosphorIconsRegular.magnifyingGlassPlus,
                     _fill ? 'Fit video' : 'Fill canvas',
                     () => setState(() => _fill = !_fill),
                     size: btn,
                     iconSize: 17 * s,
                     on: _fill),
                 SizedBox(width: 6 * s),
-                _roundBtn(FontAwesomeIcons.tableCells, _grid ? 'Hide guides' : 'Show guides',
+                _roundBtn(PhosphorIconsRegular.gridFour, _grid ? 'Hide guides' : 'Show guides',
                     () => setState(() => _grid = !_grid),
                     size: btn, iconSize: 17 * s, on: _grid),
                 SizedBox(width: 8 * s),
@@ -693,8 +704,8 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            FaIcon(
-                              FontAwesomeIcons.arrowUpFromBracket,
+                            PhosphorIcon(
+                              PhosphorIconsRegular.export,
                               color: Colors.black,
                               size: 14 * s,
                             ),
@@ -920,7 +931,7 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
-                                  Icon(Icons.zoom_out_map_rounded,
+                                  Icon(PhosphorIconsRegular.arrowsOut,
                                       size: 14, color: Colors.white),
                                   SizedBox(width: 4),
                                   Text('Reset',
@@ -939,7 +950,6 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
             ],
           ),
         ),
-        PreviewControlsBar(editor: editor),
       ],
     );
   }
@@ -2054,7 +2064,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        const Icon(Icons.colorize_rounded, color: Colors.white, size: 16),
+                        const Icon(PhosphorIconsRegular.eyedropper, color: Colors.white, size: 16),
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
@@ -2112,7 +2122,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                   children: <Widget>[
                     IconButton.filledTonal(
                       tooltip: 'Cancel',
-                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      icon: const Icon(PhosphorIconsRegular.x, color: Colors.white),
                       onPressed: () => widget.editor.cancelEyedropper(),
                     ),
                     if (_sampledColor != null) ...<Widget>[
@@ -2121,7 +2131,7 @@ class _EyedropperOverlayState extends State<_EyedropperOverlay> {
                         elevation: 4,
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
-                        icon: const Icon(Icons.check_rounded),
+                        icon: const Icon(PhosphorIconsRegular.check),
                         label: const Text('Apply Color',
                             style: TextStyle(fontWeight: FontWeight.bold)),
                         onPressed: () => widget.editor.completeEyedropper(_sampledColor),

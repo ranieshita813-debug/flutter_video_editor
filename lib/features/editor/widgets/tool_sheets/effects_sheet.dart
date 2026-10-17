@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -71,8 +71,8 @@ class _EffectsSheetState extends State<EffectsSheet> {
           ),
           child: Row(
             children: [
-              const FaIcon(
-                FontAwesomeIcons.wandMagicSparkles,
+              const PhosphorIcon(
+                PhosphorIconsRegular.magicWand,
                 color: EditorTokens.text,
                 size: 16,
               ),
@@ -87,7 +87,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
                         color: EditorTokens.text,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Ubuntu',
                       ),
                     ),
                     Text(
@@ -95,7 +95,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
                       style: TextStyle(
                         color: EditorTokens.muted,
                         fontSize: 10,
-                        fontFamily: 'Poppins',
+                        fontFamily: 'Ubuntu',
                       ),
                     ),
                   ],
@@ -108,8 +108,8 @@ class _EffectsSheetState extends State<EffectsSheet> {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 ),
                 onPressed: () => _openEffectsLibrary(context, editor),
-                icon: const FaIcon(
-                  FontAwesomeIcons.plus,
+                icon: const PhosphorIcon(
+                  PhosphorIconsRegular.plus,
                   color: EditorTokens.bg,
                   size: 12,
                 ),
@@ -118,7 +118,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Ubuntu',
                   ),
                 ),
               ),
@@ -194,7 +194,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
                             ),
                           ),
                           child: Center(
-                            child: FaIcon(
+                            child: PhosphorIcon(
                               _getEffectIcon(fx),
                               color: isSelected ? EditorTokens.text : Colors.white70,
                               size: 22,
@@ -215,7 +215,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
                             color: isSelected ? EditorTokens.bg : EditorTokens.text,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            fontFamily: 'Poppins',
+                            fontFamily: 'Ubuntu',
                           ),
                         ),
                       ),
@@ -257,46 +257,88 @@ class _EffectsSheetState extends State<EffectsSheet> {
       case VideoEffect.flame:
         return const [Color(0xFFF857A6), Color(0xFFFF5858)];
       case VideoEffect.vhs:
+      case VideoEffect.vhsTape:
         return const [Color(0xFF8A2387), Color(0xFFE94057)];
       case VideoEffect.wave:
+      case VideoEffect.liquidWave:
         return const [Color(0xFF42275A), Color(0xFF734B6D)];
       case VideoEffect.vignette:
+      case VideoEffect.cinematicVignette:
         return const [Color(0xFF1F1C2C), Color(0xFF928DAB)];
+      case VideoEffect.chromaticAberration:
+        return const [Color(0xFF11998E), Color(0xFF38EF7D)];
+      case VideoEffect.filmGrain:
+        return const [Color(0xFF3E5151), Color(0xFFDECBA4)];
+      case VideoEffect.dreamBloom:
+        return const [Color(0xFFFF512F), Color(0xFFDD2476)];
+      case VideoEffect.mosaicPixelate:
+        return const [Color(0xFF4568DC), Color(0xFFB06AB3)];
+      case VideoEffect.crispSharpen:
+        return const [Color(0xFF136A8A), Color(0xFF267871)];
+      case VideoEffect.lensDistortion:
+        return const [Color(0xFF00B4DB), Color(0xFF0083B0)];
+      case VideoEffect.convexScreenPro:
+        return const [Color(0xFF302B63), Color(0xFF24243E)];
+      case VideoEffect.speedZoomBlur:
+        return const [Color(0xFF833AB4), Color(0xFFFD1D1D)];
+      case VideoEffect.lightLeak:
+        return const [Color(0xFFFF9966), Color(0xFFFF5E62)];
     }
   }
 
-  FaIconData _getEffectIcon(VideoEffect fx) {
+  PhosphorIconData _getEffectIcon(VideoEffect fx) {
     switch (fx) {
       case VideoEffect.none:
-        return FontAwesomeIcons.ban;
+        return PhosphorIconsRegular.prohibit;
       case VideoEffect.warm:
-        return FontAwesomeIcons.sun;
+        return PhosphorIconsRegular.sun;
       case VideoEffect.cinematic:
-        return FontAwesomeIcons.video;
+        return PhosphorIconsRegular.videoCamera;
       case VideoEffect.noir:
-        return FontAwesomeIcons.moon;
+        return PhosphorIconsRegular.moon;
       case VideoEffect.vibrant:
-        return FontAwesomeIcons.bolt;
+        return PhosphorIconsRegular.lightning;
       case VideoEffect.vintage:
-        return FontAwesomeIcons.clock;
+        return PhosphorIconsRegular.clock;
       case VideoEffect.glitch:
-        return FontAwesomeIcons.sliders;
+        return PhosphorIconsRegular.sliders;
       case VideoEffect.blur:
-        return FontAwesomeIcons.filter;
+        return PhosphorIconsRegular.funnel;
       case VideoEffect.glow:
-        return FontAwesomeIcons.wandMagicSparkles;
+        return PhosphorIconsRegular.magicWand;
       case VideoEffect.retro:
-        return FontAwesomeIcons.film;
+        return PhosphorIconsRegular.filmStrip;
       case VideoEffect.matrix:
-        return FontAwesomeIcons.code;
+        return PhosphorIconsRegular.code;
       case VideoEffect.flame:
-        return FontAwesomeIcons.fire;
+        return PhosphorIconsRegular.fire;
       case VideoEffect.vhs:
-        return FontAwesomeIcons.tv;
+      case VideoEffect.vhsTape:
+        return PhosphorIconsRegular.television;
       case VideoEffect.wave:
-        return FontAwesomeIcons.water;
+      case VideoEffect.liquidWave:
+        return PhosphorIconsRegular.drop;
       case VideoEffect.vignette:
-        return FontAwesomeIcons.circle;
+      case VideoEffect.cinematicVignette:
+        return PhosphorIconsRegular.circle;
+      case VideoEffect.chromaticAberration:
+        return PhosphorIconsRegular.sliders;
+      case VideoEffect.filmGrain:
+        return PhosphorIconsRegular.filmStrip;
+      case VideoEffect.dreamBloom:
+        return PhosphorIconsRegular.magicWand;
+      case VideoEffect.mosaicPixelate:
+        return PhosphorIconsRegular.gridFour;
+      case VideoEffect.crispSharpen:
+        return PhosphorIconsRegular.eye;
+      case VideoEffect.lensDistortion:
+        return PhosphorIconsRegular.crosshair;
+      case VideoEffect.convexScreenPro:
+        return PhosphorIconsRegular.television;
+      case VideoEffect.speedZoomBlur:
+        return PhosphorIconsRegular.lightning;
+      case VideoEffect.lightLeak:
+        return PhosphorIconsRegular.sun;
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'package:phosphor_icons/phosphor_icons.dart';
 // sheets/chroma_key_sheet.dart
 //
 // Pro chroma-key panel (Ultra-Key style): Key / Matte / Cleanup / Spill / Color.
@@ -141,7 +142,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           ),
           IconButton(
             tooltip: 'Done',
-            icon: const Icon(Icons.check_rounded, color: _accent),
+            icon: const Icon(PhosphorIconsRegular.check, color: _accent),
             onPressed: widget.onClose,
           ),
         ]),
@@ -185,7 +186,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                     ),
                   ),
                   child: b == ChromaBackground.checker
-                      ? const Icon(Icons.grid_on_rounded, size: 13, color: Colors.white54)
+                      ? const Icon(PhosphorIconsRegular.gridNine, size: 13, color: Colors.white54)
                       : null,
                 ),
               ),
@@ -328,7 +329,7 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
                 ),
               ),
               const SizedBox(width: 10),
-              const Icon(Icons.colorize_rounded, color: _accent, size: 20),
+              const Icon(PhosphorIconsRegular.eyedropper, color: _accent, size: 20),
               const SizedBox(width: 6),
               const Text('Pick', style: TextStyle(color: Colors.white, fontSize: 13.5)),
             ]),

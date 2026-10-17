@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 
 class ToolSearchHeader extends StatefulWidget {
@@ -66,8 +66,8 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
           ),
           child: Row(
             children: [
-              const FaIcon(
-                FontAwesomeIcons.magnifyingGlass,
+              const PhosphorIcon(
+                PhosphorIconsRegular.magnifyingGlass,
                 color: EditorTokens.muted,
                 size: 14.0,
               ),
@@ -79,14 +79,14 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
                   style: const TextStyle(
                     color: EditorTokens.text,
                     fontSize: 13,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Ubuntu',
                   ),
                   decoration: InputDecoration(
                     hintText: widget.placeholder,
                     hintStyle: const TextStyle(
                       color: EditorTokens.muted,
                       fontSize: 13,
-                      fontFamily: 'Poppins',
+                      fontFamily: 'Ubuntu',
                     ),
                     border: InputBorder.none,
                     isDense: true,
@@ -101,8 +101,8 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
                     widget.onSearchChanged('');
                     setState(() {});
                   },
-                  child: const FaIcon(
-                    FontAwesomeIcons.xmark,
+                  child: const PhosphorIcon(
+                    PhosphorIconsRegular.x,
                     color: EditorTokens.muted,
                     size: 14.0,
                   ),
@@ -136,7 +136,7 @@ class _ToolSearchHeaderState extends State<ToolSearchHeader> {
                     color: isSelected ? EditorTokens.bg : EditorTokens.text,
                     fontSize: 12,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    fontFamily: 'Poppins',
+                    fontFamily: 'Ubuntu',
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),

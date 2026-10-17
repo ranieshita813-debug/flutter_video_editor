@@ -713,7 +713,7 @@ class EditorController extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   void addTextOverlay(
     String text, {
-    String fontFamily = 'Poppins',
+    String fontFamily = 'Ubuntu',
     TextAnimationStyle animationStyle = TextAnimationStyle.fadeIn,
   }) {
     _saveState();
@@ -739,7 +739,7 @@ class EditorController extends ChangeNotifier {
 
   List<String> get availableFonts {
     final list = <String>[
-      'Poppins',
+      'Ubuntu',
       'Unbounded',
       'Roboto',
       'Montserrat',
@@ -1316,7 +1316,7 @@ class EditorController extends ChangeNotifier {
         end: cue.end,
         clipType: ClipType.caption,
         layerIndex: _freeOverlayLayer(4, cue.start, cue.end),
-        fontFamily: 'Poppins',
+        fontFamily: 'Ubuntu',
       );
       _project.addClip(clip);
     }

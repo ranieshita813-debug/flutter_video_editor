@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -70,7 +70,7 @@ class KeyframeControls extends StatelessWidget {
     );
   }
 
-  Widget _faIcon(FaIconData icon, {bool active = false}) => FaIcon(
+  Widget _pIcon(PhosphorIconData icon, {bool active = false}) => PhosphorIcon(
         icon,
         size: 18,
         color: active ? accentToken : Colors.white,
@@ -102,13 +102,13 @@ class KeyframeControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             _btn(
-              _faIcon(FontAwesomeIcons.chevronLeft),
+              _pIcon(PhosphorIconsRegular.caretLeft),
               'Previous keyframe',
               prev == null ? null : () => seekPlayhead(editor, secondsOf(prev!)),
             ),
             _btn(
-              _faIcon(
-                has ? FontAwesomeIcons.minus : FontAwesomeIcons.plus,
+              _pIcon(
+                has ? PhosphorIconsRegular.minus : PhosphorIconsRegular.plus,
                 active: has,
               ),
               has ? 'Remove keyframe' : 'Add keyframe',
@@ -128,12 +128,12 @@ class KeyframeControls extends StatelessWidget {
                     },
             ),
             _btn(
-              _faIcon(FontAwesomeIcons.chevronRight),
+              _pIcon(PhosphorIconsRegular.caretRight),
               'Next keyframe',
               next == null ? null : () => seekPlayhead(editor, secondsOf(next!)),
             ),
             _btn(
-              _faIcon(FontAwesomeIcons.chartLine),
+              _pIcon(PhosphorIconsRegular.chartLine),
               'Keyframe curve',
               clip == null
                   ? null

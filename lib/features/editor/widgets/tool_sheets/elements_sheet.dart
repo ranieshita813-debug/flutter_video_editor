@@ -1,3 +1,4 @@
+import 'package:phosphor_icons/phosphor_icons.dart';
 // pubspec.yaml additions:
 //   flutter_svg: ^2.0.10
 //   xml: ^6.5.0
@@ -22,7 +23,7 @@ import 'package:flutter_video_editor/features/editor/widgets/svg_editor.dart';
 const _accent = Color(0xFF9999FF); // Premiere purple
 const _panel = Color(0xFF232323);
 const _bg = Color(0xFF181818);
-const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Poppins');
+const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Ubuntu');
 
 // ───────────────────────── ELEMENTS LIBRARY SHEET ─────────────────────────
 
@@ -170,7 +171,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
               style: FilledButton.styleFrom(
                   backgroundColor: _accent, foregroundColor: Colors.black, visualDensity: VisualDensity.compact),
               onPressed: _importFile,
-              icon: const Icon(Icons.file_upload_outlined, size: 16),
+              icon: const Icon(PhosphorIconsRegular.uploadSimple, size: 16),
               label: const Text('Import SVG', style: TextStyle(fontSize: 12)),
             ),
           ),
@@ -209,7 +210,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                      color: EditorTokens.text, fontSize: 10.5, fontFamily: 'Poppins'))),
+                                      color: EditorTokens.text, fontSize: 10.5, fontFamily: 'Ubuntu'))),
                           Positioned(
                             top: 2,
                             right: 2,
@@ -241,7 +242,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
                   color: _tab == i ? Colors.white : Colors.white54,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Poppins')),
+                  fontFamily: 'Ubuntu')),
         ),
       );
 }

@@ -1,3 +1,4 @@
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -129,18 +130,18 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
             child: Row(
               children: <Widget>[
                 _KfAction(
-                  icon: Icons.chevron_left_rounded,
+                  icon: PhosphorIconsRegular.caretLeft,
                   tooltip: 'Previous keyframe',
                   onTap: clip == null ? null : prev,
                 ),
                 _KfAction(
-                  icon: atHead != null ? Icons.diamond_rounded : Icons.diamond_outlined,
+                  icon: atHead != null ? PhosphorIcons.diamond(PhosphorIconsStyle.fill) : PhosphorIconsRegular.diamond,
                   tooltip: atHead != null ? 'Remove keyframe' : 'Add keyframe',
                   active: atHead != null,
                   onTap: clip == null ? null : toggle,
                 ),
                 _KfAction(
-                  icon: Icons.chevron_right_rounded,
+                  icon: PhosphorIconsRegular.caretRight,
                   tooltip: 'Next keyframe',
                   onTap: clip == null ? null : next,
                 ),
@@ -157,7 +158,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                   ),
                 ),
                 _KfAction(
-                  icon: Icons.delete_outline_rounded,
+                  icon: PhosphorIconsRegular.trash,
                   tooltip: 'Delete selected keyframe',
                   onTap: selected == null
                       ? null

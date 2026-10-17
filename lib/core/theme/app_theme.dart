@@ -5,26 +5,26 @@ import 'package:flutter_video_editor/core/theme/app_colors.dart';
 class AppTheme {
   static ThemeData get darkTheme {
     final baseTextTheme = ThemeData.dark().textTheme;
-    final poppinsTheme = GoogleFonts.poppinsTextTheme(baseTextTheme).copyWith(
-      headlineMedium: GoogleFonts.poppins(
+    final ubuntuTheme = GoogleFonts.ubuntuTextTheme(baseTextTheme).copyWith(
+      headlineMedium: GoogleFonts.ubuntu(
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
-      titleMedium: GoogleFonts.poppins(
+      titleMedium: GoogleFonts.ubuntu(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      bodyLarge: GoogleFonts.poppins(
+      bodyLarge: GoogleFonts.ubuntu(
         fontSize: 14,
         color: AppColors.textPrimary,
       ),
-      bodyMedium: GoogleFonts.poppins(
+      bodyMedium: GoogleFonts.ubuntu(
         fontSize: 12,
         color: AppColors.textSecondary,
       ),
-      labelSmall: GoogleFonts.poppins(
+      labelSmall: GoogleFonts.ubuntu(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
@@ -35,7 +35,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
-      fontFamily: 'Poppins',
+      fontFamily: 'Ubuntu',
       colorScheme: const ColorScheme.dark(
         primary: AppColors.accent,
         secondary: AppColors.accent,
@@ -65,7 +65,7 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
-      textTheme: poppinsTheme,
+      textTheme: ubuntuTheme,
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.surface,
         modalBackgroundColor: AppColors.surface,

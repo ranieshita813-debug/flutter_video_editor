@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
@@ -101,8 +101,8 @@ class _HomePageState extends State<HomePage> {
             ),
             const Divider(height: 1, color: EditorTokens.border),
             ListTile(
-              leading: const FaIcon(
-                FontAwesomeIcons.penToSquare,
+              leading: const PhosphorIcon(
+                PhosphorIconsRegular.pencilSimple,
                 color: EditorTokens.text,
                 size: 18,
               ),
@@ -113,8 +113,8 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
-              leading: const FaIcon(
-                FontAwesomeIcons.copy,
+              leading: const PhosphorIcon(
+                PhosphorIconsRegular.copy,
                 color: EditorTokens.text,
                 size: 18,
               ),
@@ -125,8 +125,8 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             ListTile(
-              leading: const FaIcon(
-                FontAwesomeIcons.trash,
+              leading: const PhosphorIcon(
+                PhosphorIconsRegular.trash,
                 color: Colors.redAccent,
                 size: 18,
               ),
@@ -269,39 +269,39 @@ class _HomePageState extends State<HomePage> {
         elevation: 8,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
-            icon: FaIcon(
-              FontAwesomeIcons.borderAll,
+            icon: PhosphorIcon(
+              PhosphorIconsRegular.gridFour,
               color: Colors.grey,
               size: 20,
             ),
-            activeIcon: FaIcon(
-              FontAwesomeIcons.borderAll,
+            activeIcon: PhosphorIcon(
+              PhosphorIconsRegular.gridFour,
               color: Colors.black,
               size: 20,
             ),
             label: 'Template',
           ),
           BottomNavigationBarItem(
-            icon: FaIcon(
-              FontAwesomeIcons.video,
+            icon: PhosphorIcon(
+              PhosphorIconsRegular.videoCamera,
               color: Colors.grey,
               size: 20,
             ),
-            activeIcon: FaIcon(
-              FontAwesomeIcons.video,
+            activeIcon: PhosphorIcon(
+              PhosphorIconsRegular.videoCamera,
               color: Colors.black,
               size: 20,
             ),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: FaIcon(
-              FontAwesomeIcons.folder,
+            icon: PhosphorIcon(
+              PhosphorIconsRegular.folder,
               color: Colors.grey,
               size: 20,
             ),
-            activeIcon: FaIcon(
-              FontAwesomeIcons.folder,
+            activeIcon: PhosphorIcon(
+              PhosphorIconsRegular.folder,
               color: Colors.black,
               size: 20,
             ),
@@ -376,8 +376,8 @@ class _HomePageState extends State<HomePage> {
                 ),
                 IconButton(
                   onPressed: () => _createNewProject(context),
-                  icon: const FaIcon(
-                    FontAwesomeIcons.plus,
+                  icon: const PhosphorIcon(
+                    PhosphorIconsRegular.plus,
                     color: Colors.black,
                     size: 20,
                   ),
@@ -424,8 +424,8 @@ class _HomePageState extends State<HomePage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                FaIcon(
-                  FontAwesomeIcons.borderAll,
+                PhosphorIcon(
+                  PhosphorIconsRegular.gridFour,
                   color: Colors.grey,
                   size: 44,
                 ),
@@ -487,8 +487,8 @@ class _HomePageState extends State<HomePage> {
           IconButton(
             tooltip: 'Settings',
             onPressed: () => _openSettings(context),
-            icon: const FaIcon(
-              FontAwesomeIcons.gear,
+            icon: const PhosphorIcon(
+              PhosphorIconsRegular.gear,
               color: Colors.black,
               size: 20,
             ),
@@ -506,8 +506,8 @@ class _HomePageState extends State<HomePage> {
         height: 54,
         child: ElevatedButton.icon(
           onPressed: () => _createNewProject(context),
-          icon: const FaIcon(
-            FontAwesomeIcons.plus,
+          icon: const PhosphorIcon(
+            PhosphorIconsRegular.plus,
             color: Colors.white,
             size: 18,
           ),
@@ -550,8 +550,8 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          const FaIcon(
-            FontAwesomeIcons.video,
+          const PhosphorIcon(
+            PhosphorIconsRegular.videoCamera,
             color: Colors.grey,
             size: 44,
           ),
@@ -605,8 +605,8 @@ class _HomePageState extends State<HomePage> {
                   Container(
                     color: const Color(0xFFF0F0F0),
                     child: const Center(
-                      child: FaIcon(
-                        FontAwesomeIcons.play,
+                      child: PhosphorIcon(
+                        PhosphorIconsRegular.play,
                         size: 24,
                         color: Colors.grey,
                       ),
@@ -645,8 +645,8 @@ class _HomePageState extends State<HomePage> {
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
-                          child: FaIcon(
-                            FontAwesomeIcons.ellipsis,
+                          child: PhosphorIcon(
+                            PhosphorIconsRegular.dotsThreeVertical,
                             size: 14,
                             color: Colors.white,
                           ),

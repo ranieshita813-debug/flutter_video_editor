@@ -144,14 +144,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  font_awesome_flutter:
-    dependency: "direct main"
-    description:
-      name: font_awesome_flutter
-      sha256: "09dcde8ab90ffae1a7d65ff2ef96fc62a17ad9d0ce7c127b317ded676b0d5935"
-      url: "https://pub.dev"
-    source: hosted
-    version: "11.0.0"
   google_fonts:
     dependency: "direct main"
     description:
@@ -432,6 +424,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.2"
+  phosphor_icons:
+    dependency: "direct main"
+    description:
+      name: phosphor_icons
+      sha256: "0f32a6c6a7bbadb2e42cba15ec103dcd23dfa47137f17a6f5b5a078081ac55f8"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.1"
   photo_manager:
     dependency: "direct main"
     description:

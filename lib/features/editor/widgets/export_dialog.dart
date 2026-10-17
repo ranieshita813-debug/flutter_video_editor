@@ -1,3 +1,4 @@
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -129,7 +130,7 @@ class _ExportModalState extends State<ExportModal> {
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: Icon(Icons.close_rounded,
+            icon: Icon(PhosphorIconsRegular.x,
                 color: isExporting ? Colors.black26 : _text, size: 26),
             tooltip: 'Close',
             onPressed: isExporting
@@ -326,7 +327,7 @@ class _ExportModalState extends State<ExportModal> {
                   color: state == 0 ? _track : Colors.black, width: state == 1 ? 2 : 1.5),
             ),
             child: state == 2
-                ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                ? const Icon(PhosphorIconsRegular.check, size: 16, color: Colors.white)
                 : state == 1
                     ? const Center(
                         child: SizedBox(
@@ -439,7 +440,7 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(50),
               shape: _pill,
             ),
-            icon: const Icon(Icons.close_rounded, size: 18),
+            icon: const Icon(PhosphorIconsRegular.x, size: 18),
             label: const Text('Cancel export'),
             onPressed: () => exportCtrl?.cancelExport(),
           ),
@@ -466,7 +467,7 @@ class _ExportModalState extends State<ExportModal> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _statusIcon(Icons.check_rounded, _green, _doneBtn),
+          _statusIcon(PhosphorIconsRegular.check, _green, _doneBtn),
           const SizedBox(height: 18),
           const Text('Export complete',
               textAlign: TextAlign.center,

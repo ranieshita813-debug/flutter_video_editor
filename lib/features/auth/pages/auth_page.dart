@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/controllers/auth_controller.dart';
@@ -88,8 +88,8 @@ class _AuthPageState extends State<AuthPage> {
         backgroundColor: EditorTokens.bg,
         elevation: 0,
         leading: IconButton(
-          icon: const FaIcon(
-            FontAwesomeIcons.arrowLeft,
+          icon: const PhosphorIcon(
+            PhosphorIconsRegular.arrowLeft,
             color: EditorTokens.text,
             size: 18,
           ),
@@ -140,8 +140,8 @@ class _AuthPageState extends State<AuthPage> {
                     labelStyle: const TextStyle(color: EditorTokens.muted),
                     prefixIcon: const Padding(
                       padding: EdgeInsets.all(12.0),
-                      child: FaIcon(
-                        FontAwesomeIcons.user,
+                      child: PhosphorIcon(
+                        PhosphorIconsRegular.user,
                         color: EditorTokens.muted,
                         size: 16,
                       ),
@@ -165,8 +165,8 @@ class _AuthPageState extends State<AuthPage> {
                   labelStyle: const TextStyle(color: EditorTokens.muted),
                   prefixIcon: const Padding(
                     padding: EdgeInsets.all(12.0),
-                    child: FaIcon(
-                      FontAwesomeIcons.envelope,
+                    child: PhosphorIcon(
+                      PhosphorIconsRegular.envelope,
                       color: EditorTokens.muted,
                       size: 16,
                     ),
@@ -189,8 +189,8 @@ class _AuthPageState extends State<AuthPage> {
                   labelStyle: const TextStyle(color: EditorTokens.muted),
                   prefixIcon: const Padding(
                     padding: EdgeInsets.all(12.0),
-                    child: FaIcon(
-                      FontAwesomeIcons.lock,
+                    child: PhosphorIcon(
+                      PhosphorIconsRegular.lock,
                       color: EditorTokens.muted,
                       size: 16,
                     ),
@@ -271,8 +271,8 @@ class _AuthPageState extends State<AuthPage> {
                         ),
                       ),
                       onPressed: () => _socialSignIn('Google'),
-                      icon: const FaIcon(
-                        FontAwesomeIcons.google,
+                      icon: const PhosphorIcon(
+                        PhosphorIconsRegular.googleLogo,
                         color: EditorTokens.text,
                         size: 16,
                       ),
@@ -293,8 +293,8 @@ class _AuthPageState extends State<AuthPage> {
                         ),
                       ),
                       onPressed: () => _socialSignIn('Facebook'),
-                      icon: const FaIcon(
-                        FontAwesomeIcons.facebook,
+                      icon: const PhosphorIcon(
+                        PhosphorIconsRegular.facebookLogo,
                         color: EditorTokens.text,
                         size: 16,
                       ),

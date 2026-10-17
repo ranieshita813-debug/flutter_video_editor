@@ -1,8 +1,10 @@
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+import 'package:flutter_video_editor/features/editor/widgets/keyframe_controls.dart';
 
 class TransportBar extends StatelessWidget {
   const TransportBar({super.key, required this.editor});
@@ -29,8 +31,9 @@ class TransportBar extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 2 * s),
       child: Row(
         children: <Widget>[
+          KeyframeControls(editor: editor),
           const Expanded(child: SizedBox.shrink()),
-          _icon(Icons.skip_previous_rounded, 'Previous frame',
+          _icon(PhosphorIconsRegular.skipBack, 'Previous frame',
               () => seekPlayhead(editor, secondsOf(editor.playhead) - 1 / fpsToken), s),
           Selector<EditorController, bool>(
             selector: (_, e) => e.isPlaying,
@@ -51,7 +54,7 @@ class TransportBar extends StatelessWidget {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 150),
                     child: Icon(
-                        playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        playing ? PhosphorIconsRegular.pause : PhosphorIconsRegular.play,
                         key: ValueKey<bool>(playing),
                         color: Colors.white,
                         size: 38 * s),
@@ -60,7 +63,7 @@ class TransportBar extends StatelessWidget {
               ),
             ),
           ),
-          _icon(Icons.skip_next_rounded, 'Next frame',
+          _icon(PhosphorIconsRegular.skipForward, 'Next frame',
               () => seekPlayhead(editor, secondsOf(editor.playhead) + 1 / fpsToken), s),
           Expanded(
             child: Align(
@@ -68,8 +71,8 @@ class TransportBar extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  _icon(Icons.undo_rounded, 'Undo', editor.undo, s),
-                  _icon(Icons.redo_rounded, 'Redo', editor.redo, s),
+                  _icon(PhosphorIconsRegular.arrowUUpLeft, 'Undo', editor.undo, s),
+                  _icon(PhosphorIconsRegular.arrowUUpRight, 'Redo', editor.redo, s),
                 ],
               ),
             ),

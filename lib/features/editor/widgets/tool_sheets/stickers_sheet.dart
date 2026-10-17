@@ -64,7 +64,7 @@ class _StickersSheetState extends State<StickersSheet> {
             itemBuilder: (context, index) {
               final emoji = filtered[index]['emoji']!;
               return GestureDetector(
-                onTap: () => editor.addTextOverlay(emoji, fontFamily: 'Poppins'),
+                onTap: () => editor.addTextOverlay(emoji, fontFamily: 'Ubuntu'),
                 child: Container(
                   decoration: BoxDecoration(
                     color: EditorTokens.elevated,

@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -84,7 +84,7 @@ class _SheetHeader extends StatelessWidget {
               tapFeedback();
               onClose();
             },
-            icon: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
+            icon: const Icon(PhosphorIconsRegular.x, color: Colors.white, size: 22),
           ),
           Expanded(
             child: Text(
@@ -99,7 +99,7 @@ class _SheetHeader extends StatelessWidget {
               tapFeedback();
               onApply();
             },
-            icon: const Icon(Icons.check_rounded, color: accentToken, size: 24),
+            icon: const Icon(PhosphorIconsRegular.check, color: accentToken, size: 24),
           ),
         ],
       ),
@@ -112,12 +112,12 @@ class _SheetHeader extends StatelessWidget {
 // ----------------------------------------------------------------------------
 enum TransitionType { none, fade, slide, zoom, blur }
 
-FaIconData _transitionIcon(TransitionType t) => switch (t) {
-      TransitionType.none => FontAwesomeIcons.ban,
-      TransitionType.fade => FontAwesomeIcons.braille,
-      TransitionType.slide => FontAwesomeIcons.sliders,
-      TransitionType.zoom => FontAwesomeIcons.magnifyingGlassPlus,
-      TransitionType.blur => FontAwesomeIcons.circle,
+PhosphorIconData _transitionIcon(TransitionType t) => switch (t) {
+      TransitionType.none => PhosphorIconsRegular.prohibit,
+      TransitionType.fade => PhosphorIconsRegular.dotsSix,
+      TransitionType.slide => PhosphorIconsRegular.sliders,
+      TransitionType.zoom => PhosphorIconsRegular.magnifyingGlassPlus,
+      TransitionType.blur => PhosphorIconsRegular.circle,
     };
 
 /// Opens the transition sheet. Returns the chosen type when applied, or null
@@ -260,9 +260,9 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _EmptyHint extends StatelessWidget {
-  const _EmptyHint({required this.text, this.icon = FontAwesomeIcons.handPointer});
+  const _EmptyHint({required this.text, this.icon = PhosphorIconsRegular.handPointing});
   final String text;
-  final FaIconData icon;
+  final PhosphorIconData icon;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -270,7 +270,7 @@ class _EmptyHint extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            FaIcon(icon, color: Colors.white24, size: 28),
+            PhosphorIcon(icon, color: Colors.white24, size: 28),
             const SizedBox(height: 8),
             Text(text, textAlign: TextAlign.center, style: const TextStyle(color: mutedToken, fontSize: 12)),
           ],
@@ -412,7 +412,7 @@ class _SliderRow extends StatelessWidget {
   }
 }
 
-Widget _primaryBtn(FaIconData? icon, String label, VoidCallback? onPressed) => SizedBox(
+Widget _primaryBtn(PhosphorIconData? icon, String label, VoidCallback? onPressed) => SizedBox(
       width: double.infinity,
       height: 46,
       child: ElevatedButton(
@@ -436,7 +436,7 @@ Widget _primaryBtn(FaIconData? icon, String label, VoidCallback? onPressed) => S
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (icon != null) ...<Widget>[
-              FaIcon(icon, color: onPressed == null ? mutedToken : Colors.black, size: 16),
+              PhosphorIcon(icon, color: onPressed == null ? mutedToken : Colors.black, size: 16),
               const SizedBox(width: 8),
             ],
             Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
@@ -529,7 +529,7 @@ class _ThumbTile extends StatelessWidget {
   final VoidCallback onTap;
   final bool selected;
   final Gradient? gradient;
-  final FaIconData? icon;
+  final PhosphorIconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -559,7 +559,7 @@ class _ThumbTile extends StatelessWidget {
                       ),
                       child: icon == null
                           ? null
-                          : Center(child: FaIcon(icon, size: 22, color: selected ? accentToken : Colors.white70)),
+                          : Center(child: PhosphorIcon(icon!, size: 22, color: selected ? accentToken : Colors.white70)),
                     ),
                   ),
                   if (selected)
@@ -570,7 +570,7 @@ class _ThumbTile extends StatelessWidget {
                         width: 16,
                         height: 16,
                         decoration: const BoxDecoration(color: accentToken, shape: BoxShape.circle),
-                        child: const FaIcon(FontAwesomeIcons.check, size: 10, color: Colors.black),
+                        child: const PhosphorIcon(PhosphorIconsRegular.check, size: 10, color: Colors.black),
                       ),
                     ),
                 ],
@@ -694,7 +694,7 @@ class AudioToolsSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(
-                  child: FaIcon(FontAwesomeIcons.music, color: accentToken, size: 16),
+                  child: PhosphorIcon(PhosphorIconsRegular.musicNote, color: accentToken, size: 16),
                 ),
               ),
               const SizedBox(width: 12),
@@ -725,7 +725,7 @@ class AudioToolsSheet extends StatelessWidget {
                         _pickAudio(context, editor);
                       },
                       child: const Center(
-                        child: FaIcon(FontAwesomeIcons.plus, color: Colors.black, size: 16),
+                        child: PhosphorIcon(PhosphorIconsRegular.plus, color: Colors.black, size: 16),
                       ),
                     ),
                   ),
@@ -941,12 +941,12 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
   final TextEditingController _ctrl = TextEditingController(text: 'Sample text');
   late final AnimationController _pulse =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
-  String _selectedFont = 'Poppins';
+  String _selectedFont = 'Ubuntu';
   TextAnimationStyle _anim = TextAnimationStyle.fadeIn;
   int _tab = 0;
   String? _syncedId;
 
-  static const List<String> _fonts = <String>['Poppins', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'];
+  static const List<String> _fonts = <String>['Ubuntu', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'];
 
   @override
   void dispose() {
@@ -1006,7 +1006,7 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               suffixIcon: IconButton(
                 tooltip: 'Clear text',
-                icon: const Icon(Icons.cancel_rounded, color: mutedToken, size: 18),
+                icon: const Icon(PhosphorIconsRegular.xCircle, color: mutedToken, size: 18),
                 onPressed: () {
                   _ctrl.clear();
                   if (editing) {
@@ -1103,7 +1103,7 @@ class StickersSheet extends StatelessWidget {
       itemCount: _emojis.length,
       minTile: 64,
       itemBuilder: (context, i) => _tile(
-        onTap: () => editor.addTextOverlay(_emojis[i], fontFamily: 'Poppins'),
+        onTap: () => editor.addTextOverlay(_emojis[i], fontFamily: 'Ubuntu'),
         child: Text(_emojis[i], style: const TextStyle(fontSize: 26)),
       ),
     );
@@ -1148,7 +1148,7 @@ class EffectsSheet extends StatelessWidget {
               return _ThumbTile(
                 label: _cap(fx.name),
                 selected: fx == currentEffect,
-                icon: isNone ? FontAwesomeIcons.ban : null,
+                icon: isNone ? PhosphorIconsRegular.prohibit : null,
                 gradient: isNone ? null : _thumbGradient(i),
                 onTap: () => editor.applyEffect(fx),
               );
@@ -1450,7 +1450,7 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
                           border: Border.all(color: _color == c ? Colors.white : Colors.transparent, width: 2),
                         ),
                         child: _color == c
-                            ? const FaIcon(FontAwesomeIcons.check, size: 14, color: Colors.black)
+                            ? const PhosphorIcon(PhosphorIconsRegular.check, size: 14, color: Colors.black)
                             : null,
                       ),
                     ),
@@ -1589,7 +1589,7 @@ class CameraTrackingPanel extends StatelessWidget {
         _Card(
           child: Row(
             children: <Widget>[
-              Icon(Icons.circle, size: 10, color: active ? Colors.greenAccent : Colors.white24),
+              Icon(PhosphorIconsRegular.circle, size: 10, color: active ? Colors.greenAccent : Colors.white24),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(active ? 'Tracking is on' : 'Tracking is off',
@@ -1600,7 +1600,7 @@ class CameraTrackingPanel extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _primaryBtn(
-          FontAwesomeIcons.bullseye,
+          PhosphorIconsRegular.crosshair,
           active ? 'Stop tracking' : 'Start auto-tracking',
           selectedClip == null
               ? null
@@ -1627,7 +1627,7 @@ class PluginsSheet extends StatelessWidget {
     final plugins = PluginManager().activePlugins;
 
     if (plugins.isEmpty) {
-      return const Center(child: _EmptyHint(icon: FontAwesomeIcons.plug, text: 'No active plug-ins.'));
+      return const Center(child: _EmptyHint(icon: PhosphorIconsRegular.plug, text: 'No active plug-ins.'));
     }
 
     return ListView.builder(
@@ -1648,7 +1648,7 @@ class PluginsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Center(
-                    child: FaIcon(FontAwesomeIcons.borderAll, color: accentToken, size: 16),
+                    child: PhosphorIcon(PhosphorIconsRegular.gridFour, color: accentToken, size: 16),
                   ),
                 ),
                 const SizedBox(width: 12),

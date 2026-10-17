@@ -13,8 +13,8 @@ const _panel = Color(0xFF232323);
 const _panelHi = Color(0xFF2C2C2C);
 const _bg = Color(0xFF181818);
 const _line = Color(0x1FFFFFFF);
-const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Poppins');
-const _lblStrong = TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'Poppins');
+const _lbl = TextStyle(color: Color(0xFFB4B4B4), fontSize: 11, fontFamily: 'Ubuntu');
+const _lblStrong = TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'Ubuntu');
 
 enum Tool { select, node, pen, pencil }
 
@@ -602,7 +602,7 @@ class _SvgEditorPageState extends State<SvgEditorPage> with SingleTickerProvider
           Text(widget.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14, color: Colors.white, fontFamily: 'Poppins')),
+              style: const TextStyle(fontSize: 14, color: Colors.white, fontFamily: 'Ubuntu')),
           Text('Vector editor', style: _lbl.copyWith(fontSize: 10)),
         ]),
         actions: [
