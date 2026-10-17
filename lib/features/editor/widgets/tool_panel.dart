@@ -4,6 +4,7 @@ import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/widgets/chroma_key_sheet.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/captions_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/order_tool_view.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:provider/provider.dart';
@@ -21,7 +22,6 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_st
 // Inline tools enum
 // ----------------------------------------------------------------------------
 enum EditorTool {
-  ai('AI Generate', PhosphorIconsRegular.sparkle),
   audio('Audio', PhosphorIconsRegular.speakerHigh),
   text('Text', PhosphorIconsRegular.textAa),
   stickers('Stickers', PhosphorIconsRegular.smiley),
@@ -38,7 +38,9 @@ enum EditorTool {
   textStyle('Text Style', PhosphorIconsRegular.textAa),
   animation('Animation', PhosphorIconsRegular.play),
   order('Order', PhosphorIconsRegular.sortAscending),
-  chromaKey('Chroma Key', PhosphorIconsRegular.eyedropper);
+  chromaKey('Chroma Key', PhosphorIconsRegular.eyedropper),
+  captions('Captions', PhosphorIconsRegular.closedCaptioning),
+  ai('AI Generate', PhosphorIconsFill.sparkle);
 
   const EditorTool(this.title, this.icon);
   final String title;
@@ -95,6 +97,7 @@ enum EditorTool {
               );
             },
           ),
+        EditorTool.captions => const CaptionsSheet(),
         EditorTool.ai => Builder(
             builder: (ctx) {
               return Center(
@@ -131,7 +134,7 @@ enum EditorTool {
                         },
                       );
                     },
-                    icon: const PhosphorIcon(PhosphorIconsRegular.sparkle, size: 20),
+                    icon: const PhosphorIcon(PhosphorIconsFill.sparkle, size: 20),
                     label: const Text(
                       'Open AI Generator',
                       style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Ubuntu Sans'),

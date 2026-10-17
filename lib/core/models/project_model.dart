@@ -214,6 +214,10 @@ class TextStyleProperties {
     this.backgroundColor = Colors.transparent,
     this.backgroundPadding = 8.0,
     this.textAlign = TextAlign.center,
+    this.highlightColor = const Color(0xFFFFD700),
+    this.highlightBackgroundColor = Colors.transparent,
+    this.highlightStyle = 'color',
+    this.enableHighlight = true,
   });
 
   final double fontSize;
@@ -229,6 +233,10 @@ class TextStyleProperties {
   final Color backgroundColor;
   final double backgroundPadding;
   final TextAlign textAlign;
+  final Color highlightColor;
+  final Color highlightBackgroundColor;
+  final String highlightStyle; // 'color', 'badge', 'scale', 'outline'
+  final bool enableHighlight;
 
   TextStyleProperties copyWith({
     double? fontSize,
@@ -244,6 +252,10 @@ class TextStyleProperties {
     Color? backgroundColor,
     double? backgroundPadding,
     TextAlign? textAlign,
+    Color? highlightColor,
+    Color? highlightBackgroundColor,
+    String? highlightStyle,
+    bool? enableHighlight,
   }) {
     return TextStyleProperties(
       fontSize: fontSize ?? this.fontSize,
@@ -259,6 +271,10 @@ class TextStyleProperties {
       backgroundColor: backgroundColor ?? this.backgroundColor,
       backgroundPadding: backgroundPadding ?? this.backgroundPadding,
       textAlign: textAlign ?? this.textAlign,
+      highlightColor: highlightColor ?? this.highlightColor,
+      highlightBackgroundColor: highlightBackgroundColor ?? this.highlightBackgroundColor,
+      highlightStyle: highlightStyle ?? this.highlightStyle,
+      enableHighlight: enableHighlight ?? this.enableHighlight,
     );
   }
 
@@ -277,6 +293,10 @@ class TextStyleProperties {
       'backgroundColor': backgroundColor.toARGB32(),
       'backgroundPadding': backgroundPadding,
       'textAlign': textAlign.name,
+      'highlightColor': highlightColor.toARGB32(),
+      'highlightBackgroundColor': highlightBackgroundColor.toARGB32(),
+      'highlightStyle': highlightStyle,
+      'enableHighlight': enableHighlight,
     };
   }
 
@@ -298,6 +318,10 @@ class TextStyleProperties {
         (e) => e.name == json['textAlign'],
         orElse: () => TextAlign.center,
       ),
+      highlightColor: Color(json['highlightColor'] as int? ?? 0xFFFFD700),
+      highlightBackgroundColor: Color(json['highlightBackgroundColor'] as int? ?? 0x00000000),
+      highlightStyle: json['highlightStyle'] as String? ?? 'color',
+      enableHighlight: json['enableHighlight'] as bool? ?? true,
     );
   }
 }
@@ -749,30 +773,74 @@ class AudioProperties {
   }
 }
 
+class CaptionWord {
+  const CaptionWord({
+    required this.word,
+    required this.start,
+    required this.end,
+  });
+
+  final String word;
+  final Duration start;
+  final Duration end;
+
+  CaptionWord copyWith({
+    String? word,
+    Duration? start,
+    Duration? end,
+  }) {
+    return CaptionWord(
+      word: word ?? this.word,
+      start: start ?? this.start,
+      end: end ?? this.end,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'word': word,
+      'startMs': start.inMilliseconds,
+      'endMs': end.inMilliseconds,
+    };
+  }
+
+  factory CaptionWord.fromJson(Map<String, dynamic> json) {
+    return CaptionWord(
+      word: json['word'] as String? ?? '',
+      start: Duration(milliseconds: json['startMs'] as int? ?? 0),
+      end: Duration(milliseconds: json['endMs'] as int? ?? 0),
+    );
+  }
+}
+
 class CaptionCue {
   CaptionCue({
     required this.id,
     required this.start,
     required this.end,
     required this.text,
+    this.words = const <CaptionWord>[],
   });
 
   final String id;
   final Duration start;
   final Duration end;
   final String text;
+  final List<CaptionWord> words;
 
   CaptionCue copyWith({
     String? id,
     Duration? start,
     Duration? end,
     String? text,
+    List<CaptionWord>? words,
   }) {
     return CaptionCue(
       id: id ?? this.id,
       start: start ?? this.start,
       end: end ?? this.end,
       text: text ?? this.text,
+      words: words ?? this.words,
     );
   }
 
@@ -782,6 +850,7 @@ class CaptionCue {
       'startMs': start.inMilliseconds,
       'endMs': end.inMilliseconds,
       'text': text,
+      'words': words.map((w) => w.toJson()).toList(),
     };
   }
 
@@ -791,6 +860,10 @@ class CaptionCue {
       start: Duration(milliseconds: json['startMs'] as int? ?? 0),
       end: Duration(milliseconds: json['endMs'] as int? ?? 0),
       text: json['text'] as String? ?? '',
+      words: (json['words'] as List<dynamic>?)
+              ?.map((e) => CaptionWord.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          <CaptionWord>[],
     );
   }
 }
@@ -924,6 +997,7 @@ class TimelineClip {
     this.loopAnimation = ClipAnimation.none,
     this.strokes = const <DrawingStroke>[],
     this.trackingData = const TrackingData(),
+    this.words = const <CaptionWord>[],
     this.waveform,
     this.thumbnails,
   });
@@ -967,6 +1041,7 @@ class TimelineClip {
   final ClipAnimation loopAnimation;
   final List<DrawingStroke> strokes;
   final TrackingData trackingData;
+  final List<CaptionWord> words;
   final List<double>? waveform;
   final List<String>? thumbnails;
 
@@ -1012,6 +1087,7 @@ class TimelineClip {
     ClipAnimation? loopAnimation,
     List<DrawingStroke>? strokes,
     TrackingData? trackingData,
+    List<CaptionWord>? words,
     List<double>? waveform,
     List<String>? thumbnails,
   }) {
@@ -1055,6 +1131,7 @@ class TimelineClip {
       loopAnimation: loopAnimation ?? this.loopAnimation,
       strokes: strokes ?? this.strokes,
       trackingData: trackingData ?? this.trackingData,
+      words: words ?? this.words,
       waveform: waveform ?? this.waveform,
       thumbnails: thumbnails ?? this.thumbnails,
     );
@@ -1101,6 +1178,7 @@ class TimelineClip {
       'loopAnimation': loopAnimation.name,
       'strokes': strokes.map((s) => s.toJson()).toList(),
       'trackingData': trackingData.toJson(),
+      'words': words.map((w) => w.toJson()).toList(),
       'waveform': waveform,
       'thumbnails': thumbnails,
     };
@@ -1193,6 +1271,10 @@ class TimelineClip {
       trackingData: json['trackingData'] != null
           ? TrackingData.fromJson(Map<String, dynamic>.from(json['trackingData'] as Map))
           : const TrackingData(),
+      words: (json['words'] as List<dynamic>?)
+              ?.map((e) => CaptionWord.fromJson(Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          <CaptionWord>[],
       waveform: (json['waveform'] as List<dynamic>?)?.map((e) => (e as num).toDouble()).toList(),
       thumbnails: (json['thumbnails'] as List<dynamic>?)?.cast<String>(),
     );

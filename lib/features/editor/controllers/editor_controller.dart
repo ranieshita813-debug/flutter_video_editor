@@ -6,7 +6,9 @@ import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
+import 'package:flutter_video_editor/core/services/caption_import_service.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
+import 'package:flutter_video_editor/core/services/whisper_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/playback_controller.dart';
 import 'package:flutter_video_editor/features/editor/controllers/track_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
@@ -1305,33 +1307,23 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void generateAutoCaptions() {
+  Future<void> generateAutoCaptions() async {
+    await generateWhisperCaptions();
+  }
+
+  /// Generates captions using OpenAI Whisper Large (v3) via Pollinations API.
+  Future<void> generateWhisperCaptions({String? audioFilePath}) async {
     _saveState();
     _project.captions.clear();
-
     _project.clips.removeWhere((TimelineClip c) => c.clipType == ClipType.caption);
 
-    final mediaClips = _project.clips
-        .where((c) => c.clipType == ClipType.video || c.clipType == ClipType.audio)
-        .toList();
+    final String path = audioFilePath ??
+        selectedClip?.sourcePath ??
+        _project.clips.firstWhere((c) => (c.clipType == ClipType.video || c.clipType == ClipType.audio) && c.sourcePath != null, orElse: () => TimelineClip(id: '', label: '', start: Duration.zero, end: Duration.zero, clipType: ClipType.video)).sourcePath ??
+        'sample.wav';
 
-    if (mediaClips.isEmpty) {
-      _autosave();
-      notifyListeners();
-      return;
-    }
-
-    final newCaptions = <CaptionCue>[];
-    for (int i = 0; i < mediaClips.length; i++) {
-      final clip = mediaClips[i];
-      final cue = CaptionCue(
-        id: 'cap_${i + 1}_${DateTime.now().millisecondsSinceEpoch}',
-        start: clip.start,
-        end: clip.end,
-        text: 'Caption: ${clip.label}',
-      );
-      newCaptions.add(cue);
-    }
+    final whisper = WhisperService();
+    final newCaptions = await whisper.transcribeAudio(audioFilePath: path);
 
     _project.captions.addAll(newCaptions);
 
@@ -1344,10 +1336,98 @@ class EditorController extends ChangeNotifier {
         clipType: ClipType.caption,
         layerIndex: _freeOverlayLayer(4, cue.start, cue.end),
         fontFamily: 'Ubuntu Sans',
+        words: cue.words,
       );
       _project.addClip(clip);
     }
 
+    _autosave();
+    notifyListeners();
+  }
+
+  /// Imports a caption file (.srt, .vtt, .json) and adds cues to project.
+  Future<int> importCaptionFile() async {
+    final importer = CaptionImportService();
+    final newCues = await importer.pickAndImportCaptionFile();
+    if (newCues == null || newCues.isEmpty) return 0;
+
+    _saveState();
+    _project.captions.addAll(newCues);
+
+    for (final cue in newCues) {
+      final clip = TimelineClip(
+        id: 'caption_${cue.id}',
+        label: cue.text,
+        start: cue.start,
+        end: cue.end,
+        clipType: ClipType.caption,
+        layerIndex: _freeOverlayLayer(4, cue.start, cue.end),
+        fontFamily: 'Ubuntu Sans',
+        words: cue.words,
+      );
+      _project.addClip(clip);
+    }
+
+    _autosave();
+    notifyListeners();
+    return newCues.length;
+  }
+
+  void updateCaptionCue(CaptionCue updatedCue) {
+    final idx = _project.captions.indexWhere((c) => c.id == updatedCue.id);
+    if (idx != -1) {
+      _project.captions[idx] = updatedCue;
+    }
+
+    final clipIdx = _project.clips.indexWhere(
+      (c) => c.id == updatedCue.id || c.id == 'caption_${updatedCue.id}',
+    );
+    if (clipIdx != -1) {
+      _project.clips[clipIdx] = _project.clips[clipIdx].copyWith(
+        label: updatedCue.text,
+        start: updatedCue.start,
+        end: updatedCue.end,
+        words: updatedCue.words,
+      );
+    }
+    _autosave();
+    notifyListeners();
+  }
+
+  void deleteCaptionCue(String cueId) {
+    _saveState();
+    _project.captions.removeWhere((c) => c.id == cueId);
+    _project.clips.removeWhere((c) => c.id == cueId || c.id == 'caption_$cueId');
+    _autosave();
+    notifyListeners();
+  }
+
+  void addCaptionCue(CaptionCue cue) {
+    _saveState();
+    _project.captions.add(cue);
+    final clip = TimelineClip(
+      id: 'caption_${cue.id}',
+      label: cue.text,
+      start: cue.start,
+      end: cue.end,
+      clipType: ClipType.caption,
+      layerIndex: _freeOverlayLayer(4, cue.start, cue.end),
+      fontFamily: 'Ubuntu Sans',
+      words: cue.words,
+    );
+    _project.addClip(clip);
+    _selectedClipId = clip.id;
+    _autosave();
+    notifyListeners();
+  }
+
+  void applyCaptionStyleToAll(TextStyleProperties style) {
+    _saveState();
+    for (int i = 0; i < _project.clips.length; i++) {
+      if (_project.clips[i].clipType == ClipType.caption) {
+        _project.clips[i] = _project.clips[i].copyWith(textStyle: style);
+      }
+    }
     _autosave();
     notifyListeners();
   }

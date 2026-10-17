@@ -168,7 +168,7 @@ void main() {
       expect(controller.selectedClip?.audioProperties.equalizerPreset, equals('Rock'));
     });
 
-    test('Auto Captions generation adds caption clips', () {
+    test('Auto Captions generation adds caption clips', () async {
       controller.addClip(
         TimelineClip(
           id: 'c1',
@@ -179,7 +179,7 @@ void main() {
         ),
       );
 
-      controller.generateAutoCaptions();
+      await controller.generateAutoCaptions();
       expect(controller.project.captions.isNotEmpty, isTrue);
       expect(controller.clips.any((c) => c.clipType == ClipType.caption), isTrue);
     });
