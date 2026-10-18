@@ -622,7 +622,9 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         for (final _Picked p in List<_Picked>.of(_selected)) {
           final String? path = await _resolvePath(p);
           if (path == null || path.isEmpty) continue;
-          if (pickerArgs.isOverlay) {
+          if (p.type == ClipType.audio) {
+            editor.addAudioTrack(path, trackName: p.name, duration: p.duration > Duration.zero ? p.duration : null);
+          } else if (pickerArgs.isOverlay) {
             editor.addOverlayClip(path);
           } else {
             editor.addMediaClip(path);

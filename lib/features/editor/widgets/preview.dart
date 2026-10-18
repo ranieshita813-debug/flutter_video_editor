@@ -1853,8 +1853,8 @@ class _DashedRectPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint p = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 1.0
+      ..color = const Color(0xFFFFD700)
+      ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
     final Rect r = Offset.zero & size;

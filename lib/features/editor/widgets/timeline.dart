@@ -247,9 +247,9 @@ class _TimelineWidgetState extends State<TimelineWidget> {
   double get _rulerGap => 6 * _s;
   double get _gap => 6 * _s;
   // Overlay lanes are shorter than the main clip lane.
-  double get _textH => 24 * _s;
-  double get _videoH => 44 * _s;
-  double get _audioH => 26 * _s;
+  double get _textH => 34 * _s;
+  double get _videoH => 56 * _s;
+  double get _audioH => 36 * _s;
 
   final ScrollController _sc = ScrollController();
   final ScrollController _vc = ScrollController();
@@ -1010,7 +1010,7 @@ class _ClipBlockState extends State<_ClipBlock> {
   /// dimmer white = a clip picked in multi-select mode.
   Widget _frame(Widget child, {Color? color, required bool inMulti}) {
     final Color border = widget.selected
-        ? Colors.white
+        ? const Color(0xFFFFD700)
         : (inMulti ? Colors.white54 : Colors.transparent);
     final BorderRadius radius = BorderRadius.circular(_clipRadius);
     return Container(

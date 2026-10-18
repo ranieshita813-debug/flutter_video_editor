@@ -789,6 +789,19 @@ class EditorController extends ChangeNotifier {
         lower.endsWith('.mkv') ||
         lower.endsWith('.avi') ||
         lower.endsWith('.webm');
+    final isAudio = lower.endsWith('.mp3') ||
+        lower.endsWith('.wav') ||
+        lower.endsWith('.m4a') ||
+        lower.endsWith('.aac') ||
+        lower.endsWith('.flac') ||
+        lower.endsWith('.ogg') ||
+        lower.endsWith('.wma');
+
+    if (isAudio) {
+      addAudioTrack(path);
+      return;
+    }
+
     // Media is appended to the end of the main track so it can never overlap
     // an existing clip (the timeline assumes a gap-free, non-overlapping row).
     final Duration start = _mainTrackEnd();
@@ -1536,9 +1549,43 @@ class EditorController extends ChangeNotifier {
       language: language,
     );
 
-    _project.captions.addAll(newCaptions);
+    // Filter/clamp generated caption cues to the main clip(s) duration on timeline.
+    final mainClips = _project.clips
+        .where((c) => (c.clipType == ClipType.video || c.clipType == ClipType.image) && c.layerIndex == 0)
+        .toList();
 
-    for (final cue in newCaptions) {
+    List<CaptionCue> boundedCaptions = <CaptionCue>[];
+    if (mainClips.isNotEmpty) {
+      Duration mainStart = mainClips.first.start;
+      Duration mainEnd = mainClips.first.end;
+      for (final mc in mainClips) {
+        if (mc.start < mainStart) mainStart = mc.start;
+        if (mc.end > mainEnd) mainEnd = mc.end;
+      }
+
+      for (final cue in newCaptions) {
+        if (cue.end <= mainStart || cue.start >= mainEnd) {
+          continue; // Out of bounds of main clip(s)
+        }
+        final cueStart = cue.start < mainStart ? mainStart : cue.start;
+        final cueEnd = cue.end > mainEnd ? mainEnd : cue.end;
+        final clampedWords = cue.words
+            .where((w) => w.end > cueStart && w.start < cueEnd)
+            .toList();
+
+        boundedCaptions.add(cue.copyWith(
+          start: cueStart,
+          end: cueEnd,
+          words: clampedWords,
+        ));
+      }
+    } else {
+      boundedCaptions = newCaptions;
+    }
+
+    _project.captions.addAll(boundedCaptions);
+
+    for (final cue in boundedCaptions) {
       final clip = TimelineClip(
         id: 'caption_${cue.id}',
         label: cue.text,
