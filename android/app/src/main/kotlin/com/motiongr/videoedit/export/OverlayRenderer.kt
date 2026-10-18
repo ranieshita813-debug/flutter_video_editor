@@ -730,11 +730,14 @@ object OverlayRenderer {
         }
 
         if (clip.effect != "none") {
-            val fxBmp = applyVideoEffect(overlayBmp, clip.effect)
-            if (fxBmp != overlayBmp && !overlayBmp.isRecycled) {
-                overlayBmp.recycle()
+            val curBmp = overlayBmp
+            if (curBmp != null) {
+                val fxBmp = applyVideoEffect(curBmp, clip.effect)
+                if (fxBmp != curBmp && !curBmp.isRecycled) {
+                    curBmp.recycle()
+                }
+                overlayBmp = fxBmp
             }
-            overlayBmp = fxBmp
         }
 
             if (cacheKey != null && overlayBmp != null) {
@@ -742,6 +745,7 @@ object OverlayRenderer {
             }
         }
 
+        val bmpToDraw = overlayBmp ?: return
         val relTimeMs = timelineMs - clip.timelineStartMs
         val posX = getInterpolatedKeyframeValue(clip, "positionX", relTimeMs, clip.positionX)
         val posY = getInterpolatedKeyframeValue(clip, "positionY", relTimeMs, clip.positionY)
@@ -759,7 +763,7 @@ object OverlayRenderer {
             paint.alpha = (finalOpacity * 255).toInt().coerceIn(0, 255)
         }
 
-        canvas.drawBitmap(overlayBmp, matrix, paint)
+        canvas.drawBitmap(bmpToDraw, matrix, paint)
         canvas.restore()
 
         if (cacheKey == null && !isCached && overlayBmp != null && !overlayBmp.isRecycled) {
