@@ -486,6 +486,130 @@ object OverlayRenderer {
     }
 
     /**
+     * বিটম্যাপে ভিডিও ইফেক্ট ফিল্টার প্রয়োগ করে
+     */
+    fun applyVideoEffect(
+        bitmap: Bitmap,
+        effect: String
+    ): Bitmap {
+        if (effect.lowercase() == "none") return bitmap
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= 0 || h <= 0) return bitmap
+
+        val output = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val cm = ColorMatrix()
+
+        when (effect.lowercase()) {
+            "warm" -> {
+                cm.set(floatArrayOf(
+                    1.2f, 0f, 0f, 0f, 10f,
+                    0f, 1.05f, 0f, 0f, 5f,
+                    0f, 0f, 0.85f, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f
+                ))
+            }
+            "cinematic" -> {
+                cm.setSaturation(0.8f)
+                val cCm = ColorMatrix(floatArrayOf(
+                    0.9f, 0f, 0f, 0f, 5f,
+                    0f, 1.0f, 0f, 0f, 0f,
+                    0f, 0f, 1.2f, 0f, 10f,
+                    0f, 0f, 0f, 1f, 0f
+                ))
+                cm.postConcat(cCm)
+            }
+            "noir" -> {
+                cm.setSaturation(0f)
+                val cCm = ColorMatrix(floatArrayOf(
+                    1.3f, 0f, 0f, 0f, -20f,
+                    0f, 1.3f, 0f, 0f, -20f,
+                    0f, 0f, 1.3f, 0f, -20f,
+                    0f, 0f, 0f, 1f, 0f
+                ))
+                cm.postConcat(cCm)
+            }
+            "vibrant" -> {
+                cm.setSaturation(1.5f)
+            }
+            "vintage", "retro" -> {
+                cm.setSaturation(0.75f)
+                val vCm = ColorMatrix(floatArrayOf(
+                    1.1f, 0f, 0f, 0f, 15f,
+                    0f, 0.95f, 0f, 0f, 5f,
+                    0f, 0f, 0.8f, 0f, -10f,
+                    0f, 0f, 0f, 1f, 0f
+                ))
+                cm.postConcat(vCm)
+            }
+            "glitch", "vhs", "vhstape", "chromaticaberration" -> {
+                cm.set(floatArrayOf(
+                    1.15f, 0f, 0.1f, 0f, 10f,
+                    0f, 0.95f, 0f, 0f, 0f,
+                    0.1f, 0f, 1.2f, 0f, 15f,
+                    0f, 0f, 0f, 1f, 0f
+                ))
+            }
+            "matrix" -> {
+                cm.set(floatArrayOf(
+                    0.3f, 0f, 0f, 0f, 0f,
+                    0f, 1.4f, 0f, 0f, 20f,
+                    0f, 0f, 0.3f, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f
+                ))
+            }
+            "flame", "lightleak" -> {
+                cm.set(floatArrayOf(
+                    1.3f, 0f, 0f, 0f, 25f,
+                    0f, 1.1f, 0f, 0f, 10f,
+                    0f, 0f, 0.8f, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f
+                ))
+            }
+            "glow", "dreambloom" -> {
+                cm.setSaturation(1.3f)
+                val gCm = ColorMatrix(floatArrayOf(
+                    1.1f, 0f, 0f, 0f, 15f,
+                    0f, 1.1f, 0f, 0f, 15f,
+                    0f, 0f, 1.1f, 0f, 15f,
+                    0f, 0f, 0f, 1f, 0f
+                ))
+                cm.postConcat(gCm)
+            }
+            "vignette", "cinematicvignette" -> {
+                cm.setSaturation(0.9f)
+            }
+            else -> {
+                cm.setSaturation(1.1f)
+            }
+        }
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(cm)
+        }
+        canvas.drawBitmap(bitmap, 0f, 0f, paint)
+
+        if (effect.lowercase().contains("vignette")) {
+            val cx = w / 2f
+            val cy = h / 2f
+            val radius = kotlin.math.sqrt((cx * cx + cy * cy).toDouble()).toFloat()
+            val shader = RadialGradient(
+                cx, cy, radius,
+                intArrayOf(Color.TRANSPARENT, Color.argb(160, 0, 0, 0)),
+                floatArrayOf(0.5f, 1.0f),
+                Shader.TileMode.CLAMP
+            )
+            val vigPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                this.shader = shader
+            }
+            canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), vigPaint)
+        }
+
+        return output
+    }
+
+    /**
      * ক্যানভাসে নির্দিষ্ট ওভারলে ক্লিপ আঁকে
      */
     fun drawOverlayClip(
