@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 
 // -----------------------------------------------------------------------------
@@ -389,6 +390,9 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         _selected.removeAt(i);
       } else {
         _selected.add(p);
+        if (p.entity != null && p.entity!.width > 0 && p.entity!.height > 0) {
+          canvasRatioNotifier.value = detectCanvasRatio(p.entity!.width, p.entity!.height);
+        }
       }
     });
   }
@@ -633,6 +637,21 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         }
         Navigator.of(context).pop(true);
         return;
+      }
+
+      if (_selected.isNotEmpty) {
+        final firstWithDim = _selected.firstWhere(
+          (p) => p.entity != null && p.entity!.width > 0,
+          orElse: () => _selected.first,
+        );
+        if (firstWithDim.entity != null &&
+            firstWithDim.entity!.width > 0 &&
+            firstWithDim.entity!.height > 0) {
+          canvasRatioNotifier.value = detectCanvasRatio(
+            firstWithDim.entity!.width,
+            firstWithDim.entity!.height,
+          );
+        }
       }
 
       final List<TimelineClip> clips = <TimelineClip>[];

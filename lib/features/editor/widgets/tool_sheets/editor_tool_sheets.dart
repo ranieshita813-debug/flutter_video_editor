@@ -1193,6 +1193,21 @@ enum CanvasRatio {
 
 final ValueNotifier<CanvasRatio> canvasRatioNotifier = ValueNotifier<CanvasRatio>(CanvasRatio.r16x9);
 
+CanvasRatio detectCanvasRatio(int width, int height) {
+  if (width <= 0 || height <= 0) return CanvasRatio.r16x9;
+  final double ratio = width / height;
+  CanvasRatio closest = CanvasRatio.r16x9;
+  double minDiff = double.infinity;
+  for (final r in CanvasRatio.values) {
+    final double diff = (r.value - ratio).abs();
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = r;
+    }
+  }
+  return closest;
+}
+
 class _RatioTile extends StatelessWidget {
   const _RatioTile({required this.ratio, required this.selected, required this.onTap});
   final CanvasRatio ratio;

@@ -132,7 +132,7 @@ enum EditorTool {
                           final bool isVideo = request.type == AiMediaType.video;
                           final int durationSec = request.durationSeconds ?? (isVideo ? 5 : 4);
                           final Duration duration = Duration(seconds: durationSec);
-                          final Duration start = editor.playhead;
+                          final Duration start = editor.getEndOfExistingMediaClips();
 
                           final TimelineClip newClip = TimelineClip(
                             id: id,
