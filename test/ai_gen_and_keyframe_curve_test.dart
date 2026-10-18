@@ -6,6 +6,7 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/editor_toolbar.dart';
+import 'package:flutter_video_editor/core/services/ai_generation_service.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/gen.dart';
 
 void main() {
@@ -136,6 +137,11 @@ void main() {
       expect(editor.project.clips.length, equals(1));
       expect(editor.project.clips.first.label, equals('AI Video (veo-3.1)'));
       expect(editor.project.clips.first.duration, equals(const Duration(seconds: 8)));
+    });
+
+    test('AiGenerationService instantiates with default base URL and environment key support', () {
+      final service = AiGenerationService();
+      expect(service.baseUrl, equals('https://gen.pollinations.ai/v1'));
     });
   });
 }
