@@ -69,7 +69,7 @@ class AiGenerationService {
 
         if (mediaUrl != null && mediaUrl.startsWith('http')) {
           return await _downloadMediaFile(mediaUrl, isVideo);
-        } else if (mediaUrl != null && mediaUrl.startsWith('data:image')) {
+        } else if (mediaUrl != null && mediaUrl.isNotEmpty) {
           return await _saveBase64Image(mediaUrl);
         } else {
           AppLogger.warning('[AiGenerationService] API succeeded but no media URL returned. Falling back to response file.');
@@ -111,7 +111,8 @@ class AiGenerationService {
   Future<String> _saveBase64Image(String dataUrl) async {
     final commaIndex = dataUrl.indexOf(',');
     final base64Str = commaIndex != -1 ? dataUrl.substring(commaIndex + 1) : dataUrl;
-    final bytes = base64Decode(base64Str);
+    final cleanStr = base64Str.replaceAll(RegExp(r'\s+'), '');
+    final bytes = base64Decode(cleanStr);
     final tempDir = await getTemporaryDirectory();
     final file = File('${tempDir.path}/ai_gen_${DateTime.now().millisecondsSinceEpoch}.png');
     await file.writeAsBytes(bytes);

@@ -266,8 +266,77 @@ class EditorToolbar extends StatelessWidget {
           ),
         ];
 
-      case ClipType.text:
       case ClipType.caption:
+        return [
+          EditorToolbarItem(
+            id: 'edit_caption',
+            title: 'Edit Caption',
+            icon: PhosphorIconsRegular.pencilSimple,
+            onTap: () => onSelectToolSheet('text'),
+          ),
+          EditorToolbarItem(
+            id: 'translate_captions',
+            title: 'Translate',
+            icon: PhosphorIconsRegular.translate,
+            onTap: () => onSelectToolSheet('caption_translate'),
+          ),
+          EditorToolbarItem(
+            id: 'caption_highlight',
+            title: 'Highlight',
+            icon: PhosphorIconsRegular.highlighterCircle,
+            onTap: () => onSelectToolSheet('captions_style'),
+          ),
+          EditorToolbarItem(
+            id: 'split',
+            title: 'Split',
+            icon: PhosphorIconsRegular.scissors,
+            onTap: () => editor.splitSelectedClip(),
+          ),
+          EditorToolbarItem(
+            id: 'auto_captions',
+            title: 'Auto captions',
+            icon: PhosphorIconsRegular.closedCaptioning,
+            onTap: () => onSelectToolSheet('captions'),
+          ),
+          EditorToolbarItem(
+            id: 'text_style',
+            title: 'Text Style',
+            icon: PhosphorIconsRegular.textAa,
+            onTap: () => onSelectToolSheet('text_style'),
+          ),
+          EditorToolbarItem(
+            id: 'effects',
+            title: 'Effects',
+            icon: PhosphorIconsRegular.magicWand,
+            onTap: () => onSelectToolSheet('effects'),
+          ),
+          EditorToolbarItem(
+            id: 'animation',
+            title: 'Animation',
+            icon: PhosphorIconsRegular.play,
+            onTap: () => onSelectToolSheet('animation'),
+          ),
+          EditorToolbarItem(
+            id: 'duplicate',
+            title: 'Duplicate',
+            icon: PhosphorIconsRegular.copy,
+            onTap: () => editor.duplicateSelectedClip(),
+          ),
+          EditorToolbarItem(
+            id: 'delete',
+            title: 'Delete',
+            icon: PhosphorIconsRegular.trash,
+            onTap: () => editor.removeSelectedClip(),
+          ),
+          EditorToolbarItem(
+            id: 'ai_generate',
+            title: 'AI Generate',
+            icon: PhosphorIconsFill.sparkle,
+            onTap: () => onSelectToolSheet('ai'),
+          ),
+        ];
+
+      case ClipType.text:
         return [
           EditorToolbarItem(
             id: 'text_style',
