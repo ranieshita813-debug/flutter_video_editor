@@ -415,37 +415,223 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _createProjectFromTemplate(BuildContext context, String templateName, String ratioStr) {
+    final projectsCtrl = Provider.of<ProjectsController>(context, listen: false);
+    final editor = Provider.of<EditorController>(context, listen: false);
+
+    final project = projectsCtrl.createProject(
+      name: '$templateName (${DateTime.now().millisecond})',
+    );
+
+    editor.loadProject(project);
+
+    // Seed preset text or element based on template
+    editor.addTextOverlay('Sample $templateName Title');
+    editor.addCaptionCue(CaptionCue(
+      id: 'tmpl_cue_1',
+      start: Duration.zero,
+      end: const Duration(seconds: 4),
+      text: 'Welcome to $templateName!',
+      words: const [
+        CaptionWord(word: 'Welcome', start: Duration.zero, end: Duration(seconds: 1)),
+        CaptionWord(word: 'to', start: Duration(seconds: 1), end: Duration(milliseconds: 1500)),
+        CaptionWord(word: 'motionGr', start: Duration(milliseconds: 1500), end: Duration(seconds: 3)),
+      ],
+    ));
+
+    Navigator.of(context).pushNamed('/editor');
+  }
+
   Widget _buildTemplateTab(BuildContext context) {
+    final templates = [
+      {
+        'title': 'Vlog Reel',
+        'desc': 'Dynamic vertical layout with colorful captions',
+        'ratio': '9:16',
+        'tag': 'Popular',
+        'color': const Color(0xFF00C4D6),
+        'icon': PhosphorIconsRegular.filmStrip,
+      },
+      {
+        'title': 'TikTok Shorts',
+        'desc': 'Fast-paced text animations & neon glow effects',
+        'ratio': '9:16',
+        'tag': 'Trending',
+        'color': const Color(0xFFFF007F),
+        'icon': PhosphorIconsRegular.sparkle,
+      },
+      {
+        'title': 'Cinematic Intro',
+        'desc': 'Widescreen cinematic filter & bold titles',
+        'ratio': '16:9',
+        'tag': 'Pro',
+        'color': const Color(0xFFFFD700),
+        'icon': PhosphorIconsRegular.videoCamera,
+      },
+      {
+        'title': 'Cyberpunk Beat',
+        'desc': 'Glitch transitions & futuristic text badge',
+        'ratio': '9:16',
+        'tag': 'New',
+        'color': const Color(0xFF00FF66),
+        'icon': PhosphorIconsRegular.lightning,
+      },
+      {
+        'title': 'Karaoke Story',
+        'desc': 'Word-by-word active speech highlighting',
+        'ratio': '9:16',
+        'tag': 'Featured',
+        'color': const Color(0xFFA855F7),
+        'icon': PhosphorIconsRegular.musicNote,
+      },
+      {
+        'title': 'Minimalist Vlog',
+        'desc': 'Square 1:1 clean aesthetic for social posts',
+        'ratio': '1:1',
+        'tag': 'Minimal',
+        'color': const Color(0xFF111111),
+        'icon': PhosphorIconsRegular.textbox,
+      },
+    ];
+
     return Column(
       children: <Widget>[
         _buildHeader(context),
-        const Expanded(
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                PhosphorIcon(
-                  PhosphorIconsRegular.gridFour,
-                  color: Colors.grey,
-                  size: 44,
+        const Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 8),
+          child: Row(
+            children: [
+              PhosphorIcon(PhosphorIconsRegular.gridFour, color: Colors.black, size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Video Creation Templates',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.black,
+                  fontFamily: 'Ubuntu Sans',
                 ),
-                SizedBox(height: 16),
-                Text(
-                  'Video Templates',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.85,
+            ),
+            itemCount: templates.length,
+            itemBuilder: (ctx, idx) {
+              final tmpl = templates[idx];
+              final Color tmplColor = tmpl['color'] as Color;
+
+              return GestureDetector(
+                onTap: () => _createProjectFromTemplate(
+                  context,
+                  tmpl['title'] as String,
+                  tmpl['ratio'] as String,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.grey.shade300, width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: tmplColor.withValues(alpha: 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: PhosphorIcon(
+                              tmpl['icon'] as IconData,
+                              size: 20,
+                              color: tmplColor == const Color(0xFF111111) ? Colors.black : tmplColor,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              tmpl['tag'] as String,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      Text(
+                        tmpl['title'] as String,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black,
+                          fontFamily: 'Ubuntu Sans',
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        tmpl['desc'] as String,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade700,
+                          height: 1.3,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            tmpl['ratio'] as String,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const Text(
+                            'Use Template →',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(height: 8),
-                Text(
-                  'Explore trending templates and quick creation presets.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ],

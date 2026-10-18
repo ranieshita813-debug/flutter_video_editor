@@ -39,6 +39,14 @@ class _CaptionStyleSheetState extends State<CaptionStyleSheet> {
     _Preset('Badge', 'badge', Color(0xFF000000), Color(0xFFFFFFFF), 30),
     _Preset('Glow', 'outline', Color(0xFF00E5FF), Colors.transparent, 32),
     _Preset('Marker', 'badge', Color(0xFF000000), Color(0xFFFFD700), 30),
+    _Preset('Neon', 'outline', Color(0xFFFF007F), Colors.transparent, 32),
+    _Preset('Cyberpunk', 'badge', Color(0xFF00FF66), Color(0xFF1A1A2E), 30),
+    _Preset('Karaoke', 'scale', Color(0xFFFF3366), Colors.transparent, 34),
+    _Preset('Gradient', 'color', Color(0xFF00C4D6), Colors.transparent, 30),
+    _Preset('Minimal', 'color', Color(0xFFBDBDBD), Colors.transparent, 26),
+    _Preset('Comic', 'badge', Color(0xFF000000), Color(0xFFFFCC00), 32),
+    _Preset('Vlog', 'badge', Color(0xFFFFFFFF), Color(0xFFE63946), 28),
+    _Preset('Retro', 'outline', Color(0xFFFF9900), Colors.transparent, 30),
   ];
 
   void _apply(EditorController editor, TextStyleProperties next, bool all) {

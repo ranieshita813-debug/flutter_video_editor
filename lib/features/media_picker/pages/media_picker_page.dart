@@ -1531,7 +1531,7 @@ class _WavePainter extends CustomPainter {
 }
 
 class _Thumb extends StatefulWidget {
-  const _Thumb({super.key, required this.entity, required this.size});
+  const _Thumb({required this.entity, required this.size});
 
   final AssetEntity entity;
   final int size;
