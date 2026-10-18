@@ -831,11 +831,14 @@ class _TimelineWidgetState extends State<TimelineWidget> {
               children: <Widget>[
                 Icon(_addIcon(l.addKind), size: 13, color: const Color(0xFF8A8A8A)),
                 const SizedBox(width: 6),
-                Text(
-                  _addLabel(l.addKind),
-                  maxLines: 1,
-                  softWrap: false,
-                  style: const TextStyle(color: Color(0xFF8A8A8A), fontSize: 11),
+                Flexible(
+                  child: Text(
+                    _addLabel(l.addKind),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFF8A8A8A), fontSize: 11),
+                  ),
                 ),
               ],
             ),
