@@ -11,41 +11,38 @@ import 'package:flutter_video_editor/features/editor/controllers/editor_controll
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 
 // -----------------------------------------------------------------------------
-// Design tokens
-//
-// CapCut        -> true-black canvas, tight 2px grid, numbered selection badges
-// Premiere Pro  -> label colors per media type, timecode type, source monitor
-// Filmora       -> teal/blue gradient call to action, pill tabs, rounded panels
+// Design tokens (monochrome, matches the rest of the app)
 // -----------------------------------------------------------------------------
 
 const Color _bg = Color(0xFFFFFFFF);
 const Color _surface = Color(0xFFF5F5F5);
-const Color _elevated = Color(0xFFEEEEEE);
+const Color _elevated = Color(0xFFEBEBEB);
 const Color _text = Color(0xFF000000);
-const Color _muted = Color(0xFF666666);
+const Color _muted = Color(0xFF6B6B6B);
 const Color _accent = Color(0xFF000000);
 const Color _onAccent = Color(0xFFFFFFFF);
-
-// Monochrome label colors for media types.
-const Color _cVideo = Color(0xFF000000);
-const Color _cImage = Color(0xFF555555);
-const Color _cAudio = Color(0xFF888888);
-
 
 const TextStyle _timecode = TextStyle(
   fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
 );
 
+const List<String> _videoExt = <String>[
+  'mp4', 'mov', 'avi', 'mkv', 'webm', '3gp', 'm4v',
+];
+const List<String> _audioExt = <String>[
+  'mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg',
+];
+const List<String> _imageExt = <String>[
+  'jpg', 'jpeg', 'png', 'webp', 'heic', 'gif',
+];
+
 String _fmt(Duration d) {
   final int s = d.inSeconds;
-  return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+  final int h = s ~/ 3600;
+  final String mm = ((s % 3600) ~/ 60).toString();
+  final String ss = (s % 60).toString().padLeft(2, '0');
+  return h > 0 ? '$h:${mm.padLeft(2, '0')}:$ss' : '$mm:$ss';
 }
-
-Color _typeColor(ClipType t) => switch (t) {
-      ClipType.video => _cVideo,
-      ClipType.audio => _cAudio,
-      _ => _cImage,
-    };
 
 IconData _typeIcon(ClipType t) => switch (t) {
       ClipType.video => PhosphorIconsRegular.videoCamera,
@@ -155,15 +152,13 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   bool _busy = false;
   bool _hasMore = true;
   bool _adding = false;
+  String? _error;
   int _page = 0;
   int _gen = 0;
   int _lastTab = 0;
 
   /// Grid density (3, 4 or 5 columns).
   int _cols = 4;
-
-  /// Item shown in the source monitor (last tapped / long-pressed).
-  _Picked? _focus;
 
   List<AssetPathEntity> _albums = <AssetPathEntity>[];
   AssetPathEntity? _album;
@@ -238,14 +233,22 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     }
   }
 
-  Future<void> _loadAlbums() async {
+  /// Clears the grid and invalidates any in-flight page request.
+  int _resetGrid() {
     final int gen = ++_gen;
-    setState(() {
-      _loading = true;
-      _assets.clear();
-      _page = 0;
-      _hasMore = true;
-    });
+    _busy = false;
+    _assets.clear();
+    _page = 0;
+    _hasMore = true;
+    _error = null;
+    _loading = true;
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+    return gen;
+  }
+
+  Future<void> _loadAlbums() async {
+    late final int gen;
+    setState(() => gen = _resetGrid());
 
     try {
       final List<AssetPathEntity> albums =
@@ -255,14 +258,15 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         _albums = albums;
         _album = albums.isNotEmpty ? albums.first : null;
         _hasMore = _album != null;
-        if (_album == null) _loading = false; // nothing to load -> stop spinner
+        if (_album == null) _loading = false;
       });
-      _busy = false;
       await _loadMore();
     } catch (e) {
-      if (mounted) {
-        setState(() => _loading = false);
-        _snack('Could not load gallery: $e');
+      if (mounted && gen == _gen) {
+        setState(() {
+          _loading = false;
+          _error = 'Couldn\'t load your gallery. Try again.';
+        });
       }
     }
   }
@@ -284,8 +288,10 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       });
     } catch (e) {
       if (mounted && gen == _gen) {
-        setState(() => _loading = false);
-        _snack('Could not load media: $e');
+        setState(() {
+          _loading = false;
+          _error = 'Couldn\'t load media. Try again.';
+        });
       }
     } finally {
       if (gen == _gen) _busy = false;
@@ -295,10 +301,14 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   Future<void> _chooseAlbum() async {
     final AssetPathEntity? picked = await showModalBottomSheet<AssetPathEntity>(
       context: context,
-      backgroundColor: _surface,
+      backgroundColor: _bg,
       showDragHandle: true,
+      isScrollControlled: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (BuildContext sheetCtx) => SafeArea(
         child: Column(
@@ -309,7 +319,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
               padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Text('Albums',
                   style: TextStyle(
-                      color: _text, fontSize: 17, fontWeight: FontWeight.w800)),
+                      color: _text, fontSize: 18, fontWeight: FontWeight.w800)),
             ),
             Flexible(
               child: ListView(
@@ -317,23 +327,31 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 children: <Widget>[
                   for (final AssetPathEntity a in _albums)
                     ListTile(
-                      leading: Icon(
-                        a.isAll
-                            ? PhosphorIconsRegular.clockCounterClockwise
-                            : PhosphorIconsRegular.folder,
-                        color: a.id == _album?.id ? _accent : _muted,
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: a.id == _album?.id ? _accent : _surface,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          a.isAll
+                              ? PhosphorIconsRegular.clockCounterClockwise
+                              : PhosphorIconsRegular.folder,
+                          size: 20,
+                          color: a.id == _album?.id ? _onAccent : _muted,
+                        ),
                       ),
                       title: Text(a.isAll ? 'Recent' : a.name,
-                          style: const TextStyle(fontSize: 15)),
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w600)),
                       trailing: FutureBuilder<int>(
                         future: a.assetCountAsync,
                         builder: (_, AsyncSnapshot<int> s) => Text(
-                            '${s.data ?? ''}',
+                            s.hasData ? '${s.data}' : '',
                             style: _timecode.copyWith(
                                 color: _muted, fontSize: 13)),
                       ),
-                      selected: a.id == _album?.id,
-                      selectedColor: _accent,
                       textColor: _text,
                       onTap: () => Navigator.of(sheetCtx).pop(a),
                     ),
@@ -345,15 +363,11 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       ),
     );
     if (picked == null || picked.id == _album?.id) return;
-    final int gen = ++_gen;
+    late final int gen;
     setState(() {
+      gen = _resetGrid();
       _album = picked;
-      _assets.clear();
-      _page = 0;
-      _hasMore = true;
-      _loading = true;
     });
-    _busy = false;
     if (gen == _gen) await _loadMore();
   }
 
@@ -361,7 +375,14 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
   int _indexOf(String id) => _selected.indexWhere((p) => p.id == id);
 
+  /// Reuses the already-selected object so name/path stay consistent.
+  _Picked _pickedOf(AssetEntity e) {
+    final int i = _indexOf(e.id);
+    return i >= 0 ? _selected[i] : _Picked.fromEntity(e);
+  }
+
   void _toggle(_Picked p) {
+    HapticFeedback.selectionClick();
     setState(() {
       final int i = _indexOf(p.id);
       if (i >= 0) {
@@ -369,7 +390,6 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       } else {
         _selected.add(p);
       }
-      _focus = p;
     });
   }
 
@@ -385,7 +405,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     setState(() => _cols = _cols == 3 ? 4 : (_cols == 4 ? 5 : 3));
   }
 
-  /// Duration used for a clip on the timeline (same rules as before).
+  /// Duration used for a clip on the timeline.
   Duration _effective(_Picked p) {
     final bool isAudio = p.type == ClipType.audio;
     final bool isVideo = p.type == ClipType.video;
@@ -408,20 +428,30 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   Future<void> _browseFiles() async {
     try {
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: <String>[
+          ..._videoExt,
+          ..._audioExt,
+          ..._imageExt,
+        ],
+        allowMultiple: true,
       );
       if (result == null || result.files.isEmpty) return;
-      final List<PlatformFile> files = result.files;
+
+      int skipped = 0;
       setState(() {
-        for (final PlatformFile file in files) {
+        for (final PlatformFile file in result.files) {
           final String ext = file.extension?.toLowerCase() ?? '';
-          final bool isVid =
-              <String>['mp4', 'mov', 'avi', 'mkv', 'webm', '3gp'].contains(ext);
-          final bool isAud =
-              <String>['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg'].contains(ext);
-          final String id = 'file_${file.path ?? file.name}';
+          final bool isVid = _videoExt.contains(ext);
+          final bool isAud = _audioExt.contains(ext);
+          final bool isImg = _imageExt.contains(ext);
+          if (file.path == null || !(isVid || isAud || isImg)) {
+            skipped++;
+            continue;
+          }
+          final String id = 'file_${file.path}';
           if (_indexOf(id) >= 0) continue;
-          final _Picked p = _Picked(
+          _selected.add(_Picked(
             id: id,
             name: file.name,
             duration: isVid
@@ -431,26 +461,148 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                 ? ClipType.video
                 : (isAud ? ClipType.audio : ClipType.image),
             path: file.path,
-          );
-          _selected.add(p);
-          _focus = p;
+          ));
         }
       });
+      if (skipped > 0) {
+        _snack('$skipped file${skipped == 1 ? '' : 's'} not supported');
+      }
     } catch (e) {
-      _snack('Error picking file: $e');
+      _snack('Couldn\'t open that file');
     }
   }
 
   void _snack(String m) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(m),
-      behavior: SnackBarBehavior.floating,
-      backgroundColor: _elevated,
-    ));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(m, style: const TextStyle(color: _onAccent)),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: _text,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+  }
+
+  // ---- Preview ---------------------------------------------------------------
+
+  Future<void> _preview(_Picked p) async {
+    HapticFeedback.mediumImpact();
+    final AssetEntity? e = p.entity;
+    final bool isAudio = p.type == ClipType.audio;
+    final double aspect = (e != null && e.width > 0 && e.height > 0)
+        ? (e.width / e.height).clamp(0.6, 1.8)
+        : 16 / 9;
+    final double maxH = MediaQuery.of(context).size.height * 0.5;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: _bg,
+      showDragHandle: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (BuildContext ctx) {
+        final bool sel = _indexOf(p.id) >= 0;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxHeight: maxH),
+                    child: AspectRatio(
+                      aspectRatio: isAudio ? 16 / 9 : aspect,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: <Widget>[
+                            if (e != null && !isAudio)
+                              _Thumb(entity: e, size: 900)
+                            else
+                              Container(
+                                color: _surface,
+                                child: Icon(_typeIcon(p.type),
+                                    color: _muted, size: 44),
+                              ),
+                            if (p.type == ClipType.video)
+                              Center(
+                                child: Container(
+                                  width: 52,
+                                  height: 52,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withAlpha(150),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(PhosphorIconsRegular.play,
+                                      color: Colors.white, size: 26),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(p.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: _text,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Row(
+                  children: <Widget>[
+                    _TypePill(type: p.type),
+                    const SizedBox(width: 10),
+                    if (p.type != ClipType.image)
+                      Text(_fmt(_effective(p)),
+                          style: _timecode.copyWith(
+                              color: _muted,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600)),
+                    if (e != null && !isAudio) ...<Widget>[
+                      const SizedBox(width: 10),
+                      Text('${e.width} × ${e.height}',
+                          style: _timecode.copyWith(
+                              color: _muted, fontSize: 13)),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _PrimaryButton(
+                  label: sel ? 'Remove from selection' : 'Select',
+                  wide: true,
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _toggle(p);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   // ---- Add to project --------------------------------------------------------
+
+  Future<String?> _resolvePath(_Picked p) async {
+    if (p.path != null) return p.path;
+    final AssetEntity? e = p.entity;
+    if (e == null) return null;
+    // `file` can be null for cloud/transcoded items; fall back to the original.
+    final f = (await e.file) ?? (await e.originFile);
+    return f?.path;
+  }
 
   Future<void> _addMediaToProject() async {
     if (_selected.isEmpty || _adding) return;
@@ -458,25 +610,28 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
     try {
       final MediaPickerArgs? pickerArgs = _args;
-
       final EditorController editor =
           Provider.of<EditorController>(context, listen: false);
 
       if (pickerArgs != null && pickerArgs.appendToCurrent) {
-        for (int i = 0; i < _selected.length; i++) {
-          final _Picked p = _selected[i];
-          final String? path = p.path ?? (await p.entity?.file)?.path;
-          if (path != null && path.isNotEmpty) {
-            if (pickerArgs.isOverlay) {
-              editor.addOverlayClip(path);
-            } else {
-              editor.addMediaClip(path);
-            }
+        int added = 0;
+        for (final _Picked p in List<_Picked>.of(_selected)) {
+          final String? path = await _resolvePath(p);
+          if (path == null || path.isEmpty) continue;
+          if (pickerArgs.isOverlay) {
+            editor.addOverlayClip(path);
+          } else {
+            editor.addMediaClip(path);
           }
+          added++;
         }
-        if (mounted) {
-          Navigator.of(context).pop(true);
+        if (!mounted) return;
+        if (added == 0) {
+          _snack('Couldn\'t read the selected media');
+          setState(() => _adding = false);
+          return;
         }
+        Navigator.of(context).pop(true);
         return;
       }
 
@@ -486,7 +641,9 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
       for (int i = 0; i < _selected.length; i++) {
         final _Picked p = _selected[i];
-        final String? path = p.path ?? (await p.entity?.file)?.path;
+        final String? path = await _resolvePath(p);
+        if (path == null || path.isEmpty) continue;
+
         final bool isAudio = p.type == ClipType.audio;
         final Duration d = _effective(p);
 
@@ -507,9 +664,14 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       }
 
       if (!mounted) return;
+      if (clips.isEmpty) {
+        _snack('Couldn\'t read the selected media');
+        setState(() => _adding = false);
+        return;
+      }
+
       final ProjectsController projects =
           Provider.of<ProjectsController>(context, listen: false);
-
       final newProj = projects.createProject(
         name: _selected.first.name,
         clips: clips,
@@ -518,7 +680,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
       Navigator.of(context).pushReplacementNamed('/editor');
     } catch (e) {
-      _snack('Could not add media: $e');
+      _snack('Couldn\'t add media. Try again.');
       if (mounted) setState(() => _adding = false);
     }
   }
@@ -540,26 +702,16 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       child: Scaffold(
         backgroundColor: _bg,
         body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            _header(),
-            if (granted) _tabBar(),
-            if (_limited && granted) _limitedBanner(),
-            if (granted)
-              AnimatedSize(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOut,
-                alignment: Alignment.topCenter,
-                child: _monitor(),
-              ),
-            Expanded(child: _body()),
-            if (granted) ...<Widget>[
-              if (_selected.isNotEmpty) _tray(),
-              _bottomBar(),
+          child: Column(
+            children: <Widget>[
+              _header(),
+              if (granted) _tabBar(),
+              if (_limited && granted) _limitedBanner(),
+              Expanded(child: _body()),
+              if (granted) _dock(),
             ],
-          ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -569,7 +721,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         ? 'Gallery'
         : (_album!.isAll ? 'Recent' : _album!.name);
     return SizedBox(
-      height: 58,
+      height: 60,
       child: Row(
         children: <Widget>[
           IconButton(
@@ -580,14 +732,14 @@ class _MediaPickerPageState extends State<MediaPickerPage>
           Expanded(
             child: Center(
               child: Material(
-                color: _elevated,
-                borderRadius: BorderRadius.circular(20),
+                color: _surface,
+                borderRadius: BorderRadius.circular(22),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(22),
                   onTap: _albums.isEmpty ? null : _chooseAlbum,
                   child: Padding(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
@@ -602,12 +754,14 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                                 style: const TextStyle(
                                     color: _text,
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w700),
+                                    fontWeight: FontWeight.w800),
                               ),
                             ),
-                            if (_albums.isNotEmpty)
+                            if (_albums.isNotEmpty) ...<Widget>[
+                              const SizedBox(width: 2),
                               const Icon(PhosphorIconsRegular.caretDown,
-                                  color: _text, size: 20),
+                                  color: _text, size: 16),
+                            ],
                           ],
                         ),
                         Text(
@@ -625,16 +779,6 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             ),
           ),
           IconButton(
-            icon: Icon(
-              _cols == 3
-                  ? PhosphorIconsRegular.gridFour
-                  : (_cols == 4 ? PhosphorIconsRegular.squaresFour : PhosphorIconsRegular.gridNine),
-              color: _text,
-            ),
-            tooltip: 'Grid size',
-            onPressed: _cycleDensity,
-          ),
-          IconButton(
             icon: const Icon(PhosphorIconsRegular.folderOpen, color: _text),
             tooltip: 'Browse files',
             onPressed: _browseFiles,
@@ -646,7 +790,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
   Widget _tabBar() {
     Tab tab(IconData icon, String label) => Tab(
-          height: 34,
+          height: 36,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
@@ -661,32 +805,52 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         );
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
-      child: TabBar(
-        controller: _tabs,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        padding: EdgeInsets.zero,
-        indicator: BoxDecoration(
-          color: _text,
-          borderRadius: BorderRadius.circular(17),
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        indicatorPadding: EdgeInsets.zero,
-        labelColor: _onAccent,
-        unselectedLabelColor: _muted,
-        dividerColor: Colors.transparent,
-        splashFactory: NoSplash.splashFactory,
-        overlayColor: WidgetStateProperty.all(Colors.transparent),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 3),
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-        unselectedLabelStyle:
-            const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        tabs: <Widget>[
-          tab(PhosphorIconsRegular.gridFour, 'All'),
-          tab(PhosphorIconsRegular.videoCamera, 'Videos'),
-          tab(PhosphorIconsRegular.image, 'Photos'),
-          tab(PhosphorIconsRegular.musicNote, 'Audio'),
+      padding: const EdgeInsets.fromLTRB(10, 0, 4, 8),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: TabBar(
+              controller: _tabs,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              padding: EdgeInsets.zero,
+              indicator: BoxDecoration(
+                color: _text,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              indicatorPadding: EdgeInsets.zero,
+              labelColor: _onAccent,
+              unselectedLabelColor: _muted,
+              dividerColor: Colors.transparent,
+              splashFactory: NoSplash.splashFactory,
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 3),
+              labelStyle:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              unselectedLabelStyle:
+                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              tabs: <Widget>[
+                tab(PhosphorIconsRegular.gridFour, 'All'),
+                tab(PhosphorIconsRegular.videoCamera, 'Videos'),
+                tab(PhosphorIconsRegular.image, 'Photos'),
+                tab(PhosphorIconsRegular.musicNote, 'Audio'),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(
+              _cols == 3
+                  ? PhosphorIconsRegular.gridFour
+                  : (_cols == 4
+                      ? PhosphorIconsRegular.squaresFour
+                      : PhosphorIconsRegular.gridNine),
+              color: _text,
+              size: 22,
+            ),
+            tooltip: 'Grid size',
+            onPressed: _cycleDensity,
+          ),
         ],
       ),
     );
@@ -697,8 +861,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
       padding: const EdgeInsets.fromLTRB(12, 2, 4, 2),
       decoration: BoxDecoration(
-        color: _elevated,
-        borderRadius: BorderRadius.circular(10),
+        color: _surface,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: <Widget>[
@@ -721,193 +885,43 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     );
   }
 
-  /// Premiere-style "source monitor": large thumbnail plus media info.
-  Widget _monitor() {
-    final _Picked? f = _focus;
-    if (f == null) return const SizedBox(width: double.infinity);
-    final bool sel = _indexOf(f.id) >= 0;
-    final AssetEntity? e = f.entity;
-    final bool hasThumb = e != null && f.type != ClipType.audio;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: <Widget>[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(9),
-            child: SizedBox(
-              width: 128,
-              height: 72,
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  if (hasThumb)
-                    _Thumb(
-                      key: ValueKey<String>('mon_${f.id}'),
-                      entity: e,
-                      size: 480,
-                    )
-                  else
-                    Container(
-                      color: _elevated,
-                      child: Icon(_typeIcon(f.type),
-                          color: _typeColor(f.type), size: 28),
-                    ),
-                  if (f.type == ClipType.video)
-                    Center(
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(140),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(PhosphorIconsRegular.play,
-                            color: Colors.white, size: 20),
-                      ),
-                    ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: 3,
-                    child: ColoredBox(color: _typeColor(f.type)),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  f.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: _text, fontSize: 13, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: <Widget>[
-                    _TypePill(type: f.type),
-                    const SizedBox(width: 8),
-                    Text(
-                      _fmt(_effective(f)),
-                      style: _timecode.copyWith(
-                          color: _muted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-                if (e != null && f.type != ClipType.audio) ...<Widget>[
-                  const SizedBox(height: 4),
-                  Text(
-                    '${e.width} × ${e.height}',
-                    style: _timecode.copyWith(color: _muted, fontSize: 11),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => _toggle(f),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: sel ? _text : _elevated,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                sel ? 'Selected' : 'Select',
-                style: TextStyle(
-                  color: sel ? _onAccent : _text,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _body() {
     if (_perm == _Perm.checking) {
-      return const Center(
-        child: TextShimmerWave('Checking permissions…'),
-      );
+      return const Center(child: TextShimmerWave('Checking permissions…'));
     }
     if (_perm == _Perm.denied) return _deniedView();
 
-    if (_loading && _assets.isEmpty) {
-      return const Center(
-        child: TextShimmerWave('Loading media…'),
+    if (_error != null && _assets.isEmpty) {
+      return _message(
+        icon: PhosphorIconsRegular.warningCircle,
+        title: _error!,
+        action: 'Retry',
+        onAction: _loadAlbums,
       );
     }
 
+    if (_loading && _assets.isEmpty) {
+      return const Center(child: TextShimmerWave('Loading media…'));
+    }
+
     if (_assets.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Container(
-              width: 84,
-              height: 84,
-              decoration: const BoxDecoration(
-                color: _surface,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(PhosphorIconsRegular.images,
-                  size: 38, color: _muted),
-            ),
-            const SizedBox(height: 14),
-            const Text('Nothing here yet',
-                style: TextStyle(
-                    color: _text, fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Text(
-              _tabs.index == 3
-                  ? 'Audio can be added from your files.'
-                  : 'Media you add to this album will show up here.',
-              style: const TextStyle(color: _muted, fontSize: 13),
-            ),
-            if (_tabs.index == 3) ...<Widget>[
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _browseFiles,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _text,
-                  side: BorderSide.none,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(22)),
-                ),
-                icon: const Icon(PhosphorIconsRegular.folderOpen, size: 18),
-                label: const Text('Browse audio files'),
-              ),
-            ],
-          ],
-        ),
+      final bool audioTab = _tabs.index == 3;
+      return _message(
+        icon: audioTab
+            ? PhosphorIconsRegular.musicNote
+            : PhosphorIconsRegular.images,
+        title: audioTab ? 'No audio in your gallery' : 'Nothing here yet',
+        body: audioTab
+            ? 'Add music or voice recordings from your files.'
+            : 'Media you add to this album will show up here.',
+        action: audioTab ? 'Browse audio files' : null,
+        onAction: audioTab ? _browseFiles : null,
       );
     }
 
     return GridView.builder(
       controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(2, 2, 2, 8),
+      padding: const EdgeInsets.fromLTRB(2, 2, 2, 12),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: _cols,
         crossAxisSpacing: 2,
@@ -921,12 +935,54 @@ class _MediaPickerPageState extends State<MediaPickerPage>
           key: ValueKey<String>(e.id),
           entity: e,
           order: idx >= 0 ? idx + 1 : null,
-          focused: _focus?.id == e.id,
           thumbSize: _thumbSize,
-          onTap: () => _toggle(_Picked.fromEntity(e)),
-          onLongPress: () => setState(() => _focus = _Picked.fromEntity(e)),
+          onTap: () => _toggle(_pickedOf(e)),
+          onLongPress: () => _preview(_pickedOf(e)),
         );
       },
+    );
+  }
+
+  Widget _message({
+    required IconData icon,
+    required String title,
+    String? body,
+    String? action,
+    VoidCallback? onAction,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Container(
+              width: 84,
+              height: 84,
+              decoration: const BoxDecoration(
+                color: _surface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 38, color: _muted),
+            ),
+            const SizedBox(height: 16),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: _text, fontSize: 16, fontWeight: FontWeight.w700)),
+            if (body != null) ...<Widget>[
+              const SizedBox(height: 4),
+              Text(body,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: _muted, fontSize: 13)),
+            ],
+            if (action != null) ...<Widget>[
+              const SizedBox(height: 18),
+              _PrimaryButton(label: action, onPressed: onAction),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -956,18 +1012,12 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                   color: _text, fontSize: 19, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           const Text(
-            'Photos, videos and audio are shown right here, so you never have to leave the app to pick them.',
+            'Photos, videos and audio show up right here, so you never have to leave the app to pick them.',
             textAlign: TextAlign.center,
             style: TextStyle(color: _muted, fontSize: 13, height: 1.4),
           ),
           const SizedBox(height: 28),
-          Center(
-            child: _GradientButton(
-              label: 'Allow access',
-              onPressed: _init,
-              wide: true,
-            ),
-          ),
+          _PrimaryButton(label: 'Allow access', onPressed: _init, wide: true),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => PhotoManager.openSetting(),
@@ -978,41 +1028,64 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     );
   }
 
-  /// Premiere-style sequence strip: reorderable, shows per-clip duration.
-  Widget _tray() {
+  // ---- Bottom dock: sequence tray + action bar --------------------------------
+
+  Widget _dock() {
     return Container(
       decoration: const BoxDecoration(
-        color: _surface,
+        color: _bg,
+        border: Border(top: BorderSide(color: _elevated)),
       ),
-      padding: const EdgeInsets.fromLTRB(12, 8, 0, 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: _selected.isEmpty
+                ? const SizedBox(width: double.infinity)
+                : _tray(),
+          ),
+          _actionBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _tray() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 0, 2),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.only(right: 16),
             child: Row(
               children: <Widget>[
-                const Icon(PhosphorIconsRegular.rows,
-                    size: 15, color: _muted),
-                const SizedBox(width: 6),
                 const Text('Sequence',
                     style: TextStyle(
                         color: _text,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700)),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800)),
                 const Spacer(),
                 if (_selected.length > 1)
                   const Text('Hold and drag to reorder',
                       style: TextStyle(color: _muted, fontSize: 11)),
                 const SizedBox(width: 12),
                 GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () => setState(_selected.clear),
-                  child: const Text('Clear',
-                      style: TextStyle(
-                          color: _accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700)),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Text('Clear',
+                        style: TextStyle(
+                            color: _text,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline)),
+                  ),
                 ),
               ],
             ),
@@ -1040,7 +1113,6 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 
   Widget _trayItem(int i) {
     final _Picked p = _selected[i];
-    final Color tc = _typeColor(p.type);
     final bool hasThumb = p.entity != null && p.type != ClipType.audio;
 
     return ReorderableDelayedDragStartListener(
@@ -1049,11 +1121,11 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       child: Padding(
         padding: const EdgeInsets.only(right: 8),
         child: GestureDetector(
-          onTap: () => setState(() => _focus = p),
+          onTap: () => _preview(p),
           child: SizedBox(
-            width: 76,
+            width: 64,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
@@ -1061,48 +1133,41 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                     _Thumb(entity: p.entity!, size: 200)
                   else
                     Container(
-                      color: _elevated,
-                      child: Icon(_typeIcon(p.type), color: tc, size: 22),
+                      color: _surface,
+                      child: Icon(_typeIcon(p.type), color: _muted, size: 22),
                     ),
-                  Positioned(
+                  // Soft scrim so the timecode stays readable on any photo.
+                  const Positioned(
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    height: 3,
-                    child: ColoredBox(color: tc),
-                  ),
-                  Positioned(
-                    left: 4,
-                    top: 4,
-                    child: Container(
-                      width: 16,
-                      height: 16,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
+                    height: 24,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: <Color>[Colors.transparent, Color(0xAA000000)],
+                        ),
                       ),
-                      child: Text('${i + 1}',
-                          style: const TextStyle(
-                              color: _onAccent,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800)),
                     ),
                   ),
                   Positioned(
                     left: 5,
-                    bottom: 6,
+                    bottom: 4,
                     child: Text(
                       _fmt(_effective(p)),
                       style: _timecode.copyWith(
                         color: Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        shadows: const <Shadow>[
-                          Shadow(color: Colors.black, blurRadius: 4),
-                        ],
                       ),
                     ),
+                  ),
+                  Positioned(
+                    left: 4,
+                    top: 4,
+                    child: _NumberBadge(number: i + 1, size: 18, fontSize: 10),
                   ),
                   Positioned(
                     top: 3,
@@ -1110,10 +1175,10 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                     child: GestureDetector(
                       onTap: () => _toggle(p),
                       child: Container(
-                        width: 18,
-                        height: 18,
+                        width: 20,
+                        height: 20,
                         decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(190),
+                          color: Colors.black.withAlpha(180),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(PhosphorIconsRegular.x,
@@ -1130,21 +1195,18 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     );
   }
 
-  Widget _bottomBar() {
+  Widget _actionBar() {
     final bool enabled = _selected.isNotEmpty && !_adding;
     final int audios =
         _selected.where((_Picked p) => p.type == ClipType.audio).length;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-      decoration: const BoxDecoration(
-        color: _bg,
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       child: Row(
         children: <Widget>[
           Expanded(
             child: _selected.isEmpty
-                ? const Text('Select items to add',
+                ? const Text('Tap to select · hold to preview',
                     style: TextStyle(color: _muted, fontSize: 13))
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1154,21 +1216,21 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                         '${_selected.length} selected',
                         style: const TextStyle(
                             color: _text,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${_fmt(_totalVideo)} video'
                         '${audios > 0 ? ' · $audios audio' : ''}',
-                        style: _timecode.copyWith(
-                            color: _muted, fontSize: 11.5),
+                        style:
+                            _timecode.copyWith(color: _muted, fontSize: 12),
                       ),
                     ],
                   ),
           ),
           const SizedBox(width: 12),
-          _GradientButton(
+          _PrimaryButton(
             label: _ctaLabel,
             onPressed: enabled ? _addMediaToProject : null,
             loading: _adding,
@@ -1183,8 +1245,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
 // Small widgets
 // -----------------------------------------------------------------------------
 
-class _GradientButton extends StatelessWidget {
-  const _GradientButton({
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({
     required this.label,
     required this.onPressed,
     this.loading = false,
@@ -1204,13 +1266,13 @@ class _GradientButton extends StatelessWidget {
       child: Ink(
         decoration: BoxDecoration(
           color: on ? _text : _elevated,
-          borderRadius: BorderRadius.circular(23),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(23),
-          onTap: onPressed,
+          borderRadius: BorderRadius.circular(24),
+          onTap: loading ? null : onPressed,
           child: SizedBox(
-            height: 46,
+            height: 48,
             width: wide ? double.infinity : null,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -1225,7 +1287,7 @@ class _GradientButton extends StatelessWidget {
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
-                      baseColor: _onAccent.withValues(alpha: 0.5),
+                      baseColor: _onAccent.withAlpha(128),
                       waveColor: _onAccent,
                     )
                   else
@@ -1254,23 +1316,55 @@ class _TypePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color c = _typeColor(type);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: c.withAlpha(36),
-        borderRadius: BorderRadius.circular(6),
+        color: _surface,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(_typeIcon(type), size: 11, color: c),
-          const SizedBox(width: 3),
+          Icon(_typeIcon(type), size: 12, color: _text),
+          const SizedBox(width: 4),
           Text(_typeName(type),
-              style: TextStyle(
-                  color: c, fontSize: 10.5, fontWeight: FontWeight.w700)),
+              style: const TextStyle(
+                  color: _text, fontSize: 11, fontWeight: FontWeight.w700)),
         ],
       ),
+    );
+  }
+}
+
+/// Black circle with a white ring and white number: readable on any thumbnail.
+class _NumberBadge extends StatelessWidget {
+  const _NumberBadge({
+    required this.number,
+    this.size = 22,
+    this.fontSize = 11.5,
+  });
+
+  final int number;
+  final double size;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _text,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Text('$number',
+          style: TextStyle(
+              color: _onAccent,
+              fontSize: fontSize,
+              height: 1,
+              fontWeight: FontWeight.w800)),
     );
   }
 }
@@ -1284,7 +1378,6 @@ class _Cell extends StatelessWidget {
     super.key,
     required this.entity,
     required this.order,
-    required this.focused,
     required this.thumbSize,
     required this.onTap,
     required this.onLongPress,
@@ -1292,7 +1385,6 @@ class _Cell extends StatelessWidget {
 
   final AssetEntity entity;
   final int? order;
-  final bool focused;
   final int thumbSize;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
@@ -1301,8 +1393,7 @@ class _Cell extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool sel = order != null;
     final bool isAudio = entity.type == AssetType.audio;
-    final bool hasDuration = entity.type != AssetType.image;
-    final Color tc = _typeColor(_clipOf(entity.type));
+    final bool isVideo = entity.type == AssetType.video;
 
     return GestureDetector(
       onTap: onTap,
@@ -1310,91 +1401,96 @@ class _Cell extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          if (isAudio)
-            Container(
-              decoration: const BoxDecoration(
-                color: _elevated,
-              ),
-              padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
-              child: Column(
-                children: <Widget>[
-                  Expanded(
-                    child: CustomPaint(
-                      size: Size.infinite,
-                      painter: _WavePainter(
-                        seed: entity.id.hashCode & 0x7fffffff,
-                        color: _cAudio,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(entity.title ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: _text, fontSize: 10)),
-                ],
-              ),
-            )
-          else
-            _Thumb(entity: entity, size: thumbSize),
-
-          // Dim + frame when selected.
-          if (sel) Container(color: Colors.black.withAlpha(40)),
-
-          // Premiere-style label strip for the media type.
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 3,
-            child: ColoredBox(color: tc),
+          // The thumbnail shrinks slightly when selected: a clear state change
+          // that doesn't depend on color.
+          AnimatedPadding(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.all(sel ? 6 : 0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(sel ? 8 : 0),
+              child: isAudio
+                  ? _audioTile()
+                  : _Thumb(entity: entity, size: thumbSize),
+            ),
           ),
 
-          if (hasDuration)
+          if (isVideo || isAudio)
             Positioned(
-              left: 4,
-              bottom: 7,
+              left: sel ? 10 : 4,
+              bottom: sel ? 10 : 4,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.black.withAlpha(150),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(5),
                 ),
-                child: Text(
-                  _fmt(entity.videoDuration),
-                  style: _timecode.copyWith(
-                    color: Colors.white,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      isVideo
+                          ? PhosphorIconsRegular.play
+                          : PhosphorIconsRegular.musicNote,
+                      size: 10,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      _fmt(entity.videoDuration),
+                      style: _timecode.copyWith(
+                        color: Colors.white,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
 
-          // Selection badge.
           Positioned(
-            top: 5,
-            right: 5,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: sel ? Colors.white : Colors.black.withAlpha(90),
+            top: sel ? 9 : 5,
+            right: sel ? 9 : 5,
+            child: sel
+                ? _NumberBadge(number: order!)
+                : Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black.withAlpha(60),
+                      border: Border.all(color: Colors.white, width: 1.5),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _audioTile() {
+    return Container(
+      color: _surface,
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+      child: Column(
+        children: <Widget>[
+          Expanded(
+            child: CustomPaint(
+              size: Size.infinite,
+              painter: _WavePainter(
+                seed: entity.id.hashCode & 0x7fffffff,
+                color: const Color(0xFF9A9A9A),
               ),
-              child: sel
-                  ? Center(
-                      child: Text('$order',
-                          style: const TextStyle(
-                              color: Colors.black,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800)),
-                    )
-                  : null,
             ),
           ),
+          const SizedBox(height: 4),
+          Text(entity.title ?? '',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _text, fontSize: 10)),
+          const SizedBox(height: 14),
         ],
       ),
     );
@@ -1471,7 +1567,21 @@ class _ThumbState extends State<_Thumb> {
 
   @override
   Widget build(BuildContext context) {
-    if (_data == null) return const ColoredBox(color: _elevated);
-    return Image.memory(_data!, fit: BoxFit.cover, gaplessPlayback: true);
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 120),
+      child: _data == null
+          ? const ColoredBox(
+              key: ValueKey<int>(0),
+              color: _surface,
+            )
+          : Image.memory(
+              _data!,
+              key: const ValueKey<int>(1),
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+    );
   }
 }
