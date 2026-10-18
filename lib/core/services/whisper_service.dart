@@ -51,8 +51,10 @@ class WhisperService {
       addField('response_format', 'verbose_json');
       addField('timestamp_granularities[]', 'segment');
       addField('timestamp_granularities[]', 'word');
-      if (language != null && language.isNotEmpty) {
-        addField('language', language);
+
+      final normalizedLang = normalizeLanguageCode(language);
+      if (normalizedLang != null && normalizedLang.isNotEmpty) {
+        addField('language', normalizedLang);
       }
 
       // Add audio/video file
@@ -96,6 +98,47 @@ class WhisperService {
     }
   }
 
+  /// Normalizes language names or codes to ISO 639-1 language codes (e.g., Bengali -> bn).
+  static String? normalizeLanguageCode(String? language) {
+    if (language == null || language.trim().isEmpty) return null;
+    final lower = language.trim().toLowerCase();
+    switch (lower) {
+      case 'bengali':
+      case 'bn':
+      case 'bangla':
+        return 'bn';
+      case 'hindi':
+      case 'hi':
+        return 'hi';
+      case 'spanish':
+      case 'es':
+        return 'es';
+      case 'french':
+      case 'fr':
+        return 'fr';
+      case 'german':
+      case 'de':
+        return 'de';
+      case 'japanese':
+      case 'ja':
+        return 'ja';
+      case 'arabic':
+      case 'ar':
+        return 'ar';
+      case 'chinese':
+      case 'zh':
+        return 'zh';
+      case 'russian':
+      case 'ru':
+        return 'ru';
+      case 'english':
+      case 'en':
+        return 'en';
+      default:
+        return lower;
+    }
+  }
+
   /// Parses OpenAI Whisper verbose_json structure into a list of [CaptionCue]s with word timings.
   static List<CaptionCue> parseWhisperVerboseJson(Map<String, dynamic> json) {
     final List<CaptionCue> cues = <CaptionCue>[];
@@ -103,7 +146,7 @@ class WhisperService {
     final rawSegments = json['segments'] as List<dynamic>?;
     final rawWords = json['words'] as List<dynamic>?;
 
-    final List<CaptionWord> allWords = <CaptionWord>[];
+    final List<CaptionWord> topLevelWords = <CaptionWord>[];
     if (rawWords != null) {
       for (final w in rawWords) {
         if (w is Map) {
@@ -111,7 +154,7 @@ class WhisperService {
           final startSec = (w['start'] as num?)?.toDouble() ?? 0.0;
           final endSec = (w['end'] as num?)?.toDouble() ?? startSec + 0.3;
           if (wordStr.isNotEmpty) {
-            allWords.add(CaptionWord(
+            topLevelWords.add(CaptionWord(
               word: wordStr,
               start: Duration(milliseconds: (startSec * 1000).round()),
               end: Duration(milliseconds: (endSec * 1000).round()),
@@ -131,12 +174,31 @@ class WhisperService {
           final start = Duration(milliseconds: (startSec * 1000).round());
           final end = Duration(milliseconds: (endSec * 1000).round());
 
-          // Filter words belonging to this segment
-          final segWords = allWords
-              .where((w) => w.start >= start - const Duration(milliseconds: 200) && w.end <= end + const Duration(milliseconds: 200))
-              .toList();
+          final List<CaptionWord> segWords = <CaptionWord>[];
+          final segWordsRaw = seg['words'] as List<dynamic>?;
+          if (segWordsRaw != null && segWordsRaw.isNotEmpty) {
+            for (final w in segWordsRaw) {
+              if (w is Map) {
+                final wordStr = (w['word'] as String? ?? '').trim();
+                final wStartSec = (w['start'] as num?)?.toDouble() ?? startSec;
+                final wEndSec = (w['end'] as num?)?.toDouble() ?? wStartSec + 0.3;
+                if (wordStr.isNotEmpty) {
+                  segWords.add(CaptionWord(
+                    word: wordStr,
+                    start: Duration(milliseconds: (wStartSec * 1000).round()),
+                    end: Duration(milliseconds: (wEndSec * 1000).round()),
+                  ));
+                }
+              }
+            }
+          }
 
-          // If no specific word timings in segment, compute proportional word timings
+          if (segWords.isEmpty && topLevelWords.isNotEmpty) {
+            segWords.addAll(
+              topLevelWords.where((w) => w.start >= start - const Duration(milliseconds: 300) && w.end <= end + const Duration(milliseconds: 300)),
+            );
+          }
+
           final finalWords = segWords.isNotEmpty
               ? segWords
               : _distributeWordTimings(text, start, end);

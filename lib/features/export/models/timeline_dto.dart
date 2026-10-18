@@ -85,6 +85,8 @@ class ClipDto {
     required this.effect,
     this.svgPath,
     this.keyframes = const <Map<String, dynamic>>[],
+    this.words = const <Map<String, dynamic>>[],
+    this.shaderEffects = const <Map<String, dynamic>>[],
   });
 
   final String id;
@@ -118,6 +120,8 @@ class ClipDto {
   final String effect;
   final String? svgPath;
   final List<Map<String, dynamic>> keyframes;
+  final List<Map<String, dynamic>> words;
+  final List<Map<String, dynamic>> shaderEffects;
 
   factory ClipDto.fromTimelineClip(TimelineClip clip) {
     return ClipDto(
@@ -207,6 +211,14 @@ class ClipDto {
       effect: clip.effect.name,
       svgPath: clip.elementProperties.svgPath ?? clip.sourcePath,
       keyframes: clip.keyframes.map((k) => k.toJson()).toList(),
+      words: clip.words
+          .map((w) => <String, dynamic>{
+                'word': w.word,
+                'startMs': w.start.inMilliseconds,
+                'endMs': w.end.inMilliseconds,
+              })
+          .toList(),
+      shaderEffects: clip.shaderEffects.map((e) => e.toJson()).toList(),
     );
   }
 
@@ -243,6 +255,8 @@ class ClipDto {
       'effect': effect,
       'svgPath': svgPath,
       'keyframes': keyframes,
+      'words': words,
+      'shaderEffects': shaderEffects,
     };
   }
 
@@ -282,6 +296,14 @@ class ClipDto {
       effect: json['effect'] as String? ?? 'none',
       svgPath: json['svgPath'] as String?,
       keyframes: (json['keyframes'] as List<dynamic>?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          <Map<String, dynamic>>[],
+      words: (json['words'] as List<dynamic>?)
+              ?.map((e) => Map<String, dynamic>.from(e as Map))
+              .toList() ??
+          <Map<String, dynamic>>[],
+      shaderEffects: (json['shaderEffects'] as List<dynamic>?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
           <Map<String, dynamic>>[],

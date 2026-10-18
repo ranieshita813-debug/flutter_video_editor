@@ -78,6 +78,12 @@ data class ElementPropertiesSpec(
     val svgPath: String? = null
 )
 
+data class WordSpec(
+    val word: String,
+    val startMs: Long,
+    val endMs: Long
+)
+
 data class KeyframeSpec(
     val id: String,
     val timeMs: Long,
@@ -117,7 +123,8 @@ data class ClipSpec(
     val stickerAssetPath: String?,
     val effect: String,
     val svgPath: String? = null,
-    val keyframes: List<KeyframeSpec> = emptyList()
+    val keyframes: List<KeyframeSpec> = emptyList(),
+    val words: List<WordSpec> = emptyList()
 )
 
 data class TimelineSpec(
@@ -291,6 +298,23 @@ object TimelineParser {
                                 }
                             }
                             kfList
+                        },
+                        words = run {
+                            val wordsArray = clipObj.optJSONArray("words")
+                            val wordList = mutableListOf<WordSpec>()
+                            if (wordsArray != null) {
+                                for (w in 0 until wordsArray.length()) {
+                                    val wObj = wordsArray.getJSONObject(w)
+                                    wordList.add(
+                                        WordSpec(
+                                            word = wObj.optString("word", ""),
+                                            startMs = wObj.optLong("startMs", 0L),
+                                            endMs = wObj.optLong("endMs", 0L)
+                                        )
+                                    )
+                                }
+                            }
+                            wordList
                         }
                     )
                 )

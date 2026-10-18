@@ -11,6 +11,7 @@ import 'package:flutter_video_editor/core/models/project_model.dart' hide Export
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/services/caption_import_service.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
+import 'package:flutter_video_editor/core/services/translation_service.dart';
 import 'package:flutter_video_editor/core/services/whisper_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/playback_controller.dart';
 import 'package:flutter_video_editor/features/editor/controllers/track_controller.dart';
@@ -77,101 +78,17 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  static const Map<String, Map<String, String>> _translationDictionary = {
-    'Bengali': {
-      'hello': 'হ্যালো',
-      'world': 'বিশ্ব',
-      'welcome': 'স্বাগতম',
-      'video': 'ভিডিও',
-      'editor': 'সম্পাদক',
-      'thank you': 'ধন্যবাদ',
-      'good morning': 'শুভ সকাল',
-      'flutter': 'ফ্লাটার',
-      'caption': 'ক্যাপশন',
-    },
-    'Spanish': {
-      'hello': 'hola',
-      'world': 'mundo',
-      'welcome': 'bienvenido',
-      'video': 'video',
-      'editor': 'editor',
-      'thank you': 'gracias',
-      'flutter': 'flutter',
-    },
-    'French': {
-      'hello': 'bonjour',
-      'world': 'monde',
-      'welcome': 'bienvenue',
-      'video': 'vidéo',
-      'editor': 'éditeur',
-      'thank you': 'merci',
-    },
-    'German': {
-      'hello': 'hallo',
-      'world': 'welt',
-      'welcome': 'willkommen',
-      'video': 'video',
-      'thank you': 'danke',
-    },
-    'Hindi': {
-      'hello': 'नमस्ते',
-      'world': 'दुनिया',
-      'welcome': 'स्वागत',
-      'video': 'वीडियो',
-      'thank you': 'धन्यवाद',
-    },
-  };
-
-  String _translateText(String original, String targetLanguage) {
-    if (original.trim().isEmpty) return original;
-    final dict = _translationDictionary[targetLanguage];
-    if (dict != null) {
-      final lower = original.toLowerCase().trim();
-      if (dict.containsKey(lower)) {
-        return dict[lower]!;
-      }
-      final words = original.split(RegExp(r'\s+'));
-      final translatedWords = words.map((w) {
-        final clean = w.replaceAll(RegExp(r'[^\w\s]'), '').toLowerCase();
-        if (dict.containsKey(clean)) {
-          return dict[clean]!;
-        }
-        return w;
-      }).toList();
-      if (translatedWords.any((w) => dict.containsValue(w))) {
-        return translatedWords.join(' ');
-      }
-    }
-    switch (targetLanguage) {
-      case 'Bengali':
-        return '[বাংলা] $original';
-      case 'Spanish':
-        return '[ES] $original';
-      case 'French':
-        return '[FR] $original';
-      case 'German':
-        return '[DE] $original';
-      case 'Hindi':
-        return '[हिन्दी] $original';
-      case 'Japanese':
-        return '[日本語] $original';
-      case 'Arabic':
-        return '[العربية] $original';
-      case 'Chinese':
-        return '[中文] $original';
-      case 'Russian':
-        return '[RU] $original';
-      default:
-        return original;
-    }
-  }
+  final TranslationService _translationService = TranslationService();
 
   /// Translates caption clips into [targetLanguage].
   Future<void> translateCaptions({
     required String targetLanguage,
     bool allCaptions = true,
+    TranslationService? translationService,
   }) async {
     _saveState();
+
+    final service = translationService ?? _translationService;
 
     final List<TimelineClip> targets = <TimelineClip>[];
     if (allCaptions) {
@@ -181,7 +98,7 @@ class EditorController extends ChangeNotifier {
     }
 
     for (final clip in targets) {
-      final newText = _translateText(clip.label, targetLanguage);
+      final newText = await service.translateText(clip.label, targetLanguage);
       final words = newText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
       final totalMs = clip.duration.inMilliseconds;
       final msPerWord = words.isNotEmpty ? totalMs / words.length : totalMs;
@@ -1457,14 +1374,15 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> generateAutoCaptions() async {
-    await generateWhisperCaptions();
+  Future<void> generateAutoCaptions({String? language}) async {
+    await generateWhisperCaptions(language: language);
   }
 
   /// Generates captions using OpenAI Whisper Large (v3) via Pollinations API.
   Future<void> generateWhisperCaptions({
     String? audioFilePath,
     WhisperService? whisperService,
+    String? language,
   }) async {
     _saveState();
     _project.captions.clear();
@@ -1496,7 +1414,10 @@ class EditorController extends ChangeNotifier {
     }
 
     final whisper = whisperService ?? WhisperService();
-    final newCaptions = await whisper.transcribeAudio(audioFilePath: targetPath);
+    final newCaptions = await whisper.transcribeAudio(
+      audioFilePath: targetPath,
+      language: language,
+    );
 
     _project.captions.addAll(newCaptions);
 

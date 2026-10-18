@@ -25,6 +25,20 @@ class _CaptionsEditSheetState extends State<CaptionsEditSheet> {
   final ScrollController _scroll = ScrollController();
   bool _isGenerating = false;
   int _lastActiveIndex = -1;
+  String _selectedSpeechLanguage = 'Bengali';
+
+  static const List<Map<String, String>> _speechLanguages = [
+    {'code': 'auto', 'name': 'Auto-Detect', 'label': 'Auto'},
+    {'code': 'bn', 'name': 'Bengali', 'label': 'বাংলা'},
+    {'code': 'en', 'name': 'English', 'label': 'English'},
+    {'code': 'hi', 'name': 'Hindi', 'label': 'हिन्दी'},
+    {'code': 'es', 'name': 'Spanish', 'label': 'Español'},
+    {'code': 'fr', 'name': 'French', 'label': 'Français'},
+    {'code': 'de', 'name': 'German', 'label': 'Deutsch'},
+    {'code': 'ar', 'name': 'Arabic', 'label': 'العربية'},
+    {'code': 'zh', 'name': 'Chinese', 'label': '中文'},
+    {'code': 'ja', 'name': 'Japanese', 'label': '日本語'},
+  ];
 
   @override
   void dispose() {
@@ -37,10 +51,11 @@ class _CaptionsEditSheetState extends State<CaptionsEditSheet> {
     setState(() => _isGenerating = true);
     tapFeedback();
     try {
-      await editor.generateWhisperCaptions();
+      final lang = _selectedSpeechLanguage == 'Auto-Detect' ? null : _selectedSpeechLanguage;
+      await editor.generateWhisperCaptions(language: lang);
       if (!mounted) return;
       final n = editor.project.captions.length;
-      _toast('Generated $n caption${n == 1 ? '' : 's'}');
+      _toast('Generated $n caption${n == 1 ? '' : 's'} in $_selectedSpeechLanguage');
     } catch (e) {
       if (!mounted) return;
       _toast('Auto captions failed: $e');
@@ -121,24 +136,80 @@ class _CaptionsEditSheetState extends State<CaptionsEditSheet> {
                   ),
           ),
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+            child: Column(
               children: [
-                Expanded(
-                  child: MonoButton(
-                    filled: true,
-                    expand: true,
-                    busy: _isGenerating,
-                    icon: PhosphorIconsRegular.sparkle,
-                    label: _isGenerating ? 'Generating…' : 'Auto captions',
-                    onTap: _isGenerating ? null : () => _generate(editor),
-                  ),
+                Row(
+                  children: [
+                    const Text(
+                      'Voice Language:',
+                      style: TextStyle(
+                        color: EditorTokens.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: CaptionMono.font,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Container(
+                        height: 36,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: EditorTokens.elevated,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: EditorTokens.border),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedSpeechLanguage,
+                            isExpanded: true,
+                            dropdownColor: EditorTokens.surface,
+                            icon: const PhosphorIcon(PhosphorIconsRegular.caretDown, size: 14, color: Colors.white),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: CaptionMono.font,
+                            ),
+                            items: _speechLanguages.map((lang) {
+                              return DropdownMenuItem<String>(
+                                value: lang['name'],
+                                child: Text('${lang['name']} (${lang['label']})'),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                tapFeedback();
+                                setState(() => _selectedSpeechLanguage = val);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                MonoButton(
-                  label: 'Import',
-                  icon: PhosphorIconsRegular.fileArrowUp,
-                  onTap: () => _import(editor),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: MonoButton(
+                        filled: true,
+                        expand: true,
+                        busy: _isGenerating,
+                        icon: PhosphorIconsRegular.sparkle,
+                        label: _isGenerating ? 'Generating…' : 'Auto captions ($_selectedSpeechLanguage)',
+                        onTap: _isGenerating ? null : () => _generate(editor),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    MonoButton(
+                      label: 'Import',
+                      icon: PhosphorIconsRegular.fileArrowUp,
+                      onTap: () => _import(editor),
+                    ),
+                  ],
                 ),
               ],
             ),

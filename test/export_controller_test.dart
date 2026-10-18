@@ -73,6 +73,55 @@ void main() {
       expect(reconstructed.clips.length, equals(1));
       expect(reconstructed.clips.first.id, equals('c1'));
     });
+
+    test('Serializes all clip types including caption words and shader effects', () {
+      final project = Project(
+        id: 'p_all',
+        name: 'All Clips Project',
+        clips: <TimelineClip>[
+          TimelineClip(
+            id: 'c_caption',
+            label: 'Bengali Caption',
+            start: Duration.zero,
+            end: const Duration(seconds: 3),
+            clipType: ClipType.caption,
+            words: const [
+              CaptionWord(word: 'হ্যালো', start: Duration.zero, end: Duration(seconds: 1)),
+              CaptionWord(word: 'বিশ্ব', start: Duration(seconds: 1), end: Duration(seconds: 3)),
+            ],
+          ),
+          TimelineClip(
+            id: 'c_elem',
+            label: 'Star Shape',
+            start: Duration.zero,
+            end: const Duration(seconds: 5),
+            clipType: ClipType.element,
+            elementProperties: const ElementProperties(shape: ElementShape.star),
+          ),
+          TimelineClip(
+            id: 'c_audio',
+            label: 'Bg Music',
+            start: Duration.zero,
+            end: const Duration(seconds: 10),
+            clipType: ClipType.audio,
+            sourcePath: '/path/music.mp3',
+          ),
+        ],
+      );
+
+      final dto = TimelineDto.fromProject(project, const ExportSettings());
+      final json = dto.toJson();
+      final reconstructed = TimelineDto.fromJson(json);
+
+      expect(reconstructed.clips.length, equals(3));
+      final cap = reconstructed.clips.firstWhere((c) => c.id == 'c_caption');
+      expect(cap.label, equals('Bengali Caption'));
+      expect(cap.words.length, equals(2));
+      expect(cap.words.first['word'], equals('হ্যালো'));
+
+      final elem = reconstructed.clips.firstWhere((c) => c.id == 'c_elem');
+      expect(elem.elementProperties['shape'], equals('star'));
+    });
   });
 
   group('ExportController Unit Tests', () {
