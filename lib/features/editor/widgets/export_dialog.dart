@@ -2,6 +2,7 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
@@ -106,17 +107,27 @@ class _ExportModalState extends State<ExportModal> {
       body = _settingsView(editorCtrl);
     }
 
-    return PopScope(
-      canPop: !isExporting,
-      child: Scaffold(
-        backgroundColor: _bg,
-        body: SafeArea(
-          child: Column(
-            children: <Widget>[
-              _topBar(exportCtrl, isExporting),
-              Expanded(child: body),
-              if (showSettings) _bottomBar(exportCtrl, editorCtrl),
-            ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: _bg,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: _bg,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: _bg,
+      ),
+      child: PopScope(
+        canPop: !isExporting,
+        child: Scaffold(
+          backgroundColor: _bg,
+          body: SafeArea(
+            child: Column(
+              children: <Widget>[
+                _topBar(exportCtrl, isExporting),
+                Expanded(child: body),
+                if (showSettings) _bottomBar(exportCtrl, editorCtrl),
+              ],
+            ),
           ),
         ),
       ),

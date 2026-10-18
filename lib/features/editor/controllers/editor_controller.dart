@@ -148,9 +148,20 @@ class EditorController extends ChangeNotifier {
 
     _saveStateCoalesced('fxparam:$_selectedClipId:$paramName');
     final clip = _project.clips[index];
-    final updatedParams = Map<String, double>.from(clip.effectParameters);
-    updatedParams[paramName] = value;
-    _project.clips[index] = clip.copyWith(effectParameters: updatedParams);
+    if (clip.clipType == ClipType.caption) {
+      for (int i = 0; i < _project.clips.length; i++) {
+        if (_project.clips[i].clipType == ClipType.caption) {
+          final c = _project.clips[i];
+          final updatedParams = Map<String, double>.from(c.effectParameters);
+          updatedParams[paramName] = value;
+          _project.clips[i] = c.copyWith(effectParameters: updatedParams);
+        }
+      }
+    } else {
+      final updatedParams = Map<String, double>.from(clip.effectParameters);
+      updatedParams[paramName] = value;
+      _project.clips[index] = clip.copyWith(effectParameters: updatedParams);
+    }
     _autosave();
     notifyListeners();
   }
@@ -162,8 +173,18 @@ class EditorController extends ChangeNotifier {
 
     _saveStateCoalesced('fxparams:$_selectedClipId');
     final clip = _project.clips[index];
-    final updatedParams = Map<String, double>.from(clip.effectParameters)..addAll(params);
-    _project.clips[index] = clip.copyWith(effectParameters: updatedParams);
+    if (clip.clipType == ClipType.caption) {
+      for (int i = 0; i < _project.clips.length; i++) {
+        if (_project.clips[i].clipType == ClipType.caption) {
+          final c = _project.clips[i];
+          final updatedParams = Map<String, double>.from(c.effectParameters)..addAll(params);
+          _project.clips[i] = c.copyWith(effectParameters: updatedParams);
+        }
+      }
+    } else {
+      final updatedParams = Map<String, double>.from(clip.effectParameters)..addAll(params);
+      _project.clips[index] = clip.copyWith(effectParameters: updatedParams);
+    }
     _autosave();
     notifyListeners();
   }
@@ -263,16 +284,23 @@ class EditorController extends ChangeNotifier {
     final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
     if (index == -1) return;
 
-    final existing = _project.clips[index].shaderEffects;
+    final targetClip = _project.clips[index];
+    final existing = targetClip.shaderEffects;
     if (existing.any((e) => e.id == shaderEffect.id)) return;
 
     _saveState();
-    final updatedList = List<ShaderEffectClip>.from(existing)
-      ..add(shaderEffect);
-
-    _project.clips[index] = _project.clips[index].copyWith(
-      shaderEffects: updatedList,
-    );
+    if (targetClip.clipType == ClipType.caption) {
+      for (int i = 0; i < _project.clips.length; i++) {
+        if (_project.clips[i].clipType == ClipType.caption) {
+          final c = _project.clips[i];
+          final updatedList = List<ShaderEffectClip>.from(c.shaderEffects)..add(shaderEffect);
+          _project.clips[i] = c.copyWith(shaderEffects: updatedList);
+        }
+      }
+    } else {
+      final updatedList = List<ShaderEffectClip>.from(existing)..add(shaderEffect);
+      _project.clips[index] = targetClip.copyWith(shaderEffects: updatedList);
+    }
     _autosave();
     notifyListeners();
   }
@@ -283,13 +311,22 @@ class EditorController extends ChangeNotifier {
     final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
     if (index == -1) return;
 
+    final targetClip = _project.clips[index];
     _saveState();
-    final updatedList = List<ShaderEffectClip>.from(_project.clips[index].shaderEffects)
-      ..removeWhere((e) => e.id == shaderEffectId);
-
-    _project.clips[index] = _project.clips[index].copyWith(
-      shaderEffects: updatedList,
-    );
+    if (targetClip.clipType == ClipType.caption) {
+      for (int i = 0; i < _project.clips.length; i++) {
+        if (_project.clips[i].clipType == ClipType.caption) {
+          final c = _project.clips[i];
+          final updatedList = List<ShaderEffectClip>.from(c.shaderEffects)
+            ..removeWhere((e) => e.id == shaderEffectId);
+          _project.clips[i] = c.copyWith(shaderEffects: updatedList);
+        }
+      }
+    } else {
+      final updatedList = List<ShaderEffectClip>.from(targetClip.shaderEffects)
+        ..removeWhere((e) => e.id == shaderEffectId);
+      _project.clips[index] = targetClip.copyWith(shaderEffects: updatedList);
+    }
     _autosave();
     notifyListeners();
   }
@@ -587,6 +624,23 @@ class EditorController extends ChangeNotifier {
     return _track.mainTrackEnd(_project.clips);
   }
 
+  /// Calculates the end timestamp of all existing video/image clips on the timeline
+  /// so new media (e.g. AI generated media) is placed right after existing media clips.
+  Duration getEndOfExistingMediaClips() {
+    Duration maxEnd = Duration.zero;
+    for (final clip in _project.clips) {
+      if (clip.clipType == ClipType.video || clip.clipType == ClipType.image) {
+        if (clip.end > maxEnd) {
+          maxEnd = clip.end;
+        }
+      }
+    }
+    if (maxEnd == Duration.zero) {
+      maxEnd = _project.totalDuration;
+    }
+    return maxEnd;
+  }
+
 
   // ---------------------------------------------------------------------------
   // Clips
@@ -855,6 +909,10 @@ class EditorController extends ChangeNotifier {
     if (current == null) return;
 
     _saveStateCoalesced('textstyle:${current.id}');
+    if (current.clipType == ClipType.caption) {
+      applyCaptionStyleToAll(properties);
+      return;
+    }
     final index = _project.clips.indexWhere((c) => c.id == current.id);
     if (index != -1) {
       _project.clips[index] = _project.clips[index].copyWith(
@@ -892,12 +950,27 @@ class EditorController extends ChangeNotifier {
     _saveStateCoalesced('textprops:${current.id}');
     final index = _project.clips.indexWhere((c) => c.id == current.id);
     if (index == -1) return;
-    _project.clips[index] = _project.clips[index].copyWith(
-      label: text ?? current.label,
-      fontFamily: fontFamily ?? current.fontFamily,
-      textAnimationStyle: textAnimationStyle ?? current.textAnimationStyle,
-      textStyle: textStyle ?? current.textStyle,
-    );
+
+    if (current.clipType == ClipType.caption) {
+      for (int i = 0; i < _project.clips.length; i++) {
+        if (_project.clips[i].clipType == ClipType.caption) {
+          final c = _project.clips[i];
+          _project.clips[i] = c.copyWith(
+            label: (c.id == current.id && text != null) ? text : c.label,
+            fontFamily: fontFamily ?? c.fontFamily,
+            textAnimationStyle: textAnimationStyle ?? c.textAnimationStyle,
+            textStyle: textStyle ?? c.textStyle,
+          );
+        }
+      }
+    } else {
+      _project.clips[index] = _project.clips[index].copyWith(
+        label: text ?? current.label,
+        fontFamily: fontFamily ?? current.fontFamily,
+        textAnimationStyle: textAnimationStyle ?? current.textAnimationStyle,
+        textStyle: textStyle ?? current.textStyle,
+      );
+    }
     _autosave();
     notifyListeners();
   }
@@ -1082,51 +1155,69 @@ class EditorController extends ChangeNotifier {
 
     _saveStateCoalesced('xform:$_selectedClipId');
     final clip = _project.clips[index];
-    final relTime = playhead - clip.start;
-    final bool hasKeyframes = clip.keyframes.isNotEmpty;
-    final bool inRange = !relTime.isNegative && relTime <= clip.duration;
 
-    if (hasKeyframes && inRange) {
-      final updatedKeyframes = List<Keyframe>.from(clip.keyframes);
-      final stamp = DateTime.now().millisecondsSinceEpoch;
-
-      void updateOrAddKf(KeyframeProperty prop, double val) {
-        updatedKeyframes.removeWhere((k) =>
-            k.property == prop && (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
-        updatedKeyframes.add(Keyframe(
-          id: 'kf_${stamp}_${prop.name}',
-          time: relTime,
-          property: prop,
-          value: val,
-        ));
+    if (clip.clipType == ClipType.caption) {
+      for (int i = 0; i < _project.clips.length; i++) {
+        if (_project.clips[i].clipType == ClipType.caption) {
+          final c = _project.clips[i];
+          _project.clips[i] = c.copyWith(
+            positionX: positionX ?? c.positionX,
+            positionY: positionY ?? c.positionY,
+            scale: scale ?? c.scale,
+            rotation: rotation ?? c.rotation,
+            opacity: opacity ?? c.opacity,
+            anchorX: anchorX ?? c.anchorX,
+            anchorY: anchorY ?? c.anchorY,
+          );
+        }
       }
-
-      if (positionX != null) updateOrAddKf(KeyframeProperty.positionX, positionX);
-      if (positionY != null) updateOrAddKf(KeyframeProperty.positionY, positionY);
-      if (scale != null) updateOrAddKf(KeyframeProperty.scale, scale);
-      if (rotation != null) updateOrAddKf(KeyframeProperty.rotation, rotation);
-      if (opacity != null) updateOrAddKf(KeyframeProperty.opacity, opacity);
-
-      _project.clips[index] = clip.copyWith(
-        positionX: positionX ?? clip.positionX,
-        positionY: positionY ?? clip.positionY,
-        scale: scale ?? clip.scale,
-        rotation: rotation ?? clip.rotation,
-        opacity: opacity ?? clip.opacity,
-        anchorX: anchorX ?? clip.anchorX,
-        anchorY: anchorY ?? clip.anchorY,
-        keyframes: updatedKeyframes,
-      );
     } else {
-      _project.clips[index] = clip.copyWith(
-        positionX: positionX ?? clip.positionX,
-        positionY: positionY ?? clip.positionY,
-        scale: scale ?? clip.scale,
-        rotation: rotation ?? clip.rotation,
-        opacity: opacity ?? clip.opacity,
-        anchorX: anchorX ?? clip.anchorX,
-        anchorY: anchorY ?? clip.anchorY,
-      );
+      final relTime = playhead - clip.start;
+      final bool hasKeyframes = clip.keyframes.isNotEmpty;
+      final bool inRange = !relTime.isNegative && relTime <= clip.duration;
+
+      if (hasKeyframes && inRange) {
+        final updatedKeyframes = List<Keyframe>.from(clip.keyframes);
+        final stamp = DateTime.now().millisecondsSinceEpoch;
+
+        void updateOrAddKf(KeyframeProperty prop, double val) {
+          updatedKeyframes.removeWhere((k) =>
+              k.property == prop && (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
+          updatedKeyframes.add(Keyframe(
+            id: 'kf_${stamp}_${prop.name}',
+            time: relTime,
+            property: prop,
+            value: val,
+          ));
+        }
+
+        if (positionX != null) updateOrAddKf(KeyframeProperty.positionX, positionX);
+        if (positionY != null) updateOrAddKf(KeyframeProperty.positionY, positionY);
+        if (scale != null) updateOrAddKf(KeyframeProperty.scale, scale);
+        if (rotation != null) updateOrAddKf(KeyframeProperty.rotation, rotation);
+        if (opacity != null) updateOrAddKf(KeyframeProperty.opacity, opacity);
+
+        _project.clips[index] = clip.copyWith(
+          positionX: positionX ?? clip.positionX,
+          positionY: positionY ?? clip.positionY,
+          scale: scale ?? clip.scale,
+          rotation: rotation ?? clip.rotation,
+          opacity: opacity ?? clip.opacity,
+          anchorX: anchorX ?? clip.anchorX,
+          anchorY: anchorY ?? clip.anchorY,
+          keyframes: updatedKeyframes,
+        );
+      } else {
+        _project.clips[index] = clip.copyWith(
+          positionX: positionX ?? clip.positionX,
+          positionY: positionY ?? clip.positionY,
+          scale: scale ?? clip.scale,
+          rotation: rotation ?? clip.rotation,
+          opacity: opacity ?? clip.opacity,
+          anchorX: anchorX ?? clip.anchorX,
+          anchorY: anchorY ?? clip.anchorY,
+        );
+      }
     }
     _autosave();
     notifyListeners();
@@ -1143,11 +1234,48 @@ class EditorController extends ChangeNotifier {
     if (index == -1) return;
 
     _saveState();
-    _project.clips[index] = _project.clips[index].copyWith(
-      inAnimation: inAnimation ?? _project.clips[index].inAnimation,
-      outAnimation: outAnimation ?? _project.clips[index].outAnimation,
-      loopAnimation: loopAnimation ?? _project.clips[index].loopAnimation,
+    final current = _project.clips[index];
+    if (current.clipType == ClipType.caption) {
+      for (int i = 0; i < _project.clips.length; i++) {
+        if (_project.clips[i].clipType == ClipType.caption) {
+          final c = _project.clips[i];
+          _project.clips[i] = c.copyWith(
+            inAnimation: inAnimation ?? c.inAnimation,
+            outAnimation: outAnimation ?? c.outAnimation,
+            loopAnimation: loopAnimation ?? c.loopAnimation,
+          );
+        }
+      }
+    } else {
+      _project.clips[index] = current.copyWith(
+        inAnimation: inAnimation ?? current.inAnimation,
+        outAnimation: outAnimation ?? current.outAnimation,
+        loopAnimation: loopAnimation ?? current.loopAnimation,
+      );
+    }
+    _autosave();
+    notifyListeners();
+  }
+
+  void applyEffect(VideoEffect effect) {
+    if (_selectedClipId == null) return;
+
+    final index = _project.clips.indexWhere(
+      (TimelineClip clip) => clip.id == _selectedClipId,
     );
+    if (index == -1) return;
+
+    _saveState();
+    final current = _project.clips[index];
+    if (current.clipType == ClipType.caption) {
+      for (int i = 0; i < _project.clips.length; i++) {
+        if (_project.clips[i].clipType == ClipType.caption) {
+          _project.clips[i] = _project.clips[i].copyWith(effect: effect);
+        }
+      }
+    } else {
+      _project.clips[index] = current.copyWith(effect: effect);
+    }
     _autosave();
     notifyListeners();
   }
@@ -1183,22 +1311,8 @@ class EditorController extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------------------
-  // Effects & Color Grading
+  // Color Grading
   // ---------------------------------------------------------------------------
-  void applyEffect(VideoEffect effect) {
-    if (_selectedClipId == null) return;
-
-    final index = _project.clips.indexWhere(
-      (TimelineClip clip) => clip.id == _selectedClipId,
-    );
-    if (index == -1) return;
-
-    _saveState();
-    _project.clips[index] = _project.clips[index].copyWith(effect: effect);
-    _autosave();
-    notifyListeners();
-  }
-
   void updateColorGrading(ColorGradingSettings colorGrading) {
     if (_selectedClipId == null) return;
 

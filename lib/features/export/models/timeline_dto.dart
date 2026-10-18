@@ -71,15 +71,21 @@ class ClipDto {
     required this.rotation,
     required this.positionX,
     required this.positionY,
+    this.anchorX = 0.5,
+    this.anchorY = 0.5,
     required this.colorGrading,
     required this.audioProperties,
     required this.chromaKey,
     this.elementProperties = const <String, dynamic>{},
+    this.cameraProperties = const <String, dynamic>{},
+    this.maskProperties = const <String, dynamic>{},
+    this.effectParameters = const <String, double>{},
     required this.fontFamily,
     required this.textAnimationStyle,
     required this.textStyle,
     required this.inAnimation,
     required this.outAnimation,
+    this.loopAnimation = 'none',
     required this.strokes,
     required this.stickerAssetPath,
     required this.effect,
@@ -106,15 +112,21 @@ class ClipDto {
   final double rotation;
   final double positionX;
   final double positionY;
+  final double anchorX;
+  final double anchorY;
   final Map<String, dynamic> colorGrading;
   final Map<String, dynamic> audioProperties;
   final Map<String, dynamic> chromaKey;
   final Map<String, dynamic> elementProperties;
+  final Map<String, dynamic> cameraProperties;
+  final Map<String, dynamic> maskProperties;
+  final Map<String, double> effectParameters;
   final String fontFamily;
   final String textAnimationStyle;
   final Map<String, dynamic> textStyle;
   final String inAnimation;
   final String outAnimation;
+  final String loopAnimation;
   final List<Map<String, dynamic>> strokes;
   final String? stickerAssetPath;
   final String effect;
@@ -142,82 +154,27 @@ class ClipDto {
       rotation: clip.rotation,
       positionX: clip.positionX,
       positionY: clip.positionY,
-      colorGrading: <String, dynamic>{
-        'brightness': clip.colorGrading.brightness,
-        'contrast': clip.colorGrading.contrast,
-        'saturation': clip.colorGrading.saturation,
-        'temperature': clip.colorGrading.temperature,
-        'tint': clip.colorGrading.tint,
-        'exposure': clip.colorGrading.exposure,
-        'vignette': clip.colorGrading.vignette,
-      },
-      audioProperties: <String, dynamic>{
-        'volume': clip.audioProperties.volume,
-        'speed': clip.audioProperties.speed,
-        'pitch': clip.audioProperties.pitch,
-        'fadeInMs': clip.audioProperties.fadeIn.inMilliseconds,
-        'fadeOutMs': clip.audioProperties.fadeOut.inMilliseconds,
-        'equalizerPreset': clip.audioProperties.equalizerPreset,
-      },
-      chromaKey: <String, dynamic>{
-        'enabled': clip.chromaKey.enabled,
-        'keyColor': clip.chromaKey.keyColor.toARGB32(),
-        'similarity': clip.chromaKey.similarity,
-        'smoothness': clip.chromaKey.smoothness,
-        'spill': clip.chromaKey.spill,
-        'output': clip.chromaKey.output.name,
-      },
-      elementProperties: <String, dynamic>{
-        'shape': clip.elementProperties.shape.name,
-        'fillColor': clip.elementProperties.fillColor.toARGB32(),
-        'strokeColor': clip.elementProperties.strokeColor.toARGB32(),
-        'strokeWidth': clip.elementProperties.strokeWidth,
-        'size': clip.elementProperties.size,
-        'svgPath': clip.elementProperties.svgPath,
-      },
+      anchorX: clip.anchorX,
+      anchorY: clip.anchorY,
+      colorGrading: clip.colorGrading.toJson(),
+      audioProperties: clip.audioProperties.toJson(),
+      chromaKey: clip.chromaKey.toJson(),
+      elementProperties: clip.elementProperties.toJson(),
+      cameraProperties: clip.cameraProperties.toJson(),
+      maskProperties: clip.maskProperties.toJson(),
+      effectParameters: clip.effectParameters,
       fontFamily: clip.fontFamily,
       textAnimationStyle: clip.textAnimationStyle.name,
-      textStyle: <String, dynamic>{
-        'fontSize': clip.textStyle.fontSize,
-        'lineHeight': clip.textStyle.lineHeight,
-        'textColor': clip.textStyle.textColor.toARGB32(),
-        'textEffect': clip.textStyle.textEffect,
-        'strokeColor': clip.textStyle.strokeColor.toARGB32(),
-        'strokeWidth': clip.textStyle.strokeWidth,
-        'shadowColor': clip.textStyle.shadowColor.toARGB32(),
-        'shadowBlurRadius': clip.textStyle.shadowBlurRadius,
-        'shadowOffsetX': clip.textStyle.shadowOffsetX,
-        'shadowOffsetY': clip.textStyle.shadowOffsetY,
-        'backgroundColor': clip.textStyle.backgroundColor.toARGB32(),
-        'backgroundPadding': clip.textStyle.backgroundPadding,
-        'textAlign': clip.textStyle.textAlign.name,
-      },
+      textStyle: clip.textStyle.toJson(),
       inAnimation: clip.inAnimation.name,
       outAnimation: clip.outAnimation.name,
-      strokes: clip.strokes
-          .map((stroke) => <String, dynamic>{
-                'id': stroke.id,
-                'color': stroke.color.toARGB32(),
-                'strokeWidth': stroke.strokeWidth,
-                'points': stroke.points
-                    .map((pt) => <String, double>{
-                          'x': pt.dx,
-                          'y': pt.dy,
-                        })
-                    .toList(),
-              })
-          .toList(),
+      loopAnimation: clip.loopAnimation.name,
+      strokes: clip.strokes.map((s) => s.toJson()).toList(),
       stickerAssetPath: clip.stickerAssetPath,
       effect: clip.effect.name,
       svgPath: clip.elementProperties.svgPath ?? clip.sourcePath,
       keyframes: clip.keyframes.map((k) => k.toJson()).toList(),
-      words: clip.words
-          .map((w) => <String, dynamic>{
-                'word': w.word,
-                'startMs': w.start.inMilliseconds,
-                'endMs': w.end.inMilliseconds,
-              })
-          .toList(),
+      words: clip.words.map((w) => w.toJson()).toList(),
       shaderEffects: clip.shaderEffects.map((e) => e.toJson()).toList(),
     );
   }
@@ -241,15 +198,21 @@ class ClipDto {
       'rotation': rotation,
       'positionX': positionX,
       'positionY': positionY,
+      'anchorX': anchorX,
+      'anchorY': anchorY,
       'colorGrading': colorGrading,
       'audioProperties': audioProperties,
       'chromaKey': chromaKey,
       'elementProperties': elementProperties,
+      'cameraProperties': cameraProperties,
+      'maskProperties': maskProperties,
+      'effectParameters': effectParameters,
       'fontFamily': fontFamily,
       'textAnimationStyle': textAnimationStyle,
       'textStyle': textStyle,
       'inAnimation': inAnimation,
       'outAnimation': outAnimation,
+      'loopAnimation': loopAnimation,
       'strokes': strokes,
       'stickerAssetPath': stickerAssetPath,
       'effect': effect,
@@ -279,15 +242,24 @@ class ClipDto {
       rotation: (json['rotation'] as num?)?.toDouble() ?? 0.0,
       positionX: (json['positionX'] as num?)?.toDouble() ?? 0.0,
       positionY: (json['positionY'] as num?)?.toDouble() ?? 0.0,
+      anchorX: (json['anchorX'] as num?)?.toDouble() ?? 0.5,
+      anchorY: (json['anchorY'] as num?)?.toDouble() ?? 0.5,
       colorGrading: json['colorGrading'] as Map<String, dynamic>? ?? <String, dynamic>{},
       audioProperties: json['audioProperties'] as Map<String, dynamic>? ?? <String, dynamic>{},
       chromaKey: json['chromaKey'] as Map<String, dynamic>? ?? <String, dynamic>{},
       elementProperties: json['elementProperties'] as Map<String, dynamic>? ?? <String, dynamic>{},
+      cameraProperties: json['cameraProperties'] as Map<String, dynamic>? ?? <String, dynamic>{},
+      maskProperties: json['maskProperties'] as Map<String, dynamic>? ?? <String, dynamic>{},
+      effectParameters: (json['effectParameters'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, (v as num).toDouble()),
+          ) ??
+          const <String, double>{},
       fontFamily: json['fontFamily'] as String? ?? 'Ubuntu Sans',
       textAnimationStyle: json['textAnimationStyle'] as String? ?? 'none',
       textStyle: json['textStyle'] as Map<String, dynamic>? ?? <String, dynamic>{},
       inAnimation: json['inAnimation'] as String? ?? 'none',
       outAnimation: json['outAnimation'] as String? ?? 'none',
+      loopAnimation: json['loopAnimation'] as String? ?? 'none',
       strokes: (json['strokes'] as List<dynamic>?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
