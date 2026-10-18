@@ -11,6 +11,7 @@ import 'package:flutter_video_editor/features/editor/widgets/editor_toolbar.dart
 import 'package:flutter_video_editor/features/editor/widgets/preview.dart';
 import 'package:flutter_video_editor/features/editor/widgets/timeline.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_panel.dart';
+import 'package:flutter_video_editor/core/services/ai_generation_service.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/gen.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/editor/widgets/transport.dart';
@@ -75,9 +76,17 @@ class _EditorPageState extends State<EditorPage> {
   void _openAiGenerateSheet() {
     tapFeedback();
     final editor = context.read<EditorController>();
+    final aiService = AiGenerationService();
     showAiGenerateSheet(
       context,
       onGenerate: (AiGenerationRequest request) async {
+        String generatedFilePath;
+        try {
+          generatedFilePath = await aiService.generateMedia(request);
+        } catch (_) {
+          generatedFilePath = request.referenceImagePath ?? 'assets/placeholder.png';
+        }
+
         final String id = 'ai_${DateTime.now().millisecondsSinceEpoch}';
         final bool isVideo = request.type == AiMediaType.video;
         final int durationSec = request.durationSeconds ?? (isVideo ? 5 : 4);
@@ -90,7 +99,7 @@ class _EditorPageState extends State<EditorPage> {
           start: start,
           end: start + duration,
           clipType: isVideo ? ClipType.video : ClipType.image,
-          sourcePath: request.referenceImagePath ?? 'assets/placeholder.png',
+          sourcePath: generatedFilePath,
         );
 
         editor.addClip(newClip);

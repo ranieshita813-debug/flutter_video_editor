@@ -13,6 +13,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/element
 
 import 'package:flutter_video_editor/features/editor/widgets/adjustments_sheet.dart';
 
+import 'package:flutter_video_editor/core/services/ai_generation_service.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/gen.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
@@ -111,9 +112,17 @@ enum EditorTool {
                     ),
                     onPressed: () {
                       final editor = ctx.read<EditorController>();
+                      final aiService = AiGenerationService();
                       showAiGenerateSheet(
                         ctx,
                         onGenerate: (AiGenerationRequest request) async {
+                          String generatedFilePath;
+                          try {
+                            generatedFilePath = await aiService.generateMedia(request);
+                          } catch (_) {
+                            generatedFilePath = request.referenceImagePath ?? 'assets/placeholder.png';
+                          }
+
                           final String id = 'ai_${DateTime.now().millisecondsSinceEpoch}';
                           final bool isVideo = request.type == AiMediaType.video;
                           final int durationSec = request.durationSeconds ?? (isVideo ? 5 : 4);
@@ -126,7 +135,7 @@ enum EditorTool {
                             start: start,
                             end: start + duration,
                             clipType: isVideo ? ClipType.video : ClipType.image,
-                            sourcePath: request.referenceImagePath ?? 'assets/placeholder.png',
+                            sourcePath: generatedFilePath,
                           );
 
                           editor.addClip(newClip);
