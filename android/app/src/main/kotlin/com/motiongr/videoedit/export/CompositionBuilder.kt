@@ -445,6 +445,9 @@ object CompositionBuilder {
 
             if (!isCard) {
                 videoEffects += colorEffects(clip.colorGrading)
+                if (clip.effect != "none") {
+                    videoEffects += videoEffectToMedia3(clip.effect)
+                }
             }
 
             if (!isCard && clip.scale > 0.0 && (clip.scale != 1.0 || clip.rotation != 0.0)) {
@@ -455,32 +458,45 @@ object CompositionBuilder {
             }
 
             // Apply transition / animation effects for base track clips
-            if (!isCard && clip.inAnimation != "none") {
-                when (clip.inAnimation) {
-                    "zoomIn", "zoomRotate" -> {
+            if (!isCard && (clip.inAnimation != "none" || clip.transitionType != "none")) {
+                val animOrTrans = if (clip.transitionType != "none") clip.transitionType else clip.inAnimation
+                when (animOrTrans.lowercase()) {
+                    "zoomin", "zoomrotate", "zoom" -> {
                         videoEffects += ScaleAndRotateTransformation.Builder()
                             .setScale(1.15f, 1.15f)
                             .build()
                     }
-                    "zoomOut" -> {
+                    "zoomout" -> {
                         videoEffects += ScaleAndRotateTransformation.Builder()
                             .setScale(0.85f, 0.85f)
                             .build()
                     }
-                    "rotateIn" -> {
+                    "rotatein", "spin" -> {
                         videoEffects += ScaleAndRotateTransformation.Builder()
                             .setRotationDegrees(15f)
                             .build()
                     }
-                    "flipHorizontal" -> {
+                    "fliphorizontal" -> {
                         videoEffects += ScaleAndRotateTransformation.Builder()
                             .setScale(-1f, 1f)
                             .build()
                     }
-                    "flipVertical" -> {
+                    "flipvertical" -> {
                         videoEffects += ScaleAndRotateTransformation.Builder()
                             .setScale(1f, -1f)
                             .build()
+                    }
+                    "fade", "dissolve" -> {
+                        videoEffects += Brightness(0.05f)
+                    }
+                    "flash" -> {
+                        videoEffects += Brightness(0.2f)
+                    }
+                    "glitch" -> {
+                        videoEffects += RgbAdjustment.Builder().setRedScale(1.2f).setGreenScale(0.8f).setBlueScale(1.1f).build()
+                    }
+                    "slideleft", "slideright", "slideup", "slidedown" -> {
+                        videoEffects += ScaleAndRotateTransformation.Builder().setScale(1.05f, 1.05f).build()
                     }
                 }
             }

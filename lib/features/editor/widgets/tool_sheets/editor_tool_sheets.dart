@@ -112,14 +112,42 @@ class _SheetHeader extends StatelessWidget {
 // ----------------------------------------------------------------------------
 // Transition picker
 // ----------------------------------------------------------------------------
-enum TransitionType { none, fade, slide, zoom, blur }
+enum TransitionType {
+  none,
+  fade,
+  slideLeft,
+  slideRight,
+  slideUp,
+  slideDown,
+  zoomIn,
+  zoomOut,
+  blur,
+  wipe,
+  glitch,
+  spin,
+  flipHorizontal,
+  flipVertical,
+  dissolve,
+  flash,
+}
 
 PhosphorIconData _transitionIcon(TransitionType t) => switch (t) {
       TransitionType.none => PhosphorIconsRegular.prohibit,
       TransitionType.fade => PhosphorIconsRegular.dotsSix,
-      TransitionType.slide => PhosphorIconsRegular.sliders,
-      TransitionType.zoom => PhosphorIconsRegular.magnifyingGlassPlus,
+      TransitionType.slideLeft => PhosphorIconsRegular.arrowLeft,
+      TransitionType.slideRight => PhosphorIconsRegular.arrowRight,
+      TransitionType.slideUp => PhosphorIconsRegular.arrowUp,
+      TransitionType.slideDown => PhosphorIconsRegular.arrowDown,
+      TransitionType.zoomIn => PhosphorIconsRegular.magnifyingGlassPlus,
+      TransitionType.zoomOut => PhosphorIconsRegular.magnifyingGlassMinus,
       TransitionType.blur => PhosphorIconsRegular.circle,
+      TransitionType.wipe => PhosphorIconsRegular.cornersOut,
+      TransitionType.glitch => PhosphorIconsRegular.lightning,
+      TransitionType.spin => PhosphorIconsRegular.arrowsClockwise,
+      TransitionType.flipHorizontal => PhosphorIconsRegular.swap,
+      TransitionType.flipVertical => PhosphorIconsRegular.arrowsDownUp,
+      TransitionType.dissolve => PhosphorIconsRegular.drop,
+      TransitionType.flash => PhosphorIconsRegular.sparkle,
     };
 
 /// Opens the transition sheet. Returns the chosen type when applied, or null
@@ -175,23 +203,23 @@ class _TransitionPanelState extends State<_TransitionPanel> {
                 Navigator.of(context).pop(_type);
               },
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            SizedBox(
+              height: 100,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 children: <Widget>[
                   for (final t in TransitionType.values)
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: SizedBox(
-                          height: 88,
-                          child: _ThumbTile(
-                            label: _cap(t.name),
-                            icon: _transitionIcon(t),
-                            selected: t == _type,
-                            onTap: () => setState(() => _type = t),
-                          ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: SizedBox(
+                        width: 76,
+                        height: 84,
+                        child: _ThumbTile(
+                          label: _cap(t.name),
+                          icon: _transitionIcon(t),
+                          selected: t == _type,
+                          onTap: () => setState(() => _type = t),
                         ),
                       ),
                     ),

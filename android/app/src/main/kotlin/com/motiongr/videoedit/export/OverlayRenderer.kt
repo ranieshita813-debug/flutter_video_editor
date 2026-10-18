@@ -729,6 +729,14 @@ object OverlayRenderer {
             overlayBmp = graded
         }
 
+        if (clip.effect != "none") {
+            val fxBmp = applyVideoEffect(overlayBmp, clip.effect)
+            if (fxBmp != overlayBmp && !overlayBmp.isRecycled) {
+                overlayBmp.recycle()
+            }
+            overlayBmp = fxBmp
+        }
+
             if (cacheKey != null && overlayBmp != null) {
                 clipBitmapCache[cacheKey] = overlayBmp
             }

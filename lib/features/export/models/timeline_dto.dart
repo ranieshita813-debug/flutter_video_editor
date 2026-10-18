@@ -1,4 +1,5 @@
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart' show canvasRatioNotifier;
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 
 class TimelineDto {
@@ -17,11 +18,17 @@ class TimelineDto {
   final List<ClipDto> clips;
 
   factory TimelineDto.fromProject(Project project, ExportSettings settings) {
+    final effectiveRatio = (project.aspectRatio.ratio > 0)
+        ? project.aspectRatio.ratio
+        : canvasRatioNotifier.value.value;
+    final updatedSettings = settings.copyWith(
+      aspectRatioValue: settings.aspectRatioValue ?? effectiveRatio,
+    );
     return TimelineDto(
       version: 1,
       projectName: project.projectName,
       durationMs: project.totalDuration.inMilliseconds,
-      settings: settings,
+      settings: updatedSettings,
       clips: project.clips.map((c) => ClipDto.fromTimelineClip(c)).toList(),
     );
   }
@@ -86,6 +93,8 @@ class ClipDto {
     required this.inAnimation,
     required this.outAnimation,
     this.loopAnimation = 'none',
+    this.transitionType = 'none',
+    this.transitionDurationMs = 500,
     required this.strokes,
     required this.stickerAssetPath,
     required this.effect,
@@ -127,6 +136,8 @@ class ClipDto {
   final String inAnimation;
   final String outAnimation;
   final String loopAnimation;
+  final String transitionType;
+  final int transitionDurationMs;
   final List<Map<String, dynamic>> strokes;
   final String? stickerAssetPath;
   final String effect;
@@ -169,6 +180,8 @@ class ClipDto {
       inAnimation: clip.inAnimation.name,
       outAnimation: clip.outAnimation.name,
       loopAnimation: clip.loopAnimation.name,
+      transitionType: clip.transitionType,
+      transitionDurationMs: clip.transitionDurationMs,
       strokes: clip.strokes.map((s) => s.toJson()).toList(),
       stickerAssetPath: clip.stickerAssetPath,
       effect: clip.effect.name,
@@ -213,6 +226,8 @@ class ClipDto {
       'inAnimation': inAnimation,
       'outAnimation': outAnimation,
       'loopAnimation': loopAnimation,
+      'transitionType': transitionType,
+      'transitionDurationMs': transitionDurationMs,
       'strokes': strokes,
       'stickerAssetPath': stickerAssetPath,
       'effect': effect,
@@ -260,6 +275,8 @@ class ClipDto {
       inAnimation: json['inAnimation'] as String? ?? 'none',
       outAnimation: json['outAnimation'] as String? ?? 'none',
       loopAnimation: json['loopAnimation'] as String? ?? 'none',
+      transitionType: json['transitionType'] as String? ?? 'none',
+      transitionDurationMs: json['transitionDurationMs'] as int? ?? 500,
       strokes: (json['strokes'] as List<dynamic>?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ??
