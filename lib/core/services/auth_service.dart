@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/user_model.dart';
 
 abstract class AuthRepository {
@@ -61,7 +62,9 @@ class AuthService implements AuthRepository {
           _userCredentials[email] = password.toString();
         });
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning('Failed to load local users DB', tag: 'AuthService', error: e, stackTrace: st);
+    }
   }
 
   Future<void> _saveUsersDb() async {
@@ -72,7 +75,9 @@ class AuthService implements AuthRepository {
         'creds': _userCredentials,
       };
       await file.writeAsString(jsonEncode(data));
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.error('Failed to save local users DB', tag: 'AuthService', error: e, stackTrace: st);
+    }
   }
 
   @override
@@ -86,7 +91,9 @@ class AuthService implements AuthRepository {
         _currentUser = UserModel.fromJson(json);
         return _currentUser;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning('Failed to load saved user session', tag: 'AuthService', error: e, stackTrace: st);
+    }
 
     _currentUser = const UserModel(
       id: 'guest_01',
@@ -101,7 +108,9 @@ class AuthService implements AuthRepository {
     try {
       final file = await _sessionFile;
       await file.writeAsString(jsonEncode(user.toJson()));
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.error('Failed to save user session', tag: 'AuthService', error: e, stackTrace: st);
+    }
   }
 
   @override
@@ -186,6 +195,8 @@ class AuthService implements AuthRepository {
       if (await file.exists()) {
         await file.delete();
       }
-    } catch (_) {}
+    } catch (e, st) {
+      AppLogger.warning('Failed to delete session file on sign out', tag: 'AuthService', error: e, stackTrace: st);
+    }
   }
 }

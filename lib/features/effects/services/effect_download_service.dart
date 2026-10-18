@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
 
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/shader_effect_model.dart';
@@ -41,9 +43,9 @@ class EffectDownloadService {
     return input.replaceAll(RegExp(r'\.\.[/\\]'), '').replaceAll(RegExp(r'[^a-zA-Z0-9_\-\.]'), '_');
   }
 
-  Future<ShaderEffect> downloadEffect(ShaderEffect effect, {String? mockShaderCode}) async {
+  Future<ShaderEffect> downloadEffect(ShaderEffect effect, {String? mockPresetJson}) async {
     final id = sanitizePath(effect.id);
-    AppLogger.info('Starting download for effect: ${effect.name} ($id)',
+    AppLogger.info('Starting download for effect preset: ${effect.name} ($id)',
         tag: 'EffectDownloadService');
 
     _downloadProgressMap[id] = 0.0;
@@ -57,14 +59,14 @@ class EffectDownloadService {
       _notifyProgress(id, p, false);
     }
 
-    final shaderCode = mockShaderCode ?? _generateDefaultShaderCode(effect);
+    final presetJson = mockPresetJson ?? _generatePresetJson(effect);
     final downloadedEffect = await ShaderDatabaseService.instance
-        .saveDownloadedEffect(effect, shaderCode);
+        .saveDownloadedEffect(effect, presetJson);
 
     _downloadProgressMap.remove(id);
     _notifyProgress(id, 1.0, true);
 
-    AppLogger.info('Successfully downloaded effect: ${effect.name}',
+    AppLogger.info('Successfully downloaded effect preset: ${effect.name}',
         tag: 'EffectDownloadService');
     return downloadedEffect;
   }
@@ -78,27 +80,17 @@ class EffectDownloadService {
     ));
   }
 
-  String _generateDefaultShaderCode(ShaderEffect effect) {
-    return '''
-// Shader Code: ${effect.name}
-// Category: ${effect.category.displayName}
-// Author: ${effect.author}
-
-#version 300 es
-precision mediump float;
-
-in vec2 v_texCoord;
-out vec4 fragColor;
-uniform sampler2D u_texture;
-uniform float u_time;
-uniform float u_intensity;
-
-void main() {
-    vec4 color = texture(u_texture, v_texCoord);
-    // Custom shader effect transformation for ${effect.id}
-    fragColor = mix(color, vec4(color.rgb * u_intensity, color.a), 0.5);
-}
-''';
+  String _generatePresetJson(ShaderEffect effect) {
+    final Map<String, dynamic> presetMap = <String, dynamic>{
+      'id': effect.id,
+      'name': effect.name,
+      'category': effect.category.name,
+      'downloadedAt': DateTime.now().toIso8601String(),
+      'parameters': <String, dynamic>{
+        for (final p in effect.parameters) p.id: p.value is Color ? (p.value as Color).toARGB32() : p.value,
+      },
+    };
+    return jsonEncode(presetMap);
   }
 
   void dispose() {

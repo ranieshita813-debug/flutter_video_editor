@@ -33,18 +33,19 @@ class WhisperService {
     try {
       final uri = Uri.parse('$baseUrl/audio/transcriptions');
       final request = HttpClient();
-      final req = await request.postUrl(uri);
+      request.connectionTimeout = const Duration(seconds: 30);
+      final req = await request.postUrl(uri).timeout(const Duration(seconds: 30));
 
       final boundary = '----WhisperBoundary${DateTime.now().millisecondsSinceEpoch}';
       req.headers.set(HttpHeaders.contentTypeHeader, 'multipart/form-data; boundary=$boundary');
       req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $apiKey');
 
-      final bodyBytes = <int>[];
+      final headerBytes = <int>[];
 
       void addField(String name, String value) {
-        bodyBytes.addAll(utf8.encode('--$boundary\r\n'));
-        bodyBytes.addAll(utf8.encode('Content-Disposition: form-data; name="$name"\r\n\r\n'));
-        bodyBytes.addAll(utf8.encode('$value\r\n'));
+        headerBytes.addAll(utf8.encode('--$boundary\r\n'));
+        headerBytes.addAll(utf8.encode('Content-Disposition: form-data; name="$name"\r\n\r\n'));
+        headerBytes.addAll(utf8.encode('$value\r\n'));
       }
 
       addField('model', model);
@@ -70,20 +71,20 @@ class WhisperService {
         _ => 'application/octet-stream',
       };
 
-      bodyBytes.addAll(utf8.encode('--$boundary\r\n'));
-      bodyBytes.addAll(utf8.encode('Content-Disposition: form-data; name="file"; filename="$fileName"\r\n'));
-      bodyBytes.addAll(utf8.encode('Content-Type: $contentType\r\n\r\n'));
+      headerBytes.addAll(utf8.encode('--$boundary\r\n'));
+      headerBytes.addAll(utf8.encode('Content-Disposition: form-data; name="file"; filename="$fileName"\r\n'));
+      headerBytes.addAll(utf8.encode('Content-Type: $contentType\r\n\r\n'));
 
-      final fileBytes = await file.readAsBytes();
-      bodyBytes.addAll(fileBytes);
-      bodyBytes.addAll(utf8.encode('\r\n'));
-      bodyBytes.addAll(utf8.encode('--$boundary--\r\n'));
+      final footerBytes = utf8.encode('\r\n--$boundary--\r\n');
+      final fileSize = await file.length();
 
-      req.contentLength = bodyBytes.length;
-      req.add(bodyBytes);
+      req.contentLength = headerBytes.length + fileSize + footerBytes.length;
+      req.add(headerBytes);
+      await req.addStream(file.openRead()).timeout(const Duration(seconds: 120));
+      req.add(footerBytes);
 
-      final resp = await req.close();
-      final responseBody = await resp.transform(utf8.decoder).join();
+      final resp = await req.close().timeout(const Duration(seconds: 60));
+      final responseBody = await resp.transform(utf8.decoder).join().timeout(const Duration(seconds: 30));
 
       if (resp.statusCode == 200) {
         final Map<String, dynamic> json = jsonDecode(responseBody) as Map<String, dynamic>;

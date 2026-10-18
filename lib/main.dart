@@ -29,7 +29,12 @@ void main() {
     };
 
     waveformDecoder = (String path, int bars) async {
-      return await ExportService().waveform(path, bars);
+      try {
+        return await ExportService().waveform(path, bars);
+      } catch (e) {
+        AppLogger.warning('Waveform decoding failed for $path: $e');
+        return <double>[];
+      }
     };
 
     FlutterError.onError = (FlutterErrorDetails details) {

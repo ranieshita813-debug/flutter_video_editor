@@ -156,12 +156,14 @@ class TranslationService {
     }
 
     // Strategy 2: Expanded built-in phrase & word dictionary translation
+    AppLogger.warning('[TranslationService] Online translation unavailable, using offline dictionary fallback for target language: $targetLanguage');
     return _dictionaryTranslate(trimmed, targetLanguage);
   }
 
   Future<String?> _fetchOnlineTranslation(String text, String targetLangCode) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 3);
     try {
+      AppLogger.info('[TranslationService] Requesting online translation via Lingva API (lingva.ml) to $targetLangCode');
       final encoded = Uri.encodeComponent(text);
       final uri = Uri.parse('https://lingva.ml/api/v1/auto/$targetLangCode/$encoded');
       final request = await client.getUrl(uri);

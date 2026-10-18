@@ -28,12 +28,14 @@ class _EffectsSheetState extends State<EffectsSheet> {
 
   void _openEffectsLibrary(BuildContext context, EditorController editor) async {
     final clip = editor.selectedClip;
+    bool appliedViaCallback = false;
     final result = await Navigator.of(context).push<ShaderEffectClip>(
       MaterialPageRoute(
         builder: (_) => EffectsLibraryPage(
           selectedClipTime: editor.playhead,
           onApplyEffect: (effect, shaderClip) {
             if (clip != null) {
+              appliedViaCallback = true;
               editor.addShaderEffectToSelectedClip(shaderClip);
             }
           },
@@ -41,7 +43,7 @@ class _EffectsSheetState extends State<EffectsSheet> {
       ),
     );
 
-    if (result != null && clip != null) {
+    if (result != null && clip != null && !appliedViaCallback) {
       editor.addShaderEffectToSelectedClip(result);
     }
   }
