@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/services.dart';
+import 'package:flutter_video_editor/core/logger/app_logger.dart';
 
 class ExportService {
   static const MethodChannel _methodChannel = MethodChannel('editor/export');
@@ -25,29 +24,27 @@ class ExportService {
   Future<Map<String, dynamic>> probe(String path) async {
     try {
       final result = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>('probe', {'path': path});
-      if (result != null) {
+      if (result != null && result.isNotEmpty) {
         return Map<String, dynamic>.from(result);
       }
-    } on MissingPluginException catch (_) {
-      // Fallback probe
-    } on PlatformException catch (_) {
-      // Fallback probe
-    } catch (_) {}
+    } on PlatformException catch (e) {
+      AppLogger.error('Native probe failed for path: $path', tag: 'ExportService', error: e);
+      rethrow;
+    } on MissingPluginException catch (e) {
+      AppLogger.warning('Native probe channel missing for path: $path', tag: 'ExportService', error: e);
+      rethrow;
+    } catch (e, st) {
+      AppLogger.error('Failed to probe media file: $path', tag: 'ExportService', error: e, stackTrace: st);
+      throw PlatformException(
+        code: 'PROBE_FAILED',
+        message: 'Could not probe video or audio metadata for $path: $e',
+      );
+    }
 
-    final file = File(path);
-    final exists = await file.exists();
-    final length = exists ? await file.length() : 0;
-
-    return <String, dynamic>{
-      'durationMs': 10000,
-      'width': 1920,
-      'height': 1080,
-      'fps': 30.0,
-      'codec': 'h264',
-      'rotation': 0,
-      'hasAudio': true,
-      'fileSize': length,
-    };
+    throw PlatformException(
+      code: 'PROBE_FAILED',
+      message: 'Native probe returned no metadata for $path',
+    );
   }
 
   Future<List<String>> thumbnails(String path, int count, int height) async {
@@ -79,46 +76,24 @@ class ExportService {
       if (result != null && result.isNotEmpty) {
         return result.map((e) => (e as num).toDouble()).toList();
       }
-    } on MissingPluginException catch (_) {
-      // Fallback
-    } on PlatformException catch (_) {
-      // Fallback
-    } catch (_) {}
-
-    try {
-      final file = File(path);
-      if (await file.exists()) {
-        final bytes = await file.readAsBytes();
-        if (bytes.isNotEmpty) {
-          final int step = (bytes.length / buckets).floor();
-          if (step > 0) {
-            final List<double> amps = <double>[];
-            for (int i = 0; i < buckets; i++) {
-              int sum = 0;
-              final int start = i * step;
-              final int end = math.min(start + step, bytes.length);
-              for (int j = start; j < end; j += 16) {
-                sum += (bytes[j] - 128).abs();
-              }
-              final double avg = sum / math.max(1, ((end - start) / 16).ceil());
-              amps.add((avg / 128.0).clamp(0.15, 1.0));
-            }
-            return amps;
-          }
-        }
-      }
-    } catch (_) {}
-
-    final int seed = path.hashCode;
-    final List<double> envelope = <double>[];
-    for (int i = 0; i < buckets; i++) {
-      final double t = i / buckets;
-      final double wave1 = math.sin(t * 20.0 + seed);
-      final double wave2 = math.cos(t * 45.0 + seed * 2);
-      final double val = (wave1.abs() * 0.6 + wave2.abs() * 0.4).clamp(0.12, 1.0);
-      envelope.add(val);
+    } on MissingPluginException catch (e) {
+      AppLogger.warning('Native waveform channel missing for $path', tag: 'ExportService', error: e);
+      rethrow;
+    } on PlatformException catch (e) {
+      AppLogger.error('Native waveform generation failed for $path', tag: 'ExportService', error: e);
+      rethrow;
+    } catch (e, st) {
+      AppLogger.error('Waveform extraction failed for $path', tag: 'ExportService', error: e, stackTrace: st);
+      throw PlatformException(
+        code: 'WAVEFORM_FAILED',
+        message: 'Failed to extract waveform data for $path: $e',
+      );
     }
-    return envelope;
+
+    throw PlatformException(
+      code: 'WAVEFORM_FAILED',
+      message: 'Native waveform channel returned empty data for $path',
+    );
   }
 
   Future<String> exportTimeline(Map<String, dynamic> timelineJson) async {

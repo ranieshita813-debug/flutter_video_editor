@@ -263,8 +263,11 @@ class EditorController extends ChangeNotifier {
     final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
     if (index == -1) return;
 
+    final existing = _project.clips[index].shaderEffects;
+    if (existing.any((e) => e.id == shaderEffect.id)) return;
+
     _saveState();
-    final updatedList = List<ShaderEffectClip>.from(_project.clips[index].shaderEffects)
+    final updatedList = List<ShaderEffectClip>.from(existing)
       ..add(shaderEffect);
 
     _project.clips[index] = _project.clips[index].copyWith(

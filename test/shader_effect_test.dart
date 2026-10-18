@@ -6,7 +6,9 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/models/shader_effect_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/effects/services/effect_download_service.dart';
 import 'package:flutter_video_editor/features/effects/services/shader_database_service.dart';
+import 'package:flutter_video_editor/features/export/services/export_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -222,6 +224,10 @@ void main() {
       expect(controller.selectedClip?.shaderEffects.length, equals(1));
       expect(controller.selectedClip?.shaderEffects.first.name, equals('Neon Glow'));
 
+      // Duplicate addition check
+      controller.addShaderEffectToSelectedClip(shaderFx);
+      expect(controller.selectedClip?.shaderEffects.length, equals(1));
+
       controller.updateShaderEffectParameters('shader_fx_1', {'intensity': 1.2});
       expect(
         controller.selectedClip?.shaderEffects.first.parameterValues['intensity'],
@@ -244,6 +250,40 @@ void main() {
 
       controller.removeShaderEffectFromSelectedClip('shader_fx_1');
       expect(controller.selectedClip?.shaderEffects, isEmpty);
+    });
+  });
+
+  group('EffectDownloadService & ExportService Unit Tests', () {
+    test('EffectDownloadService downloads preset JSON configuration', () async {
+      const effect = ShaderEffect(
+        id: 'test_preset_effect',
+        name: 'Test Preset Effect',
+        description: 'Test Preset',
+        category: ShaderEffectCategory.glow,
+        parameters: [
+          ShaderParameter(
+            id: 'intensity',
+            name: 'intensity',
+            label: 'Intensity',
+            type: ParameterType.float,
+            value: 0.8,
+            defaultValue: 0.8,
+          ),
+        ],
+      );
+
+      final downloaded = await EffectDownloadService.instance.downloadEffect(effect);
+      expect(downloaded.isDownloaded, isTrue);
+      expect(downloaded.shaderSource, contains('test_preset_effect'));
+      expect(downloaded.shaderSource, contains('0.8'));
+    });
+
+    test('ExportService probe throws exception when native probing fails', () async {
+      final exportService = ExportService();
+      expect(
+        () async => await exportService.probe('invalid/nonexistent/file.mp4'),
+        throwsA(isA<Exception>()),
+      );
     });
   });
 }

@@ -74,6 +74,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
   Future<void> _importFile() async {
     final res = await FilePicker.platform
         .pickFiles(type: FileType.custom, allowedExtensions: ['svg'], withData: true);
+    if (!mounted) return;
     final f = res?.files.single;
     if (f?.bytes == null) return;
     _addImported(f!.name.replaceAll(RegExp(r'\.svg$', caseSensitive: false), ''), utf8.decode(f.bytes!));
@@ -81,34 +82,41 @@ class _ElementsSheetState extends State<ElementsSheet> {
 
   Future<void> _pasteCode() async {
     final c = TextEditingController();
-    final code = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: _panel,
-        title: const Text('Paste SVG code', style: TextStyle(color: Colors.white, fontSize: 15)),
-        content: TextField(
-          controller: c,
-          maxLines: 8,
-          style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
-          decoration: const InputDecoration(hintText: '<svg ...>', hintStyle: TextStyle(color: Colors.white38)),
+    try {
+      final code = await showDialog<String>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: _panel,
+          title: const Text('Paste SVG code', style: TextStyle(color: Colors.white, fontSize: 15)),
+          content: TextField(
+            controller: c,
+            maxLines: 8,
+            style: const TextStyle(color: Colors.white, fontSize: 12, fontFamily: 'monospace'),
+            decoration: const InputDecoration(hintText: '<svg ...>', hintStyle: TextStyle(color: Colors.white38)),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(context, c.text), child: const Text('Import')),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, c.text), child: const Text('Import')),
-        ],
-      ),
-    );
-    if (code != null && code.trim().isNotEmpty) _addImported('Pasted SVG', code);
+      );
+      if (!mounted) return;
+      if (code != null && code.trim().isNotEmpty) _addImported('Pasted SVG', code);
+    } finally {
+      c.dispose();
+    }
   }
 
   void _addImported(String name, String svg) {
     try {
       SvgDoc.parse(svg); // validate
+      if (!mounted) return;
       setState(() {
         _mine.insert(0, _Asset(name, svg));
         _tab = 1;
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invalid SVG: $e')));
     }
   }
@@ -120,6 +128,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
         builder: (_) => const SvgEditorPage(
             source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"></svg>',
             title: 'New graphic')));
+    if (!mounted) return;
     if (out == null) return;
     setState(() => _mine.insert(0, _Asset('Drawing ${_mine.length + 1}', out)));
     editor.addSvgElementClip(out, 'Drawing');
@@ -129,6 +138,7 @@ class _ElementsSheetState extends State<ElementsSheet> {
     final editor = context.read<EditorController>();
     final out = await Navigator.of(context).push<String>(MaterialPageRoute(
         fullscreenDialog: true, builder: (_) => SvgEditorPage(source: a.svg, title: a.name)));
+    if (!mounted) return;
     if (out == null) return;
     setState(() => _mine.insert(0, _Asset('${a.name} (edited)', out)));
     editor.addSvgElementClip(out, a.name);
