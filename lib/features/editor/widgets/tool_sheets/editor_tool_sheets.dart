@@ -11,6 +11,7 @@ import 'package:flutter_video_editor/features/editor/controllers/editor_controll
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 export 'effects_sheet.dart';
 export 'keyframes_sheet.dart';
+export 'captions_translate_sheet.dart';
 
 // ============================================================================
 // Design notes

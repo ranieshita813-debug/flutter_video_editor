@@ -164,7 +164,56 @@ class WhisperService {
       ));
     }
 
-    return cues;
+    return chunkCaptionCues(cues);
+  }
+
+  /// Chunks/splits long caption cues into concise sub-cues (max [maxWords] or max [maxDuration]).
+  static List<CaptionCue> chunkCaptionCues(
+    List<CaptionCue> cues, {
+    int maxWords = 4,
+    Duration maxDuration = const Duration(milliseconds: 2500),
+  }) {
+    final List<CaptionCue> result = <CaptionCue>[];
+
+    for (int i = 0; i < cues.length; i++) {
+      final cue = cues[i];
+      final words = cue.words;
+
+      if (words.isEmpty) {
+        result.add(cue);
+        continue;
+      }
+
+      List<CaptionWord> currentChunk = <CaptionWord>[];
+
+      void flushChunk() {
+        if (currentChunk.isEmpty) return;
+        final start = currentChunk.first.start;
+        final end = currentChunk.last.end;
+        final text = currentChunk.map((w) => w.word).join(' ');
+        result.add(CaptionCue(
+          id: '${cue.id}_chunk_${result.length + 1}',
+          start: start,
+          end: end > start ? end : start + const Duration(milliseconds: 300),
+          text: text,
+          words: List<CaptionWord>.from(currentChunk),
+        ));
+        currentChunk = <CaptionWord>[];
+      }
+
+      for (final word in words) {
+        if (currentChunk.isNotEmpty) {
+          final chunkDuration = word.end - currentChunk.first.start;
+          if (currentChunk.length >= maxWords || chunkDuration > maxDuration) {
+            flushChunk();
+          }
+        }
+        currentChunk.add(word);
+      }
+      flushChunk();
+    }
+
+    return result;
   }
 
   /// Distributes start and end times for words across a segment duration.

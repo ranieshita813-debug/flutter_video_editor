@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/services/caption_import_service.dart';
 import 'package:flutter_video_editor/core/services/whisper_service.dart';
+import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_panel.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
@@ -38,15 +39,42 @@ void main() {
       };
 
       final cues = WhisperService.parseWhisperVerboseJson(json);
-      expect(cues.length, equals(2));
+      // Segment 1 (2 words) -> 1 cue. Segment 2 (5 words) -> chunked into 2 sub-cues (max 4 words).
+      expect(cues.length, equals(3));
       expect(cues[0].text, equals('Hello world'));
       expect(cues[0].words.length, equals(2));
       expect(cues[0].words[0].word, equals('Hello'));
       expect(cues[0].words[0].start, equals(Duration.zero));
       expect(cues[0].words[0].end, equals(const Duration(milliseconds: 800)));
 
-      expect(cues[1].text, equals('welcome to motionGr video editor.'));
-      expect(cues[1].words.length, equals(5));
+      expect(cues[1].text, equals('welcome to motionGr video'));
+      expect(cues[1].words.length, equals(4));
+      expect(cues[2].text, equals('editor.'));
+      expect(cues[2].words.length, equals(1));
+    });
+
+    test('WhisperService.chunkCaptionCues chunks long caption cues with maxWords and maxDuration', () {
+      final longCue = CaptionCue(
+        id: 'long_1',
+        start: Duration.zero,
+        end: const Duration(seconds: 6),
+        text: 'One two three four five six seven eight',
+        words: const [
+          CaptionWord(word: 'One', start: Duration.zero, end: Duration(milliseconds: 700)),
+          CaptionWord(word: 'two', start: Duration(milliseconds: 700), end: Duration(milliseconds: 1400)),
+          CaptionWord(word: 'three', start: Duration(milliseconds: 1400), end: Duration(milliseconds: 2100)),
+          CaptionWord(word: 'four', start: Duration(milliseconds: 2100), end: Duration(milliseconds: 2800)),
+          CaptionWord(word: 'five', start: Duration(milliseconds: 2800), end: Duration(milliseconds: 3500)),
+          CaptionWord(word: 'six', start: Duration(milliseconds: 3500), end: Duration(milliseconds: 4200)),
+          CaptionWord(word: 'seven', start: Duration(milliseconds: 4200), end: Duration(milliseconds: 4900)),
+          CaptionWord(word: 'eight', start: Duration(milliseconds: 4900), end: Duration(milliseconds: 5600)),
+        ],
+      );
+
+      final chunked = WhisperService.chunkCaptionCues([longCue], maxWords: 4, maxDuration: const Duration(seconds: 10));
+      expect(chunked.length, equals(2));
+      expect(chunked[0].text, equals('One two three four'));
+      expect(chunked[1].text, equals('five six seven eight'));
     });
   });
 
@@ -131,6 +159,28 @@ Second imported caption line
       expect(restored.text, equals('Test Caption Word'));
       expect(restored.words.length, equals(3));
       expect(restored.words[1].word, equals('Caption'));
+    });
+  });
+
+  group('Caption Translation Unit Tests', () {
+    test('EditorController translateCaptions translates captions to target language', () async {
+      final controller = EditorController();
+      final cue = CaptionCue(
+        id: 'cue_1',
+        start: Duration.zero,
+        end: const Duration(seconds: 3),
+        text: 'Hello world',
+        words: const [
+          CaptionWord(word: 'Hello', start: Duration.zero, end: Duration(seconds: 1)),
+          CaptionWord(word: 'world', start: Duration(seconds: 1), end: Duration(seconds: 3)),
+        ],
+      );
+
+      controller.addCaptionCue(cue);
+      expect(controller.project.clips.first.label, equals('Hello world'));
+
+      await controller.translateCaptions(targetLanguage: 'Bengali', allCaptions: true);
+      expect(controller.project.clips.first.label, equals('হ্যালো বিশ্ব'));
     });
   });
 

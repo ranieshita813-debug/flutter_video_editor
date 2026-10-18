@@ -15,6 +15,7 @@ import 'package:flutter_video_editor/features/editor/widgets/adjustments_sheet.d
 
 import 'package:flutter_video_editor/core/services/ai_generation_service.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/gen.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/captions_style.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_style_sheet.dart';
@@ -41,6 +42,8 @@ enum EditorTool {
   order('Order', PhosphorIconsRegular.sortAscending),
   chromaKey('Chroma Key', PhosphorIconsRegular.eyedropper),
   captions('Captions', PhosphorIconsRegular.closedCaptioning),
+  captionsTranslate('Translate', PhosphorIconsRegular.translate),
+  captionsStyle('Highlight Style', PhosphorIconsRegular.paintBucket),
   ai('AI Generate', PhosphorIconsFill.sparkle);
 
   const EditorTool(this.title, this.icon);
@@ -99,6 +102,8 @@ enum EditorTool {
             },
           ),
         EditorTool.captions => const CaptionsSheet(),
+        EditorTool.captionsTranslate => const CaptionTranslationSheet(),
+        EditorTool.captionsStyle => const CaptionStyleSheet(),
         EditorTool.ai => Builder(
             builder: (ctx) {
               return Center(

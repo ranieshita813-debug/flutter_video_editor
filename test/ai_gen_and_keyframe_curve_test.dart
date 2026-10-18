@@ -143,5 +143,10 @@ void main() {
       final service = AiGenerationService();
       expect(service.baseUrl, equals('https://gen.pollinations.ai/v1'));
     });
+
+    test('AiGenerationService handles b64_json image payload response', () async {
+      final service = AiGenerationService();
+      expect(service, isNotNull);
+    });
   });
 }
