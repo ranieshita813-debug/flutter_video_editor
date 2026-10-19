@@ -506,9 +506,9 @@ class _ExportModalState extends State<ExportModal> {
           width: 84,
           height: 84,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.14),
+            color: color.withValues(alpha: 0.14),
             shape: BoxShape.circle,
-            border: Border.all(color: color.withOpacity(0.5), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.5), width: 1.5),
           ),
           child: Icon(icon, size: 44, color: color),
         ),
@@ -749,7 +749,7 @@ class _QualityCard extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         height: 64,
         decoration: BoxDecoration(
-          color: selected ? _accent.withOpacity(0.10) : _card,
+          color: selected ? _accent.withValues(alpha: 0.10) : _card,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: selected ? _accent : Colors.transparent, width: 1.5),
         ),
@@ -803,7 +803,7 @@ class _ChipRow<T> extends StatelessWidget {
                 height: subtitle == null ? 44 : 56,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: values[i] == selected ? _accent.withOpacity(0.10) : _card,
+                  color: values[i] == selected ? _accent.withValues(alpha: 0.10) : _card,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: values[i] == selected ? _accent : Colors.transparent,

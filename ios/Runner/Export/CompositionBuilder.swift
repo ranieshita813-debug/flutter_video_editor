@@ -1,5 +1,7 @@
 import Foundation
 import AVFoundation
+import UIKit
+import CoreImage
 
 class CompositionBuilder {
 
@@ -7,6 +9,74 @@ class CompositionBuilder {
         let composition: AVMutableComposition
         let videoComposition: AVMutableVideoComposition?
         let audioMix: AVMutableAudioMix?
+    }
+
+    static func applyImageEffects(image: UIImage, effect: String, parameters: [String: Double], shaderEffects: [ShaderEffectSpec]) -> UIImage {
+        guard var ciImage = CIImage(image: image) else { return image }
+        let context = CIContext(options: nil)
+
+        func processEffect(effName: String, params: [String: Double]) {
+            let eff = effName.lowercased()
+            let intensity = params["intensity"] ?? params["amount"] ?? 1.0
+
+            switch eff {
+            case "sepia", "vintage", "retro":
+                if let filter = CIFilter(name: "CISepiaTone") {
+                    filter.setValue(ciImage, forKey: kCIInputImageKey)
+                    filter.setValue(intensity, forKey: kCIInputIntensityKey)
+                    if let output = filter.outputImage { ciImage = output }
+                }
+            case "noir", "monochrome":
+                if let filter = CIFilter(name: "CIPhotoEffectNoir") {
+                    filter.setValue(ciImage, forKey: kCIInputImageKey)
+                    if let output = filter.outputImage { ciImage = output }
+                }
+            case "blur":
+                let blurRadius = params["blurAmount"] ?? params["blur"] ?? (intensity * 5.0)
+                if let filter = CIFilter(name: "CIGaussianBlur") {
+                    filter.setValue(ciImage, forKey: kCIInputImageKey)
+                    filter.setValue(blurRadius, forKey: kCIInputRadiusKey)
+                    if let output = filter.outputImage { ciImage = output }
+                }
+            case "vibrance", "vibrant":
+                if let filter = CIFilter(name: "CIVibrance") {
+                    filter.setValue(ciImage, forKey: kCIInputImageKey)
+                    filter.setValue(intensity * 1.5, forKey: "inputAmount")
+                    if let output = filter.outputImage { ciImage = output }
+                }
+            case "glow", "dreambloom", "dream_bloom":
+                if let filter = CIFilter(name: "CIBloom") {
+                    filter.setValue(ciImage, forKey: kCIInputImageKey)
+                    filter.setValue(intensity * 10.0, forKey: kCIInputRadiusKey)
+                    filter.setValue(intensity * 0.8, forKey: kCIInputIntensityKey)
+                    if let output = filter.outputImage { ciImage = output }
+                }
+            case "vignette", "cinematicvignette", "cinematic_vignette":
+                if let filter = CIFilter(name: "CIVignette") {
+                    filter.setValue(ciImage, forKey: kCIInputImageKey)
+                    filter.setValue(intensity * 2.0, forKey: kCIInputIntensityKey)
+                    filter.setValue(intensity * 3.0, forKey: kCIInputRadiusKey)
+                    if let output = filter.outputImage { ciImage = output }
+                }
+            default:
+                break
+            }
+        }
+
+        if effect != "none" {
+            processEffect(effName: effect, params: parameters)
+        }
+
+        for shaderFx in shaderEffects {
+            if shaderFx.isEnabled {
+                processEffect(effName: shaderFx.effectId, params: shaderFx.parameterValues)
+            }
+        }
+
+        if let cgImg = context.createCGImage(ciImage, from: ciImage.extent) {
+            return UIImage(cgImage: cgImg)
+        }
+        return image
     }
 
     static func build(timeline: TimelineSpec) throws -> BuiltComposition {
@@ -95,12 +165,35 @@ class CompositionBuilder {
                 let textLayer = CATextLayer()
                 textLayer.string = clip.label
                 textLayer.fontSize = CGFloat(clip.textStyle.fontSize) * sy
-                textLayer.font = CTFontCreateWithName("Helvetica-Bold" as CFString, CGFloat(clip.textStyle.fontSize) * sy, nil)
-                textLayer.foregroundColor = UIColor.white.cgColor
+                let fontName = clip.fontFamily.isEmpty ? "Helvetica-Bold" : clip.fontFamily
+                textLayer.font = CTFontCreateWithName(fontName as CFString, CGFloat(clip.textStyle.fontSize) * sy, nil)
+
+                let textColor = UIColor(
+                    red: CGFloat((clip.textStyle.textColor >> 16) & 0xFF) / 255.0,
+                    green: CGFloat((clip.textStyle.textColor >> 8) & 0xFF) / 255.0,
+                    blue: CGFloat(clip.textStyle.textColor & 0xFF) / 255.0,
+                    alpha: CGFloat((clip.textStyle.textColor >> 24) & 0xFF) / 255.0
+                )
+                textLayer.foregroundColor = textColor.cgColor
                 textLayer.alignmentMode = .center
                 textLayer.frame = layer.bounds
+
+                if clip.textStyle.backgroundColor != 0 {
+                    let bgColor = UIColor(
+                        red: CGFloat((clip.textStyle.backgroundColor >> 16) & 0xFF) / 255.0,
+                        green: CGFloat((clip.textStyle.backgroundColor >> 8) & 0xFF) / 255.0,
+                        blue: CGFloat(clip.textStyle.backgroundColor & 0xFF) / 255.0,
+                        alpha: CGFloat((clip.textStyle.backgroundColor >> 24) & 0xFF) / 255.0
+                    )
+                    textLayer.backgroundColor = bgColor.cgColor
+                    textLayer.cornerRadius = 4 * sy
+                }
+
                 layer.addSublayer(textLayer)
-            } else if let src = clip.stickerAssetPath ?? clip.sourcePath, let img = UIImage(contentsOfFile: src) {
+            } else if let src = clip.stickerAssetPath ?? clip.sourcePath, var img = UIImage(contentsOfFile: src) {
+                if clip.effect != "none" || !clip.shaderEffects.isEmpty {
+                    img = applyImageEffects(image: img, effect: clip.effect, parameters: clip.effectParameters, shaderEffects: clip.shaderEffects)
+                }
                 layer.contents = img.cgImage
             }
 

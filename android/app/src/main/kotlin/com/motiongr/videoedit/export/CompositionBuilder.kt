@@ -231,51 +231,61 @@ object CompositionBuilder {
      * অনুমানকৃত রেঞ্জ: brightness -1..1, contrast 1.0 = নিউট্রাল, saturation 1.0 = নিউট্রাল,
      * temperature/tint -1..1, exposure EV স্টপে। Vignette সমর্থিত নয় (কাস্টম শেডার প্রয়োজন)।
      */
-    private fun videoEffectToMedia3(effect: String): List<Effect> {
+    private fun videoEffectToMedia3(effect: String, parameters: Map<String, Double> = emptyMap()): List<Effect> {
         val out = mutableListOf<Effect>()
-        when (effect.lowercase()) {
+        val effName = effect.lowercase()
+        val intensity = (parameters["intensity"] ?: parameters["amount"] ?: 1.0).toFloat()
+
+        when (effName) {
             "warm" -> {
-                out += Brightness(0.05f)
-                out += RgbAdjustment.Builder().setRedScale(1.2f).setGreenScale(1.05f).setBlueScale(0.85f).build()
+                out += Brightness(0.05f * intensity)
+                out += RgbAdjustment.Builder().setRedScale(1.2f * intensity).setGreenScale(1.05f * intensity).setBlueScale(0.85f).build()
             }
             "cinematic" -> {
-                out += Contrast(0.15f)
-                out += HslAdjustment.Builder().adjustSaturation(-15f).build()
-                out += RgbAdjustment.Builder().setRedScale(0.9f).setGreenScale(1.0f).setBlueScale(1.2f).build()
+                out += Contrast(0.15f * intensity)
+                out += HslAdjustment.Builder().adjustSaturation((-15f * intensity).coerceIn(-100f, 100f)).build()
+                out += RgbAdjustment.Builder().setRedScale(0.9f).setGreenScale(1.0f).setBlueScale(1.2f * intensity).build()
             }
             "noir" -> {
                 out += HslAdjustment.Builder().adjustSaturation(-100f).build()
-                out += Contrast(0.3f)
+                out += Contrast(0.3f * intensity)
             }
             "vibrant" -> {
-                out += HslAdjustment.Builder().adjustSaturation(40f).build()
-                out += Contrast(0.1f)
+                out += HslAdjustment.Builder().adjustSaturation((40f * intensity).coerceIn(-100f, 100f)).build()
+                out += Contrast(0.1f * intensity)
             }
             "vintage", "retro" -> {
                 out += HslAdjustment.Builder().adjustSaturation(-20f).build()
-                out += RgbAdjustment.Builder().setRedScale(1.1f).setGreenScale(0.95f).setBlueScale(0.8f).build()
+                out += RgbAdjustment.Builder().setRedScale(1.1f * intensity).setGreenScale(0.95f).setBlueScale(0.8f).build()
             }
-            "glitch", "vhs", "vhstape", "chromaticaberration" -> {
-                out += RgbAdjustment.Builder().setRedScale(1.15f).setGreenScale(0.95f).setBlueScale(1.2f).build()
+            "glitch", "vhs", "vhstape", "vhs_tape", "chromaticaberration", "chromatic_aberration", "digital_glitch" -> {
+                out += RgbAdjustment.Builder().setRedScale(1.15f * intensity).setGreenScale(0.95f).setBlueScale(1.2f * intensity).build()
             }
             "matrix" -> {
-                out += RgbAdjustment.Builder().setRedScale(0.3f).setGreenScale(1.4f).setBlueScale(0.3f).build()
-                out += Contrast(0.2f)
+                out += RgbAdjustment.Builder().setRedScale(0.3f).setGreenScale(1.4f * intensity).setBlueScale(0.3f).build()
+                out += Contrast(0.2f * intensity)
             }
-            "flame", "lightleak" -> {
-                out += Brightness(0.08f)
-                out += RgbAdjustment.Builder().setRedScale(1.3f).setGreenScale(1.1f).setBlueScale(0.8f).build()
+            "flame", "lightleak", "light_leak" -> {
+                out += Brightness(0.08f * intensity)
+                out += RgbAdjustment.Builder().setRedScale(1.3f * intensity).setGreenScale(1.1f * intensity).setBlueScale(0.8f).build()
             }
-            "glow", "dreambloom" -> {
-                out += Brightness(0.08f)
-                out += HslAdjustment.Builder().adjustSaturation(25f).build()
+            "glow", "dreambloom", "dream_bloom" -> {
+                out += Brightness(0.08f * intensity)
+                out += HslAdjustment.Builder().adjustSaturation((25f * intensity).coerceIn(-100f, 100f)).build()
             }
-            "vignette", "cinematicvignette" -> {
-                out += Contrast(0.1f)
+            "vignette", "cinematicvignette", "cinematic_vignette" -> {
+                val strength = (parameters["strength"] ?: parameters["radius"] ?: 0.6).toFloat()
+                out += Contrast(0.1f * strength)
+            }
+            "crisp_sharpen", "crispsharpen" -> {
+                out += Contrast(0.25f * intensity)
+            }
+            "blur" -> {
+                out += Contrast(-0.1f * intensity)
             }
             else -> {
-                if (effect != "none") {
-                    out += Contrast(0.05f)
+                if (effName != "none") {
+                    out += Contrast(0.05f * intensity)
                 }
             }
         }
@@ -497,7 +507,12 @@ object CompositionBuilder {
             if (!isCard) {
                 videoEffects += colorEffects(clip.colorGrading)
                 if (clip.effect != "none") {
-                    videoEffects += videoEffectToMedia3(clip.effect)
+                    videoEffects += videoEffectToMedia3(clip.effect, clip.effectParameters)
+                }
+                for (shaderFx in clip.shaderEffects) {
+                    if (shaderFx.isEnabled) {
+                        videoEffects += videoEffectToMedia3(shaderFx.effectId, shaderFx.parameterValues)
+                    }
                 }
             }
 

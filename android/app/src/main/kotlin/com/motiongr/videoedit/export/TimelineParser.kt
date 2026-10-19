@@ -92,6 +92,69 @@ data class KeyframeSpec(
     val curveType: String = "linear"
 )
 
+data class ShaderKeyframeSpec(
+    val id: String = "",
+    val timeMs: Long = 0L,
+    val value: Double = 0.0,
+    val easing: String = "linear"
+)
+
+data class KeyframeAnimationSpec(
+    val id: String = "",
+    val parameterId: String = "",
+    val keyframes: List<ShaderKeyframeSpec> = emptyList()
+)
+
+data class ShaderEffectSpec(
+    val id: String = "",
+    val effectId: String = "",
+    val name: String = "",
+    val startMs: Long = 0L,
+    val endMs: Long = 0L,
+    val isEnabled: Boolean = true,
+    val zIndex: Int = 0,
+    val parameterValues: Map<String, Double> = emptyMap(),
+    val keyframeAnimations: List<KeyframeAnimationSpec> = emptyList()
+) {
+    fun getInterpolatedParameters(clipRelativeTimeMs: Long): Map<String, Double> {
+        val result = parameterValues.toMutableMap()
+        for (anim in keyframeAnimations) {
+            val ks = anim.keyframes.sortedBy { it.timeMs }
+            if (ks.isEmpty()) continue
+            val evaluatedValue = if (clipRelativeTimeMs <= ks.first().timeMs) {
+                ks.first().value
+            } else if (clipRelativeTimeMs >= ks.last().timeMs) {
+                ks.last().value
+            } else {
+                var interpolated = ks.last().value
+                for (idx in 0 until ks.size - 1) {
+                    val k1 = ks[idx]
+                    val k2 = ks[idx + 1]
+                    if (clipRelativeTimeMs >= k1.timeMs && clipRelativeTimeMs <= k2.timeMs) {
+                        val span = k2.timeMs - k1.timeMs
+                        if (span <= 0) {
+                            interpolated = k1.value
+                        } else {
+                            var t = (clipRelativeTimeMs - k1.timeMs).toDouble() / span.toDouble()
+                            t = when (k2.easing) {
+                                "easeIn" -> t * t
+                                "easeOut" -> t * (2.0 - t)
+                                "easeInOut" -> if (t < 0.5) 2.0 * t * t else -1.0 + (4.0 - 2.0 * t) * t
+                                else -> t
+                            }
+                            interpolated = k1.value + (k2.value - k1.value) * t
+                        }
+                        break
+                    }
+                }
+                interpolated
+            }
+            result[anim.parameterId] = evaluatedValue
+        }
+        return result
+    }
+}
+
 data class ClipSpec(
     val id: String,
     val label: String,
@@ -114,6 +177,7 @@ data class ClipSpec(
     val audioProperties: AudioPropertiesSpec,
     val chromaKey: ChromaKeySpec = ChromaKeySpec(),
     val elementProperties: ElementPropertiesSpec = ElementPropertiesSpec(),
+    val effectParameters: Map<String, Double> = emptyMap(),
     val fontFamily: String,
     val textAnimationStyle: String,
     val textStyle: TextStyleSpec,
@@ -126,7 +190,8 @@ data class ClipSpec(
     val effect: String,
     val svgPath: String? = null,
     val keyframes: List<KeyframeSpec> = emptyList(),
-    val words: List<WordSpec> = emptyList()
+    val words: List<WordSpec> = emptyList(),
+    val shaderEffects: List<ShaderEffectSpec> = emptyList()
 )
 
 data class TimelineSpec(
@@ -221,6 +286,16 @@ object TimelineParser {
                     svgPath = if (elemObj.has("svgPath") && !elemObj.isNull("svgPath")) elemObj.getString("svgPath") else null
                 )
 
+                val effParamsObj = clipObj.optJSONObject("effectParameters")
+                val effectParameters = mutableMapOf<String, Double>()
+                if (effParamsObj != null) {
+                    val keys = effParamsObj.keys()
+                    while (keys.hasNext()) {
+                        val k = keys.next()
+                        effectParameters[k] = effParamsObj.optDouble(k, 0.0)
+                    }
+                }
+
                 val strokesArray = clipObj.optJSONArray("strokes")
                 val strokes = mutableListOf<DrawingStrokeSpec>()
                 if (strokesArray != null) {
@@ -250,6 +325,67 @@ object TimelineParser {
                     }
                 }
 
+                val shaderFxArray = clipObj.optJSONArray("shaderEffects")
+                val shaderEffects = mutableListOf<ShaderEffectSpec>()
+                if (shaderFxArray != null) {
+                    for (sIdx in 0 until shaderFxArray.length()) {
+                        val sObj = shaderFxArray.getJSONObject(sIdx)
+                        val paramValuesObj = sObj.optJSONObject("parameterValues")
+                        val paramValuesMap = mutableMapOf<String, Double>()
+                        if (paramValuesObj != null) {
+                            val pKeys = paramValuesObj.keys()
+                            while (pKeys.hasNext()) {
+                                val pk = pKeys.next()
+                                paramValuesMap[pk] = paramValuesObj.optDouble(pk, 0.0)
+                            }
+                        }
+
+                        val kfAnimArray = sObj.optJSONArray("keyframeAnimations")
+                        val kfAnimList = mutableListOf<KeyframeAnimationSpec>()
+                        if (kfAnimArray != null) {
+                            for (kaIdx in 0 until kfAnimArray.length()) {
+                                val kaObj = kfAnimArray.getJSONObject(kaIdx)
+                                val skfArray = kaObj.optJSONArray("keyframes")
+                                val skfList = mutableListOf<ShaderKeyframeSpec>()
+                                if (skfArray != null) {
+                                    for (skfIdx in 0 until skfArray.length()) {
+                                        val skfObj = skfArray.getJSONObject(skfIdx)
+                                        skfList.add(
+                                            ShaderKeyframeSpec(
+                                                id = skfObj.optString("id", ""),
+                                                timeMs = skfObj.optLong("timeMs", 0L),
+                                                value = skfObj.optDouble("value", 0.0),
+                                                easing = skfObj.optString("easing", "linear")
+                                            )
+                                        )
+                                    }
+                                }
+                                kfAnimList.add(
+                                    KeyframeAnimationSpec(
+                                        id = kaObj.optString("id", ""),
+                                        parameterId = kaObj.optString("parameterId", ""),
+                                        keyframes = skfList
+                                    )
+                                )
+                            }
+                        }
+
+                        shaderEffects.add(
+                            ShaderEffectSpec(
+                                id = sObj.optString("id", ""),
+                                effectId = sObj.optString("effectId", ""),
+                                name = sObj.optString("name", ""),
+                                startMs = sObj.optLong("startMs", 0L),
+                                endMs = sObj.optLong("endMs", 0L),
+                                isEnabled = sObj.optBoolean("isEnabled", true),
+                                zIndex = sObj.optInt("zIndex", 0),
+                                parameterValues = paramValuesMap,
+                                keyframeAnimations = kfAnimList
+                            )
+                        )
+                    }
+                }
+
                 clips.add(
                     ClipSpec(
                         id = clipObj.optString("id", ""),
@@ -273,6 +409,7 @@ object TimelineParser {
                         audioProperties = audioProperties,
                         chromaKey = chromaKey,
                         elementProperties = elementProperties,
+                        effectParameters = effectParameters,
                         fontFamily = clipObj.optString("fontFamily", "Poppins"),
                         textAnimationStyle = clipObj.optString("textAnimationStyle", "none"),
                         textStyle = textStyle,
@@ -319,7 +456,8 @@ object TimelineParser {
                                 }
                             }
                             wordList
-                        }
+                        },
+                        shaderEffects = shaderEffects
                     )
                 )
             }
