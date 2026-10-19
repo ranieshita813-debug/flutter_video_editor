@@ -75,6 +75,31 @@ struct KeyframeSpec {
     let curveType: String
 }
 
+struct ShaderKeyframeSpec {
+    let id: String
+    let timeMs: Int64
+    let value: Double
+    let easing: String
+}
+
+struct KeyframeAnimationSpec {
+    let id: String
+    let parameterId: String
+    let keyframes: [ShaderKeyframeSpec]
+}
+
+struct ShaderEffectSpec {
+    let id: String
+    let effectId: String
+    let name: String
+    let startMs: Int64
+    let endMs: Int64
+    let isEnabled: Bool
+    let zIndex: Int
+    let parameterValues: [String: Double]
+    let keyframeAnimations: [KeyframeAnimationSpec]
+}
+
 struct ClipSpec {
     let id: String
     let label: String
@@ -96,6 +121,7 @@ struct ClipSpec {
     let colorGrading: ColorGradingSpec
     let audioProperties: AudioPropertiesSpec
     let chromaKey: ChromaKeySpec
+    let effectParameters: [String: Double]
     let fontFamily: String
     let textAnimationStyle: String
     let textStyle: TextStyleSpec
@@ -105,6 +131,7 @@ struct ClipSpec {
     let stickerAssetPath: String?
     let effect: String
     let keyframes: [KeyframeSpec]
+    let shaderEffects: [ShaderEffectSpec]
 }
 
 struct TimelineSpec {
@@ -184,6 +211,17 @@ class TimelineParser {
                     output: ckDict["output"] as? String ?? "composite"
                 )
 
+                var effectParameters: [String: Double] = [:]
+                if let effDict = clipDict["effectParameters"] as? [String: Any] {
+                    for (k, v) in effDict {
+                        if let d = v as? Double {
+                            effectParameters[k] = d
+                        } else if let i = v as? Int {
+                            effectParameters[k] = Double(i)
+                        }
+                    }
+                }
+
                 var strokes: [DrawingStrokeSpec] = []
                 if let strokesArray = clipDict["strokes"] as? [[String: Any]] {
                     for strokeDict in strokesArray {
@@ -218,6 +256,56 @@ class TimelineParser {
                     }
                 }
 
+                var shaderEffects: [ShaderEffectSpec] = []
+                if let sArray = clipDict["shaderEffects"] as? [[String: Any]] {
+                    for sDict in sArray {
+                        var paramValues: [String: Double] = [:]
+                        if let pDict = sDict["parameterValues"] as? [String: Any] {
+                            for (pk, pv) in pDict {
+                                if let d = pv as? Double {
+                                    paramValues[pk] = d
+                                } else if let i = pv as? Int {
+                                    paramValues[pk] = Double(i)
+                                }
+                            }
+                        }
+
+                        var keyframeAnims: [KeyframeAnimationSpec] = []
+                        if let kaArray = sDict["keyframeAnimations"] as? [[String: Any]] {
+                            for kaDict in kaArray {
+                                var skfs: [ShaderKeyframeSpec] = []
+                                if let skfArray = kaDict["keyframes"] as? [[String: Any]] {
+                                    for skfDict in skfArray {
+                                        skfs.append(ShaderKeyframeSpec(
+                                            id: skfDict["id"] as? String ?? "",
+                                            timeMs: skfDict["timeMs"] as? Int64 ?? 0,
+                                            value: skfDict["value"] as? Double ?? 0.0,
+                                            easing: skfDict["easing"] as? String ?? "linear"
+                                        ))
+                                    }
+                                }
+                                keyframeAnims.append(KeyframeAnimationSpec(
+                                    id: kaDict["id"] as? String ?? "",
+                                    parameterId: kaDict["parameterId"] as? String ?? "",
+                                    keyframes: skfs
+                                ))
+                            }
+                        }
+
+                        shaderEffects.append(ShaderEffectSpec(
+                            id: sDict["id"] as? String ?? "",
+                            effectId: sDict["effectId"] as? String ?? "",
+                            name: sDict["name"] as? String ?? "",
+                            startMs: sDict["startMs"] as? Int64 ?? 0,
+                            endMs: sDict["endMs"] as? Int64 ?? 0,
+                            isEnabled: sDict["isEnabled"] as? Bool ?? true,
+                            zIndex: sDict["zIndex"] as? Int ?? 0,
+                            parameterValues: paramValues,
+                            keyframeAnimations: keyframeAnims
+                        ))
+                    }
+                }
+
                 clips.append(ClipSpec(
                     id: clipDict["id"] as? String ?? "",
                     label: clipDict["label"] as? String ?? "",
@@ -239,6 +327,7 @@ class TimelineParser {
                     colorGrading: colorGrading,
                     audioProperties: audioProperties,
                     chromaKey: chromaKey,
+                    effectParameters: effectParameters,
                     fontFamily: clipDict["fontFamily"] as? String ?? "Poppins",
                     textAnimationStyle: clipDict["textAnimationStyle"] as? String ?? "none",
                     textStyle: textStyle,
@@ -247,7 +336,8 @@ class TimelineParser {
                     strokes: strokes,
                     stickerAssetPath: clipDict["stickerAssetPath"] as? String,
                     effect: clipDict["effect"] as? String ?? "none",
-                    keyframes: keyframes
+                    keyframes: keyframes,
+                    shaderEffects: shaderEffects
                 ))
             }
         }

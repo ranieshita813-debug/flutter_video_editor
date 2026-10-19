@@ -485,27 +485,132 @@ object OverlayRenderer {
         return output
     }
 
-    /**
-     * বিটম্যাপে ভিডিও ইফেক্ট ফিল্টার প্রয়োগ করে
-     */
-    fun applyVideoEffect(
-        bitmap: Bitmap,
-        effect: String
-    ): Bitmap {
-        if (effect.lowercase() == "none") return bitmap
+    private fun applyBoxBlur(bitmap: Bitmap, blurRadius: Float): Bitmap {
+        val r = blurRadius.toInt().coerceIn(1, 25)
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= 0 || h <= 0) return bitmap
+
+        val scaled = Bitmap.createScaledBitmap(
+            bitmap,
+            (w / (r * 0.5f + 1f)).toInt().coerceAtLeast(8),
+            (h / (r * 0.5f + 1f)).toInt().coerceAtLeast(8),
+            true
+        )
+        val output = Bitmap.createScaledBitmap(scaled, w, h, true)
+        if (scaled != bitmap && scaled != output) scaled.recycle()
+        return output
+    }
+
+    private fun applyPixelate(bitmap: Bitmap, pixelSize: Float): Bitmap {
+        val pSize = pixelSize.toInt().coerceIn(2, 64)
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= 0 || h <= 0) return bitmap
+
+        val smallW = (w / pSize).coerceAtLeast(2)
+        val smallH = (h / pSize).coerceAtLeast(2)
+        val small = Bitmap.createScaledBitmap(bitmap, smallW, smallH, false)
+        val output = Bitmap.createScaledBitmap(small, w, h, false)
+        if (small != bitmap && small != output) small.recycle()
+        return output
+    }
+
+    private fun applyFilmGrain(bitmap: Bitmap, amount: Float): Bitmap {
         val w = bitmap.width
         val h = bitmap.height
         if (w <= 0 || h <= 0) return bitmap
 
         val output = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
+        canvas.drawBitmap(bitmap, 0f, 0f, null)
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            alpha = (amount * 40f).toInt().coerceIn(5, 100)
+        }
+        val random = java.util.Random()
+        val numDots = ((w * h) * 0.005f * amount).toInt().coerceIn(100, 5000)
+        for (i in 0 until numDots) {
+            val x = random.nextInt(w).toFloat()
+            val y = random.nextInt(h).toFloat()
+            canvas.drawCircle(x, y, 1.5f, paint)
+        }
+        return output
+    }
+
+    private fun applyRgbSplit(bitmap: Bitmap, amount: Float): Bitmap {
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= 0 || h <= 0) return bitmap
+
+        val output = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val shift = (amount * 10f).coerceIn(2f, 30f)
+
+        val redPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
+                1f, 0f, 0f, 0f, 0f,
+                0f, 0f, 0f, 0f, 0f,
+                0f, 0f, 0f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f
+            )))
+        }
+        val cyanPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
+                0f, 0f, 0f, 0f, 0f,
+                0f, 1f, 0f, 0f, 0f,
+                0f, 0f, 1f, 0f, 0f,
+                0f, 0f, 0f, 0.7f, 0f
+            )))
+        }
+        canvas.drawBitmap(bitmap, -shift, 0f, redPaint)
+        canvas.drawBitmap(bitmap, shift, 0f, cyanPaint)
+        return output
+    }
+
+    /**
+     * বিটম্যাপে ভিডিও ইফেক্ট ফিল্টার প্রয়োগ করে
+     */
+    fun applyVideoEffect(
+        bitmap: Bitmap,
+        effect: String,
+        parameters: Map<String, Double> = emptyMap()
+    ): Bitmap {
+        if (effect.lowercase() == "none") return bitmap
+        val w = bitmap.width
+        val h = bitmap.height
+        if (w <= 0 || h <= 0) return bitmap
+
+        val effName = effect.lowercase()
+        val intensity = (parameters["intensity"] ?: parameters["amount"] ?: 1.0).toFloat()
+
+        when (effName) {
+            "blur" -> {
+                val blurAmt = (parameters["blurAmount"] ?: parameters["blur"] ?: (intensity * 5.0)).toFloat()
+                return applyBoxBlur(bitmap, blurAmt)
+            }
+            "mosaic_pixelate", "mosaicpixelate" -> {
+                val pSize = (parameters["sizePx"] ?: (intensity * 12.0)).toFloat()
+                return applyPixelate(bitmap, pSize)
+            }
+            "film_grain", "filmgrain" -> {
+                return applyFilmGrain(bitmap, intensity)
+            }
+            "chromatic_aberration", "chromaticaberration" -> {
+                return applyRgbSplit(bitmap, intensity)
+            }
+        }
+
+        val output = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
         val cm = ColorMatrix()
 
-        when (effect.lowercase()) {
+        when (effName) {
             "warm" -> {
                 cm.set(floatArrayOf(
-                    1.2f, 0f, 0f, 0f, 10f,
-                    0f, 1.05f, 0f, 0f, 5f,
+                    1.2f * intensity, 0f, 0f, 0f, 10f * intensity,
+                    0f, 1.05f * intensity, 0f, 0f, 5f * intensity,
                     0f, 0f, 0.85f, 0f, 0f,
                     0f, 0f, 0f, 1f, 0f
                 ))
@@ -531,7 +636,7 @@ object OverlayRenderer {
                 cm.postConcat(cCm)
             }
             "vibrant" -> {
-                cm.setSaturation(1.5f)
+                cm.setSaturation(1.5f * intensity)
             }
             "vintage", "retro" -> {
                 cm.setSaturation(0.75f)
@@ -543,45 +648,53 @@ object OverlayRenderer {
                 ))
                 cm.postConcat(vCm)
             }
-            "glitch", "vhs", "vhstape", "chromaticaberration" -> {
+            "glitch", "vhs", "vhs_tape", "vhstape", "digital_glitch" -> {
                 cm.set(floatArrayOf(
-                    1.15f, 0f, 0.1f, 0f, 10f,
+                    1.15f * intensity, 0f, 0.1f, 0f, 10f * intensity,
                     0f, 0.95f, 0f, 0f, 0f,
-                    0.1f, 0f, 1.2f, 0f, 15f,
+                    0.1f, 0f, 1.2f * intensity, 0f, 15f * intensity,
                     0f, 0f, 0f, 1f, 0f
                 ))
             }
             "matrix" -> {
                 cm.set(floatArrayOf(
                     0.3f, 0f, 0f, 0f, 0f,
-                    0f, 1.4f, 0f, 0f, 20f,
+                    0f, 1.4f * intensity, 0f, 0f, 20f * intensity,
                     0f, 0f, 0.3f, 0f, 0f,
                     0f, 0f, 0f, 1f, 0f
                 ))
             }
-            "flame", "lightleak" -> {
+            "flame", "light_leak", "lightleak" -> {
                 cm.set(floatArrayOf(
-                    1.3f, 0f, 0f, 0f, 25f,
-                    0f, 1.1f, 0f, 0f, 10f,
+                    1.3f * intensity, 0f, 0f, 0f, 25f * intensity,
+                    0f, 1.1f * intensity, 0f, 0f, 10f * intensity,
                     0f, 0f, 0.8f, 0f, 0f,
                     0f, 0f, 0f, 1f, 0f
                 ))
             }
-            "glow", "dreambloom" -> {
-                cm.setSaturation(1.3f)
+            "glow", "dream_bloom", "dreambloom" -> {
+                cm.setSaturation(1.3f * intensity)
                 val gCm = ColorMatrix(floatArrayOf(
-                    1.1f, 0f, 0f, 0f, 15f,
-                    0f, 1.1f, 0f, 0f, 15f,
-                    0f, 0f, 1.1f, 0f, 15f,
+                    1.1f, 0f, 0f, 0f, 15f * intensity,
+                    0f, 1.1f, 0f, 0f, 15f * intensity,
+                    0f, 0f, 1.1f, 0f, 15f * intensity,
                     0f, 0f, 0f, 1f, 0f
                 ))
                 cm.postConcat(gCm)
             }
-            "vignette", "cinematicvignette" -> {
+            "crisp_sharpen", "crispsharpen" -> {
+                cm.set(floatArrayOf(
+                    1.2f * intensity, -0.1f, -0.1f, 0f, 0f,
+                    -0.1f, 1.2f * intensity, -0.1f, 0f, 0f,
+                    -0.1f, -0.1f, 1.2f * intensity, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f
+                ))
+            }
+            "vignette", "cinematic_vignette", "cinematicvignette" -> {
                 cm.setSaturation(0.9f)
             }
             else -> {
-                cm.setSaturation(1.1f)
+                cm.setSaturation(1.1f * intensity)
             }
         }
 
@@ -590,14 +703,15 @@ object OverlayRenderer {
         }
         canvas.drawBitmap(bitmap, 0f, 0f, paint)
 
-        if (effect.lowercase().contains("vignette")) {
+        if (effName.contains("vignette")) {
+            val radiusVal = (parameters["radius"] ?: parameters["strength"] ?: 0.8).toFloat().coerceIn(0.2f, 1.0f)
             val cx = w / 2f
             val cy = h / 2f
-            val radius = kotlin.math.sqrt((cx * cx + cy * cy).toDouble()).toFloat()
+            val radius = kotlin.math.sqrt((cx * cx + cy * cy).toDouble()).toFloat() * radiusVal
             val shader = RadialGradient(
                 cx, cy, radius,
-                intArrayOf(Color.TRANSPARENT, Color.argb(160, 0, 0, 0)),
-                floatArrayOf(0.5f, 1.0f),
+                intArrayOf(Color.TRANSPARENT, Color.argb(180, 0, 0, 0)),
+                floatArrayOf(0.4f, 1.0f),
                 Shader.TileMode.CLAMP
             )
             val vigPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -623,18 +737,17 @@ object OverlayRenderer {
         val u = width / 375f
 
         val cacheKey = if (clip.clipType != "video") {
-            "${clip.id}_${clip.clipType}_${clip.label}_${clip.scale}_${clip.rotation}_${clip.opacity}_${clip.colorGrading.hashCode()}_${clip.chromaKey.hashCode()}_${width}x${height}"
+            "${clip.id}_${clip.clipType}_${clip.label}_${clip.scale}_${width}x${height}"
         } else null
 
-        var overlayBmp: Bitmap? = if (cacheKey != null) clipBitmapCache[cacheKey] else null
-        val isCached = overlayBmp != null
+        var baseBmp: Bitmap? = if (cacheKey != null) clipBitmapCache[cacheKey] else null
 
-        if (overlayBmp == null) {
+        if (baseBmp == null) {
             when (clip.clipType) {
             "drawing" -> {
                 if (clip.strokes.isNotEmpty()) {
                     val size = (120 * clip.scale * u).toInt().coerceAtLeast(16)
-                    overlayBmp = renderDrawingOverlay(clip.strokes, size, size)
+                    baseBmp = renderDrawingOverlay(clip.strokes, size, size)
                 }
             }
             "element" -> {
@@ -664,7 +777,7 @@ object OverlayRenderer {
                                     style = Paint.Style.FILL
                                 }
                                 elCanvas.drawPath(path, elPaint)
-                                overlayBmp = elBmp
+                                baseBmp = elBmp
                             }
                         }
                     } catch (e: Exception) {
@@ -672,7 +785,7 @@ object OverlayRenderer {
                     }
                 }
 
-                if (overlayBmp == null) {
+                if (baseBmp == null) {
                     val elBmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
                     val elCanvas = Canvas(elBmp)
                     val fillColor = clip.elementProperties.fillColor.toInt()
@@ -762,17 +875,17 @@ object OverlayRenderer {
                             }
                         }
                     }
-                    overlayBmp = elBmp
+                    baseBmp = elBmp
                 }
             }
             "sticker" -> {
                 val path = clip.stickerAssetPath?.takeIf { it.isNotEmpty() } ?: clip.sourcePath
                 if (path != null) {
-                    overlayBmp = loadBitmap(context, path, (150 * clip.scale * u).toInt().coerceAtLeast(16), (150 * clip.scale * u).toInt().coerceAtLeast(16))
+                    baseBmp = loadBitmap(context, path, (150 * clip.scale * u).toInt().coerceAtLeast(16), (150 * clip.scale * u).toInt().coerceAtLeast(16))
                 }
             }
             "text", "caption" -> {
-                overlayBmp = renderTextOverlay(
+                baseBmp = renderTextOverlay(
                     context = context,
                     text = clip.label,
                     width = width,
@@ -795,7 +908,7 @@ object OverlayRenderer {
             "image" -> {
                 val path = clip.sourcePath
                 if (path != null) {
-                    overlayBmp = loadBitmap(context, path, (180 * clip.scale * u).toInt().coerceAtLeast(16), (180 * clip.scale * u).toInt().coerceAtLeast(16))
+                    baseBmp = loadBitmap(context, path, (180 * clip.scale * u).toInt().coerceAtLeast(16), (180 * clip.scale * u).toInt().coerceAtLeast(16))
                 }
             }
             "video" -> {
@@ -811,8 +924,8 @@ object OverlayRenderer {
                         }
                         val frame = retriever.getFrameAtTime(frameMs * 1000L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                         if (frame != null) {
-                            overlayBmp = Bitmap.createScaledBitmap(frame, (180 * clip.scale * u).toInt().coerceAtLeast(16), (180 * clip.scale * u).toInt().coerceAtLeast(16), true)
-                            if (overlayBmp != frame) frame.recycle()
+                            baseBmp = Bitmap.createScaledBitmap(frame, (180 * clip.scale * u).toInt().coerceAtLeast(16), (180 * clip.scale * u).toInt().coerceAtLeast(16), true)
+                            if (baseBmp != frame) frame.recycle()
                         }
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to extract video frame for overlay", e)
@@ -822,54 +935,65 @@ object OverlayRenderer {
                 }
             }
             else -> {
-                overlayBmp = renderTextOverlay(context, clip.label, width, height, scaleMultiplier = clip.scale.toFloat())
+                baseBmp = renderTextOverlay(context, clip.label, width, height, scaleMultiplier = clip.scale.toFloat())
             }
         }
 
-        if (overlayBmp == null) return
+            if (cacheKey != null && baseBmp != null) {
+                clipBitmapCache[cacheKey] = baseBmp
+            }
+        }
+
+        val rawBase = baseBmp ?: return
+        var processedBmp: Bitmap = rawBase.copy(Bitmap.Config.ARGB_8888, true)
 
         if (clip.chromaKey.enabled) {
             val keyed = applyChromaKey(
-                bitmap = overlayBmp,
+                bitmap = processedBmp,
                 keyColor = clip.chromaKey.keyColor,
                 similarity = clip.chromaKey.similarity,
                 smoothness = clip.chromaKey.smoothness,
                 spill = clip.chromaKey.spill,
                 outputMode = clip.chromaKey.output
             )
-            if (keyed != overlayBmp && !overlayBmp.isRecycled) {
-                overlayBmp.recycle()
+            if (keyed != processedBmp && !processedBmp.isRecycled) {
+                processedBmp.recycle()
             }
-            overlayBmp = keyed
+            processedBmp = keyed
         }
 
         if (clip.colorGrading.brightness != 0.0 || clip.colorGrading.contrast != 1.0 ||
             clip.colorGrading.saturation != 1.0 || clip.colorGrading.temperature != 0.0 ||
             clip.colorGrading.exposure != 0.0 || clip.colorGrading.vignette != 0.0) {
-            val graded = applyColorGrading(overlayBmp, clip.colorGrading)
-            if (graded != overlayBmp && !overlayBmp.isRecycled) {
-                overlayBmp.recycle()
+            val graded = applyColorGrading(processedBmp, clip.colorGrading)
+            if (graded != processedBmp && !processedBmp.isRecycled) {
+                processedBmp.recycle()
             }
-            overlayBmp = graded
+            processedBmp = graded
         }
 
         if (clip.effect != "none") {
-            val curBmp = overlayBmp
-            if (curBmp != null) {
-                val fxBmp = applyVideoEffect(curBmp, clip.effect)
-                if (fxBmp != curBmp && !curBmp.isRecycled) {
-                    curBmp.recycle()
+            val fxBmp = applyVideoEffect(processedBmp, clip.effect, clip.effectParameters)
+            if (fxBmp != processedBmp && !processedBmp.isRecycled) {
+                processedBmp.recycle()
+            }
+            processedBmp = fxBmp
+        }
+
+        if (clip.shaderEffects.isNotEmpty()) {
+            val clipRelMs = timelineMs - clip.timelineStartMs
+            for (shaderFx in clip.shaderEffects) {
+                if (shaderFx.isEnabled && clipRelMs >= shaderFx.startMs && clipRelMs <= shaderFx.endMs) {
+                    val activeParams = shaderFx.getInterpolatedParameters(clipRelMs)
+                    val fxBmp = applyVideoEffect(processedBmp, shaderFx.effectId, activeParams)
+                    if (fxBmp != processedBmp && !processedBmp.isRecycled) {
+                        processedBmp.recycle()
+                    }
+                    processedBmp = fxBmp
                 }
-                overlayBmp = fxBmp
             }
         }
 
-            if (cacheKey != null && overlayBmp != null) {
-                clipBitmapCache[cacheKey] = overlayBmp
-            }
-        }
-
-        val bmpToDraw = overlayBmp ?: return
         val relTimeMs = timelineMs - clip.timelineStartMs
         val posX = getInterpolatedKeyframeValue(clip, "positionX", relTimeMs, clip.positionX)
         val posY = getInterpolatedKeyframeValue(clip, "positionY", relTimeMs, clip.positionY)
@@ -887,11 +1011,15 @@ object OverlayRenderer {
             paint.alpha = (finalOpacity * 255).toInt().coerceIn(0, 255)
         }
 
-        canvas.drawBitmap(bmpToDraw, matrix, paint)
+        canvas.drawBitmap(processedBmp, matrix, paint)
         canvas.restore()
 
-        if (cacheKey == null && !isCached && overlayBmp != null && !overlayBmp.isRecycled) {
-            overlayBmp.recycle()
+        if (!processedBmp.isRecycled) {
+            processedBmp.recycle()
+        }
+
+        if (cacheKey == null && !rawBase.isRecycled) {
+            rawBase.recycle()
         }
     }
 }

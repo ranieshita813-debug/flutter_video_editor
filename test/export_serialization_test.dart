@@ -28,7 +28,7 @@ void main() {
         anchorX: 0.25,
         anchorY: 0.75,
         effect: VideoEffect.cinematic,
-        effectParameters: const <String, double>{'intensity': 0.75},
+        effectParameters: const <String, double>{'intensity': 0.75, 'blurAmount': 2.5},
         inAnimation: ClipAnimation.fadeIn,
         outAnimation: ClipAnimation.fadeOut,
         loopAnimation: ClipAnimation.bounce,
@@ -48,7 +48,22 @@ void main() {
           ),
         ],
         shaderEffects: const <ShaderEffectClip>[
-          ShaderEffectClip(id: 'shader1', effectId: 'glow', name: 'Glow'),
+          ShaderEffectClip(
+            id: 'shader1',
+            effectId: 'glow',
+            name: 'Glow Effect',
+            parameterValues: <String, dynamic>{'intensity': 0.8, 'radius': 12.0},
+            keyframeAnimations: <KeyframeAnimation>[
+              KeyframeAnimation(
+                id: 'ka1',
+                parameterId: 'intensity',
+                keyframes: <ShaderKeyframe>[
+                  ShaderKeyframe(id: 'skf1', time: Duration.zero, value: 0.2),
+                  ShaderKeyframe(id: 'skf2', time: Duration(seconds: 2), value: 0.8),
+                ],
+              ),
+            ],
+          ),
         ],
         words: const <CaptionWord>[
           CaptionWord(word: 'Hello', start: Duration.zero, end: Duration(seconds: 1)),
@@ -73,7 +88,9 @@ void main() {
       expect(restoredClip.id, equals('test_clip_1'));
       expect(restoredClip.anchorX, equals(0.25));
       expect(restoredClip.anchorY, equals(0.75));
+      expect(restoredClip.effect, equals('cinematic'));
       expect(restoredClip.effectParameters['intensity'], equals(0.75));
+      expect(restoredClip.effectParameters['blurAmount'], equals(2.5));
       expect(restoredClip.inAnimation, equals('fadeIn'));
       expect(restoredClip.outAnimation, equals('fadeOut'));
       expect(restoredClip.loopAnimation, equals('bounce'));
@@ -81,6 +98,13 @@ void main() {
       expect(restoredClip.maskProperties['type'], equals('circle'));
       expect(restoredClip.keyframes.length, equals(1));
       expect(restoredClip.shaderEffects.length, equals(1));
+
+      final shaderFx = restoredClip.shaderEffects.first;
+      expect(shaderFx['effectId'], equals('glow'));
+      expect(shaderFx['parameterValues']['intensity'], equals(0.8));
+      expect(shaderFx['parameterValues']['radius'], equals(12.0));
+      expect((shaderFx['keyframeAnimations'] as List).length, equals(1));
+
       expect(restoredClip.words.length, equals(1));
     });
   });
