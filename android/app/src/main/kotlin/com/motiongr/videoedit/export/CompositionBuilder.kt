@@ -226,83 +226,6 @@ object CompositionBuilder {
         return list
     }
 
-    /**
-     * রিয়েল কালার গ্রেডিং (পুরনো ColorGradingEffect একটি আইডেন্টিটি ম্যাট্রিক্স রিটার্ন করত = নো-অপ)।
-     * অনুমানকৃত রেঞ্জ: brightness -1..1, contrast 1.0 = নিউট্রাল, saturation 1.0 = নিউট্রাল,
-     * temperature/tint -1..1, exposure EV স্টপে। Vignette সমর্থিত নয় (কাস্টম শেডার প্রয়োজন)।
-     */
-    private fun videoEffectToMedia3(effect: String, parameters: Map<String, Double> = emptyMap()): List<Effect> {
-        val out = mutableListOf<Effect>()
-        val effName = effect.lowercase()
-        val intensity = (parameters["intensity"] ?: parameters["amount"] ?: parameters["strength"] ?: 1.0).toFloat()
-
-        when {
-            effName == "warm" || effName.contains("warm") -> {
-                out += Brightness(0.05f * intensity)
-                out += RgbAdjustment.Builder().setRedScale(1.2f * intensity).setGreenScale(1.05f * intensity).setBlueScale(0.85f).build()
-            }
-            effName == "cinematic" || effName.contains("cinematic") -> {
-                out += Contrast(0.2f * intensity)
-                out += HslAdjustment.Builder().adjustSaturation((-15f * intensity).coerceIn(-100f, 100f)).build()
-                out += RgbAdjustment.Builder().setRedScale(0.9f).setGreenScale(1.0f).setBlueScale(1.2f * intensity).build()
-            }
-            effName == "noir" || effName.contains("noir") || effName.contains("monochrome") || effName.contains("blackandwhite") || effName == "bw" -> {
-                out += HslAdjustment.Builder().adjustSaturation(-100f).build()
-                out += Contrast(0.3f * intensity)
-            }
-            effName == "vibrant" || effName.contains("vibrant") -> {
-                out += HslAdjustment.Builder().adjustSaturation((50f * intensity).coerceIn(-100f, 100f)).build()
-                out += Contrast(0.15f * intensity)
-            }
-            effName == "vintage" || effName == "retro" || effName.contains("vintage") || effName.contains("retro") || effName.contains("sepia") -> {
-                out += HslAdjustment.Builder().adjustSaturation(-25f).build()
-                out += RgbAdjustment.Builder().setRedScale(1.2f * intensity).setGreenScale(1.0f).setBlueScale(0.75f).build()
-            }
-            effName.contains("glitch") || effName.contains("vhs") || effName.contains("chromatic") || effName.contains("split") || effName.contains("aberration") -> {
-                out += Contrast(0.2f * intensity)
-                out += RgbAdjustment.Builder().setRedScale(1.25f * intensity).setGreenScale(0.9f).setBlueScale(1.3f * intensity).build()
-            }
-            effName == "matrix" || effName.contains("matrix") -> {
-                out += RgbAdjustment.Builder().setRedScale(0.2f).setGreenScale(1.8f * intensity).setBlueScale(0.2f).build()
-                out += Contrast(0.3f * intensity)
-            }
-            effName.contains("flame") || effName.contains("leak") || effName.contains("fire") -> {
-                out += Brightness(0.12f * intensity)
-                out += RgbAdjustment.Builder().setRedScale(1.4f * intensity).setGreenScale(1.15f * intensity).setBlueScale(0.75f).build()
-            }
-            effName.contains("glow") || effName.contains("bloom") -> {
-                out += Brightness(0.12f * intensity)
-                out += HslAdjustment.Builder().adjustSaturation((30f * intensity).coerceIn(-100f, 100f)).build()
-                out += Contrast(0.15f * intensity)
-            }
-            effName.contains("vignette") -> {
-                val strength = (parameters["strength"] ?: parameters["radius"] ?: intensity.toDouble()).toFloat()
-                out += Contrast(0.2f * strength)
-                out += Brightness(-0.08f * strength)
-            }
-            effName.contains("sharpen") -> {
-                out += Contrast(0.3f * intensity)
-            }
-            effName.contains("blur") -> {
-                val blurVal = (parameters["blurAmount"] ?: parameters["blur"] ?: intensity.toDouble()).toFloat()
-                out += Contrast(-0.15f * blurVal)
-                out += HslAdjustment.Builder().adjustSaturation(-10f * blurVal).build()
-            }
-            effName.contains("pixelate") || effName.contains("mosaic") -> {
-                out += Contrast(0.25f * intensity)
-            }
-            effName.contains("grain") -> {
-                out += Contrast(0.2f * intensity)
-                out += Brightness(0.05f * intensity)
-            }
-            effName != "none" && effName.isNotEmpty() -> {
-                out += Contrast(0.15f * intensity)
-                out += Brightness(0.05f * intensity)
-            }
-        }
-        return out
-    }
-
     private fun colorEffects(cg: ColorGradingSpec): List<Effect> {
         val out = mutableListOf<Effect>()
         
@@ -516,13 +439,39 @@ object CompositionBuilder {
             )
 
             if (!isCard) {
-                videoEffects += colorEffects(clip.colorGrading)
-                if (clip.effect != "none") {
-                    videoEffects += videoEffectToMedia3(clip.effect, clip.effectParameters)
+                if (clip.chromaKey.enabled) {
+                    videoEffects += ChromaKeyEffect(
+                        keyColor = clip.chromaKey.keyColor.toInt(),
+                        similarity = (clip.chromaKey.similarity / 100.0).toFloat().coerceIn(0.01f, 1.0f),
+                        smoothness = (clip.chromaKey.smoothness / 100.0).toFloat().coerceIn(0.001f, 1.0f),
+                        spillSuppress = (clip.chromaKey.spill / 100.0).toFloat().coerceIn(0.0f, 1.0f)
+                    )
                 }
+
+                videoEffects += colorEffects(clip.colorGrading)
+
+                if (clip.effect != "none" && clip.effect.isNotEmpty()) {
+                    videoEffects += CustomShaderEffect(
+                        context = context,
+                        effectId = clip.effect,
+                        initialParameters = clip.effectParameters,
+                        startMs = clip.timelineStartMs,
+                        endMs = clip.timelineStartMs + clip.timelineDurationMs,
+                        baseStartMs = clip.timelineStartMs
+                    )
+                }
+
                 for (shaderFx in clip.shaderEffects) {
                     if (shaderFx.isEnabled) {
-                        videoEffects += videoEffectToMedia3(shaderFx.effectId, shaderFx.parameterValues)
+                        videoEffects += CustomShaderEffect(
+                            context = context,
+                            effectId = shaderFx.effectId,
+                            initialParameters = shaderFx.parameterValues,
+                            shaderEffectSpec = shaderFx,
+                            startMs = shaderFx.startMs,
+                            endMs = shaderFx.endMs,
+                            baseStartMs = clip.timelineStartMs
+                        )
                     }
                 }
             }
