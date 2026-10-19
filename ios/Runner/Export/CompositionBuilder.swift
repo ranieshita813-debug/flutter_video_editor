@@ -17,49 +17,60 @@ class CompositionBuilder {
 
         func processEffect(effName: String, params: [String: Double]) {
             let eff = effName.lowercased()
-            let intensity = params["intensity"] ?? params["amount"] ?? 1.0
+            let intensity = params["intensity"] ?? params["amount"] ?? params["strength"] ?? 1.0
 
-            switch eff {
-            case "sepia", "vintage", "retro":
+            if eff.contains("sepia") || eff.contains("vintage") || eff.contains("retro") {
                 if let filter = CIFilter(name: "CISepiaTone") {
                     filter.setValue(ciImage, forKey: kCIInputImageKey)
                     filter.setValue(intensity, forKey: kCIInputIntensityKey)
                     if let output = filter.outputImage { ciImage = output }
                 }
-            case "noir", "monochrome":
+            } else if eff.contains("noir") || eff.contains("monochrome") || eff.contains("bw") {
                 if let filter = CIFilter(name: "CIPhotoEffectNoir") {
                     filter.setValue(ciImage, forKey: kCIInputImageKey)
                     if let output = filter.outputImage { ciImage = output }
                 }
-            case "blur":
+            } else if eff.contains("blur") {
                 let blurRadius = params["blurAmount"] ?? params["blur"] ?? (intensity * 5.0)
                 if let filter = CIFilter(name: "CIGaussianBlur") {
                     filter.setValue(ciImage, forKey: kCIInputImageKey)
                     filter.setValue(blurRadius, forKey: kCIInputRadiusKey)
                     if let output = filter.outputImage { ciImage = output }
                 }
-            case "vibrance", "vibrant":
+            } else if eff.contains("vibrant") || eff.contains("vibrance") {
                 if let filter = CIFilter(name: "CIVibrance") {
                     filter.setValue(ciImage, forKey: kCIInputImageKey)
                     filter.setValue(intensity * 1.5, forKey: "inputAmount")
                     if let output = filter.outputImage { ciImage = output }
                 }
-            case "glow", "dreambloom", "dream_bloom":
+            } else if eff.contains("glow") || eff.contains("bloom") {
                 if let filter = CIFilter(name: "CIBloom") {
                     filter.setValue(ciImage, forKey: kCIInputImageKey)
                     filter.setValue(intensity * 10.0, forKey: kCIInputRadiusKey)
                     filter.setValue(intensity * 0.8, forKey: kCIInputIntensityKey)
                     if let output = filter.outputImage { ciImage = output }
                 }
-            case "vignette", "cinematicvignette", "cinematic_vignette":
+            } else if eff.contains("vignette") {
                 if let filter = CIFilter(name: "CIVignette") {
                     filter.setValue(ciImage, forKey: kCIInputImageKey)
                     filter.setValue(intensity * 2.0, forKey: kCIInputIntensityKey)
                     filter.setValue(intensity * 3.0, forKey: kCIInputRadiusKey)
                     if let output = filter.outputImage { ciImage = output }
                 }
-            default:
-                break
+            } else if eff.contains("pixelate") || eff.contains("mosaic") {
+                let scaleVal = params["sizePx"] ?? (intensity * 10.0)
+                if let filter = CIFilter(name: "CIPixellate") {
+                    filter.setValue(ciImage, forKey: kCIInputImageKey)
+                    filter.setValue(scaleVal, forKey: kCIInputScaleKey)
+                    if let output = filter.outputImage { ciImage = output }
+                }
+            } else if eff.contains("chromatic") || eff.contains("glitch") || eff.contains("vhs") {
+                if let filter = CIFilter(name: "CIColorControls") {
+                    filter.setValue(ciImage, forKey: kCIInputImageKey)
+                    filter.setValue(intensity * 1.2, forKey: kCIInputContrastKey)
+                    filter.setValue(intensity * 1.3, forKey: kCIInputSaturationKey)
+                    if let output = filter.outputImage { ciImage = output }
+                }
             }
         }
 

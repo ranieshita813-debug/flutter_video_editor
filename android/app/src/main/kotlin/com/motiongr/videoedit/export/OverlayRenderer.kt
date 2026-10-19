@@ -583,21 +583,21 @@ object OverlayRenderer {
         if (w <= 0 || h <= 0) return bitmap
 
         val effName = effect.lowercase()
-        val intensity = (parameters["intensity"] ?: parameters["amount"] ?: 1.0).toFloat()
+        val intensity = (parameters["intensity"] ?: parameters["amount"] ?: parameters["strength"] ?: 1.0).toFloat()
 
-        when (effName) {
-            "blur" -> {
+        when {
+            effName.contains("blur") -> {
                 val blurAmt = (parameters["blurAmount"] ?: parameters["blur"] ?: (intensity * 5.0)).toFloat()
                 return applyBoxBlur(bitmap, blurAmt)
             }
-            "mosaic_pixelate", "mosaicpixelate" -> {
+            effName.contains("pixelate") || effName.contains("mosaic") -> {
                 val pSize = (parameters["sizePx"] ?: (intensity * 12.0)).toFloat()
                 return applyPixelate(bitmap, pSize)
             }
-            "film_grain", "filmgrain" -> {
+            effName.contains("grain") -> {
                 return applyFilmGrain(bitmap, intensity)
             }
-            "chromatic_aberration", "chromaticaberration" -> {
+            effName.contains("chromatic") || effName.contains("aberration") || effName.contains("rgbsplit") -> {
                 return applyRgbSplit(bitmap, intensity)
             }
         }
@@ -606,8 +606,8 @@ object OverlayRenderer {
         val canvas = Canvas(output)
         val cm = ColorMatrix()
 
-        when (effName) {
-            "warm" -> {
+        when {
+            effName == "warm" || effName.contains("warm") -> {
                 cm.set(floatArrayOf(
                     1.2f * intensity, 0f, 0f, 0f, 10f * intensity,
                     0f, 1.05f * intensity, 0f, 0f, 5f * intensity,
@@ -615,7 +615,7 @@ object OverlayRenderer {
                     0f, 0f, 0f, 1f, 0f
                 ))
             }
-            "cinematic" -> {
+            effName == "cinematic" || effName.contains("cinematic") -> {
                 cm.setSaturation(0.8f)
                 val cCm = ColorMatrix(floatArrayOf(
                     0.9f, 0f, 0f, 0f, 5f,
@@ -625,7 +625,7 @@ object OverlayRenderer {
                 ))
                 cm.postConcat(cCm)
             }
-            "noir" -> {
+            effName == "noir" || effName.contains("noir") || effName.contains("monochrome") || effName.contains("blackandwhite") || effName == "bw" -> {
                 cm.setSaturation(0f)
                 val cCm = ColorMatrix(floatArrayOf(
                     1.3f, 0f, 0f, 0f, -20f,
@@ -635,10 +635,10 @@ object OverlayRenderer {
                 ))
                 cm.postConcat(cCm)
             }
-            "vibrant" -> {
+            effName == "vibrant" || effName.contains("vibrant") -> {
                 cm.setSaturation(1.5f * intensity)
             }
-            "vintage", "retro" -> {
+            effName == "vintage" || effName == "retro" || effName.contains("vintage") || effName.contains("retro") || effName.contains("sepia") -> {
                 cm.setSaturation(0.75f)
                 val vCm = ColorMatrix(floatArrayOf(
                     1.1f, 0f, 0f, 0f, 15f,
@@ -648,7 +648,7 @@ object OverlayRenderer {
                 ))
                 cm.postConcat(vCm)
             }
-            "glitch", "vhs", "vhs_tape", "vhstape", "digital_glitch" -> {
+            effName.contains("glitch") || effName.contains("vhs") -> {
                 cm.set(floatArrayOf(
                     1.15f * intensity, 0f, 0.1f, 0f, 10f * intensity,
                     0f, 0.95f, 0f, 0f, 0f,
@@ -656,7 +656,7 @@ object OverlayRenderer {
                     0f, 0f, 0f, 1f, 0f
                 ))
             }
-            "matrix" -> {
+            effName == "matrix" || effName.contains("matrix") -> {
                 cm.set(floatArrayOf(
                     0.3f, 0f, 0f, 0f, 0f,
                     0f, 1.4f * intensity, 0f, 0f, 20f * intensity,
@@ -664,7 +664,7 @@ object OverlayRenderer {
                     0f, 0f, 0f, 1f, 0f
                 ))
             }
-            "flame", "light_leak", "lightleak" -> {
+            effName.contains("flame") || effName.contains("leak") || effName.contains("fire") -> {
                 cm.set(floatArrayOf(
                     1.3f * intensity, 0f, 0f, 0f, 25f * intensity,
                     0f, 1.1f * intensity, 0f, 0f, 10f * intensity,
@@ -672,7 +672,7 @@ object OverlayRenderer {
                     0f, 0f, 0f, 1f, 0f
                 ))
             }
-            "glow", "dream_bloom", "dreambloom" -> {
+            effName.contains("glow") || effName.contains("bloom") -> {
                 cm.setSaturation(1.3f * intensity)
                 val gCm = ColorMatrix(floatArrayOf(
                     1.1f, 0f, 0f, 0f, 15f * intensity,
@@ -682,7 +682,7 @@ object OverlayRenderer {
                 ))
                 cm.postConcat(gCm)
             }
-            "crisp_sharpen", "crispsharpen" -> {
+            effName.contains("sharpen") -> {
                 cm.set(floatArrayOf(
                     1.2f * intensity, -0.1f, -0.1f, 0f, 0f,
                     -0.1f, 1.2f * intensity, -0.1f, 0f, 0f,
@@ -690,7 +690,7 @@ object OverlayRenderer {
                     0f, 0f, 0f, 1f, 0f
                 ))
             }
-            "vignette", "cinematic_vignette", "cinematicvignette" -> {
+            effName.contains("vignette") -> {
                 cm.setSaturation(0.9f)
             }
             else -> {

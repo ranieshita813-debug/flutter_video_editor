@@ -234,59 +234,70 @@ object CompositionBuilder {
     private fun videoEffectToMedia3(effect: String, parameters: Map<String, Double> = emptyMap()): List<Effect> {
         val out = mutableListOf<Effect>()
         val effName = effect.lowercase()
-        val intensity = (parameters["intensity"] ?: parameters["amount"] ?: 1.0).toFloat()
+        val intensity = (parameters["intensity"] ?: parameters["amount"] ?: parameters["strength"] ?: 1.0).toFloat()
 
-        when (effName) {
-            "warm" -> {
+        when {
+            effName == "warm" || effName.contains("warm") -> {
                 out += Brightness(0.05f * intensity)
                 out += RgbAdjustment.Builder().setRedScale(1.2f * intensity).setGreenScale(1.05f * intensity).setBlueScale(0.85f).build()
             }
-            "cinematic" -> {
-                out += Contrast(0.15f * intensity)
+            effName == "cinematic" || effName.contains("cinematic") -> {
+                out += Contrast(0.2f * intensity)
                 out += HslAdjustment.Builder().adjustSaturation((-15f * intensity).coerceIn(-100f, 100f)).build()
                 out += RgbAdjustment.Builder().setRedScale(0.9f).setGreenScale(1.0f).setBlueScale(1.2f * intensity).build()
             }
-            "noir" -> {
+            effName == "noir" || effName.contains("noir") || effName.contains("monochrome") || effName.contains("blackandwhite") || effName == "bw" -> {
                 out += HslAdjustment.Builder().adjustSaturation(-100f).build()
                 out += Contrast(0.3f * intensity)
             }
-            "vibrant" -> {
-                out += HslAdjustment.Builder().adjustSaturation((40f * intensity).coerceIn(-100f, 100f)).build()
-                out += Contrast(0.1f * intensity)
+            effName == "vibrant" || effName.contains("vibrant") -> {
+                out += HslAdjustment.Builder().adjustSaturation((50f * intensity).coerceIn(-100f, 100f)).build()
+                out += Contrast(0.15f * intensity)
             }
-            "vintage", "retro" -> {
-                out += HslAdjustment.Builder().adjustSaturation(-20f).build()
-                out += RgbAdjustment.Builder().setRedScale(1.1f * intensity).setGreenScale(0.95f).setBlueScale(0.8f).build()
+            effName == "vintage" || effName == "retro" || effName.contains("vintage") || effName.contains("retro") || effName.contains("sepia") -> {
+                out += HslAdjustment.Builder().adjustSaturation(-25f).build()
+                out += RgbAdjustment.Builder().setRedScale(1.2f * intensity).setGreenScale(1.0f).setBlueScale(0.75f).build()
             }
-            "glitch", "vhs", "vhstape", "vhs_tape", "chromaticaberration", "chromatic_aberration", "digital_glitch" -> {
-                out += RgbAdjustment.Builder().setRedScale(1.15f * intensity).setGreenScale(0.95f).setBlueScale(1.2f * intensity).build()
-            }
-            "matrix" -> {
-                out += RgbAdjustment.Builder().setRedScale(0.3f).setGreenScale(1.4f * intensity).setBlueScale(0.3f).build()
+            effName.contains("glitch") || effName.contains("vhs") || effName.contains("chromatic") || effName.contains("split") || effName.contains("aberration") -> {
                 out += Contrast(0.2f * intensity)
+                out += RgbAdjustment.Builder().setRedScale(1.25f * intensity).setGreenScale(0.9f).setBlueScale(1.3f * intensity).build()
             }
-            "flame", "lightleak", "light_leak" -> {
-                out += Brightness(0.08f * intensity)
-                out += RgbAdjustment.Builder().setRedScale(1.3f * intensity).setGreenScale(1.1f * intensity).setBlueScale(0.8f).build()
+            effName == "matrix" || effName.contains("matrix") -> {
+                out += RgbAdjustment.Builder().setRedScale(0.2f).setGreenScale(1.8f * intensity).setBlueScale(0.2f).build()
+                out += Contrast(0.3f * intensity)
             }
-            "glow", "dreambloom", "dream_bloom" -> {
-                out += Brightness(0.08f * intensity)
-                out += HslAdjustment.Builder().adjustSaturation((25f * intensity).coerceIn(-100f, 100f)).build()
+            effName.contains("flame") || effName.contains("leak") || effName.contains("fire") -> {
+                out += Brightness(0.12f * intensity)
+                out += RgbAdjustment.Builder().setRedScale(1.4f * intensity).setGreenScale(1.15f * intensity).setBlueScale(0.75f).build()
             }
-            "vignette", "cinematicvignette", "cinematic_vignette" -> {
-                val strength = (parameters["strength"] ?: parameters["radius"] ?: 0.6).toFloat()
-                out += Contrast(0.1f * strength)
+            effName.contains("glow") || effName.contains("bloom") -> {
+                out += Brightness(0.12f * intensity)
+                out += HslAdjustment.Builder().adjustSaturation((30f * intensity).coerceIn(-100f, 100f)).build()
+                out += Contrast(0.15f * intensity)
             }
-            "crisp_sharpen", "crispsharpen" -> {
+            effName.contains("vignette") -> {
+                val strength = (parameters["strength"] ?: parameters["radius"] ?: intensity.toDouble()).toFloat()
+                out += Contrast(0.2f * strength)
+                out += Brightness(-0.08f * strength)
+            }
+            effName.contains("sharpen") -> {
+                out += Contrast(0.3f * intensity)
+            }
+            effName.contains("blur") -> {
+                val blurVal = (parameters["blurAmount"] ?: parameters["blur"] ?: intensity.toDouble()).toFloat()
+                out += Contrast(-0.15f * blurVal)
+                out += HslAdjustment.Builder().adjustSaturation(-10f * blurVal).build()
+            }
+            effName.contains("pixelate") || effName.contains("mosaic") -> {
                 out += Contrast(0.25f * intensity)
             }
-            "blur" -> {
-                out += Contrast(-0.1f * intensity)
+            effName.contains("grain") -> {
+                out += Contrast(0.2f * intensity)
+                out += Brightness(0.05f * intensity)
             }
-            else -> {
-                if (effName != "none") {
-                    out += Contrast(0.05f * intensity)
-                }
+            effName != "none" && effName.isNotEmpty() -> {
+                out += Contrast(0.15f * intensity)
+                out += Brightness(0.05f * intensity)
             }
         }
         return out
