@@ -1536,15 +1536,24 @@ class _WavePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (amps.isEmpty) return;
     final Paint p = Paint()
-      ..color = const Color(0xFFCFCFCF)
-      ..strokeWidth = 1.5
+      ..color = const Color(0xFF00C4D6)
+      ..strokeWidth = math.max(1.5, (size.width / amps.length) * 0.65)
       ..strokeCap = StrokeCap.round;
     final double gap = size.width / amps.length;
+    final double centerY = size.height / 2;
+    final double maxH = size.height - 6;
+
     for (int i = 0; i < amps.length; i++) {
       final double x = gap * (i + 0.5);
-      final double h = math.max(2.0, amps[i].clamp(0.0, 1.0) * (size.height - 8));
+      // RMS amplitude curve response
+      final double val = amps[i].clamp(0.0, 1.0);
+      final double rmsScale = math.sqrt(val);
+      final double h = math.max(2.0, rmsScale * maxH);
       canvas.drawLine(
-          Offset(x, size.height / 2 - h / 2), Offset(x, size.height / 2 + h / 2), p);
+        Offset(x, centerY - h / 2),
+        Offset(x, centerY + h / 2),
+        p,
+      );
     }
   }
 

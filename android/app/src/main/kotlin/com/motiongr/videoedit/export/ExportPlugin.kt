@@ -595,7 +595,8 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
             codec.configure(format, null, null, 0)
             codec.start()
 
-            val peaks = DoubleArray(buckets)
+            val sums = DoubleArray(buckets)
+            val counts = IntArray(buckets)
             val info = MediaCodec.BufferInfo()
             var inputDone = false
             var outputDone = false
@@ -637,10 +638,10 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                             val ch = max(channels, 1)
                             if (isFloat) {
                                 val fb = buf.asFloatBuffer()
-                                accumulate(peaks, fb.remaining() / ch, ch, info.presentationTimeUs, sampleRate, durationUs) { idx -> abs(fb.get(idx)).toDouble() }
+                                accumulateRms(sums, counts, fb.remaining() / ch, ch, info.presentationTimeUs, sampleRate, durationUs) { idx -> fb.get(idx).toDouble() }
                             } else {
                                 val sb = buf.asShortBuffer()
-                                accumulate(peaks, sb.remaining() / ch, ch, info.presentationTimeUs, sampleRate, durationUs) { idx -> abs(sb.get(idx).toInt()) / 32768.0 }
+                                accumulateRms(sums, counts, sb.remaining() / ch, ch, info.presentationTimeUs, sampleRate, durationUs) { idx -> sb.get(idx).toInt() / 32768.0 }
                             }
                         }
                         codec.releaseOutputBuffer(outIdx, false)
@@ -651,8 +652,11 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                 }
             }
 
-            val maxPeak = peaks.maxOrNull() ?: 0.0
-            return if (maxPeak > 0.0) peaks.map { (it / maxPeak).coerceIn(0.0, 1.0) } else peaks.toList()
+            val rms = DoubleArray(buckets) { i ->
+                if (counts[i] > 0) kotlin.math.sqrt(sums[i] / counts[i]) else 0.0
+            }
+            val maxRms = rms.maxOrNull() ?: 0.0
+            return if (maxRms > 0.0) rms.map { (it / maxRms).coerceIn(0.0, 1.0) } else rms.toList()
         } finally {
             try { codec?.stop() } catch (_: Exception) {}
             try { codec?.release() } catch (_: Exception) {}
@@ -660,8 +664,9 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
         }
     }
 
-    private inline fun accumulate(
-        peaks: DoubleArray,
+    private inline fun accumulateRms(
+        sums: DoubleArray,
+        counts: IntArray,
         frames: Int,
         channels: Int,
         ptsUs: Long,
@@ -669,15 +674,17 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
         durationUs: Long,
         sample: (Int) -> Double
     ) {
-        val buckets = peaks.size
+        val buckets = sums.size
         val sr = max(sampleRate, 1)
         for (f in 0 until frames) {
             val t = ptsUs + f * 1_000_000L / sr
             val b = (t * buckets / durationUs).toInt().coerceIn(0, buckets - 1)
-            var m = 0.0
             val base = f * channels
-            for (c in 0 until channels) m = max(m, sample(base + c))
-            if (m > peaks[b]) peaks[b] = m
+            for (c in 0 until channels) {
+                val s = sample(base + c)
+                sums[b] += s * s
+                counts[b]++
+            }
         }
     }
 

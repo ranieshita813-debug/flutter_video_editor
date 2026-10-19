@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/services/whisper_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 import 'package:flutter_video_editor/features/editor/widgets/timeline.dart';
 
 class _FakeWhisperService extends WhisperService {
@@ -146,6 +147,15 @@ void main() {
       });
 
       expect(containerFinder, findsAtLeastNWidgets(1));
+    });
+
+    test('fallbackWave generates normalized audio waveform amplitudes', () async {
+      final amplitudes = await fallbackWave('nonexistent_audio_path.mp3', 64);
+      expect(amplitudes.length, equals(64));
+      for (final amp in amplitudes) {
+        expect(amp, greaterThanOrEqualTo(0.0));
+        expect(amp, lessThanOrEqualTo(1.0));
+      }
     });
   });
 }
