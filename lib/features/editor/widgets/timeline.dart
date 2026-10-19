@@ -883,7 +883,22 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                         onTap: () {
                           tapFeedback();
                           editor.selectClip(list[i].id);
-                          showTransitionSheet(context);
+                          final clip = editor.project.clips.firstWhere(
+                            (c) => c.id == list[i].id,
+                            orElse: () => editor.project.clips.first,
+                          );
+                          final initialType = TransitionType.values.firstWhere(
+                            (t) => t.name.toLowerCase() == clip.transitionType.toLowerCase(),
+                            orElse: () => TransitionType.none,
+                          );
+                          showTransitionSheet(
+                            context,
+                            initial: initialType,
+                            initialSeconds: clip.transitionDurationMs / 1000.0,
+                            onApply: (type, seconds) {
+                              editor.updateTransitionForSelectedClip(type.name, (seconds * 1000).round());
+                            },
+                          );
                         },
                         child: Container(
                           width: 20 * _s,

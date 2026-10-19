@@ -779,28 +779,37 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addMediaClip(String path) {
-    _saveState();
-    final lower = path.toLowerCase();
-    final isVideo = lower.endsWith('.mp4') ||
-        lower.endsWith('.mov') ||
-        lower.endsWith('.m4v') ||
-        lower.endsWith('.3gp') ||
-        lower.endsWith('.mkv') ||
-        lower.endsWith('.avi') ||
-        lower.endsWith('.webm');
-    final isAudio = lower.endsWith('.mp3') ||
-        lower.endsWith('.wav') ||
-        lower.endsWith('.m4a') ||
-        lower.endsWith('.aac') ||
-        lower.endsWith('.flac') ||
-        lower.endsWith('.ogg') ||
-        lower.endsWith('.wma');
+  bool _isAudioPath(String path) {
+    final clean = path.toLowerCase().split('?').first;
+    return (clean.startsWith('content://') && clean.contains('audio')) ||
+        clean.endsWith('.mp3') ||
+        clean.endsWith('.wav') ||
+        clean.endsWith('.m4a') ||
+        clean.endsWith('.aac') ||
+        clean.endsWith('.flac') ||
+        clean.endsWith('.ogg') ||
+        clean.endsWith('.wma') ||
+        clean.endsWith('.opus') ||
+        clean.endsWith('.amr') ||
+        clean.endsWith('.oga') ||
+        clean.endsWith('.mid') ||
+        clean.endsWith('.midi');
+  }
 
-    if (isAudio) {
+  void addMediaClip(String path) {
+    if (_isAudioPath(path)) {
       addAudioTrack(path);
       return;
     }
+
+    _saveState();
+    final lower = path.toLowerCase();
+    final isVideo = !lower.endsWith('.jpg') &&
+        !lower.endsWith('.jpeg') &&
+        !lower.endsWith('.png') &&
+        !lower.endsWith('.webp') &&
+        !lower.endsWith('.heic') &&
+        !lower.endsWith('.gif');
 
     // Media is appended to the end of the main track so it can never overlap
     // an existing clip (the timeline assumes a gap-free, non-overlapping row).
@@ -852,6 +861,20 @@ class EditorController extends ChangeNotifier {
     } else {
       updateAnimations(outAnimation: animation);
     }
+  }
+
+  void updateTransitionForSelectedClip(String transitionType, int durationMs) {
+    if (_selectedClipId == null) return;
+    final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] = _project.clips[index].copyWith(
+      transitionType: transitionType,
+      transitionDurationMs: durationMs,
+    );
+    _autosave();
+    notifyListeners();
   }
 
   void toggleClipVisibility(String id) {
@@ -1345,11 +1368,13 @@ class EditorController extends ChangeNotifier {
   void addAudioTrack(String sourcePath, {String? trackName, double volume = 1.0, Duration? duration}) {
     _saveState();
     final name = trackName ?? sourcePath.split(RegExp(r'[\\/]')).last;
+    final clipId = 'audio_${DateTime.now().millisecondsSinceEpoch}';
+    final initialDuration = duration ?? const Duration(seconds: 15);
     final clip = TimelineClip(
-      id: 'audio_${DateTime.now().millisecondsSinceEpoch}',
+      id: clipId,
       label: name,
       start: playhead,
-      end: playhead + (duration ?? const Duration(seconds: 10)),
+      end: playhead + initialDuration,
       clipType: ClipType.audio,
       layerIndex: 1,
       volume: volume,
@@ -1361,6 +1386,30 @@ class EditorController extends ChangeNotifier {
     _selectedClipId = clip.id;
     _autosave();
     notifyListeners();
+
+    if (duration == null || duration == Duration.zero) {
+      _probeAudioDuration(clipId, sourcePath);
+    }
+  }
+
+  Future<void> _probeAudioDuration(String clipId, String path) async {
+    try {
+      final meta = await ExportService().probe(path);
+      final durMs = (meta['durationMs'] as num?)?.toInt() ?? 0;
+      if (durMs > 0) {
+        final idx = _project.clips.indexWhere((c) => c.id == clipId);
+        if (idx != -1) {
+          final clip = _project.clips[idx];
+          _project.clips[idx] = clip.copyWith(
+            end: clip.start + Duration(milliseconds: durMs),
+          );
+          _autosave();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      AppLogger.warning('Audio probe error for $path: $e', tag: 'EditorController');
+    }
   }
 
   void updateAudioProperties(AudioProperties audioProperties) {

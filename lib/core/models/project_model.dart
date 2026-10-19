@@ -995,6 +995,8 @@ class TimelineClip {
     this.inAnimation = ClipAnimation.none,
     this.outAnimation = ClipAnimation.none,
     this.loopAnimation = ClipAnimation.none,
+    this.transitionType = 'none',
+    this.transitionDurationMs = 500,
     this.strokes = const <DrawingStroke>[],
     this.trackingData = const TrackingData(),
     this.words = const <CaptionWord>[],
@@ -1039,6 +1041,8 @@ class TimelineClip {
   final ClipAnimation inAnimation;
   final ClipAnimation outAnimation;
   final ClipAnimation loopAnimation;
+  final String transitionType;
+  final int transitionDurationMs;
   final List<DrawingStroke> strokes;
   final TrackingData trackingData;
   final List<CaptionWord> words;
@@ -1085,6 +1089,8 @@ class TimelineClip {
     ClipAnimation? inAnimation,
     ClipAnimation? outAnimation,
     ClipAnimation? loopAnimation,
+    String? transitionType,
+    int? transitionDurationMs,
     List<DrawingStroke>? strokes,
     TrackingData? trackingData,
     List<CaptionWord>? words,
@@ -1129,6 +1135,8 @@ class TimelineClip {
       inAnimation: inAnimation ?? this.inAnimation,
       outAnimation: outAnimation ?? this.outAnimation,
       loopAnimation: loopAnimation ?? this.loopAnimation,
+      transitionType: transitionType ?? this.transitionType,
+      transitionDurationMs: transitionDurationMs ?? this.transitionDurationMs,
       strokes: strokes ?? this.strokes,
       trackingData: trackingData ?? this.trackingData,
       words: words ?? this.words,
@@ -1176,6 +1184,8 @@ class TimelineClip {
       'inAnimation': inAnimation.name,
       'outAnimation': outAnimation.name,
       'loopAnimation': loopAnimation.name,
+      'transitionType': transitionType,
+      'transitionDurationMs': transitionDurationMs,
       'strokes': strokes.map((s) => s.toJson()).toList(),
       'trackingData': trackingData.toJson(),
       'words': words.map((w) => w.toJson()).toList(),
@@ -1264,6 +1274,8 @@ class TimelineClip {
         (e) => e.name == json['loopAnimation'],
         orElse: () => ClipAnimation.none,
       ),
+      transitionType: json['transitionType'] as String? ?? 'none',
+      transitionDurationMs: json['transitionDurationMs'] as int? ?? 500,
       strokes: (json['strokes'] as List<dynamic>?)
               ?.map((e) => DrawingStroke.fromJson(Map<String, dynamic>.from(e as Map)))
               .toList() ??

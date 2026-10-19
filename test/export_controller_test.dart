@@ -25,6 +25,7 @@ void main() {
       final project = Project(
         id: 'p1',
         name: 'Test Project',
+        aspectRatio: AspectRatioPreset.sixteenNine,
         clips: <TimelineClip>[
           TimelineClip(
             id: 'c1',
