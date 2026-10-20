@@ -611,7 +611,7 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: EditorTokens.text,
                 foregroundColor: EditorTokens.bg,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
               ),
               onPressed: _busy ? null : _generate,
               icon: _busy

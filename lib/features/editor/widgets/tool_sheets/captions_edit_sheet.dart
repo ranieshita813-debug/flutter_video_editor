@@ -122,7 +122,7 @@ class _CaptionsEditSheetState extends State<CaptionsEditSheet> {
     final captions = editor.project.captions;
 
     return Container(
-      color: EditorTokens.surface,
+      color: EditorTokens.bg,
       child: Column(
         children: [
           MonoSheetHeader(

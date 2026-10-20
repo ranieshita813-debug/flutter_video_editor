@@ -130,15 +130,12 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: EditorTokens.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         top: false,
         child: Column(
           children: [
-            _buildHandle(),
-            _buildHeader(canGenerate),
             Expanded(
               child: CustomScrollView(
                 slivers: [
@@ -158,50 +155,6 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
     );
   }
 
-  Widget _buildHandle() => Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 4),
-        child: Center(
-          child: Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-      );
-
-  Widget _buildHeader(bool canGenerate) => SizedBox(
-        height: 48,
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.close_rounded, color: Colors.white70),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-            const Expanded(
-              child: Text(
-                'Text to speech',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: _font,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.check_rounded,
-                color: canGenerate ? _accent : Colors.white24,
-              ),
-              onPressed: canGenerate ? _generateSpeech : null,
-            ),
-          ],
-        ),
-      );
 
   Widget _buildTextCard() {
     final int count = _textController.text.characters.length;
@@ -331,7 +284,7 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
               foregroundColor: Colors.black,
               disabledForegroundColor: Colors.white38,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(23),
+                borderRadius: BorderRadius.circular(999),
               ),
             ),
             onPressed: canGenerate ? _generateSpeech : null,

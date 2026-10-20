@@ -23,7 +23,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 // Monochrome palette
 // ----------------------------------------------------------------------------
 const Color _chipBg = Color(0xFF1C1C1C);
-const Color _stageBg = Color(0xFF050505);
+const Color _stageBg = Color(0xFF0C1014);
 
 // ----------------------------------------------------------------------------
 // Shared helpers

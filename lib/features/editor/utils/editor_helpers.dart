@@ -11,7 +11,7 @@ import 'package:flutter_video_editor/features/editor/controllers/editor_controll
 // ----------------------------------------------------------------------------
 // Tokens
 // ----------------------------------------------------------------------------
-const Color bgToken = Color(0xFF000000);
+const Color bgToken = Color(0xFF0C1014);
 const Color surfaceToken = Color(0xFF101014);
 const Color cardToken = Color(0xFF232327);
 const Color mutedToken = Color(0xFF9A9AA3);

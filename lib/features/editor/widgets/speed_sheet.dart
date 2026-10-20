@@ -304,7 +304,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
     return Container(
       height: 52,
       decoration: const BoxDecoration(
-        color: Color(0xFF0E0E10),
+        color: Color(0xFF0C1014),
         border: Border(top: BorderSide(color: _line)),
       ),
       child: Row(

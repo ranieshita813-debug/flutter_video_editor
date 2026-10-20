@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class EditorTokens {
   EditorTokens._();
 
-  static const Color bg = Color(0xFF000000);
+  static const Color bg = Color(0xFF0C1014);
   static const Color surface = Color(0xFF1C1C1C);
   static const Color elevated = Color(0xFF292929);
   static const Color border = Color(0xFF303030);

@@ -594,7 +594,7 @@ class _TextStyleSheetState extends State<TextStyleSheet> {
                 side: const BorderSide(color: _accent),
                 backgroundColor: _card,
                 minimumSize: const Size(0, 40),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
               ),
             ),
           ],

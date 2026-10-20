@@ -18,7 +18,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 /// Playhead colour. The name is kept so other files that import it still
 /// compile; in the monochrome theme it is plain white.
 const Color playheadBlue = Color(0xFFFFFFFF);
-const Color _timelineBg = Color(0xFF0A0A0A);
+const Color _timelineBg = Color(0xFF0C1014);
 const Color _overlayMediaColor = Color(0xFF454545);
 const Color _emptyLaneColor = Color(0xFF141414);
 const double _clipRadius = 5;
