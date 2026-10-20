@@ -281,10 +281,9 @@ class _EditorPageState extends State<EditorPage> {
                             math.max(80.0,
                                 c.maxHeight - transportH - bottomH - tlMax));
                         final double base = desired.clamp(minP, maxP).toDouble();
-                        final double lo = math.min(
-                            maxP, math.max(80.0, c.maxHeight - transportH - bottomH - 420 * s));
-                        _minAdj = lo - base;
-                        _maxAdj = maxP - base;
+                        // Prevent preview height from shrinking below desired so canvas width never decreases.
+                        _minAdj = math.min(0.0, (desired - base).toDouble());
+                        _maxAdj = math.max(0.0, (maxP - base).toDouble());
                         final double hgt =
                             (base + _splitAdj.clamp(_minAdj, _maxAdj)).toDouble();
                         return SizedBox(height: hgt, child: pv);

@@ -84,8 +84,9 @@ class _ExportModalState extends State<ExportModal> {
         context.select<EditorController, bool>((e) => e.isExporting);
     final double progress = exportCtrl?.progress ??
         context.select<EditorController, double>((e) => e.exportProgress);
-    final ExportStatus status = exportCtrl?.status ??
-        (isExporting ? ExportStatus.exporting : ExportStatus.idle);
+    final ExportStatus status = exportCtrl?.status != ExportStatus.idle
+        ? exportCtrl!.status
+        : context.select<EditorController, ExportStatus>((e) => e.exportStatus);
 
     if (isExporting) {
       _startedAt ??= DateTime.now();
@@ -98,9 +99,9 @@ class _ExportModalState extends State<ExportModal> {
 
     Widget body;
     if (status == ExportStatus.done) {
-      body = _doneView(exportCtrl);
+      body = _doneView(exportCtrl, editorCtrl);
     } else if (status == ExportStatus.failed) {
-      body = _failedView(exportCtrl);
+      body = _failedView(exportCtrl, editorCtrl);
     } else if (isExporting) {
       body = _progressView(exportCtrl, progress);
     } else {
@@ -123,7 +124,7 @@ class _ExportModalState extends State<ExportModal> {
           body: SafeArea(
             child: Column(
               children: <Widget>[
-                _topBar(exportCtrl, isExporting),
+                _topBar(exportCtrl, editorCtrl, isExporting),
                 Expanded(child: body),
                 if (showSettings) _bottomBar(exportCtrl, editorCtrl),
               ],
@@ -136,7 +137,7 @@ class _ExportModalState extends State<ExportModal> {
 
   // ---- Top bar ---------------------------------------------------------------
 
-  Widget _topBar(ExportController? exportCtrl, bool isExporting) {
+  Widget _topBar(ExportController? exportCtrl, EditorController editorCtrl, bool isExporting) {
     return SizedBox(
       height: 56,
       child: Row(
@@ -149,6 +150,7 @@ class _ExportModalState extends State<ExportModal> {
                 ? null
                 : () {
                     exportCtrl?.resetStatus();
+                    editorCtrl.resetExportStatus();
                     Navigator.of(context).pop();
                   },
           ),
@@ -346,6 +348,7 @@ class _ExportModalState extends State<ExportModal> {
               format: selectedFormat,
               codec: selectedCodec,
             );
+            if (editorCtrl.isPlaying) editorCtrl.togglePlayback();
             editorCtrl.updateExportSettings(newSettings);
             if (exportCtrl != null) {
               exportCtrl.startExport(editorCtrl.project, newSettings);
@@ -514,7 +517,7 @@ class _ExportModalState extends State<ExportModal> {
         ),
       );
 
-  Widget _doneView(ExportController? exportCtrl) {
+  Widget _doneView(ExportController? exportCtrl, EditorController editorCtrl) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -563,6 +566,7 @@ class _ExportModalState extends State<ExportModal> {
           TextButton(
             onPressed: () {
               exportCtrl?.resetStatus();
+              editorCtrl.resetExportStatus();
               Navigator.of(context).pop();
             },
             child: const Text('Done', style: TextStyle(color: _muted)),
@@ -572,7 +576,7 @@ class _ExportModalState extends State<ExportModal> {
     );
   }
 
-  Widget _failedView(ExportController? exportCtrl) {
+  Widget _failedView(ExportController? exportCtrl, EditorController editorCtrl) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -599,7 +603,10 @@ class _ExportModalState extends State<ExportModal> {
               minimumSize: const Size.fromHeight(52),
               shape: _pill,
             ),
-            onPressed: () => exportCtrl?.resetStatus(),
+            onPressed: () {
+              exportCtrl?.resetStatus();
+              editorCtrl.resetExportStatus();
+            },
             child: const Text('Try again', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],

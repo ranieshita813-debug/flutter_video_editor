@@ -16,6 +16,7 @@ import 'package:flutter_video_editor/core/services/whisper_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/playback_controller.dart';
 import 'package:flutter_video_editor/features/editor/controllers/track_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
 import 'package:flutter_video_editor/features/export/services/export_service.dart';
@@ -40,6 +41,7 @@ class EditorController extends ChangeNotifier {
   ExportSettings _exportSettings = const ExportSettings();
   bool _isExporting = false;
   double _exportProgress = 0.0;
+  ExportStatus _exportStatus = ExportStatus.idle;
   bool _isCameraActive = false;
 
   bool _isEyedropperActive = false;
@@ -506,7 +508,15 @@ class EditorController extends ChangeNotifier {
   ExportSettings get exportSettings => _exportSettings;
   bool get isExporting => _isExporting;
   double get exportProgress => _exportProgress;
+  ExportStatus get exportStatus => _exportStatus;
   bool get isCameraActive => _isCameraActive;
+
+  void resetExportStatus() {
+    _isExporting = false;
+    _exportProgress = 0.0;
+    _exportStatus = ExportStatus.idle;
+    notifyListeners();
+  }
   bool get isEyedropperActive => _isEyedropperActive;
 
   Future<Color?> pickColorFromFrame() async {
@@ -1755,6 +1765,7 @@ class EditorController extends ChangeNotifier {
 
     _isExporting = true;
     _exportProgress = 0.0;
+    _exportStatus = ExportStatus.exporting;
     notifyListeners();
 
     try {
@@ -1764,6 +1775,7 @@ class EditorController extends ChangeNotifier {
       final resultPath = await exportService.exportTimeline(dto.toJson());
       _isExporting = false;
       _exportProgress = 1.0;
+      _exportStatus = ExportStatus.done;
       notifyListeners();
       if (onComplete != null) {
         if (onComplete is void Function(String)) {
@@ -1776,6 +1788,7 @@ class EditorController extends ChangeNotifier {
     } catch (e, stack) {
       AppLogger.error('Timeline export failed', tag: 'EditorController', error: e, stackTrace: stack);
       _isExporting = false;
+      _exportStatus = ExportStatus.failed;
       notifyListeners();
       return null;
     }
