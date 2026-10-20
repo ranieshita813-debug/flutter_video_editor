@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -186,7 +187,14 @@ class ToolPanel extends StatelessWidget {
   Widget _header() => Row(
         children: <Widget>[
           const SizedBox(width: 16),
-          PhosphorIcon(tool.icon, color: Colors.white70, size: 22),
+          tool == EditorTool.textToSpeech
+              ? SvgPicture.asset(
+                  'assets/icons/text_to_speech.svg',
+                  width: 22,
+                  height: 22,
+                  colorFilter: const ColorFilter.mode(Colors.white70, BlendMode.srcIn),
+                )
+              : PhosphorIcon(tool.icon, color: Colors.white70, size: 22),
           const SizedBox(width: 8),
           Expanded(
             child: Text(tool.title,

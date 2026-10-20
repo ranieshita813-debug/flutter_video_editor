@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
@@ -10,13 +11,15 @@ class EditorToolbarItem {
   EditorToolbarItem({
     required this.id,
     required this.title,
-    required this.icon,
+    this.icon,
+    this.svgPath,
     required this.onTap,
   });
 
   final String id;
   final String title;
-  final PhosphorIconData icon;
+  final PhosphorIconData? icon;
+  final String? svgPath;
   final VoidCallback onTap;
 }
 
@@ -60,11 +63,21 @@ class EditorToolbar extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  PhosphorIcon(
-                    item.icon,
-                    color: EditorTokens.text.withValues(alpha: 0.9),
-                    size: 22.0,
-                  ),
+                  item.svgPath != null
+                      ? SvgPicture.asset(
+                          item.svgPath!,
+                          width: 22.0,
+                          height: 22.0,
+                          colorFilter: ColorFilter.mode(
+                            EditorTokens.text.withValues(alpha: 0.9),
+                            BlendMode.srcIn,
+                          ),
+                        )
+                      : PhosphorIcon(
+                          item.icon ?? PhosphorIconsRegular.waveSquare,
+                          color: EditorTokens.text.withValues(alpha: 0.9),
+                          size: 22.0,
+                        ),
                   const SizedBox(height: 4),
                   Text(
                     item.title,
@@ -265,7 +278,7 @@ class EditorToolbar extends StatelessWidget {
           EditorToolbarItem(
             id: 'text_to_speech',
             title: 'Text to Speech',
-            icon: PhosphorIconsRegular.waveSquare,
+            svgPath: 'assets/icons/text_to_speech.svg',
             onTap: () => onSelectToolSheet('text_to_speech'),
           ),
           EditorToolbarItem(

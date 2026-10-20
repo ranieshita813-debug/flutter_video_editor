@@ -36,6 +36,25 @@ bool _fileExists(String? path) {
   return _existsCache.putIfAbsent(path, () => File(path).existsSync());
 }
 
+Widget applyVideoEffectPreset(Widget child, VideoEffect fx, Duration playhead, TimelineClip? clip) {
+  final List<double>? m = _VideoPlayerPreviewState._fxMatrices[fx];
+  if (m != null) return ColorFiltered(colorFilter: ColorFilter.matrix(m), child: child);
+  final shader = _VideoPlayerPreviewState._fxShaders[fx];
+  if (shader != null) {
+    final mergedParams = Map<String, double>.from(shader.$2);
+    if (clip != null && clip.effectParameters.isNotEmpty) {
+      mergedParams.addAll(clip.effectParameters);
+    }
+    return FxShaders.applyVideo(
+      child: child,
+      effectId: shader.$1,
+      params: mergedParams,
+      time: playhead,
+    );
+  }
+  return child;
+}
+
 // ----------------------------------------------------------------------------
 // Video Player Preview
 // ----------------------------------------------------------------------------
@@ -383,22 +402,7 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
   }
 
   Widget _applyVideoEffectPreset(Widget child, VideoEffect fx, Duration playhead, TimelineClip? clip) {
-    final List<double>? m = _fxMatrices[fx];
-    if (m != null) return ColorFiltered(colorFilter: ColorFilter.matrix(m), child: child);
-    final shader = _fxShaders[fx];
-    if (shader != null) {
-      final mergedParams = Map<String, double>.from(shader.$2);
-      if (clip != null && clip.effectParameters.isNotEmpty) {
-        mergedParams.addAll(clip.effectParameters);
-      }
-      return FxShaders.applyVideo(
-        child: child,
-        effectId: shader.$1,
-        params: mergedParams,
-        time: playhead,
-      );
-    }
-    return child;
+    return applyVideoEffectPreset(child, fx, playhead, clip);
   }
 
   @override
@@ -1247,6 +1251,58 @@ class _OverlayClipState extends State<_OverlayClip> {
   List<double> _ox = <double>[], _oy = <double>[];
   String _sig = '';
 
+  Widget _applyEffectsAndGrading(Widget content, TimelineClip clip) {
+    Widget child = content;
+    final editor = context.read<EditorController>();
+    final Duration playhead = editor.playhead;
+
+    final cg = clip.colorGrading;
+    final double b = cg.brightness;
+    final double cont = cg.contrast;
+    final double s = cg.saturation;
+    final double temp = cg.temperature;
+    final double tint = cg.tint;
+    if (b != 0.0 || cont != 1.0 || s != 1.0 || temp != 0.0 || tint != 0.0) {
+      const double lr = 0.2126, lg = 0.7152, lb = 0.0722;
+      final double sr = (1 - s) * lr, sg = (1 - s) * lg, sb = (1 - s) * lb;
+      final double off = (0.5 * (1 - cont) + b) * 255;
+      final double redShift = temp * 30.0;
+      final double blueShift = -temp * 30.0;
+      final double greenShift = tint * 30.0;
+      final List<double> matrix = <double>[
+        cont * (sr + s), cont * sg, cont * sb, 0, off + redShift,
+        cont * sr, cont * (sg + s), cont * sb, 0, off + greenShift,
+        cont * sr, cont * sg, cont * (sb + s), 0, off + blueShift,
+        0, 0, 0, 1, 0,
+      ];
+      child = ColorFiltered(colorFilter: ColorFilter.matrix(matrix), child: child);
+    }
+
+    final fxPreset = clip.effect;
+    if (fxPreset != VideoEffect.none) {
+      child = applyVideoEffectPreset(child, fxPreset, playhead, clip);
+    }
+
+    for (final fx in clip.shaderEffects) {
+      if (fx.isEnabled) {
+        final relTime = playhead - clip.start;
+        final activeParams = fx.getInterpolatedParameters(relTime);
+        final Map<String, double> doubleParams = <String, double>{};
+        activeParams.forEach((k, v) {
+          if (v is num) doubleParams[k] = v.toDouble();
+        });
+        child = FxShaders.applyVideo(
+          child: child,
+          effectId: fx.effectId,
+          params: doubleParams,
+          time: playhead,
+        );
+      }
+    }
+
+    return child;
+  }
+
   Widget _content() {
     final clip = widget.clip;
     final double u = widget.unit;
@@ -1284,6 +1340,7 @@ class _OverlayClipState extends State<_OverlayClip> {
             style: TextStyle(color: Colors.white, fontSize: 16 * u),
           );
         }
+        mediaWidget = _applyEffectsAndGrading(mediaWidget, clip);
         return _applyAnimations(mediaWidget, clip);
       case ClipType.text:
       case ClipType.caption:
@@ -1372,15 +1429,18 @@ class _OverlayClipState extends State<_OverlayClip> {
           );
         }
 
+        textWidget = _applyEffectsAndGrading(textWidget, clip);
         return _applyAnimations(textWidget, clip);
       case ClipType.element:
-        return _applyAnimations(_elementWidget(clip, u), clip);
+        final elWidget = _applyEffectsAndGrading(_elementWidget(clip, u), clip);
+        return _applyAnimations(elWidget, clip);
       case ClipType.drawing:
         final drWidget = CustomPaint(
           size: Size(120 * clip.scale * u, 120 * clip.scale * u),
           painter: _DrawingPainter(strokes: clip.strokes, unit: u),
         );
-        return _applyAnimations(drWidget, clip);
+        final fxDrWidget = _applyEffectsAndGrading(drWidget, clip);
+        return _applyAnimations(fxDrWidget, clip);
       default:
         return _applyAnimations(
           Text(clip.label, style: TextStyle(color: Colors.white, fontSize: 16 * u)),
