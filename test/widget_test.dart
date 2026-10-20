@@ -58,7 +58,7 @@ void main() {
     await tester.pumpWidget(createTestWidget(const EditorPage()));
 
     expect(find.text('Export'), findsOneWidget);
-    expect(find.text('1080p'), findsOneWidget);
+    expect(find.text('HD'), findsOneWidget);
 
     expect(find.text('AI Generate', skipOffstage: false), findsWidgets);
     expect(find.text('Draw', skipOffstage: false), findsWidgets);

@@ -5,26 +5,26 @@ import 'package:flutter_video_editor/core/theme/app_colors.dart';
 class AppTheme {
   static ThemeData get darkTheme {
     final baseTextTheme = ThemeData.dark().textTheme;
-    final ubuntuTheme = GoogleFonts.ubuntuSansTextTheme(baseTextTheme).copyWith(
-      headlineMedium: GoogleFonts.ubuntuSans(
+    final googleSansTheme = GoogleFonts.openSansTextTheme(baseTextTheme).copyWith(
+      headlineMedium: GoogleFonts.openSans(
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
-      titleMedium: GoogleFonts.ubuntuSans(
+      titleMedium: GoogleFonts.openSans(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      bodyLarge: GoogleFonts.ubuntuSans(
+      bodyLarge: GoogleFonts.openSans(
         fontSize: 14,
         color: AppColors.textPrimary,
       ),
-      bodyMedium: GoogleFonts.ubuntuSans(
+      bodyMedium: GoogleFonts.openSans(
         fontSize: 12,
         color: AppColors.textSecondary,
       ),
-      labelSmall: GoogleFonts.ubuntuSans(
+      labelSmall: GoogleFonts.openSans(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
@@ -35,7 +35,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
-      fontFamily: 'Ubuntu Sans',
+      fontFamily: 'Google Sans',
       colorScheme: const ColorScheme.dark(
         primary: AppColors.accent,
         secondary: AppColors.accent,
@@ -65,7 +65,7 @@ class AppTheme {
         thickness: 1,
         space: 1,
       ),
-      textTheme: ubuntuTheme,
+      textTheme: googleSansTheme,
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: AppColors.surface,
         modalBackgroundColor: AppColors.surface,

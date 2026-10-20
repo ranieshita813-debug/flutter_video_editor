@@ -51,6 +51,7 @@ class _EditorPageState extends State<EditorPage> {
       case 'ai': target = EditorTool.ai; break;
       case 'audio': target = EditorTool.audio; break;
       case 'text': target = EditorTool.text; break;
+      case 'text_to_speech': target = EditorTool.textToSpeech; break;
       case 'stickers': target = EditorTool.stickers; break;
       case 'filters': target = EditorTool.filters; break;
       case 'effects': target = EditorTool.effects; break;

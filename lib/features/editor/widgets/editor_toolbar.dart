@@ -258,16 +258,16 @@ class EditorToolbar extends StatelessWidget {
             icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
-          EditorToolbarItem(
-            id: 'ai_generate',
-            title: 'AI Generate',
-            icon: PhosphorIconsFill.sparkle,
-            onTap: () => onSelectToolSheet('ai'),
-          ),
         ];
 
       case ClipType.caption:
         return [
+          EditorToolbarItem(
+            id: 'text_to_speech',
+            title: 'Text to Speech',
+            icon: PhosphorIconsRegular.waveSquare,
+            onTap: () => onSelectToolSheet('text_to_speech'),
+          ),
           EditorToolbarItem(
             id: 'edit_caption',
             title: 'Edit Caption',
@@ -328,16 +328,16 @@ class EditorToolbar extends StatelessWidget {
             icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
-          EditorToolbarItem(
-            id: 'ai_generate',
-            title: 'AI Generate',
-            icon: PhosphorIconsFill.sparkle,
-            onTap: () => onSelectToolSheet('ai'),
-          ),
         ];
 
       case ClipType.text:
         return [
+          EditorToolbarItem(
+            id: 'text_to_speech',
+            title: 'Text to Speech',
+            icon: PhosphorIconsRegular.waveSquare,
+            onTap: () => onSelectToolSheet('text_to_speech'),
+          ),
           EditorToolbarItem(
             id: 'text_style',
             title: 'Text Style',
@@ -373,12 +373,6 @@ class EditorToolbar extends StatelessWidget {
             title: 'Delete',
             icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
-          ),
-          EditorToolbarItem(
-            id: 'ai_generate',
-            title: 'AI Generate',
-            icon: PhosphorIconsFill.sparkle,
-            onTap: () => onSelectToolSheet('ai'),
           ),
         ];
 
@@ -420,12 +414,6 @@ class EditorToolbar extends StatelessWidget {
             icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
           ),
-          EditorToolbarItem(
-            id: 'ai_generate',
-            title: 'AI Generate',
-            icon: PhosphorIconsFill.sparkle,
-            onTap: () => onSelectToolSheet('ai'),
-          ),
         ];
 
       default:
@@ -453,12 +441,6 @@ class EditorToolbar extends StatelessWidget {
             title: 'Delete',
             icon: PhosphorIconsRegular.trash,
             onTap: () => editor.removeSelectedClip(),
-          ),
-          EditorToolbarItem(
-            id: 'ai_generate',
-            title: 'AI Generate',
-            icon: PhosphorIconsFill.sparkle,
-            onTap: () => onSelectToolSheet('ai'),
           ),
         ];
     }

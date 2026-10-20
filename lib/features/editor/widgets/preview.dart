@@ -282,6 +282,75 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
     await _swap(c);
   }
 
+  Widget _applyTransition(Widget child, TimelineClip clip, Duration playhead) {
+    if (clip.transitionType.isEmpty || clip.transitionType.toLowerCase() == 'none' || clip.transitionDurationMs <= 0) {
+      return child;
+    }
+
+    final Duration transDur = Duration(milliseconds: clip.transitionDurationMs);
+    if (playhead < clip.end - transDur || playhead > clip.end) {
+      return child;
+    }
+
+    final double p = ((playhead - (clip.end - transDur)).inMilliseconds / transDur.inMilliseconds).clamp(0.0, 1.0);
+    final String type = clip.transitionType.toLowerCase();
+
+    switch (type) {
+      case 'fade':
+      case 'dissolve':
+        return Opacity(opacity: (1.0 - p).clamp(0.0, 1.0), child: child);
+      case 'flash':
+        final double flashIntensity = (1.0 - (p - 0.5).abs() * 2.0).clamp(0.0, 1.0);
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Opacity(opacity: (1.0 - p).clamp(0.0, 1.0), child: child),
+            ColoredBox(color: Colors.white.withValues(alpha: flashIntensity)),
+          ],
+        );
+      case 'slideleft':
+        return Transform.translate(offset: Offset(-p * 360.0, 0), child: child);
+      case 'slideright':
+        return Transform.translate(offset: Offset(p * 360.0, 0), child: child);
+      case 'slideup':
+        return Transform.translate(offset: Offset(0, -p * 360.0), child: child);
+      case 'slidedown':
+        return Transform.translate(offset: Offset(0, p * 360.0), child: child);
+      case 'zoomin':
+        return Transform.scale(scale: 1.0 + p * 0.8, child: Opacity(opacity: (1.0 - p).clamp(0.0, 1.0), child: child));
+      case 'zoomout':
+        return Transform.scale(scale: math.max(0.01, 1.0 - p * 0.8), child: Opacity(opacity: (1.0 - p).clamp(0.0, 1.0), child: child));
+      case 'blur':
+        return ImageFiltered(imageFilter: ui.ImageFilter.blur(sigmaX: p * 15.0, sigmaY: p * 15.0), child: child);
+      case 'glitch':
+        return FxShaders.applyVideo(child: child, effectId: 'digital_glitch', params: <String, double>{'amount': p, 'speed': 2.0}, time: playhead);
+      case 'wipe':
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            widthFactor: (1.0 - p).clamp(0.0, 1.0),
+            child: child,
+          ),
+        );
+      case 'spin':
+        return Transform.rotate(angle: p * math.pi, child: Opacity(opacity: (1.0 - p).clamp(0.0, 1.0), child: child));
+      case 'fliphorizontal':
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()..setEntry(3, 2, 0.001)..rotateY(p * math.pi / 2),
+          child: child,
+        );
+      case 'flipvertical':
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()..setEntry(3, 2, 0.001)..rotateX(p * math.pi / 2),
+          child: child,
+        );
+      default:
+        return Opacity(opacity: (1.0 - p).clamp(0.0, 1.0), child: child);
+    }
+  }
+
   Widget _placeholder(String text, {IconData icon = PhosphorIconsRegular.filmStrip}) {
     if (_loading) {
       return const Center(
@@ -440,6 +509,10 @@ class _VideoPlayerPreviewState extends State<VideoPlayerPreview> {
       }
     }
 
+    if (clip != null) {
+      child = _applyTransition(child, clip, _e.playhead);
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
@@ -552,8 +625,9 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
   final GlobalKey _boundaryKey = GlobalKey();
   final ValueNotifier<_GuideState> _guides =
       ValueNotifier<_GuideState>(const _GuideState());
-  bool _grid = false;
-  bool _fill = false;
+  final bool _grid = false;
+  final bool _fill = false;
+  String _selectedQuality = 'HD';
 
   @override
   void dispose() {
@@ -595,7 +669,6 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
   Widget _topBar(BuildContext context) {
     final Size size = MediaQuery.sizeOf(context);
     final double s = scaleOf(size);
-    final bool showLogo = size.width >= 430;
     final double btn = 36 * s;
 
     return Container(
@@ -611,95 +684,65 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                 _roundBtn(PhosphorIconsRegular.arrowLeft, 'Back',
                     () => Navigator.of(context).maybePop(),
                     size: btn, iconSize: 16 * s),
-                if (showLogo) ...<Widget>[
-                  SizedBox(width: 10 * s),
-                  SvgPicture.asset('assets/logo_white.svg', height: 22 * s),
-                ],
                 const Spacer(),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 4 * s),
-                  decoration: BoxDecoration(
-                    color: _chipBg,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '1080p',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11 * s,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                SizedBox(width: 6 * s),
-                ValueListenableBuilder<CanvasRatio>(
-                  valueListenable: canvasRatioNotifier,
-                  builder: (_, r, __) => PopupMenuButton<CanvasRatio>(
-                    tooltip: 'Canvas ratio',
-                    color: surfaceToken,
-                    onSelected: (v) {
-                      tapFeedback();
-                      canvasRatioNotifier.value = v;
-                      _tf.value = Matrix4.identity();
-                    },
-                    itemBuilder: (_) => <PopupMenuEntry<CanvasRatio>>[
-                      for (final v in CanvasRatio.values)
-                        PopupMenuItem<CanvasRatio>(
-                          value: v,
-                          child: Text(v.label,
-                              style: TextStyle(
-                                  color: v == r ? Colors.white : Colors.white54,
-                                  fontWeight:
-                                      v == r ? FontWeight.w700 : FontWeight.w500)),
-                        ),
-                    ],
-                    child: Container(
-                      height: 30 * s,
-                      alignment: Alignment.center,
-                      padding: EdgeInsets.symmetric(horizontal: 10 * s),
-                      decoration: BoxDecoration(
-                        color: _chipBg,
-                        borderRadius: BorderRadius.circular(15 * s),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Text(r.label,
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11.5 * s,
-                                  fontWeight: FontWeight.w600)),
-                          SizedBox(width: 4 * s),
-                          PhosphorIcon(
-                            PhosphorIconsRegular.caretDown,
-                            size: 12 * s,
-                            color: Colors.white70,
+                PopupMenuButton<String>(
+                  tooltip: 'Quality',
+                  color: surfaceToken,
+                  initialValue: _selectedQuality,
+                  onSelected: (v) {
+                    tapFeedback();
+                    setState(() => _selectedQuality = v);
+                  },
+                  itemBuilder: (_) => <PopupMenuEntry<String>>[
+                    for (final q in const <String>['HD', '4M', 'UHD'])
+                      PopupMenuItem<String>(
+                        value: q,
+                        child: Text(
+                          q,
+                          style: TextStyle(
+                            color: q == _selectedQuality ? Colors.white : Colors.white54,
+                            fontWeight: q == _selectedQuality ? FontWeight.w700 : FontWeight.w500,
+                            fontFamily: 'Google Sans',
                           ),
-                        ],
+                        ),
                       ),
+                  ],
+                  child: Container(
+                    height: 30 * s,
+                    alignment: Alignment.center,
+                    padding: EdgeInsets.symmetric(horizontal: 10 * s),
+                    decoration: BoxDecoration(
+                      color: _chipBg,
+                      borderRadius: BorderRadius.circular(6 * s),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Text(
+                          _selectedQuality,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11.5 * s,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Google Sans',
+                          ),
+                        ),
+                        SizedBox(width: 4 * s),
+                        PhosphorIcon(
+                          PhosphorIconsRegular.caretDown,
+                          size: 12 * s,
+                          color: Colors.white70,
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                SizedBox(width: 6 * s),
-                _roundBtn(
-                    _fill
-                        ? PhosphorIconsRegular.magnifyingGlassMinus
-                        : PhosphorIconsRegular.magnifyingGlassPlus,
-                    _fill ? 'Fit video' : 'Fill canvas',
-                    () => setState(() => _fill = !_fill),
-                    size: btn,
-                    iconSize: 17 * s,
-                    on: _fill),
-                SizedBox(width: 6 * s),
-                _roundBtn(PhosphorIconsRegular.gridFour, _grid ? 'Hide guides' : 'Show guides',
-                    () => setState(() => _grid = !_grid),
-                    size: btn, iconSize: 17 * s, on: _grid),
                 SizedBox(width: 8 * s),
                 Material(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(6),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(6),
                     onTap: () {
                       tapFeedback();
                       ExportModal.show(context);
@@ -721,7 +764,8 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                                 style: TextStyle(
                                     color: Colors.black,
                                     fontSize: 12.5 * s,
-                                    fontWeight: FontWeight.w700)),
+                                    fontWeight: FontWeight.w700,
+                                    fontFamily: 'Google Sans')),
                           ],
                         ),
                       ),

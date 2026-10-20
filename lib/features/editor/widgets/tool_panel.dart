@@ -23,9 +23,12 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_st
 // ----------------------------------------------------------------------------
 // Inline tools enum
 // ----------------------------------------------------------------------------
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_to_speech_sheet.dart';
+
 enum EditorTool {
   audio('Audio', PhosphorIconsRegular.speakerHigh),
   text('Text', PhosphorIconsRegular.textAa),
+  textToSpeech('Text to Speech', PhosphorIconsRegular.waveSquare),
   stickers('Stickers', PhosphorIconsRegular.smiley),
   filters('Filters', PhosphorIconsRegular.funnel),
   effects('Effects', PhosphorIconsRegular.magicWand),
@@ -53,6 +56,7 @@ enum EditorTool {
   Widget get body => switch (this) {
         EditorTool.audio => const AudioToolsSheet(),
         EditorTool.text => const TextAnimationSheet(),
+        EditorTool.textToSpeech => const TextToSpeechSheet(),
         EditorTool.stickers => const StickersSheet(),
         EditorTool.filters => const EffectsSheet(isFilterMode: true),
         EditorTool.effects => const EffectsSheet(isFilterMode: false),
