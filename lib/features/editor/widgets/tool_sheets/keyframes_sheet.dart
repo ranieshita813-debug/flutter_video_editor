@@ -13,7 +13,7 @@ import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 // ============================================================================
 const double _kfFps = 30;
 
-const Color _kfBg = Color(0xFF0D0D0D);
+const Color _kfBg = Color(0xFF0C1014);
 const Color _kfCard = Color(0xFF171717);
 const Color _kfLine = Color(0xFF2A2A2A);
 const Color _kfText = Color(0xFFF2F2F2);

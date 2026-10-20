@@ -16,7 +16,7 @@ import 'package:flutter_video_editor/features/export/models/export_settings.dart
 // Dark theme tokens (CapCut style)
 // -----------------------------------------------------------------------------
 
-const Color _bg = Color(0xFF0B0B0F);
+const Color _bg = Color(0xFF0C1014);
 const Color _card = Color(0xFF1A1A20);
 const Color _card2 = Color(0xFF24242C);
 const Color _track = Color(0xFF3A3A44);

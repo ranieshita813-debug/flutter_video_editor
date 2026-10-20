@@ -130,15 +130,12 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
     return Container(
       decoration: const BoxDecoration(
         color: EditorTokens.bg,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SafeArea(
         top: false,
         child: Column(
           children: [
-            _buildHandle(),
-            _buildHeader(canGenerate),
             Expanded(
               child: CustomScrollView(
                 slivers: [
@@ -331,7 +328,7 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
               foregroundColor: Colors.black,
               disabledForegroundColor: Colors.white38,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(23),
+                borderRadius: BorderRadius.circular(999),
               ),
             ),
             onPressed: canGenerate ? _generateSpeech : null,

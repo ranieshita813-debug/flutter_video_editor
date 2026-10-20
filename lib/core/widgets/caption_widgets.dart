@@ -6,7 +6,7 @@ import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 /// Shared monochrome building blocks for the caption sheets.
 /// Palette: black / white / greys only. Corners are small (6px), never pills.
 class CaptionMono {
-  static const double radius = 6;
+  static const double radius = 999;
   static const Color ink = Colors.white;
   static const Color onInk = Colors.black;
   static const String font = 'Ubuntu Sans';

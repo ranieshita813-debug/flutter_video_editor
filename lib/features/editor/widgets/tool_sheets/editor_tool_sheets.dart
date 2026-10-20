@@ -29,7 +29,7 @@ export 'captions_translate_sheet.dart';
 // The frame needs a bounded height from its parent.
 // ============================================================================
 
-const Color _canvasDark = Color(0xFF1B1B20);
+const Color _canvasDark = Color(0xFF0C1014);
 const double _pad = 16;
 
 // ----------------------------------------------------------------------------
@@ -452,7 +452,7 @@ Widget _primaryBtn(PhosphorIconData? icon, String label, VoidCallback? onPressed
           disabledBackgroundColor: cardToken,
           disabledForegroundColor: mutedToken,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
         onPressed: onPressed == null
@@ -479,7 +479,7 @@ Widget _primaryBtn(PhosphorIconData? icon, String label, VoidCallback? onPressed
 Widget _outlineBtn(String label, VoidCallback? onPressed) => OutlinedButton(
       style: OutlinedButton.styleFrom(
         side: const BorderSide(color: dividerToken),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
         minimumSize: const Size.fromHeight(46),
         foregroundColor: Colors.white,
         disabledForegroundColor: mutedToken,

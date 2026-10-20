@@ -69,7 +69,7 @@ class _CaptionStyleSheetState extends State<CaptionStyleSheet> {
         const TextStyleProperties();
 
     return Container(
-      color: EditorTokens.surface,
+      color: EditorTokens.bg,
       child: Column(
         children: [
           MonoSheetHeader(

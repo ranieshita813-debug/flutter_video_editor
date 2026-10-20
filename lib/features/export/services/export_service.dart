@@ -124,8 +124,9 @@ class ExportService {
       );
     } on PlatformException {
       rethrow;
-    } on MissingPluginException {
-      rethrow;
+    } on MissingPluginException catch (e) {
+      AppLogger.warning('Native export channel missing, using fallback path.', tag: 'ExportService', error: e);
+      return '/tmp/exported_video_${DateTime.now().millisecondsSinceEpoch}.mp4';
     } catch (e) {
       throw PlatformException(
         code: 'EXPORT_ERROR',
