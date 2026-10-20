@@ -155,50 +155,6 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
     );
   }
 
-  Widget _buildHandle() => Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 4),
-        child: Center(
-          child: Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-      );
-
-  Widget _buildHeader(bool canGenerate) => SizedBox(
-        height: 48,
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.close_rounded, color: Colors.white70),
-              onPressed: () => Navigator.of(context).maybePop(),
-            ),
-            const Expanded(
-              child: Text(
-                'Text to speech',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: _font,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.check_rounded,
-                color: canGenerate ? _accent : Colors.white24,
-              ),
-              onPressed: canGenerate ? _generateSpeech : null,
-            ),
-          ],
-        ),
-      );
 
   Widget _buildTextCard() {
     final int count = _textController.text.characters.length;
