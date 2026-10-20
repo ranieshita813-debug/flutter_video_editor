@@ -11,6 +11,8 @@ import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 import 'package:flutter_video_editor/features/media_picker/pages/media_picker_page.dart';
 import 'package:flutter_video_editor/features/projects/controllers/projects_controller.dart';
 
+const Color _accent = Color(0xFF25F4EE); // CapCut cyan, shared with the editor sheets
+
 const List<String> _months = <String>[
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -207,14 +209,14 @@ class _HomePageState extends State<HomePage> {
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => submit(ctx),
           style: const TextStyle(color: EditorTokens.text),
-          cursorColor: EditorTokens.text,
+          cursorColor: _accent,
           decoration: const InputDecoration(
             hintText: 'Project name',
             hintStyle: TextStyle(color: EditorTokens.faint),
             enabledBorder: UnderlineInputBorder(
                 borderSide: BorderSide(color: EditorTokens.border)),
-            focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: EditorTokens.text)),
+            focusedBorder:
+                UnderlineInputBorder(borderSide: BorderSide(color: _accent)),
           ),
         ),
         actions: <Widget>[
@@ -225,8 +227,7 @@ class _HomePageState extends State<HomePage> {
           TextButton(
             onPressed: () => submit(ctx),
             child: const Text('Rename',
-                style: TextStyle(
-                    color: EditorTokens.text, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: _accent, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -241,74 +242,77 @@ class _HomePageState extends State<HomePage> {
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
-        statusBarColor: Colors.white,
-        statusBarIconBrightness: Brightness.dark,
-        statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
-        systemNavigationBarIconBrightness: Brightness.dark,
-        systemNavigationBarDividerColor: Colors.white,
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+        systemNavigationBarColor: EditorTokens.bg,
+        systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: EditorTokens.bg,
       ),
       child: Scaffold(
-        backgroundColor: Colors.white,
-      body: SafeArea(
-        child: IndexedStack(
-          index: _currentIndex,
-          children: <Widget>[
-            _buildTemplateTab(context),
-            _buildHomeTab(context, projects, projectsController),
-            _buildProjectsTab(context, projects, projectsController),
-          ],
+        backgroundColor: EditorTokens.bg,
+        body: SafeArea(
+          child: IndexedStack(
+            index: _currentIndex,
+            children: <Widget>[
+              _buildTemplateTab(context),
+              _buildHomeTab(context, projects, projectsController),
+              _buildProjectsTab(context, projects, projectsController),
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildBottomNav(),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.white,
-        elevation: 8,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: PhosphorIcon(
-              PhosphorIconsRegular.gridFour,
-              color: Colors.grey,
-              size: 20,
-            ),
-            activeIcon: PhosphorIcon(
-              PhosphorIconsRegular.gridFour,
-              color: Colors.black,
-              size: 20,
-            ),
-            label: 'Template',
-          ),
-          BottomNavigationBarItem(
-            icon: PhosphorIcon(
-              PhosphorIconsRegular.videoCamera,
-              color: Colors.grey,
-              size: 20,
-            ),
-            activeIcon: PhosphorIcon(
-              PhosphorIconsRegular.videoCamera,
-              color: Colors.black,
-              size: 20,
-            ),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: PhosphorIcon(
-              PhosphorIconsRegular.folder,
-              color: Colors.grey,
-              size: 20,
-            ),
-            activeIcon: PhosphorIcon(
-              PhosphorIconsRegular.folder,
-              color: Colors.black,
-              size: 20,
-            ),
-            label: 'Projects',
-          ),
-        ],
+    );
+  }
+
+  Widget _buildBottomNav() {
+    const items = <(IconData, String)>[
+      (PhosphorIconsRegular.gridFour, 'Template'),
+      (PhosphorIconsRegular.house, 'Home'),
+      (PhosphorIconsRegular.folder, 'Projects'),
+    ];
+    return Container(
+      decoration: const BoxDecoration(
+        color: EditorTokens.bg,
+        border: Border(top: BorderSide(color: EditorTokens.border)),
       ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 58,
+          child: Row(
+            children: <Widget>[
+              for (int i = 0; i < items.length; i++)
+                Expanded(
+                  child: InkResponse(
+                    onTap: () => setState(() => _currentIndex = i),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        PhosphorIcon(
+                          items[i].$1,
+                          size: 22,
+                          color: i == _currentIndex ? _accent : EditorTokens.muted,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          items[i].$2,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: i == _currentIndex
+                                ? _accent
+                                : EditorTokens.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -362,24 +366,24 @@ class _HomePageState extends State<HomePage> {
         SliverToBoxAdapter(child: _buildHeader(context)),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
                 Text(
-                  'All Projects (${projects.length})',
+                  'All projects (${projects.length})',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black,
+                    color: EditorTokens.text,
                   ),
                 ),
                 IconButton(
                   onPressed: () => _createNewProject(context),
                   icon: const PhosphorIcon(
                     PhosphorIconsRegular.plus,
-                    color: Colors.black,
-                    size: 20,
+                    color: _accent,
+                    size: 22,
                   ),
                 ),
               ],
@@ -489,7 +493,7 @@ class _HomePageState extends State<HomePage> {
         'desc': 'Square 1:1 clean aesthetic for social posts',
         'ratio': '1:1',
         'tag': 'Minimal',
-        'color': const Color(0xFF111111),
+        'color': const Color(0xFFE5E5EA),
         'icon': PhosphorIconsRegular.textbox,
       },
     ];
@@ -499,20 +503,17 @@ class _HomePageState extends State<HomePage> {
         _buildHeader(context),
         const Padding(
           padding: EdgeInsets.fromLTRB(20, 12, 20, 8),
-          child: Row(
-            children: [
-              PhosphorIcon(PhosphorIconsRegular.gridFour, color: Colors.black, size: 22),
-              SizedBox(width: 8),
-              Text(
-                'Video Creation Templates',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
-                  fontFamily: 'Ubuntu Sans',
-                ),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Templates',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: EditorTokens.text,
+                fontFamily: 'Ubuntu Sans',
               ),
-            ],
+            ),
           ),
         ),
         Expanded(
@@ -538,16 +539,8 @@ class _HomePageState extends State<HomePage> {
                 child: Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: EditorTokens.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade300, width: 1.2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,27 +551,27 @@ class _HomePageState extends State<HomePage> {
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
-                              color: tmplColor.withValues(alpha: 0.12),
+                              color: tmplColor.withValues(alpha: 0.16),
                               shape: BoxShape.circle,
                             ),
                             child: PhosphorIcon(
                               tmpl['icon'] as IconData,
                               size: 20,
-                              color: tmplColor == const Color(0xFF111111) ? Colors.black : tmplColor,
+                              color: tmplColor,
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: Colors.black,
+                              color: Colors.white12,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               tmpl['tag'] as String,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: EditorTokens.text,
                                 fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -589,8 +582,8 @@ class _HomePageState extends State<HomePage> {
                         tmpl['title'] as String,
                         style: const TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.black,
+                          fontWeight: FontWeight.w700,
+                          color: EditorTokens.text,
                           fontFamily: 'Ubuntu Sans',
                         ),
                       ),
@@ -599,9 +592,9 @@ class _HomePageState extends State<HomePage> {
                         tmpl['desc'] as String,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11,
-                          color: Colors.grey.shade700,
+                          color: EditorTokens.muted,
                           height: 1.3,
                         ),
                       ),
@@ -611,18 +604,18 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           Text(
                             tmpl['ratio'] as String,
-                            style: TextStyle(
+                            style: const TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w600,
+                              color: EditorTokens.muted,
                             ),
                           ),
                           const Text(
-                            'Use Template →',
+                            'Use template',
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.black,
+                              fontWeight: FontWeight.w700,
+                              color: _accent,
                             ),
                           ),
                         ],
@@ -653,7 +646,9 @@ class _HomePageState extends State<HomePage> {
               alignment: Alignment.centerLeft,
               child: SvgPicture.asset(
                 'assets/logo_black.svg',
-                height: 48,
+                height: 40,
+                // The asset is black; tint it white for the dark background.
+                colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
               ),
             ),
           ),
@@ -662,11 +657,11 @@ class _HomePageState extends State<HomePage> {
             onPressed: () => _openAccount(context),
             icon: CircleAvatar(
               radius: 14,
-              backgroundColor: Colors.black,
+              backgroundColor: _accent,
               child: Text(
                 initial,
                 style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white),
+                    fontSize: 12, fontWeight: FontWeight.w800, color: Colors.black),
               ),
             ),
           ),
@@ -675,8 +670,8 @@ class _HomePageState extends State<HomePage> {
             onPressed: () => _openSettings(context),
             icon: const PhosphorIcon(
               PhosphorIconsRegular.gear,
-              color: Colors.black,
-              size: 20,
+              color: EditorTokens.text,
+              size: 22,
             ),
           ),
         ],
@@ -687,23 +682,60 @@ class _HomePageState extends State<HomePage> {
   Widget _buildNewProjectButton(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: SizedBox(
-        width: double.infinity,
-        height: 54,
-        child: ElevatedButton.icon(
-          onPressed: () => _createNewProject(context),
-          icon: const PhosphorIcon(
-            PhosphorIconsRegular.plus,
-            color: Colors.white,
-            size: 18,
+      child: GestureDetector(
+        onTap: () => _createNewProject(context),
+        child: Container(
+          height: 92,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: _accent,
+            borderRadius: BorderRadius.circular(16),
           ),
-          label: const Text('New project'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: PhosphorIcon(
+                    PhosphorIconsBold.plus,
+                    color: _accent,
+                    size: 22,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      'New project',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.black,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Import videos and photos',
+                      style: TextStyle(fontSize: 12, color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+              const PhosphorIcon(
+                PhosphorIconsRegular.caretRight,
+                color: Colors.black54,
+                size: 20,
+              ),
+            ],
           ),
         ),
       ),
@@ -712,19 +744,27 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildSectionHeader(int count) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 12),
+      padding: const EdgeInsets.fromLTRB(20, 22, 12, 8),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
         children: <Widget>[
-          const Text('Your projects',
+          const Text('Projects',
               style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black)),
+                  color: EditorTokens.text)),
           const SizedBox(width: 8),
           Text('$count',
-              style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              style: const TextStyle(fontSize: 13, color: EditorTokens.muted)),
+          const Spacer(),
+          if (count > 0)
+            TextButton(
+              onPressed: () => setState(() => _currentIndex = 2),
+              child: const Text('See all',
+                  style: TextStyle(
+                      color: EditorTokens.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ),
         ],
       ),
     );
@@ -736,30 +776,40 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          const PhosphorIcon(
-            PhosphorIconsRegular.videoCamera,
-            color: Colors.grey,
-            size: 44,
+          Container(
+            width: 72,
+            height: 72,
+            decoration: const BoxDecoration(
+              color: EditorTokens.surface,
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: PhosphorIcon(
+                PhosphorIconsRegular.videoCamera,
+                color: EditorTokens.muted,
+                size: 32,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           const Text('Start your first project',
               style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black)),
+                  color: EditorTokens.text)),
           const SizedBox(height: 8),
           const Text(
             'Import videos and photos, then trim, add text, and export.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, height: 1.4, color: Colors.grey),
+            style: TextStyle(fontSize: 13, height: 1.4, color: EditorTokens.muted),
           ),
           const SizedBox(height: 20),
           OutlinedButton(
             onPressed: () => _createNewProject(context),
             style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.black,
-              side: const BorderSide(color: Colors.grey),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              foregroundColor: _accent,
+              side: const BorderSide(color: _accent),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
             child: const Text('Create project',
@@ -789,12 +839,12 @@ class _HomePageState extends State<HomePage> {
                 fit: StackFit.expand,
                 children: <Widget>[
                   Container(
-                    color: const Color(0xFFF0F0F0),
+                    color: EditorTokens.surface,
                     child: const Center(
                       child: PhosphorIcon(
-                        PhosphorIconsRegular.play,
-                        size: 24,
-                        color: Colors.grey,
+                        PhosphorIconsFill.play,
+                        size: 22,
+                        color: Colors.white24,
                       ),
                     ),
                   ),
@@ -852,13 +902,13 @@ class _HomePageState extends State<HomePage> {
             style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.black),
+                color: EditorTokens.text),
           ),
           const SizedBox(height: 1),
           Text(
             _fmtDate(project.updatedAt),
             maxLines: 1,
-            style: const TextStyle(fontSize: 10, color: Colors.grey),
+            style: const TextStyle(fontSize: 10, color: EditorTokens.muted),
           ),
         ],
       ),

@@ -6,9 +6,18 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
 
+const Color _accent = Color(0xFF25F4EE); // CapCut cyan, same as the TTS sheet
+const String _font = 'Ubuntu';
+
+String _fmtSpeed(double v) {
+  final s = v.toStringAsFixed(2);
+  return '${s.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '')}x';
+}
+
 /// CapCut-style audio panel:
-///  - two big action tiles (Music / Extract)
-///  - contextual controls (volume + mute, speed presets) for the selected clip
+///  - two action tiles (Music / Extract audio)
+///  - volume card with mute toggle and a 100% marker
+///  - speed card with slider and a segmented preset row
 class AudioToolsSheet extends StatefulWidget {
   const AudioToolsSheet({super.key});
 
@@ -34,7 +43,7 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
       if (file == null || file.path == null) return;
       editor.addAudioTrack(file.path!, trackName: file.name);
     } catch (e) {
-      _toast('Could not import audio');
+      _toast('Couldn\'t import audio');
     }
   }
 
@@ -42,17 +51,27 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: EditorTokens.elevated,
+          duration: const Duration(seconds: 2),
+          content: Text(msg,
+              style: const TextStyle(color: EditorTokens.text, fontFamily: _font)),
+        ),
+      );
   }
 
-  void _apply(EditorController editor, {required double volume, required double speed}) {
+  void _apply(EditorController editor,
+      {required double volume, required double speed}) {
     editor.updateAudioProperties(AudioProperties(volume: volume, speed: speed));
   }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-    final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final clip =
+        context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
 
     final isVideo = clip?.clipType == ClipType.video;
     final isAudio = clip?.clipType == ClipType.audio;
@@ -65,14 +84,13 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       children: [
-        // ── Primary actions ────────────────────────────────────────────
         Row(
           children: [
             Expanded(
               child: _ActionTile(
                 icon: PhosphorIconsRegular.musicNotes,
                 label: 'Music',
-                caption: 'Import from device',
+                caption: 'From device',
                 onTap: () => _importAudio(editor),
               ),
             ),
@@ -81,7 +99,7 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
               child: _ActionTile(
                 icon: PhosphorIconsRegular.scissors,
                 label: 'Extract audio',
-                caption: isVideo ? 'From selected video' : 'Select a video clip',
+                caption: isVideo ? 'From selected clip' : 'Select a video',
                 enabled: isVideo,
                 onTap: () {
                   editor.extractAudioFromSelectedClip();
@@ -91,16 +109,13 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
             ),
           ],
         ),
-
-        const SizedBox(height: 16),
-
-        // ── Contextual controls ────────────────────────────────────────
+        const SizedBox(height: 14),
         if (!hasAudio)
           const _EmptyHint()
         else ...[
           _Section(
             title: 'Volume',
-            trailing: '${(volume * 100).round()}%',
+            value: '${(volume * 100).round()}%',
             child: Row(
               children: [
                 _RoundIconButton(
@@ -110,7 +125,8 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
                   active: muted,
                   onTap: () {
                     if (muted) {
-                      final restore = _volumeBeforeMute == 0 ? 1.0 : _volumeBeforeMute;
+                      final restore =
+                          _volumeBeforeMute == 0 ? 1.0 : _volumeBeforeMute;
                       setState(() => _volumeDraft = null);
                       _apply(editor, volume: restore, speed: speed);
                     } else {
@@ -120,17 +136,32 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
                     }
                   },
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
-                  child: _EditorSlider(
-                    value: volume,
-                    min: 0,
-                    max: 2,
-                    onChanged: (v) {
-                      setState(() => _volumeDraft = v);
-                      _apply(editor, volume: v, speed: speed);
-                    },
-                    onChangeEnd: (_) => setState(() => _volumeDraft = null),
+                  child: Column(
+                    children: [
+                      _EditorSlider(
+                        value: volume,
+                        min: 0,
+                        max: 2,
+                        onChanged: (v) {
+                          setState(() => _volumeDraft = v);
+                          _apply(editor, volume: v, speed: speed);
+                        },
+                        onChangeEnd: (_) => setState(() => _volumeDraft = null),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _Tick('0'),
+                            _Tick('100%'),
+                            _Tick('200%'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -139,7 +170,7 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
           const SizedBox(height: 12),
           _Section(
             title: 'Speed',
-            trailing: '${speed.toStringAsFixed(speed % 1 == 0 ? 0 : 2)}x',
+            value: _fmtSpeed(speed),
             child: Column(
               children: [
                 _EditorSlider(
@@ -152,21 +183,17 @@ class _AudioToolsSheetState extends State<AudioToolsSheet> {
                   },
                   onChangeEnd: (_) => setState(() => _speedDraft = null),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    for (final p in _speedPresets)
-                      _Chip(
-                        label: '${p}x',
-                        selected: (speed - p).abs() < 0.01,
-                        onTap: () {
-                          setState(() => _speedDraft = null);
-                          _apply(editor, volume: volume, speed: p);
-                        },
-                      ),
-                  ],
+                const SizedBox(height: 4),
+                _Segmented(
+                  labels: [for (final p in _speedPresets) _fmtSpeed(p)],
+                  selectedIndex:
+                      _speedPresets.indexWhere((p) => (speed - p).abs() < 0.01),
+                  onSelected: (i) {
+                    setState(() => _speedDraft = null);
+                    _apply(editor, volume: volume, speed: _speedPresets[i]);
+                  },
                 ),
+                const SizedBox(height: 4),
               ],
             ),
           ),
@@ -195,47 +222,62 @@ class _ActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: enabled ? 1 : 0.4,
-      child: Material(
-        color: EditorTokens.elevated,
+    final Color fg = enabled ? EditorTokens.text : EditorTokens.muted;
+    return Material(
+      color: EditorTokens.elevated,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: enabled ? onTap : null,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: EditorTokens.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                PhosphorIcon(icon, color: EditorTokens.text, size: 24),
-                const SizedBox(height: 12),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: EditorTokens.text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Ubuntu',
-                  ),
+        onTap: enabled ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: enabled
+                      ? _accent.withValues(alpha: 0.14)
+                      : Colors.white10,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: EditorTokens.muted,
-                    fontSize: 11,
-                    fontFamily: 'Ubuntu',
-                  ),
+                child: Center(
+                  child: PhosphorIcon(icon,
+                      size: 20, color: enabled ? _accent : EditorTokens.muted),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: fg,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: _font,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: EditorTokens.muted,
+                        fontSize: 11,
+                        fontFamily: _font,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -244,10 +286,10 @@ class _ActionTile extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.trailing, required this.child});
+  const _Section({required this.title, required this.value, required this.child});
 
   final String title;
-  final String trailing;
+  final String value;
   final Widget child;
 
   @override
@@ -257,7 +299,6 @@ class _Section extends StatelessWidget {
       decoration: BoxDecoration(
         color: EditorTokens.elevated,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: EditorTokens.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,27 +310,50 @@ class _Section extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   color: EditorTokens.text,
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Ubuntu',
+                  fontFamily: _font,
                 ),
               ),
-              Text(
-                trailing,
-                style: const TextStyle(
-                  color: EditorTokens.muted,
-                  fontSize: 12,
-                  fontFamily: 'Ubuntu',
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    color: _accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: _font,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           child,
         ],
       ),
     );
   }
+}
+
+class _Tick extends StatelessWidget {
+  const _Tick(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: const TextStyle(
+          color: EditorTokens.muted,
+          fontSize: 10,
+          fontFamily: _font,
+        ),
+      );
 }
 
 class _EditorSlider extends StatelessWidget {
@@ -311,12 +375,13 @@ class _EditorSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     return SliderTheme(
       data: SliderTheme.of(context).copyWith(
-        activeTrackColor: EditorTokens.text,
-        inactiveTrackColor: EditorTokens.border,
-        thumbColor: EditorTokens.text,
-        overlayColor: EditorTokens.text.withValues(alpha: 0.12),
-        trackHeight: 3,
-        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+        activeTrackColor: _accent,
+        inactiveTrackColor: Colors.white12,
+        thumbColor: Colors.white,
+        overlayColor: _accent.withValues(alpha: 0.16),
+        trackHeight: 4,
+        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
+        trackShape: const RoundedRectSliderTrackShape(),
       ),
       child: Slider(
         value: value,
@@ -329,34 +394,54 @@ class _EditorSlider extends StatelessWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.selected, required this.onTap});
+/// Equal-width segmented control for speed presets.
+class _Segmented extends StatelessWidget {
+  const _Segmented({
+    required this.labels,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
 
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  final List<String> labels;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? EditorTokens.text : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? EditorTokens.text : EditorTokens.border),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? EditorTokens.bg : EditorTokens.text,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Ubuntu',
-          ),
-        ),
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: EditorTokens.bg,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          for (int i = 0; i < labels.length; i++)
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => onSelected(i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: i == selectedIndex ? _accent : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    labels[i],
+                    style: TextStyle(
+                      color: i == selectedIndex ? Colors.black : EditorTokens.text,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: _font,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -379,14 +464,13 @@ class _RoundIconButton extends StatelessWidget {
         height: 36,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: active ? EditorTokens.text : Colors.transparent,
-          border: Border.all(color: active ? EditorTokens.text : EditorTokens.border),
+          color: active ? _accent : Colors.white10,
         ),
         child: Center(
           child: PhosphorIcon(
             icon,
             size: 18,
-            color: active ? EditorTokens.bg : EditorTokens.text,
+            color: active ? Colors.black : EditorTokens.text,
           ),
         ),
       ),
@@ -400,14 +484,16 @@ class _EmptyHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
       decoration: BoxDecoration(
+        color: EditorTokens.elevated,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: EditorTokens.border),
       ),
       child: const Column(
         children: [
-          PhosphorIcon(PhosphorIconsRegular.waveform, color: EditorTokens.muted, size: 28),
+          PhosphorIcon(PhosphorIconsRegular.waveform,
+              color: EditorTokens.muted, size: 28),
           SizedBox(height: 10),
           Text(
             'Select an audio or video clip\nto adjust volume and speed',
@@ -416,7 +502,7 @@ class _EmptyHint extends StatelessWidget {
               color: EditorTokens.muted,
               fontSize: 12,
               height: 1.4,
-              fontFamily: 'Ubuntu',
+              fontFamily: _font,
             ),
           ),
         ],
