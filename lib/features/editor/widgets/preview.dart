@@ -625,8 +625,8 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
   final GlobalKey _boundaryKey = GlobalKey();
   final ValueNotifier<_GuideState> _guides =
       ValueNotifier<_GuideState>(const _GuideState());
-  bool _grid = false;
-  bool _fill = false;
+  final bool _grid = false;
+  final bool _fill = false;
   String _selectedQuality = 'HD';
 
   @override

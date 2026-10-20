@@ -84,12 +84,12 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text(
               'Text to speech audio added to timeline!',
-              style: const TextStyle(fontFamily: 'Google Sans'),
+              style: TextStyle(fontFamily: 'Google Sans'),
             ),
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
           ),
         );
       }
@@ -133,11 +133,11 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
               fillColor: EditorTokens.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: EditorTokens.border),
+                borderSide: const BorderSide(color: EditorTokens.border),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: EditorTokens.border),
+                borderSide: const BorderSide(color: EditorTokens.border),
               ),
             ),
           ),
