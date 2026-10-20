@@ -46,9 +46,9 @@ String _fmt(Duration d) {
 }
 
 IconData _typeIcon(ClipType t) => switch (t) {
-      ClipType.video => PhosphorIconsRegular.videoCamera,
-      ClipType.audio => PhosphorIconsRegular.musicNote,
-      _ => PhosphorIconsRegular.image,
+      ClipType.video => PhosphorIconsBold.videoCamera,
+      ClipType.audio => PhosphorIconsBold.musicNote,
+      _ => PhosphorIconsBold.image,
     };
 
 String _typeName(ClipType t) => switch (t) {
@@ -159,7 +159,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   int _lastTab = 0;
 
   /// Grid density (3, 4 or 5 columns).
-  int _cols = 4;
+  int _cols = 3;
 
   List<AssetPathEntity> _albums = <AssetPathEntity>[];
   AssetPathEntity? _album;
@@ -746,7 +746,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       child: Row(
         children: <Widget>[
           IconButton(
-            icon: const Icon(PhosphorIconsRegular.x, color: _text),
+            icon: const Icon(PhosphorIconsBold.x, color: _text),
             tooltip: 'Close',
             onPressed: () => Navigator.of(context).pop(),
           ),
@@ -780,7 +780,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                             ),
                             if (_albums.isNotEmpty) ...<Widget>[
                               const SizedBox(width: 2),
-                              const Icon(PhosphorIconsRegular.caretDown,
+                              const Icon(PhosphorIconsBold.caretDown,
                                   color: _text, size: 16),
                             ],
                           ],
@@ -800,7 +800,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             ),
           ),
           IconButton(
-            icon: const Icon(PhosphorIconsRegular.folderOpen, color: _text),
+            icon: const Icon(PhosphorIconsBold.folderOpen, color: _text),
             tooltip: 'Browse files',
             onPressed: _browseFiles,
           ),
@@ -852,20 +852,20 @@ class _MediaPickerPageState extends State<MediaPickerPage>
               unselectedLabelStyle:
                   const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               tabs: <Widget>[
-                tab(PhosphorIconsRegular.gridFour, 'All'),
-                tab(PhosphorIconsRegular.videoCamera, 'Videos'),
-                tab(PhosphorIconsRegular.image, 'Photos'),
-                tab(PhosphorIconsRegular.musicNote, 'Audio'),
+                tab(PhosphorIconsBold.gridFour, 'All'),
+                tab(PhosphorIconsBold.videoCamera, 'Videos'),
+                tab(PhosphorIconsBold.image, 'Photos'),
+                tab(PhosphorIconsBold.musicNote, 'Audio'),
               ],
             ),
           ),
           IconButton(
             icon: Icon(
               _cols == 3
-                  ? PhosphorIconsRegular.gridFour
+                  ? PhosphorIconsBold.gridFour
                   : (_cols == 4
-                      ? PhosphorIconsRegular.squaresFour
-                      : PhosphorIconsRegular.gridNine),
+                      ? PhosphorIconsBold.squaresFour
+                      : PhosphorIconsBold.gridNine),
               color: _text,
               size: 22,
             ),
@@ -1202,7 +1202,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                           color: Colors.black.withAlpha(180),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(PhosphorIconsRegular.x,
+                        child: const Icon(PhosphorIconsBold.x,
                             size: 12, color: Colors.white),
                       ),
                     ),
@@ -1287,10 +1287,10 @@ class _PrimaryButton extends StatelessWidget {
       child: Ink(
         decoration: BoxDecoration(
           color: on ? _text : _elevated,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(999),
         ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(999),
           onTap: loading ? null : onPressed,
           child: SizedBox(
             height: 48,
@@ -1451,8 +1451,8 @@ class _Cell extends StatelessWidget {
                   children: <Widget>[
                     Icon(
                       isVideo
-                          ? PhosphorIconsRegular.play
-                          : PhosphorIconsRegular.musicNote,
+                          ? PhosphorIconsFill.play
+                          : PhosphorIconsBold.musicNote,
                       size: 10,
                       color: Colors.white,
                     ),

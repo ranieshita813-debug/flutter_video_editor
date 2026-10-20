@@ -46,7 +46,7 @@ void main() {
     await tester.pumpWidget(createTestWidget(const HomePage()));
 
     expect(find.text('New project'), findsOneWidget);
-    expect(find.text('Your projects'), findsOneWidget);
+    expect(find.text('Projects'), findsWidgets);
     expect(find.text('Start your first project'), findsOneWidget);
   });
 

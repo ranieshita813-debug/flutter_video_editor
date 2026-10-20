@@ -28,7 +28,7 @@ const Color _green = Color(0xFF4ADE80);
 const Color _red = Color(0xFFFF5C5C);
 
 final RoundedRectangleBorder _pill =
-    RoundedRectangleBorder(borderRadius: BorderRadius.circular(14));
+    RoundedRectangleBorder(borderRadius: BorderRadius.circular(999));
 
 /// Full-screen export page. Entry point unchanged: `ExportModal.show(context)`.
 class ExportModal extends StatefulWidget {
