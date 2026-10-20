@@ -127,8 +127,11 @@ class CustomShaderEffect(
 
                 // Bind any additional dynamic float parameters
                 for ((paramKey, paramVal) in interpolatedParams) {
-                    setUniformIfPresent("u${paramKey.replaceFirstChar { it.uppercase() }}", paramVal.toFloat())
-                    setUniformIfPresent(paramKey, paramVal.toFloat())
+                    val fVal = paramVal.toFloat()
+                    val camelKey = paramKey.replaceFirstChar { it.uppercase() }
+                    setUniformIfPresent("u$camelKey", fVal)
+                    setUniformIfPresent("u_${paramKey.lowercase()}", fVal)
+                    setUniformIfPresent(paramKey, fVal)
                 }
 
                 glProgram.bindAttributesAndUniforms()
@@ -169,10 +172,17 @@ class CustomShaderEffect(
             }
 
             private fun getFragmentShaderForEffect(context: Context, effectId: String): String {
-                // Check if effectId points to a local file or CDN downloaded shader file
-                if (effectId.endsWith(".frag") || effectId.contains("/") || effectId.contains("\\")) {
+                val possiblePaths = listOf(
+                    effectId,
+                    "flutter_assets/$effectId",
+                    "flutter_assets/shaders/$effectId",
+                    "flutter_assets/shaders/$effectId.frag",
+                    "shaders/$effectId.frag"
+                )
+
+                for (p in possiblePaths) {
                     try {
-                        val file = File(effectId)
+                        val file = File(p)
                         if (file.exists() && file.canRead()) {
                             val rawContent = file.readText()
                             return convertFlutterFragToGlslEs(rawContent)
@@ -181,7 +191,7 @@ class CustomShaderEffect(
                     }
 
                     try {
-                        val assetPath = if (effectId.startsWith("flutter_assets/")) effectId else "flutter_assets/$effectId"
+                        val assetPath = if (p.startsWith("flutter_assets/")) p else "flutter_assets/$p"
                         val rawContent = context.assets.open(assetPath).bufferedReader().use { it.readText() }
                         return convertFlutterFragToGlslEs(rawContent)
                     } catch (_: Exception) {

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 
@@ -17,13 +16,8 @@ void main() {
     // Wire real video thumbnail generator and real audio waveform decoder
     thumbGenerator = (String path, int timeMs, int maxWidth) async {
       try {
-        final thumbs = await ExportService().thumbnails(path, 1, maxWidth);
-        if (thumbs.isNotEmpty) {
-          final file = File(thumbs.first);
-          if (await file.exists()) {
-            return await file.readAsBytes();
-          }
-        }
+        final bytes = await ExportService().frameAt(path, timeMs, maxHeight: maxWidth);
+        if (bytes != null && bytes.isNotEmpty) return bytes;
       } catch (_) {}
       return null;
     };

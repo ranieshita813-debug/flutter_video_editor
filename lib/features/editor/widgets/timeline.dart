@@ -85,6 +85,7 @@ class _ClipSnapshot {
     required this.id,
     required this.startMs,
     required this.endMs,
+    required this.trimInMs,
     required this.label,
     required this.type,
     required this.layer,
@@ -97,6 +98,7 @@ class _ClipSnapshot {
   final String id;
   final int startMs;
   final int endMs;
+  final int trimInMs;
   final String label;
   final ClipType type;
   final int layer;
@@ -108,6 +110,7 @@ class _ClipSnapshot {
   double get startSec => startMs / 1000.0;
   double get endSec => endMs / 1000.0;
   double get durSec => (endMs - startMs) / 1000.0;
+  double get trimInSec => trimInMs / 1000.0;
   bool get isMain => (type == ClipType.video || type == ClipType.image) && layer == 0;
 
   @override
@@ -116,6 +119,7 @@ class _ClipSnapshot {
       other.id == id &&
       other.startMs == startMs &&
       other.endMs == endMs &&
+      other.trimInMs == trimInMs &&
       other.label == label &&
       other.type == type &&
       other.layer == layer &&
@@ -125,7 +129,7 @@ class _ClipSnapshot {
       _listEq(other.keyframes, keyframes);
 
   @override
-  int get hashCode => Object.hash(id, startMs, endMs, label, type, layer, locked,
+  int get hashCode => Object.hash(id, startMs, endMs, trimInMs, label, type, layer, locked,
       visible, path, Object.hashAll(keyframes));
 }
 
@@ -152,6 +156,7 @@ class _TimelineModel {
               id: c.id,
               startMs: c.start.inMilliseconds,
               endMs: c.end.inMilliseconds,
+              trimInMs: c.trimIn.inMilliseconds,
               label: c.label,
               type: c.clipType,
               layer: c.layerIndex,
@@ -1032,7 +1037,7 @@ class _ClipBlockState extends State<_ClipBlock> {
       decoration: BoxDecoration(color: color, borderRadius: radius),
       foregroundDecoration: BoxDecoration(
         borderRadius: radius,
-        border: Border.all(color: border, width: 1.5),
+        border: Border.all(color: border, width: widget.selected ? 3.0 : 1.5),
       ),
       clipBehavior: Clip.antiAlias,
       child: child,
@@ -1158,8 +1163,9 @@ class _ClipBlockState extends State<_ClipBlock> {
                 builder: (context, c) => clip.path != null
                     ? _Filmstrip(
                         key: ValueKey<String>(
-                            '${clip.id}|${widget.pps.toStringAsFixed(2)}'),
+                            '${clip.id}|${widget.pps.toStringAsFixed(2)}|${clip.trimInMs}'),
                         path: clip.path!,
+                        trimInSec: clip.trimInSec,
                         durationSec: clip.durSec,
                         width: c.maxWidth,
                       )
@@ -1388,10 +1394,12 @@ class _Filmstrip extends StatefulWidget {
   const _Filmstrip({
     super.key,
     required this.path,
+    this.trimInSec = 0.0,
     required this.durationSec,
     required this.width,
   });
   final String path;
+  final double trimInSec;
   final double durationSec;
   final double width;
 
@@ -1415,8 +1423,10 @@ class _FilmstripState extends State<_Filmstrip> {
       return;
     }
     final double step = widget.durationSec / _n;
+    final int trimInMs = (widget.trimInSec * 1000).round();
     _futures = <Future<Uint8List?>>[
-      for (int i = 0; i < _n; i++) ThumbCache.get(widget.path, (i * step * 1000).round(), 96),
+      for (int i = 0; i < _n; i++)
+        ThumbCache.get(widget.path, trimInMs + (i * step * 1000).round(), 96),
     ];
   }
 
@@ -1430,6 +1440,7 @@ class _FilmstripState extends State<_Filmstrip> {
   void didUpdateWidget(covariant _Filmstrip old) {
     super.didUpdateWidget(old);
     if (old.path != widget.path ||
+        old.trimInSec != widget.trimInSec ||
         old.durationSec != widget.durationSec ||
         _count(widget.width) != _n) {
       _load();

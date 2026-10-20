@@ -47,6 +47,20 @@ class ExportService {
     );
   }
 
+  Future<Uint8List?> frameAt(String path, int timeMs, {int maxHeight = 96, int quality = 80}) async {
+    try {
+      final result = await _methodChannel.invokeMethod<Uint8List>('frameAt', {
+        'path': path,
+        'timeMs': timeMs,
+        'maxHeight': maxHeight,
+        'quality': quality,
+      });
+      return result;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<String>> thumbnails(String path, int count, int height) async {
     try {
       final result = await _methodChannel.invokeMethod<List<dynamic>>('thumbnails', {
