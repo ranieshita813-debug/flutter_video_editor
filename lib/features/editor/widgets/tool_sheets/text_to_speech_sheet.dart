@@ -99,11 +99,11 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             behavior: SnackBarBehavior.floating,
             backgroundColor: EditorTokens.surface,
-            duration: const Duration(seconds: 2),
-            content: const Text(
+            duration: Duration(seconds: 2),
+            content: Text(
               'Speech added to timeline',
               style: TextStyle(color: Colors.white, fontFamily: _font),
             ),
@@ -288,7 +288,7 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
       );
 
   Widget _buildVoiceGrid() {
-    final voices = GoogleTtsService.voices;
+    const voices = GoogleTtsService.voices;
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverGrid(
@@ -336,9 +336,9 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
             ),
             onPressed: canGenerate ? _generateSpeech : null,
             child: _isGenerating
-                ? Row(
+                ? const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       SizedBox(
                         width: 16,
                         height: 16,
@@ -352,9 +352,9 @@ class _TextToSpeechSheetState extends State<TextToSpeechSheet> {
                               fontFamily: _font)),
                     ],
                   )
-                : Row(
+                : const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       PhosphorIcon(PhosphorIconsRegular.waveSquare, size: 20),
                       SizedBox(width: 8),
                       Text('Add to timeline',
