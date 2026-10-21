@@ -93,6 +93,10 @@ class _ClipSnapshot {
     required this.visible,
     required this.path,
     required this.keyframes,
+    this.hasChromaKey = false,
+    this.hasColorGrading = false,
+    this.hasEffect = false,
+    this.shaderEffectNames = const <String>[],
   });
 
   final String id;
@@ -106,6 +110,10 @@ class _ClipSnapshot {
   final bool visible;
   final String? path;
   final List<_KfSnap> keyframes;
+  final bool hasChromaKey;
+  final bool hasColorGrading;
+  final bool hasEffect;
+  final List<String> shaderEffectNames;
 
   double get startSec => startMs / 1000.0;
   double get endSec => endMs / 1000.0;
@@ -166,6 +174,14 @@ class _TimelineModel {
               keyframes: <_KfSnap>[
                 for (final k in c.keyframes) _KfSnap(k.id, k.time.inMilliseconds),
               ],
+              hasChromaKey: c.chromaKey.enabled,
+              hasColorGrading: c.colorGrading.brightness != 0 ||
+                  c.colorGrading.contrast != 1.0 ||
+                  c.colorGrading.saturation != 1.0 ||
+                  c.colorGrading.temperature != 0 ||
+                  c.colorGrading.tint != 0,
+              hasEffect: c.effect != VideoEffect.none,
+              shaderEffectNames: c.shaderEffects.where((s) => s.isEnabled).map((s) => s.name).toList(),
             ),
         ],
         e.zoom,
@@ -380,12 +396,14 @@ class _TimelineWidgetState extends State<TimelineWidget> {
       t != ClipType.video &&
       t != ClipType.image &&
       t != ClipType.drawing &&
-      !_isStickerType(t);
+      !_isStickerType(t) &&
+      t != ClipType.caption;
 
   /// Track name for an overlay lane, based on what it contains.
   String _overlayName(List<_ClipSnapshot> cs) {
     if (cs.isEmpty) return 'Text';
     final ClipType t = cs.first.type;
+    if (t == ClipType.caption) return 'Caption';
     if (t == ClipType.video || t == ClipType.image) return 'Overlay';
     if (t == ClipType.sticker || t == ClipType.element) return 'Sticker';
     if (t == ClipType.drawing) return 'Drawing';
@@ -397,8 +415,67 @@ class _TimelineWidgetState extends State<TimelineWidget> {
       ..sort((a, b) => a.startMs.compareTo(b.startMs));
     final audio = clips.where((c) => c.type == ClipType.audio).toList()
       ..sort((a, b) => a.startMs.compareTo(b.startMs));
-    final layers =
-        clips.where(_isOverlay).map<int>((c) => c.layer).toSet().toList()..sort();
+
+    // Separate caption clips into dedicated Caption track
+    final captions = clips.where((c) => c.type == ClipType.caption).toList()
+      ..sort((a, b) => a.startMs.compareTo(b.startMs));
+
+    final otherOverlays = clips.where((c) => _isOverlay(c) && c.type != ClipType.caption).toList();
+    final layers = otherOverlays.map<int>((c) => c.layer).toSet().toList()..sort();
+
+    // Collect distinct effect snapshots for Chroma Key, Adjustment, and Filter/Shader Effects
+    final List<_ClipSnapshot> chromaKeyClips = <_ClipSnapshot>[];
+    final List<_ClipSnapshot> adjustmentClips = <_ClipSnapshot>[];
+    final List<_ClipSnapshot> effectClips = <_ClipSnapshot>[];
+
+    for (final c in clips) {
+      if (c.hasChromaKey) {
+        chromaKeyClips.add(_ClipSnapshot(
+          id: '${c.id}_ck',
+          startMs: c.startMs,
+          endMs: c.endMs,
+          trimInMs: c.trimInMs,
+          label: 'Chroma Key',
+          type: ClipType.overlay,
+          layer: -1,
+          locked: c.locked,
+          visible: c.visible,
+          path: null,
+          keyframes: const [],
+        ));
+      }
+      if (c.hasColorGrading) {
+        adjustmentClips.add(_ClipSnapshot(
+          id: '${c.id}_adj',
+          startMs: c.startMs,
+          endMs: c.endMs,
+          trimInMs: c.trimInMs,
+          label: 'Adjustment',
+          type: ClipType.overlay,
+          layer: -2,
+          locked: c.locked,
+          visible: c.visible,
+          path: null,
+          keyframes: const [],
+        ));
+      }
+      if (c.hasEffect || c.shaderEffectNames.isNotEmpty) {
+        final String fxLabel = c.shaderEffectNames.isNotEmpty ? c.shaderEffectNames.first : 'Filter';
+        effectClips.add(_ClipSnapshot(
+          id: '${c.id}_fx',
+          startMs: c.startMs,
+          endMs: c.endMs,
+          trimInMs: c.trimInMs,
+          label: fxLabel,
+          type: ClipType.overlay,
+          layer: -3,
+          locked: c.locked,
+          visible: c.visible,
+          path: null,
+          keyframes: const [],
+        ));
+      }
+    }
 
     // Pack overlapping audio clips into separate rows so they never overdraw.
     final List<List<_ClipSnapshot>> audioRows = <List<_ClipSnapshot>>[];
@@ -416,7 +493,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
 
     final List<List<_ClipSnapshot>> groups = <List<_ClipSnapshot>>[
       for (final l in layers.reversed)
-        clips.where((c) => _isOverlay(c) && c.layer == l).toList(),
+        otherOverlays.where((c) => c.layer == l).toList(),
     ];
     final Map<String, int> totals = <String, int>{};
     for (final g in groups) {
@@ -425,6 +502,23 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     }
     final Map<String, int> seen = <String, int>{};
     final List<_Lane> overlayLanes = <_Lane>[];
+
+    // Dedicated Caption track(s)
+    if (captions.isNotEmpty) {
+      overlayLanes.add(_Lane(_textH, _ClipKind.text, captions, name: 'Caption'));
+    }
+
+    // Dedicated Effect / Adjustment / Chroma Key tracks
+    if (chromaKeyClips.isNotEmpty) {
+      overlayLanes.add(_Lane(_textH, _ClipKind.text, chromaKeyClips, name: 'Chroma Key'));
+    }
+    if (adjustmentClips.isNotEmpty) {
+      overlayLanes.add(_Lane(_textH, _ClipKind.text, adjustmentClips, name: 'Adjustment'));
+    }
+    if (effectClips.isNotEmpty) {
+      overlayLanes.add(_Lane(_textH, _ClipKind.text, effectClips, name: 'Filter / Effect'));
+    }
+
     for (final g in groups) {
       final String base = _overlayName(g);
       final int n = (seen[base] ?? 0) + 1;
@@ -1009,6 +1103,10 @@ class _ClipBlockState extends State<_ClipBlock> {
 
   // ---- Colours ------------------------------------------------------------
   Color _clipColor(_ClipSnapshot c) {
+    if (c.label == 'Chroma Key') return const Color(0xFF009688);
+    if (c.label == 'Adjustment') return const Color(0xFFE65100);
+    if (c.id.endsWith('_fx') || c.label == 'Filter' || c.label == 'Effect') return const Color(0xFF6200EA);
+
     switch (c.type) {
       case ClipType.audio:
         return audioTrackToken;
@@ -1098,18 +1196,37 @@ class _ClipBlockState extends State<_ClipBlock> {
 
     switch (widget.kind) {
       case _ClipKind.text:
+        final bool isChromaKey = clip.label == 'Chroma Key';
+        final bool isAdjustment = clip.label == 'Adjustment';
+        final bool isEffect = clip.id.endsWith('_fx') || clip.label == 'Filter' || clip.label == 'Effect';
+        final bool isCaption = clip.type == ClipType.caption;
         final bool overlayMedia =
             clip.type == ClipType.video || clip.type == ClipType.image;
         final bool sticker =
             clip.type == ClipType.sticker || clip.type == ClipType.element;
         final bool drawing = clip.type == ClipType.drawing;
-        final IconData icon = overlayMedia
-            ? (clip.type == ClipType.video
-                ? Icons.video_library_rounded
-                : PhosphorIconsRegular.image)
-            : (drawing
-                ? Icons.brush_rounded
-                : (sticker ? Icons.emoji_emotions_rounded : Icons.title_rounded));
+        final bool isText = !overlayMedia && !sticker && !drawing && !isChromaKey && !isAdjustment && !isEffect;
+        final Color contentColor = isText ? Colors.black : Colors.white;
+        final Color lockColor = isText ? Colors.black87 : Colors.white70;
+
+        IconData icon;
+        if (isChromaKey) {
+          icon = Icons.color_lens_rounded;
+        } else if (isAdjustment) {
+          icon = Icons.tune_rounded;
+        } else if (isEffect) {
+          icon = Icons.auto_awesome_rounded;
+        } else if (isCaption) {
+          icon = Icons.closed_caption_rounded;
+        } else if (overlayMedia) {
+          icon = clip.type == ClipType.video ? Icons.video_library_rounded : PhosphorIconsRegular.image;
+        } else if (drawing) {
+          icon = Icons.brush_rounded;
+        } else if (sticker) {
+          icon = Icons.emoji_emotions_rounded;
+        } else {
+          icon = Icons.title_rounded;
+        }
         // Selected clips leave room for the trim handles.
         final double pad = widget.selected ? 16.0 : 8.0;
         final double inner = clipW - 2 * pad;
@@ -1126,7 +1243,7 @@ class _ClipBlockState extends State<_ClipBlock> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(icon, size: 12, color: Colors.white),
+                          Icon(icon, size: 12, color: contentColor),
                           if (showLabel) ...<Widget>[
                             const SizedBox(width: 5),
                             Expanded(
@@ -1135,15 +1252,15 @@ class _ClipBlockState extends State<_ClipBlock> {
                                 maxLines: 1,
                                 softWrap: false,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 11, height: 1.1),
+                                style: TextStyle(
+                                    color: contentColor, fontSize: 11, height: 1.1, fontWeight: isText ? FontWeight.bold : FontWeight.normal),
                               ),
                             ),
                           ],
                           if (showLock)
-                            const Padding(
-                              padding: EdgeInsets.only(left: 4),
-                              child: Icon(Icons.lock_rounded, size: 11, color: Colors.white70),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: Icon(Icons.lock_rounded, size: 11, color: lockColor),
                             ),
                         ],
                       ),
@@ -1457,22 +1574,25 @@ class _FilmstripState extends State<_Filmstrip> {
         children: <Widget>[
           for (int i = 0; i < _n; i++)
             Expanded(
-              child: _isImage
-                  ? Image.file(File(widget.path),
-                      fit: BoxFit.cover,
-                      cacheWidth: 96,
-                      errorBuilder: (_, __, ___) => const _Stripes())
-                  : (_futures.isEmpty
-                      ? const _Stripes()
-                      : FutureBuilder<Uint8List?>(
-                          future: _futures[i],
-                          builder: (_, s) {
-                            final Uint8List? b = s.data;
-                            if (b == null) return const _Stripes();
-                            return Image.memory(b,
-                                fit: BoxFit.cover, gaplessPlayback: true);
-                          },
-                        )),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 1.0),
+                child: _isImage
+                    ? Image.file(File(widget.path),
+                        fit: BoxFit.cover,
+                        cacheWidth: 96,
+                        errorBuilder: (_, __, ___) => const _Stripes())
+                    : (_futures.isEmpty
+                        ? const _Stripes()
+                        : FutureBuilder<Uint8List?>(
+                            future: _futures[i],
+                            builder: (_, s) {
+                              final Uint8List? b = s.data;
+                              if (b == null) return const _Stripes();
+                              return Image.memory(b,
+                                  fit: BoxFit.cover, gaplessPlayback: true);
+                            },
+                          )),
+              ),
             ),
         ],
       ),
