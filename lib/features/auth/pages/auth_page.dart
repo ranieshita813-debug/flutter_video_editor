@@ -16,7 +16,6 @@ class _AuthColors {
   static const Color field = Color(0xFFF3F3F5);
   static const Color border = Color(0xFFE4E4E7);
   static const Color primary = Color(0xFF121212);
-  static const Color link = Color(0xFF00B8A9);
   static const Color error = Color(0xFFE5484D);
 }
 
@@ -370,7 +369,7 @@ class _AuthPageState extends State<AuthPage> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: _AuthColors.primary,
-                disabledBackgroundColor: _AuthColors.primary.withOpacity(0.85),
+                disabledBackgroundColor: _AuthColors.primary.withValues(alpha: 0.85),
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: const StadiumBorder(),
