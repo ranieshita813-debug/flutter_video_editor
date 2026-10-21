@@ -174,5 +174,46 @@ void main() {
       expect(find.text('Filter'), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 700));
     });
+
+    testWidgets('Connection line is rendered only when modifier track clip is selected', (tester) async {
+      final controller = EditorController();
+      addTearDown(controller.dispose);
+      final clip = TimelineClip(
+        id: 'clip_6',
+        label: 'Video 6',
+        start: Duration.zero,
+        end: const Duration(seconds: 5),
+        clipType: ClipType.video,
+        colorGrading: const ColorGradingSettings(brightness: 0.5),
+      );
+      controller.addClip(clip);
+
+      final multiOn = ValueNotifier<bool>(false);
+      final multi = ValueNotifier<Set<String>>(<String>{});
+
+      // Initially no modifier clip selected
+      controller.clearSelection();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TimelineWidget(
+              editor: controller,
+              multiOn: multiOn,
+              multi: multi,
+              onClearMulti: () {},
+            ),
+          ),
+        ),
+      );
+
+      // Select modifier clip
+      controller.selectClip('clip_6_adj');
+      await tester.pumpAndSettle();
+
+      expect(controller.selectedClipId, equals('clip_6_adj'));
+      expect(find.text('Adjustment'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 700));
+    });
   });
 }

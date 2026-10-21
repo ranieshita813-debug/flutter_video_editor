@@ -1612,7 +1612,16 @@ class EditorController extends ChangeNotifier {
     _project.captions.clear();
     _project.clips.removeWhere((TimelineClip c) => c.clipType == ClipType.caption);
 
-    String? path = audioFilePath ?? selectedClip?.sourcePath;
+    String? path = audioFilePath;
+    if (path == null || path.isEmpty) {
+      final sel = selectedClip;
+      if (sel != null &&
+          (sel.clipType == ClipType.video || sel.clipType == ClipType.audio) &&
+          sel.sourcePath != null &&
+          sel.sourcePath!.isNotEmpty) {
+        path = sel.sourcePath;
+      }
+    }
     if (path == null || path.isEmpty) {
       for (final clip in _project.clips) {
         if ((clip.clipType == ClipType.video || clip.clipType == ClipType.audio) &&

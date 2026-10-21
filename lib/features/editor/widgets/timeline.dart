@@ -740,7 +740,8 @@ class _TimelineWidgetState extends State<TimelineWidget> {
               for (int i1 = 0; i1 < lanes.length; i1++) {
                 final l1 = lanes[i1];
                 for (final c1 in l1.clips) {
-                  if (c1.id.endsWith('_adj') || c1.id.endsWith('_ck') || c1.id.endsWith('_fx')) {
+                  if ((c1.id.endsWith('_adj') || c1.id.endsWith('_ck') || c1.id.endsWith('_fx')) &&
+                      model.selectedId == c1.id) {
                     final targetId = c1.id.substring(0, c1.id.lastIndexOf('_'));
                     for (int i2 = 0; i2 < lanes.length; i2++) {
                       final l2 = lanes[i2];
@@ -1060,8 +1061,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
   Widget _buildClip(_Lane l, List<_ClipSnapshot> list, int i, double pps,
       double half, _TimelineModel m, bool isVideo) {
     final _ClipSnapshot clip = list[i];
-    final List<double> nb =
-        isVideo ? _neighbors(clip, list) : const <double>[0.0, 86400.0];
+    final List<double> nb = _neighbors(clip, list);
     return Positioned(
       key: ValueKey<String>('clip_${clip.id}'),
       left: half + clip.startSec * pps,
@@ -1080,11 +1080,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
           trimLo: nb[0],
           trimHi: nb[1],
           trimSnap: (t) => _snapTime(t, pps, m.clips, excludeId: clip.id),
-          moveClamp: isVideo
-              ? (desired) => _constrainMove(clip, desired, pps, list)
-              : (desired) => math.max(
-                  0.0,
-                  _snapSpan(desired, clip.durSec, pps, m.clips, excludeId: clip.id)),
+          moveClamp: (desired) => _constrainMove(clip, desired, pps, list),
         ),
       ),
     );
