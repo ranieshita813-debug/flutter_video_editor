@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:crypto/crypto.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
@@ -83,6 +84,22 @@ class AuthService implements AuthRepository {
   @override
   Future<UserModel?> loadSavedSession() async {
     await _loadUsersDb();
+
+    try {
+      final fbUser = fb.FirebaseAuth.instance.currentUser;
+      if (fbUser != null) {
+        _currentUser = UserModel(
+          id: fbUser.uid,
+          email: fbUser.email ?? 'user@motiongr.app',
+          displayName: fbUser.displayName ?? 'User',
+          isGuest: fbUser.isAnonymous,
+        );
+        return _currentUser;
+      }
+    } catch (e) {
+      AppLogger.warning('Firebase auth check skipped: $e', tag: 'AuthService');
+    }
+
     try {
       final file = await _sessionFile;
       if (await file.exists()) {
@@ -119,11 +136,34 @@ class AuthService implements AuthRepository {
     required String password,
     required String displayName,
   }) async {
-    await _loadUsersDb();
     if (email.trim().isEmpty || password.trim().isEmpty) {
       throw Exception('Email and password cannot be empty');
     }
     final normalizedEmail = email.trim().toLowerCase();
+    final name = displayName.trim().isEmpty ? 'User' : displayName.trim();
+
+    try {
+      final cred = await fb.FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: normalizedEmail,
+        password: password,
+      );
+      if (cred.user != null) {
+        await cred.user!.updateDisplayName(name);
+        final user = UserModel(
+          id: cred.user!.uid,
+          email: normalizedEmail,
+          displayName: name,
+          isGuest: false,
+        );
+        _currentUser = user;
+        await _saveSession(user);
+        return user;
+      }
+    } catch (e) {
+      AppLogger.warning('Firebase signUp failed, falling back to local DB: $e', tag: 'AuthService');
+    }
+
+    await _loadUsersDb();
     if (_usersByEmail.containsKey(normalizedEmail)) {
       throw Exception('Account already exists for this email');
     }
@@ -131,7 +171,7 @@ class AuthService implements AuthRepository {
     final user = UserModel(
       id: 'usr_${DateTime.now().millisecondsSinceEpoch}',
       email: normalizedEmail,
-      displayName: displayName.trim().isEmpty ? 'User' : displayName.trim(),
+      displayName: name,
       isGuest: false,
     );
 
@@ -149,8 +189,29 @@ class AuthService implements AuthRepository {
     required String email,
     required String password,
   }) async {
-    await _loadUsersDb();
     final normalizedEmail = email.trim().toLowerCase();
+
+    try {
+      final cred = await fb.FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: normalizedEmail,
+        password: password,
+      );
+      if (cred.user != null) {
+        final user = UserModel(
+          id: cred.user!.uid,
+          email: normalizedEmail,
+          displayName: cred.user!.displayName ?? normalizedEmail.split('@').first,
+          isGuest: false,
+        );
+        _currentUser = user;
+        await _saveSession(user);
+        return user;
+      }
+    } catch (e) {
+      AppLogger.warning('Firebase signIn failed, falling back to local DB: $e', tag: 'AuthService');
+    }
+
+    await _loadUsersDb();
     if (!_usersByEmail.containsKey(normalizedEmail)) {
       return signUp(
         email: email,
@@ -172,6 +233,23 @@ class AuthService implements AuthRepository {
 
   @override
   Future<UserModel> signInAsGuest() async {
+    try {
+      final cred = await fb.FirebaseAuth.instance.signInAnonymously();
+      if (cred.user != null) {
+        final guest = UserModel(
+          id: cred.user!.uid,
+          email: 'guest@motiongr.app',
+          displayName: 'Guest Creator',
+          isGuest: true,
+        );
+        _currentUser = guest;
+        await _saveSession(guest);
+        return guest;
+      }
+    } catch (e) {
+      AppLogger.warning('Firebase anonymous auth failed, using local guest session: $e', tag: 'AuthService');
+    }
+
     final guest = UserModel(
       id: 'guest_${DateTime.now().millisecondsSinceEpoch}',
       email: 'guest@motiongr.app',
@@ -190,6 +268,11 @@ class AuthService implements AuthRepository {
   @override
   Future<void> signOut() async {
     _currentUser = null;
+    try {
+      await fb.FirebaseAuth.instance.signOut();
+    } catch (e) {
+      AppLogger.warning('Firebase signOut failed: $e', tag: 'AuthService');
+    }
     try {
       final file = await _sessionFile;
       if (await file.exists()) {

@@ -743,10 +743,10 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                 ),
                 SizedBox(width: 8 * s),
                 Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
+                  color: const Color(0xFFFFD700),
+                  borderRadius: BorderRadius.circular(999),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(999),
                     onTap: () {
                       tapFeedback();
                       ExportModal.show(context);
@@ -754,21 +754,21 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                     child: SizedBox(
                       height: btn,
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12 * s),
+                        padding: EdgeInsets.symmetric(horizontal: 14 * s),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
                             PhosphorIcon(
-                              PhosphorIconsRegular.export,
+                              PhosphorIconsBold.export,
                               color: Colors.black,
-                              size: 14 * s,
+                              size: 15 * s,
                             ),
                             SizedBox(width: 5 * s),
                             Text('Export',
                                 style: TextStyle(
                                     color: Colors.black,
                                     fontSize: 12.5 * s,
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w800,
                                     fontFamily: 'Google Sans')),
                           ],
                         ),
@@ -1026,17 +1026,26 @@ class PaneDivider extends StatelessWidget {
           tapFeedback();
           onReset();
         },
-        child: SizedBox(
-          height: 16,
-          child: Center(
-            child: Container(
-              width: 38,
-              height: 5,
-              decoration: BoxDecoration(
-                color: const Color(0xFF3A3A3A),
-                borderRadius: BorderRadius.circular(3),
+        child: Container(
+          height: 14,
+          color: bgToken,
+          child: Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              const Divider(
+                height: 2,
+                thickness: 2,
+                color: Color(0xFF383838),
               ),
-            ),
+              Container(
+                width: 42,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF777777),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
           ),
         ),
       ),
