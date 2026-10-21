@@ -543,10 +543,18 @@ class EditorController extends ChangeNotifier {
   Color get drawingColor => _drawingColor;
   double get strokeWidth => _strokeWidth;
 
+  String _resolveTargetClipId(String id) {
+    if (id.endsWith('_adj') || id.endsWith('_ck') || id.endsWith('_fx')) {
+      return id.substring(0, id.lastIndexOf('_'));
+    }
+    return id;
+  }
+
   TimelineClip? get selectedClip {
     if (_selectedClipId == null) return null;
+    final targetId = _resolveTargetClipId(_selectedClipId!);
     try {
-      return _project.clips.firstWhere((clip) => clip.id == _selectedClipId);
+      return _project.clips.firstWhere((clip) => clip.id == targetId);
     } catch (_) {
       return null;
     }
@@ -757,9 +765,35 @@ class EditorController extends ChangeNotifier {
   void deleteSelectedClip() {
     if (_selectedClipId == null) return;
     _saveState();
-    _project.removeClip(_selectedClipId!);
-    // Nothing is selected afterwards; auto-selecting the first clip was
-    // surprising and fought with tap-to-deselect.
+    final id = _selectedClipId!;
+    if (id.endsWith('_adj')) {
+      final targetId = _resolveTargetClipId(id);
+      final idx = _project.clips.indexWhere((c) => c.id == targetId);
+      if (idx != -1) {
+        _project.clips[idx] = _project.clips[idx].copyWith(
+          colorGrading: const ColorGradingSettings(),
+        );
+      }
+    } else if (id.endsWith('_ck')) {
+      final targetId = _resolveTargetClipId(id);
+      final idx = _project.clips.indexWhere((c) => c.id == targetId);
+      if (idx != -1) {
+        _project.clips[idx] = _project.clips[idx].copyWith(
+          chromaKey: const ChromaKey(enabled: false),
+        );
+      }
+    } else if (id.endsWith('_fx')) {
+      final targetId = _resolveTargetClipId(id);
+      final idx = _project.clips.indexWhere((c) => c.id == targetId);
+      if (idx != -1) {
+        _project.clips[idx] = _project.clips[idx].copyWith(
+          effect: VideoEffect.none,
+          shaderEffects: const [],
+        );
+      }
+    } else {
+      _project.removeClip(id);
+    }
     _selectedClipId = null;
     _autosave();
     notifyListeners();
@@ -841,8 +875,9 @@ class EditorController extends ChangeNotifier {
   void trimSelectedClip(Duration trimStart, Duration trimEnd) {
     if (_selectedClipId == null) return;
 
+    final targetId = _resolveTargetClipId(_selectedClipId!);
     final index = _project.clips.indexWhere(
-      (TimelineClip clip) => clip.id == _selectedClipId,
+      (TimelineClip clip) => clip.id == targetId,
     );
     if (index == -1) return;
 

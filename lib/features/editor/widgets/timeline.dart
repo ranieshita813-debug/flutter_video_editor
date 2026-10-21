@@ -1,8 +1,8 @@
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -729,6 +729,36 @@ class _TimelineWidgetState extends State<TimelineWidget> {
               final double total = math.max(model.totalMs / 1000.0, 1.0);
               final double pps = _basePps * model.zoom;
               final List<_Lane> lanes = _lanes(model.clips);
+              final List<_ConnectionLine> connections = <_ConnectionLine>[];
+              final List<double> laneTopYs = <double>[];
+              double currentY = _rulerH + _rulerGap;
+              for (final l in lanes) {
+                laneTopYs.add(currentY);
+                currentY += l.h + _gap;
+              }
+
+              for (int i1 = 0; i1 < lanes.length; i1++) {
+                final l1 = lanes[i1];
+                for (final c1 in l1.clips) {
+                  if (c1.id.endsWith('_adj') || c1.id.endsWith('_ck') || c1.id.endsWith('_fx')) {
+                    final targetId = c1.id.substring(0, c1.id.lastIndexOf('_'));
+                    for (int i2 = 0; i2 < lanes.length; i2++) {
+                      final l2 = lanes[i2];
+                      final c2Index = l2.clips.indexWhere((c) => c.id == targetId);
+                      if (c2Index != -1) {
+                        final c2 = l2.clips[c2Index];
+                        final x1 = half + c1.startSec * pps;
+                        final y1 = laneTopYs[i1] + l1.h / 2;
+                        final x2 = half + c2.startSec * pps;
+                        final y2 = laneTopYs[i2] + l2.h / 2;
+                        connections.add(_ConnectionLine(Offset(x1, y1), Offset(x2, y2)));
+                        break;
+                      }
+                    }
+                  }
+                }
+              }
+
               final double contentH = _rulerH +
                   _rulerGap +
                   lanes.fold<double>(0, (s, l) => s + l.h + _gap) +
@@ -785,36 +815,47 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                                   onTap: _deselectAll,
                                   child: SizedBox(
                                     height: math.max(contentH, h),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                    child: Stack(
                                       children: <Widget>[
-                                        GestureDetector(
-                                          behavior: HitTestBehavior.opaque,
-                                          onTapDown: (d) {
-                                            widget.onClearMulti();
-                                            seekPlayhead(
-                                                editor,
-                                                ((d.localPosition.dx - half) / pps)
-                                                    .clamp(0.0, total)
-                                                    .toDouble());
-                                          },
-                                          child: SizedBox(
-                                            height: _rulerH,
-                                            width: contentW,
-                                            child: CustomPaint(
-                                              painter: _RulerPainter(
-                                                pps: pps,
-                                                leftPad: half,
-                                                totalSec: total,
-                                                scroll: _sc,
-                                                viewW: c.maxWidth,
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            GestureDetector(
+                                              behavior: HitTestBehavior.opaque,
+                                              onTapDown: (d) {
+                                                widget.onClearMulti();
+                                                seekPlayhead(
+                                                    editor,
+                                                    ((d.localPosition.dx - half) / pps)
+                                                        .clamp(0.0, total)
+                                                        .toDouble());
+                                              },
+                                              child: SizedBox(
+                                                height: _rulerH,
+                                                width: contentW,
+                                                child: CustomPaint(
+                                                  painter: _RulerPainter(
+                                                    pps: pps,
+                                                    leftPad: half,
+                                                    totalSec: total,
+                                                    scroll: _sc,
+                                                    viewW: c.maxWidth,
+                                                  ),
+                                                ),
                                               ),
+                                            ),
+                                            SizedBox(height: _rulerGap),
+                                            for (final l in lanes)
+                                              _lane(l, contentW, pps, half, model),
+                                          ],
+                                        ),
+                                        Positioned.fill(
+                                          child: IgnorePointer(
+                                            child: CustomPaint(
+                                              painter: _ConnectionLinesPainter(connections: connections),
                                             ),
                                           ),
                                         ),
-                                        SizedBox(height: _rulerGap),
-                                        for (final l in lanes)
-                                          _lane(l, contentW, pps, half, model),
                                       ],
                                     ),
                                   ),
@@ -1790,4 +1831,71 @@ class _RulerPainter extends CustomPainter {
       old.totalSec != totalSec ||
       old.viewW != viewW ||
       old.scroll != scroll;
+}
+
+class _ConnectionLine {
+  const _ConnectionLine(this.from, this.to);
+  final Offset from;
+  final Offset to;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ConnectionLine && other.from == from && other.to == to;
+
+  @override
+  int get hashCode => Object.hash(from, to);
+}
+
+class _ConnectionLinesPainter extends CustomPainter {
+  _ConnectionLinesPainter({
+    required this.connections,
+  });
+
+  final List<_ConnectionLine> connections;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.35)
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    for (final conn in connections) {
+      final p1 = conn.from;
+      final p2 = conn.to;
+
+      final path = Path();
+      path.moveTo(p1.dx, p1.dy);
+
+      final midY = (p1.dy + p2.dy) / 2;
+      final minX = math.min(p1.dx, p2.dx);
+      final curveX = minX - 12;
+
+      path.cubicTo(curveX, midY, curveX, midY, p2.dx, p2.dy);
+
+      _drawDashedPath(canvas, path, paint, dashWidth: 4, dashGap: 3);
+
+      final dotPaint = Paint()..color = Colors.white.withValues(alpha: 0.5);
+      canvas.drawCircle(p1, 2.0, dotPaint);
+      canvas.drawCircle(p2, 2.0, dotPaint);
+    }
+  }
+
+  void _drawDashedPath(Canvas canvas, Path path, Paint paint, {required double dashWidth, required double dashGap}) {
+    for (final metric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final len = math.min(dashWidth, metric.length - distance);
+        final extractPath = metric.extractPath(distance, distance + len);
+        canvas.drawPath(extractPath, paint);
+        distance += dashWidth + dashGap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConnectionLinesPainter old) {
+    return !listEquals(old.connections, connections);
+  }
 }
