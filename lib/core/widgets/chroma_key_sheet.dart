@@ -216,9 +216,9 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           const Divider(height: 1, color: _divider),
           InkWell(
             onTap: () => setState(() => _advanced = true),
-            child: SizedBox(
+            child: const SizedBox(
               height: 52,
-              child: Row(children: const [
+              child: Row(children: [
                 Icon(PhosphorIconsRegular.slidersHorizontal,
                     color: _blueText, size: 18),
                 SizedBox(width: 10),
@@ -283,13 +283,13 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
   }
 
   Widget _quickSwatches() {
-    const quick = [
+    const quick = <Color>[
       Color(0xFF00B140),
       Color(0xFF00FF00),
       Color(0xFF0047BB),
       Color(0xFF0000FF),
     ];
-    const names = [
+    const names = <String>[
       'Green screen colour',
       'Bright green',
       'Blue screen colour',
@@ -367,11 +367,11 @@ class _ChromaKeySheetState extends State<ChromaKeySheet> {
           child: Row(children: [
             const _FxBadge(),
             const SizedBox(width: 8),
-            Expanded(
+            const Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text('Ultra Key',
                       style: TextStyle(
                           color: _text,
@@ -1021,7 +1021,7 @@ class ChromaBackgroundButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final all = ChromaBackground.values;
+    const all = ChromaBackground.values;
     final next = all[(background.index + 1) % all.length];
     return Semantics(
       button: true,
@@ -1139,7 +1139,7 @@ class ChromaSampleSheet extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 12),
-              Row(children: const [
+              const Row(children: [
                 _FxBadge(),
                 SizedBox(width: 8),
                 Expanded(

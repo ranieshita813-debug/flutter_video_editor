@@ -6,6 +6,7 @@ import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/services/media_optimization_service.dart';
 import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
@@ -608,35 +609,151 @@ class _MediaPickerPageState extends State<MediaPickerPage>
     return f?.path;
   }
 
+  Future<List<String>> _resolveAllSelectedPaths() async {
+    final paths = <String>[];
+    for (final p in _selected) {
+      final path = await _resolvePath(p);
+      if (path != null && path.isNotEmpty) {
+        paths.add(path);
+      }
+    }
+    return paths;
+  }
+
   Future<void> _addMediaToProject() async {
     if (_selected.isEmpty || _adding) return;
     setState(() => _adding = true);
 
     try {
+      final paths = await _resolveAllSelectedPaths();
+      if (paths.isEmpty) {
+        _snack('Couldn\'t read the selected media');
+        setState(() => _adding = false);
+        return;
+      }
+
+      // Show optimization modal sheet with TextShimmerWave and progress bar
+      final ValueNotifier<OptimizationProgress> optNotifier = ValueNotifier(
+        const OptimizationProgress(
+          currentIndex: 1,
+          totalCount: 1,
+          fileName: '',
+          message: 'Preparing media optimization…',
+          progress: 0.0,
+        ),
+      );
+
+      if (mounted) {
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext dialogCtx) {
+            return ValueListenableBuilder<OptimizationProgress>(
+              valueListenable: optNotifier,
+              builder: (context, prog, _) {
+                final pct = (prog.progress * 100).toStringAsFixed(0);
+                return Dialog(
+                  backgroundColor: _text,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        TextShimmerWave(
+                          'Optimizing media (${prog.currentIndex}/${prog.totalCount})…',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          baseColor: Colors.white54,
+                          waveColor: Colors.white,
+                        ),
+                        const SizedBox(height: 16),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: prog.progress,
+                            minHeight: 6,
+                            backgroundColor: Colors.white24,
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: <Widget>[
+                            Expanded(
+                              child: Text(
+                                prog.fileName.isEmpty ? prog.message : '${prog.fileName} · ${prog.message}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '$pct%',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      }
+
+      final optimizer = MediaOptimizationService();
+      final optimized = await optimizer.optimizeMedia(
+        paths,
+        onProgress: (p) => optNotifier.value = p,
+      );
+
+      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+
+      final Map<String, OptimizedMediaItem> optMap = {
+        for (final item in optimized) item.originalPath: item
+      };
+
+      if (!mounted) return;
+
       final MediaPickerArgs? pickerArgs = _args;
-      final EditorController editor =
-          Provider.of<EditorController>(context, listen: false);
+      final EditorController editor = Provider.of<EditorController>(context, listen: false);
 
       if (pickerArgs != null && pickerArgs.appendToCurrent) {
-        int added = 0;
         for (final _Picked p in List<_Picked>.of(_selected)) {
           final String? path = await _resolvePath(p);
           if (path == null || path.isEmpty) continue;
+          final optItem = optMap[path];
+          Duration? customDur;
+          if (optItem?.durationMs != null && optItem!.durationMs! > 0) {
+            customDur = Duration(milliseconds: optItem.durationMs!);
+          }
+
           if (p.type == ClipType.audio) {
-            editor.addAudioTrack(path, trackName: p.name, duration: p.duration > Duration.zero ? p.duration : null);
+            editor.addAudioTrack(
+              path,
+              trackName: p.name,
+              duration: customDur ?? (p.duration > Duration.zero ? p.duration : null),
+            );
           } else if (pickerArgs.isOverlay) {
             editor.addOverlayClip(path);
           } else {
             editor.addMediaClip(path);
           }
-          added++;
         }
         if (!mounted) return;
-        if (added == 0) {
-          _snack('Couldn\'t read the selected media');
-          setState(() => _adding = false);
-          return;
-        }
         Navigator.of(context).pop(true);
         return;
       }
@@ -665,8 +782,12 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         final String? path = await _resolvePath(p);
         if (path == null || path.isEmpty) continue;
 
+        final optItem = optMap[path];
         final bool isAudio = p.type == ClipType.audio;
-        final Duration d = _effective(p);
+        Duration d = _effective(p);
+        if (optItem?.durationMs != null && optItem!.durationMs! > 0) {
+          d = Duration(milliseconds: optItem.durationMs!);
+        }
 
         String name = p.name;
         if (p.entity != null) name = await p.entity!.titleAsync;
@@ -691,8 +812,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         return;
       }
 
-      final ProjectsController projects =
-          Provider.of<ProjectsController>(context, listen: false);
+      final ProjectsController projects = Provider.of<ProjectsController>(context, listen: false);
       final newProj = projects.createProject(
         name: _selected.first.name,
         clips: clips,
