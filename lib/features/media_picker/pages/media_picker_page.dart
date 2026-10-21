@@ -29,13 +29,29 @@ const TextStyle _timecode = TextStyle(
 );
 
 const List<String> _videoExt = <String>[
-  'mp4', 'mov', 'avi', 'mkv', 'webm', '3gp', 'm4v',
+  'mp4',
+  'mov',
+  'avi',
+  'mkv',
+  'webm',
+  '3gp',
+  'm4v',
 ];
 const List<String> _audioExt = <String>[
-  'mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg',
+  'mp3',
+  'wav',
+  'm4a',
+  'aac',
+  'flac',
+  'ogg',
 ];
 const List<String> _imageExt = <String>[
-  'jpg', 'jpeg', 'png', 'webp', 'heic', 'gif',
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'heic',
+  'gif',
 ];
 
 String _fmt(Duration d) {
@@ -392,7 +408,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       } else {
         _selected.add(p);
         if (p.entity != null && p.entity!.width > 0 && p.entity!.height > 0) {
-          canvasRatioNotifier.value = detectCanvasRatio(p.entity!.width, p.entity!.height);
+          canvasRatioNotifier.value =
+              detectCanvasRatio(p.entity!.width, p.entity!.height);
         }
       }
     });
@@ -576,8 +593,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                     if (e != null && !isAudio) ...<Widget>[
                       const SizedBox(width: 10),
                       Text('${e.width} × ${e.height}',
-                          style: _timecode.copyWith(
-                              color: _muted, fontSize: 13)),
+                          style:
+                              _timecode.copyWith(color: _muted, fontSize: 13)),
                     ],
                   ],
                 ),
@@ -642,7 +659,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       if (!mounted) return;
 
       final MediaPickerArgs? pickerArgs = _args;
-      final EditorController editor = Provider.of<EditorController>(context, listen: false);
+      final EditorController editor =
+          Provider.of<EditorController>(context, listen: false);
 
       if (pickerArgs != null && pickerArgs.appendToCurrent) {
         for (final _Picked p in List<_Picked>.of(_selected)) {
@@ -658,7 +676,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
             editor.addAudioTrack(
               path,
               trackName: p.name,
-              duration: customDur ?? (p.duration > Duration.zero ? p.duration : null),
+              duration:
+                  customDur ?? (p.duration > Duration.zero ? p.duration : null),
             );
           } else if (pickerArgs.isOverlay) {
             editor.addOverlayClip(path);
@@ -725,9 +744,11 @@ class _MediaPickerPageState extends State<MediaPickerPage>
         return;
       }
 
-      final ProjectsController projects = Provider.of<ProjectsController>(context, listen: false);
+      final ProjectsController projects =
+          Provider.of<ProjectsController>(context, listen: false);
       final newProj = projects.createProject(
         name: _selected.first.name,
+        aspectRatio: canvasRatioToPreset(canvasRatioNotifier.value),
         clips: clips,
       );
       editor.loadProject(newProj);
@@ -771,9 +792,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
   }
 
   Widget _header() {
-    final String title = _album == null
-        ? 'Gallery'
-        : (_album!.isAll ? 'Recent' : _album!.name);
+    final String title =
+        _album == null ? 'Gallery' : (_album!.isAll ? 'Recent' : _album!.name);
     return SizedBox(
       height: 60,
       child: Row(
@@ -1201,7 +1221,10 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: <Color>[Colors.transparent, Color(0xAA000000)],
+                          colors: <Color>[
+                            Colors.transparent,
+                            Color(0xAA000000)
+                          ],
                         ),
                       ),
                     ),
@@ -1277,8 +1300,7 @@ class _MediaPickerPageState extends State<MediaPickerPage>
                       Text(
                         '${_fmt(_totalVideo)} video'
                         '${audios > 0 ? ' · $audios audio' : ''}',
-                        style:
-                            _timecode.copyWith(color: _muted, fontSize: 12),
+                        style: _timecode.copyWith(color: _muted, fontSize: 12),
                       ),
                     ],
                   ),

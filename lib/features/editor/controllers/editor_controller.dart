@@ -7,7 +7,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
-import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
+import 'package:flutter_video_editor/core/models/project_model.dart'
+    hide ExportSettings;
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/services/caption_import_service.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
@@ -16,6 +17,7 @@ import 'package:flutter_video_editor/core/services/whisper_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/playback_controller.dart';
 import 'package:flutter_video_editor/features/editor/controllers/track_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 import 'package:flutter_video_editor/features/export/controllers/export_controller.dart';
 import 'package:flutter_video_editor/features/export/models/export_settings.dart';
 import 'package:flutter_video_editor/features/export/models/timeline_dto.dart';
@@ -47,7 +49,8 @@ class EditorController extends ChangeNotifier {
   bool _isEyedropperActive = false;
   Completer<Color?>? _eyedropperCompleter;
 
-  ValueNotifier<Duration> get playheadListenable => _playback.playheadListenable;
+  ValueNotifier<Duration> get playheadListenable =>
+      _playback.playheadListenable;
 
   // Vector Drawing State
   List<DrawingStroke> _activeDrawingStrokes = <DrawingStroke>[];
@@ -73,11 +76,32 @@ class EditorController extends ChangeNotifier {
   void loadProject(VideoProject project) {
     _playback.reset();
     _project = project;
+    _syncCanvasRatioFromProject(project.aspectRatio);
     _selectedClipId = project.clips.isNotEmpty ? project.clips.first.id : null;
     _undoStack.clear();
     _redoStack.clear();
     _autosave();
     notifyListeners();
+  }
+
+  void updateAspectRatio(AspectRatioPreset preset) {
+    if (_project.aspectRatio == preset) return;
+    _saveState();
+    _project = _project.copyWith(aspectRatio: preset);
+    _syncCanvasRatioFromProject(preset);
+    _autosave();
+    notifyListeners();
+  }
+
+  void _syncCanvasRatioFromProject(AspectRatioPreset preset) {
+    final CanvasRatio ratio = switch (preset) {
+      AspectRatioPreset.nineSixteen => CanvasRatio.r9x16,
+      AspectRatioPreset.sixteenNine => CanvasRatio.r16x9,
+      AspectRatioPreset.oneOne => CanvasRatio.r1x1,
+      AspectRatioPreset.fourFive => CanvasRatio.r4x5,
+      _ => CanvasRatio.r16x9,
+    };
+    canvasRatioNotifier.value = ratio;
   }
 
   final TranslationService _translationService = TranslationService();
@@ -94,23 +118,28 @@ class EditorController extends ChangeNotifier {
 
     final List<TimelineClip> targets = <TimelineClip>[];
     if (allCaptions) {
-      targets.addAll(_project.clips.where((c) => c.clipType == ClipType.caption));
-    } else if (selectedClip != null && selectedClip!.clipType == ClipType.caption) {
+      targets
+          .addAll(_project.clips.where((c) => c.clipType == ClipType.caption));
+    } else if (selectedClip != null &&
+        selectedClip!.clipType == ClipType.caption) {
       targets.add(selectedClip!);
     }
 
     for (final clip in targets) {
       final newText = await service.translateText(clip.label, targetLanguage);
-      final words = newText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+      final words =
+          newText.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
       final totalMs = clip.duration.inMilliseconds;
       final msPerWord = words.isNotEmpty ? totalMs / words.length : totalMs;
 
       final List<CaptionWord> newWords = <CaptionWord>[];
       for (int i = 0; i < words.length; i++) {
-        final wStart = clip.start + Duration(milliseconds: (i * msPerWord).round());
+        final wStart =
+            clip.start + Duration(milliseconds: (i * msPerWord).round());
         final wEnd = (i == words.length - 1)
             ? clip.end
-            : clip.start + Duration(milliseconds: ((i + 1) * msPerWord).round());
+            : clip.start +
+                Duration(milliseconds: ((i + 1) * msPerWord).round());
         newWords.add(CaptionWord(
           word: words[i],
           start: wStart,
@@ -179,12 +208,14 @@ class EditorController extends ChangeNotifier {
       for (int i = 0; i < _project.clips.length; i++) {
         if (_project.clips[i].clipType == ClipType.caption) {
           final c = _project.clips[i];
-          final updatedParams = Map<String, double>.from(c.effectParameters)..addAll(params);
+          final updatedParams = Map<String, double>.from(c.effectParameters)
+            ..addAll(params);
           _project.clips[i] = c.copyWith(effectParameters: updatedParams);
         }
       }
     } else {
-      final updatedParams = Map<String, double>.from(clip.effectParameters)..addAll(params);
+      final updatedParams = Map<String, double>.from(clip.effectParameters)
+        ..addAll(params);
       _project.clips[index] = clip.copyWith(effectParameters: updatedParams);
     }
     _autosave();
@@ -231,9 +262,12 @@ class EditorController extends ChangeNotifier {
     final double newSpeed = speed.clamp(0.1, 10.0).toDouble();
     final currentClip = _project.clips[index];
 
-    final double sourceDurationMs = currentClip.duration.inMilliseconds * currentClip.speed;
-    final int newDurationMs = (sourceDurationMs / newSpeed).round().clamp(200, 86400000);
-    final Duration newEnd = currentClip.start + Duration(milliseconds: newDurationMs);
+    final double sourceDurationMs =
+        currentClip.duration.inMilliseconds * currentClip.speed;
+    final int newDurationMs =
+        (sourceDurationMs / newSpeed).round().clamp(200, 86400000);
+    final Duration newEnd =
+        currentClip.start + Duration(milliseconds: newDurationMs);
 
     _project.clips[index] = currentClip.copyWith(
       speed: newSpeed,
@@ -295,12 +329,14 @@ class EditorController extends ChangeNotifier {
       for (int i = 0; i < _project.clips.length; i++) {
         if (_project.clips[i].clipType == ClipType.caption) {
           final c = _project.clips[i];
-          final updatedList = List<ShaderEffectClip>.from(c.shaderEffects)..add(shaderEffect);
+          final updatedList = List<ShaderEffectClip>.from(c.shaderEffects)
+            ..add(shaderEffect);
           _project.clips[i] = c.copyWith(shaderEffects: updatedList);
         }
       }
     } else {
-      final updatedList = List<ShaderEffectClip>.from(existing)..add(shaderEffect);
+      final updatedList = List<ShaderEffectClip>.from(existing)
+        ..add(shaderEffect);
       _project.clips[index] = targetClip.copyWith(shaderEffects: updatedList);
     }
     _autosave();
@@ -333,13 +369,15 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateShaderEffectParameters(String shaderEffectId, Map<String, dynamic> parameterValues) {
+  void updateShaderEffectParameters(
+      String shaderEffectId, Map<String, dynamic> parameterValues) {
     if (_selectedClipId == null) return;
 
     final clipIndex = _project.clips.indexWhere((c) => c.id == _selectedClipId);
     if (clipIndex == -1) return;
 
-    final effectIndex = _project.clips[clipIndex].shaderEffects.indexWhere((e) => e.id == shaderEffectId);
+    final effectIndex = _project.clips[clipIndex].shaderEffects
+        .indexWhere((e) => e.id == shaderEffectId);
     if (effectIndex == -1) return;
 
     _saveStateCoalesced('shader:$shaderEffectId');
@@ -348,7 +386,8 @@ class EditorController extends ChangeNotifier {
       ..addAll(parameterValues);
 
     final updatedEffect = currentEffect.copyWith(parameterValues: newValues);
-    final updatedEffectsList = List<ShaderEffectClip>.from(_project.clips[clipIndex].shaderEffects);
+    final updatedEffectsList =
+        List<ShaderEffectClip>.from(_project.clips[clipIndex].shaderEffects);
     updatedEffectsList[effectIndex] = updatedEffect;
 
     _project.clips[clipIndex] = _project.clips[clipIndex].copyWith(
@@ -364,14 +403,17 @@ class EditorController extends ChangeNotifier {
     final clipIndex = _project.clips.indexWhere((c) => c.id == _selectedClipId);
     if (clipIndex == -1) return;
 
-    final effectIndex = _project.clips[clipIndex].shaderEffects.indexWhere((e) => e.id == shaderEffectId);
+    final effectIndex = _project.clips[clipIndex].shaderEffects
+        .indexWhere((e) => e.id == shaderEffectId);
     if (effectIndex == -1) return;
 
     _saveState();
     final currentEffect = _project.clips[clipIndex].shaderEffects[effectIndex];
-    final updatedEffect = currentEffect.copyWith(isEnabled: !currentEffect.isEnabled);
+    final updatedEffect =
+        currentEffect.copyWith(isEnabled: !currentEffect.isEnabled);
 
-    final updatedEffectsList = List<ShaderEffectClip>.from(_project.clips[clipIndex].shaderEffects);
+    final updatedEffectsList =
+        List<ShaderEffectClip>.from(_project.clips[clipIndex].shaderEffects);
     updatedEffectsList[effectIndex] = updatedEffect;
 
     _project.clips[clipIndex] = _project.clips[clipIndex].copyWith(
@@ -393,7 +435,8 @@ class EditorController extends ChangeNotifier {
     if (clipIndex == -1) return;
 
     final clip = _project.clips[clipIndex];
-    final effectIndex = clip.shaderEffects.indexWhere((e) => e.id == shaderEffectId);
+    final effectIndex =
+        clip.shaderEffects.indexWhere((e) => e.id == shaderEffectId);
     if (effectIndex == -1) return;
 
     _saveState();
@@ -407,13 +450,16 @@ class EditorController extends ChangeNotifier {
       easing: easing,
     );
 
-    final updatedAnimations = List<KeyframeAnimation>.from(shaderFx.keyframeAnimations);
-    final animIndex = updatedAnimations.indexWhere((a) => a.parameterId == parameterId);
+    final updatedAnimations =
+        List<KeyframeAnimation>.from(shaderFx.keyframeAnimations);
+    final animIndex =
+        updatedAnimations.indexWhere((a) => a.parameterId == parameterId);
 
     if (animIndex != -1) {
       final existingAnim = updatedAnimations[animIndex];
       final newKfs = List<ShaderKeyframe>.from(existingAnim.keyframes)
-        ..removeWhere((k) => (k.time - relativeTime).abs() < const Duration(milliseconds: 50))
+        ..removeWhere((k) =>
+            (k.time - relativeTime).abs() < const Duration(milliseconds: 50))
         ..add(newKeyframe);
       updatedAnimations[animIndex] = existingAnim.copyWith(keyframes: newKfs);
     } else {
@@ -424,7 +470,8 @@ class EditorController extends ChangeNotifier {
       ));
     }
 
-    final updatedShaderFx = shaderFx.copyWith(keyframeAnimations: updatedAnimations);
+    final updatedShaderFx =
+        shaderFx.copyWith(keyframeAnimations: updatedAnimations);
     final updatedShaderList = List<ShaderEffectClip>.from(clip.shaderEffects);
     updatedShaderList[effectIndex] = updatedShaderFx;
 
@@ -444,13 +491,16 @@ class EditorController extends ChangeNotifier {
     if (clipIndex == -1) return;
 
     final clip = _project.clips[clipIndex];
-    final effectIndex = clip.shaderEffects.indexWhere((e) => e.id == shaderEffectId);
+    final effectIndex =
+        clip.shaderEffects.indexWhere((e) => e.id == shaderEffectId);
     if (effectIndex == -1) return;
 
     _saveState();
     final shaderFx = clip.shaderEffects[effectIndex];
-    final updatedAnimations = List<KeyframeAnimation>.from(shaderFx.keyframeAnimations);
-    final animIndex = updatedAnimations.indexWhere((a) => a.parameterId == parameterId);
+    final updatedAnimations =
+        List<KeyframeAnimation>.from(shaderFx.keyframeAnimations);
+    final animIndex =
+        updatedAnimations.indexWhere((a) => a.parameterId == parameterId);
 
     if (animIndex != -1) {
       final existingAnim = updatedAnimations[animIndex];
@@ -464,7 +514,8 @@ class EditorController extends ChangeNotifier {
       }
     }
 
-    final updatedShaderFx = shaderFx.copyWith(keyframeAnimations: updatedAnimations);
+    final updatedShaderFx =
+        shaderFx.copyWith(keyframeAnimations: updatedAnimations);
     final updatedShaderList = List<ShaderEffectClip>.from(clip.shaderEffects);
     updatedShaderList[effectIndex] = updatedShaderFx;
 
@@ -517,6 +568,7 @@ class EditorController extends ChangeNotifier {
     _exportStatus = ExportStatus.idle;
     notifyListeners();
   }
+
   bool get isEyedropperActive => _isEyedropperActive;
 
   Future<Color?> pickColorFromFrame() async {
@@ -562,7 +614,8 @@ class EditorController extends ChangeNotifier {
 
   TimelineClip? get activeVideoClip {
     for (final clip in _project.clips) {
-      if ((clip.clipType == ClipType.video || clip.clipType == ClipType.image) &&
+      if ((clip.clipType == ClipType.video ||
+              clip.clipType == ClipType.image) &&
           playhead >= clip.start &&
           playhead <= clip.end) {
         return clip;
@@ -658,7 +711,6 @@ class EditorController extends ChangeNotifier {
     }
     return maxEnd;
   }
-
 
   // ---------------------------------------------------------------------------
   // Clips
@@ -896,7 +948,8 @@ class EditorController extends ChangeNotifier {
     final endDelta = trimEnd - existing.end;
 
     final calculatedTrimIn = existing.trimIn + startDelta;
-    final newTrimIn = calculatedTrimIn >= Duration.zero ? calculatedTrimIn : Duration.zero;
+    final newTrimIn =
+        calculatedTrimIn >= Duration.zero ? calculatedTrimIn : Duration.zero;
     final newTrimOut = existing.trimOut + endDelta;
 
     _saveStateCoalesced('trim:$_selectedClipId');
@@ -910,7 +963,8 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateSelectedClipAnimation(ClipAnimation animation, {required bool isInAnimation}) {
+  void updateSelectedClipAnimation(ClipAnimation animation,
+      {required bool isInAnimation}) {
     if (isInAnimation) {
       updateAnimations(inAnimation: animation);
     } else {
@@ -1036,7 +1090,9 @@ class EditorController extends ChangeNotifier {
     TextStyleProperties? textStyle,
   }) {
     final current = selectedClip;
-    if (current == null || (current.clipType != ClipType.text && current.clipType != ClipType.caption)) return;
+    if (current == null ||
+        (current.clipType != ClipType.text &&
+            current.clipType != ClipType.caption)) return;
 
     _saveStateCoalesced('textprops:${current.id}');
     final index = _project.clips.indexWhere((c) => c.id == current.id);
@@ -1152,9 +1208,12 @@ class EditorController extends ChangeNotifier {
     if (index == -1) return;
 
     _saveState();
-    final updatedKeyframes = List<Keyframe>.from(_project.clips[index].keyframes)
-      ..removeWhere((k) => k.property == keyframe.property && (k.time.inMilliseconds - keyframe.time.inMilliseconds).abs() < 50)
-      ..add(keyframe);
+    final updatedKeyframes =
+        List<Keyframe>.from(_project.clips[index].keyframes)
+          ..removeWhere((k) =>
+              k.property == keyframe.property &&
+              (k.time.inMilliseconds - keyframe.time.inMilliseconds).abs() < 50)
+          ..add(keyframe);
 
     _project.clips[index] = _project.clips[index].copyWith(
       keyframes: updatedKeyframes,
@@ -1184,23 +1243,31 @@ class EditorController extends ChangeNotifier {
             KeyframeProperty.scale,
             KeyframeProperty.rotation,
             KeyframeProperty.opacity,
-            if (clip.clipType == ClipType.audio || clip.clipType == ClipType.video)
+            if (clip.clipType == ClipType.audio ||
+                clip.clipType == ClipType.video)
               KeyframeProperty.volume,
           ];
 
     for (int i = 0; i < propsToAdd.length; i++) {
       final p = propsToAdd[i];
       final double currentValue = switch (p) {
-        KeyframeProperty.positionX => getInterpolatedKeyframeValue(clip, p, relTime, clip.positionX),
-        KeyframeProperty.positionY => getInterpolatedKeyframeValue(clip, p, relTime, clip.positionY),
-        KeyframeProperty.scale => getInterpolatedKeyframeValue(clip, p, relTime, clip.scale),
-        KeyframeProperty.rotation => getInterpolatedKeyframeValue(clip, p, relTime, clip.rotation),
-        KeyframeProperty.opacity => getInterpolatedKeyframeValue(clip, p, relTime, clip.opacity),
-        KeyframeProperty.volume => getInterpolatedKeyframeValue(clip, p, relTime, clip.volume),
+        KeyframeProperty.positionX =>
+          getInterpolatedKeyframeValue(clip, p, relTime, clip.positionX),
+        KeyframeProperty.positionY =>
+          getInterpolatedKeyframeValue(clip, p, relTime, clip.positionY),
+        KeyframeProperty.scale =>
+          getInterpolatedKeyframeValue(clip, p, relTime, clip.scale),
+        KeyframeProperty.rotation =>
+          getInterpolatedKeyframeValue(clip, p, relTime, clip.rotation),
+        KeyframeProperty.opacity =>
+          getInterpolatedKeyframeValue(clip, p, relTime, clip.opacity),
+        KeyframeProperty.volume =>
+          getInterpolatedKeyframeValue(clip, p, relTime, clip.volume),
       };
 
-      updatedKeyframes.removeWhere(
-          (k) => k.property == p && (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
+      updatedKeyframes.removeWhere((k) =>
+          k.property == p &&
+          (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
       updatedKeyframes.add(Keyframe(
         id: 'kf_${stamp}_$i',
         time: relTime,
@@ -1220,8 +1287,9 @@ class EditorController extends ChangeNotifier {
     if (index == -1) return;
 
     _saveState();
-    final updatedKeyframes = List<Keyframe>.from(_project.clips[index].keyframes)
-      ..removeWhere((k) => k.id == keyframeId);
+    final updatedKeyframes =
+        List<Keyframe>.from(_project.clips[index].keyframes)
+          ..removeWhere((k) => k.id == keyframeId);
 
     _project.clips[index] = _project.clips[index].copyWith(
       keyframes: updatedKeyframes,
@@ -1273,7 +1341,8 @@ class EditorController extends ChangeNotifier {
 
         void updateOrAddKf(KeyframeProperty prop, double val) {
           updatedKeyframes.removeWhere((k) =>
-              k.property == prop && (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
+              k.property == prop &&
+              (k.time.inMilliseconds - relTime.inMilliseconds).abs() < 100);
           updatedKeyframes.add(Keyframe(
             id: 'kf_${stamp}_${prop.name}',
             time: relTime,
@@ -1282,10 +1351,13 @@ class EditorController extends ChangeNotifier {
           ));
         }
 
-        if (positionX != null) updateOrAddKf(KeyframeProperty.positionX, positionX);
-        if (positionY != null) updateOrAddKf(KeyframeProperty.positionY, positionY);
+        if (positionX != null)
+          updateOrAddKf(KeyframeProperty.positionX, positionX);
+        if (positionY != null)
+          updateOrAddKf(KeyframeProperty.positionY, positionY);
         if (scale != null) updateOrAddKf(KeyframeProperty.scale, scale);
-        if (rotation != null) updateOrAddKf(KeyframeProperty.rotation, rotation);
+        if (rotation != null)
+          updateOrAddKf(KeyframeProperty.rotation, rotation);
         if (opacity != null) updateOrAddKf(KeyframeProperty.opacity, opacity);
 
         _project.clips[index] = clip.copyWith(
@@ -1420,7 +1492,8 @@ class EditorController extends ChangeNotifier {
   }
 
   // Audio Tools & Multi-layer
-  void addAudioTrack(String sourcePath, {String? trackName, double volume = 1.0, Duration? duration}) {
+  void addAudioTrack(String sourcePath,
+      {String? trackName, double volume = 1.0, Duration? duration}) {
     _saveState();
     final name = trackName ?? sourcePath.split(RegExp(r'[\\/]')).last;
     final clipId = 'audio_${DateTime.now().millisecondsSinceEpoch}';
@@ -1463,7 +1536,8 @@ class EditorController extends ChangeNotifier {
         }
       }
     } catch (e) {
-      AppLogger.warning('Audio probe error for $path: $e', tag: 'EditorController');
+      AppLogger.warning('Audio probe error for $path: $e',
+          tag: 'EditorController');
     }
   }
 
@@ -1551,7 +1625,9 @@ class EditorController extends ChangeNotifier {
   // Auto Captions Generator
   void splitCaptionClip() {
     final current = selectedClip;
-    if (current == null || (current.clipType != ClipType.caption && current.clipType != ClipType.text)) return;
+    if (current == null ||
+        (current.clipType != ClipType.caption &&
+            current.clipType != ClipType.text)) return;
     if (playhead <= current.start || playhead >= current.end) return;
 
     _saveState();
@@ -1582,10 +1658,14 @@ class EditorController extends ChangeNotifier {
 
   void mergeNextCaptionClip() {
     final current = selectedClip;
-    if (current == null || (current.clipType != ClipType.caption && current.clipType != ClipType.text)) return;
+    if (current == null ||
+        (current.clipType != ClipType.caption &&
+            current.clipType != ClipType.text)) return;
 
     final captions = _project.clips
-        .where((c) => c.clipType == current.clipType && c.layerIndex == current.layerIndex)
+        .where((c) =>
+            c.clipType == current.clipType &&
+            c.layerIndex == current.layerIndex)
         .toList()
       ..sort((a, b) => a.start.compareTo(b.start));
 
@@ -1600,7 +1680,8 @@ class EditorController extends ChangeNotifier {
       label: '${current.label} ${nextClip.label}'.trim(),
     );
 
-    _project.clips.removeWhere((c) => c.id == current.id || c.id == nextClip.id);
+    _project.clips
+        .removeWhere((c) => c.id == current.id || c.id == nextClip.id);
     _project.clips.add(mergedClip);
     _selectedClipId = mergedClip.id;
 
@@ -1620,7 +1701,8 @@ class EditorController extends ChangeNotifier {
   }) async {
     _saveState();
     _project.captions.clear();
-    _project.clips.removeWhere((TimelineClip c) => c.clipType == ClipType.caption);
+    _project.clips
+        .removeWhere((TimelineClip c) => c.clipType == ClipType.caption);
 
     String? path = audioFilePath;
     if (path == null || path.isEmpty) {
@@ -1634,7 +1716,8 @@ class EditorController extends ChangeNotifier {
     }
     if (path == null || path.isEmpty) {
       for (final clip in _project.clips) {
-        if ((clip.clipType == ClipType.video || clip.clipType == ClipType.audio) &&
+        if ((clip.clipType == ClipType.video ||
+                clip.clipType == ClipType.audio) &&
             clip.sourcePath != null &&
             clip.sourcePath!.isNotEmpty) {
           path = clip.sourcePath;
@@ -1644,7 +1727,8 @@ class EditorController extends ChangeNotifier {
     }
 
     if (path == null || path.isEmpty) {
-      throw Exception('No video or audio clip found on timeline to transcribe.');
+      throw Exception(
+          'No video or audio clip found on timeline to transcribe.');
     }
 
     String targetPath = path;
@@ -1652,7 +1736,8 @@ class EditorController extends ChangeNotifier {
       final byteData = await rootBundle.load(path);
       final tempDir = await getTemporaryDirectory();
       final tempFile = File('${tempDir.path}/${path.split('/').last}');
-      await tempFile.writeAsBytes(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+      await tempFile.writeAsBytes(byteData.buffer
+          .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
       targetPath = tempFile.path;
     }
 
@@ -1664,7 +1749,9 @@ class EditorController extends ChangeNotifier {
 
     // Filter/clamp generated caption cues to the main clip(s) duration on timeline.
     final mainClips = _project.clips
-        .where((c) => (c.clipType == ClipType.video || c.clipType == ClipType.image) && c.layerIndex == 0)
+        .where((c) =>
+            (c.clipType == ClipType.video || c.clipType == ClipType.image) &&
+            c.layerIndex == 0)
         .toList();
 
     List<CaptionCue> boundedCaptions = <CaptionCue>[];
@@ -1768,7 +1855,8 @@ class EditorController extends ChangeNotifier {
   void deleteCaptionCue(String cueId) {
     _saveState();
     _project.captions.removeWhere((c) => c.id == cueId);
-    _project.clips.removeWhere((c) => c.id == cueId || c.id == 'caption_$cueId');
+    _project.clips
+        .removeWhere((c) => c.id == cueId || c.id == 'caption_$cueId');
     _autosave();
     notifyListeners();
   }
@@ -1823,7 +1911,8 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      AppLogger.info('Starting timeline export for project ${_project.id}', tag: 'EditorController');
+      AppLogger.info('Starting timeline export for project ${_project.id}',
+          tag: 'EditorController');
       final exportService = ExportService();
       final dto = TimelineDto.fromProject(_project, _exportSettings);
       final resultPath = await exportService.exportTimeline(dto.toJson());
@@ -1840,7 +1929,8 @@ class EditorController extends ChangeNotifier {
       }
       return resultPath;
     } catch (e, stack) {
-      AppLogger.error('Timeline export failed', tag: 'EditorController', error: e, stackTrace: stack);
+      AppLogger.error('Timeline export failed',
+          tag: 'EditorController', error: e, stackTrace: stack);
       _isExporting = false;
       _exportStatus = ExportStatus.failed;
       notifyListeners();

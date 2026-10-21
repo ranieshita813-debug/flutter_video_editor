@@ -66,7 +66,8 @@ class ToolSheetFrame extends StatelessWidget {
       type: MaterialType.transparency,
       child: Column(
         children: <Widget>[
-          _SheetHeader(title: title, onClose: onClose, onApply: onApply ?? onClose),
+          _SheetHeader(
+              title: title, onClose: onClose, onApply: onApply ?? onClose),
           Expanded(child: child),
         ],
       ),
@@ -75,7 +76,8 @@ class ToolSheetFrame extends StatelessWidget {
 }
 
 class _SheetHeader extends StatelessWidget {
-  const _SheetHeader({required this.title, required this.onClose, required this.onApply});
+  const _SheetHeader(
+      {required this.title, required this.onClose, required this.onApply});
 
   final String title;
   final VoidCallback onClose;
@@ -85,7 +87,8 @@ class _SheetHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 48,
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: dividerToken))),
+      decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: dividerToken))),
       child: Row(
         children: <Widget>[
           IconButton(
@@ -94,13 +97,17 @@ class _SheetHeader extends StatelessWidget {
               tapFeedback();
               onClose();
             },
-            icon: const Icon(PhosphorIconsRegular.x, color: Colors.white, size: 22),
+            icon: const Icon(PhosphorIconsRegular.x,
+                color: Colors.white, size: 22),
           ),
           Expanded(
             child: Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600),
             ),
           ),
           IconButton(
@@ -109,7 +116,8 @@ class _SheetHeader extends StatelessWidget {
               tapFeedback();
               onApply();
             },
-            icon: const Icon(PhosphorIconsRegular.check, color: accentToken, size: 24),
+            icon: const Icon(PhosphorIconsRegular.check,
+                color: accentToken, size: 24),
           ),
         ],
       ),
@@ -175,13 +183,16 @@ Future<TransitionType?> showTransitionSheet(
     isScrollControlled: true,
     useSafeArea: true,
     constraints: const BoxConstraints(maxWidth: 560),
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
-    builder: (_) => _TransitionPanel(initial: initial, initialSeconds: initialSeconds, onApply: onApply),
+    shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18))),
+    builder: (_) => _TransitionPanel(
+        initial: initial, initialSeconds: initialSeconds, onApply: onApply),
   );
 }
 
 class _TransitionPanel extends StatefulWidget {
-  const _TransitionPanel({required this.initial, required this.initialSeconds, this.onApply});
+  const _TransitionPanel(
+      {required this.initial, required this.initialSeconds, this.onApply});
 
   final TransitionType initial;
   final double initialSeconds;
@@ -215,7 +226,8 @@ class _TransitionPanelState extends State<_TransitionPanel> {
               height: 108,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 children: <Widget>[
                   for (final t in TransitionType.values)
                     Padding(
@@ -243,7 +255,9 @@ class _TransitionPanelState extends State<_TransitionPanel> {
                 max: 2.0,
                 display: '${_seconds.toStringAsFixed(1)}s',
                 // Nothing to time when there is no transition.
-                onChanged: _type == TransitionType.none ? null : (v) => setState(() => _seconds = v),
+                onChanged: _type == TransitionType.none
+                    ? null
+                    : (v) => setState(() => _seconds = v),
               ),
             ),
           ],
@@ -258,8 +272,8 @@ class _TransitionPanelState extends State<_TransitionPanel> {
 // ----------------------------------------------------------------------------
 String _cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
-EdgeInsets _listPad(BuildContext context) =>
-    EdgeInsets.fromLTRB(_pad, _pad, _pad, _pad + MediaQuery.paddingOf(context).bottom);
+EdgeInsets _listPad(BuildContext context) => EdgeInsets.fromLTRB(
+    _pad, _pad, _pad, _pad + MediaQuery.paddingOf(context).bottom);
 
 Gradient _thumbGradient(int i) {
   final double h = (i * 47 % 360).toDouble();
@@ -281,7 +295,8 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         padding: padding,
-        decoration: BoxDecoration(color: cardToken, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+            color: cardToken, borderRadius: BorderRadius.circular(12)),
         child: child,
       );
 }
@@ -293,12 +308,15 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 20, bottom: 8),
-        child: Text(text, style: const TextStyle(color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
+        child: Text(text,
+            style: const TextStyle(
+                color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
       );
 }
 
 class _EmptyHint extends StatelessWidget {
-  const _EmptyHint({required this.text, this.icon = PhosphorIconsRegular.handPointing});
+  const _EmptyHint(
+      {required this.text, this.icon = PhosphorIconsRegular.handPointing});
   final String text;
   final PhosphorIconData icon;
 
@@ -310,7 +328,9 @@ class _EmptyHint extends StatelessWidget {
           children: <Widget>[
             PhosphorIcon(icon, color: Colors.white24, size: 28),
             const SizedBox(height: 8),
-            Text(text, textAlign: TextAlign.center, style: const TextStyle(color: mutedToken, fontSize: 12)),
+            Text(text,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: mutedToken, fontSize: 12)),
           ],
         ),
       );
@@ -318,7 +338,10 @@ class _EmptyHint extends StatelessWidget {
 
 /// Horizontal row of single-select chips.
 class _ChipRow extends StatelessWidget {
-  const _ChipRow({required this.options, required this.selected, required this.onSelected});
+  const _ChipRow(
+      {required this.options,
+      required this.selected,
+      required this.onSelected});
   final List<String> options;
   final String selected;
   final ValueChanged<String> onSelected;
@@ -410,11 +433,17 @@ class _ParamStrip extends StatelessWidget {
                           height: 44,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: sel ? accentToken.withValues(alpha: 0.16) : cardToken,
-                            border: Border.all(color: sel ? accentToken : Colors.transparent, width: 2),
+                            color: sel
+                                ? accentToken.withValues(alpha: 0.16)
+                                : cardToken,
+                            border: Border.all(
+                                color: sel ? accentToken : Colors.transparent,
+                                width: 2),
                           ),
                           child: Center(
-                            child: PhosphorIcon(icons[i], size: 20, color: sel ? accentToken : Colors.white70),
+                            child: PhosphorIcon(icons[i],
+                                size: 20,
+                                color: sel ? accentToken : Colors.white70),
                           ),
                         ),
                         if (modified[i])
@@ -424,7 +453,8 @@ class _ParamStrip extends StatelessWidget {
                             child: Container(
                               width: 8,
                               height: 8,
-                              decoration: const BoxDecoration(color: accentToken, shape: BoxShape.circle),
+                              decoration: const BoxDecoration(
+                                  color: accentToken, shape: BoxShape.circle),
                             ),
                           ),
                       ],
@@ -494,18 +524,23 @@ class _SliderRow extends StatelessWidget {
             if (showLabel)
               Text(label,
                   style: TextStyle(
-                      color: enabled ? Colors.white : mutedToken, fontSize: 13, fontWeight: FontWeight.w600)),
+                      color: enabled ? Colors.white : mutedToken,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
             const Spacer(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: _pillBg, borderRadius: BorderRadius.circular(999)),
+              decoration: BoxDecoration(
+                  color: _pillBg, borderRadius: BorderRadius.circular(999)),
               child: Text(
                 shown,
                 style: TextStyle(
                   color: enabled ? Colors.white : mutedToken,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+                  fontFeatures: const <FontFeature>[
+                    FontFeature.tabularFigures()
+                  ],
                 ),
               ),
             ),
@@ -521,7 +556,8 @@ class _SliderRow extends StatelessWidget {
             thumbColor: Colors.white,
             disabledThumbColor: mutedToken,
             overlayColor: Colors.white.withValues(alpha: 0.12),
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9, elevation: 2),
+            thumbShape: const RoundSliderThumbShape(
+                enabledThumbRadius: 9, elevation: 2),
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
           ),
           child: Stack(
@@ -544,8 +580,10 @@ class _SliderRow extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: <Widget>[
-                Text(minLabel!, style: const TextStyle(color: mutedToken, fontSize: 10)),
-                Text(maxLabel!, style: const TextStyle(color: mutedToken, fontSize: 10)),
+                Text(minLabel!,
+                    style: const TextStyle(color: mutedToken, fontSize: 10)),
+                Text(maxLabel!,
+                    style: const TextStyle(color: mutedToken, fontSize: 10)),
               ],
             ),
           ),
@@ -554,7 +592,9 @@ class _SliderRow extends StatelessWidget {
   }
 }
 
-Widget _primaryBtn(PhosphorIconData? icon, String label, VoidCallback? onPressed) => SizedBox(
+Widget _primaryBtn(
+        PhosphorIconData? icon, String label, VoidCallback? onPressed) =>
+    SizedBox(
       width: double.infinity,
       height: 46,
       child: ElevatedButton(
@@ -564,7 +604,8 @@ Widget _primaryBtn(PhosphorIconData? icon, String label, VoidCallback? onPressed
           disabledBackgroundColor: cardToken,
           disabledForegroundColor: mutedToken,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
         onPressed: onPressed == null
@@ -578,7 +619,9 @@ Widget _primaryBtn(PhosphorIconData? icon, String label, VoidCallback? onPressed
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             if (icon != null) ...<Widget>[
-              PhosphorIcon(icon, color: onPressed == null ? mutedToken : Colors.black, size: 16),
+              PhosphorIcon(icon,
+                  color: onPressed == null ? mutedToken : Colors.black,
+                  size: 16),
               const SizedBox(width: 8),
             ],
             Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
@@ -608,7 +651,8 @@ Widget _outlineBtn(String label, VoidCallback? onPressed) => OutlinedButton(
 
 /// Underline tabs. CapCut uses a white indicator and bold white label.
 class _Tabs extends StatelessWidget {
-  const _Tabs({required this.labels, required this.index, required this.onChanged});
+  const _Tabs(
+      {required this.labels, required this.index, required this.onChanged});
   final List<String> labels;
   final int index;
   final ValueChanged<int> onChanged;
@@ -618,7 +662,8 @@ class _Tabs extends StatelessWidget {
     return Container(
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: _pad),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: dividerToken))),
+      decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: dividerToken))),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
@@ -637,7 +682,10 @@ class _Tabs extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       border: Border(
-                        bottom: BorderSide(color: i == index ? Colors.white : Colors.transparent, width: 2),
+                        bottom: BorderSide(
+                            color:
+                                i == index ? Colors.white : Colors.transparent,
+                            width: 2),
                       ),
                     ),
                     child: Text(
@@ -645,7 +693,8 @@ class _Tabs extends StatelessWidget {
                       style: TextStyle(
                         color: i == index ? Colors.white : mutedToken,
                         fontSize: 13,
-                        fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight:
+                            i == index ? FontWeight.w700 : FontWeight.w500,
                       ),
                     ),
                   ),
@@ -698,11 +747,17 @@ class _ThumbTile extends StatelessWidget {
                         color: gradient == null ? cardToken : null,
                         gradient: gradient,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: selected ? accentToken : Colors.transparent, width: 2),
+                        border: Border.all(
+                            color: selected ? accentToken : Colors.transparent,
+                            width: 2),
                       ),
                       child: icon == null
                           ? null
-                          : Center(child: PhosphorIcon(icon!, size: 22, color: selected ? accentToken : Colors.white70)),
+                          : Center(
+                              child: PhosphorIcon(icon!,
+                                  size: 22,
+                                  color:
+                                      selected ? accentToken : Colors.white70)),
                     ),
                   ),
                   if (selected)
@@ -712,8 +767,10 @@ class _ThumbTile extends StatelessWidget {
                       child: Container(
                         width: 16,
                         height: 16,
-                        decoration: const BoxDecoration(color: accentToken, shape: BoxShape.circle),
-                        child: const PhosphorIcon(PhosphorIconsRegular.check, size: 10, color: Colors.black),
+                        decoration: const BoxDecoration(
+                            color: accentToken, shape: BoxShape.circle),
+                        child: const PhosphorIcon(PhosphorIconsRegular.check,
+                            size: 10, color: Colors.black),
                       ),
                     ),
                 ],
@@ -770,7 +827,11 @@ class _ResponsiveGrid extends StatelessWidget {
 }
 
 /// Text-only chip tile, used for fonts and emoji.
-Widget _tile({required Widget child, required VoidCallback onTap, bool selected = false}) => InkWell(
+Widget _tile(
+        {required Widget child,
+        required VoidCallback onTap,
+        bool selected = false}) =>
+    InkWell(
       onTap: () {
         tapFeedback();
         onTap();
@@ -781,7 +842,8 @@ Widget _tile({required Widget child, required VoidCallback onTap, bool selected 
         decoration: BoxDecoration(
           color: selected ? accentToken.withValues(alpha: 0.18) : cardToken,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: selected ? accentToken : Colors.transparent),
+          border:
+              Border.all(color: selected ? accentToken : Colors.transparent),
         ),
         alignment: Alignment.center,
         child: child,
@@ -794,30 +856,48 @@ Widget _tile({required Widget child, required VoidCallback onTap, bool selected 
 class AudioToolsSheet extends StatelessWidget {
   const AudioToolsSheet({super.key});
 
-  static const List<String> _voiceEffects = ['Normal', 'Deep', 'Robot', 'Chipmunk', 'Echo'];
-  static const List<String> _eqPresets = ['Flat', 'Bass boost', 'Treble boost', 'Vocal', 'Pop', 'Rock'];
+  static const List<String> _voiceEffects = [
+    'Normal',
+    'Deep',
+    'Robot',
+    'Chipmunk',
+    'Echo'
+  ];
+  static const List<String> _eqPresets = [
+    'Flat',
+    'Bass boost',
+    'Treble boost',
+    'Vocal',
+    'Pop',
+    'Rock'
+  ];
 
   Future<void> _pickAudio(BuildContext context, EditorController editor) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.audio, allowMultiple: false);
+      final result = await FilePicker.platform
+          .pickFiles(type: FileType.audio, allowMultiple: false);
       if (result == null || result.files.isEmpty) return;
       final file = result.files.single;
       if (file.path == null) {
-        messenger?.showSnackBar(const SnackBar(content: Text('Couldn’t read that file. Try another.')));
+        messenger?.showSnackBar(const SnackBar(
+            content: Text('Couldn’t read that file. Try another.')));
         return;
       }
       editor.addAudioTrack(file.path!, trackName: file.name);
     } catch (_) {
-      messenger?.showSnackBar(const SnackBar(content: Text('Couldn’t open the file picker. Try again.')));
+      messenger?.showSnackBar(const SnackBar(
+          content: Text('Couldn’t open the file picker. Try again.')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-    final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
-    final bool hasAudio = clip != null && (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
+    final clip =
+        context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final bool hasAudio = clip != null &&
+        (clip.clipType == ClipType.audio || clip.clipType == ClipType.video);
     final bool isVideo = clip?.clipType == ClipType.video;
     final ap = clip?.audioProperties ?? const AudioProperties();
     // The volume slider writes to audioProperties, so it must read from there too.
@@ -837,7 +917,8 @@ class AudioToolsSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(
-                  child: PhosphorIcon(PhosphorIconsRegular.musicNote, color: accentToken, size: 18),
+                  child: PhosphorIcon(PhosphorIconsRegular.musicNote,
+                      color: accentToken, size: 18),
                 ),
               ),
               const SizedBox(width: 12),
@@ -846,9 +927,13 @@ class AudioToolsSheet extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text('Add audio track',
-                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600)),
                     SizedBox(height: 2),
-                    Text('Place a soundtrack on the timeline', style: TextStyle(color: mutedToken, fontSize: 12)),
+                    Text('Place a soundtrack on the timeline',
+                        style: TextStyle(color: mutedToken, fontSize: 12)),
                   ],
                 ),
               ),
@@ -868,7 +953,8 @@ class AudioToolsSheet extends StatelessWidget {
                         _pickAudio(context, editor);
                       },
                       child: const Center(
-                        child: PhosphorIcon(PhosphorIconsRegular.plus, color: Colors.black, size: 18),
+                        child: PhosphorIcon(PhosphorIconsRegular.plus,
+                            color: Colors.black, size: 18),
                       ),
                     ),
                   ),
@@ -879,10 +965,12 @@ class AudioToolsSheet extends StatelessWidget {
         ),
         if (isVideo) ...<Widget>[
           const SizedBox(height: 12),
-          _outlineBtn('Extract audio from video', editor.extractAudioFromSelectedClip),
+          _outlineBtn(
+              'Extract audio from video', editor.extractAudioFromSelectedClip),
         ],
         if (!hasAudio)
-          const _EmptyHint(text: 'Select an audio or video clip to adjust its sound.')
+          const _EmptyHint(
+              text: 'Select an audio or video clip to adjust its sound.')
         else ...<Widget>[
           const _SectionLabel('Levels'),
           _Card(
@@ -897,7 +985,8 @@ class AudioToolsSheet extends StatelessWidget {
                   display: '${(volume * 100).round()}%',
                   minLabel: '0%',
                   maxLabel: '200%',
-                  onChanged: (v) => editor.updateAudioProperties(ap.copyWith(volume: v)),
+                  onChanged: (v) =>
+                      editor.updateAudioProperties(ap.copyWith(volume: v)),
                 ),
                 const SizedBox(height: 8),
                 _SliderRow(
@@ -905,9 +994,11 @@ class AudioToolsSheet extends StatelessWidget {
                   value: ap.fadeIn.inMilliseconds / 1000.0,
                   min: 0,
                   max: 5,
-                  display: '${(ap.fadeIn.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
+                  display:
+                      '${(ap.fadeIn.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
                   onChanged: (v) => editor.updateAudioProperties(
-                    ap.copyWith(fadeIn: Duration(milliseconds: (v * 1000).round())),
+                    ap.copyWith(
+                        fadeIn: Duration(milliseconds: (v * 1000).round())),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -916,9 +1007,11 @@ class AudioToolsSheet extends StatelessWidget {
                   value: ap.fadeOut.inMilliseconds / 1000.0,
                   min: 0,
                   max: 5,
-                  display: '${(ap.fadeOut.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
+                  display:
+                      '${(ap.fadeOut.inMilliseconds / 1000.0).toStringAsFixed(1)}s',
                   onChanged: (v) => editor.updateAudioProperties(
-                    ap.copyWith(fadeOut: Duration(milliseconds: (v * 1000).round())),
+                    ap.copyWith(
+                        fadeOut: Duration(milliseconds: (v * 1000).round())),
                   ),
                 ),
               ],
@@ -935,7 +1028,8 @@ class AudioToolsSheet extends StatelessWidget {
                   min: 0.5,
                   max: 2.0,
                   display: '${ap.pitch.toStringAsFixed(2)}x',
-                  onChanged: (v) => editor.updateAudioProperties(ap.copyWith(pitch: v)),
+                  onChanged: (v) =>
+                      editor.updateAudioProperties(ap.copyWith(pitch: v)),
                 ),
                 const SizedBox(height: 8),
                 _SliderRow(
@@ -944,7 +1038,8 @@ class AudioToolsSheet extends StatelessWidget {
                   min: 0,
                   max: 1.0,
                   display: '${(ap.noiseReduction * 100).round()}%',
-                  onChanged: (v) => editor.updateAudioProperties(ap.copyWith(noiseReduction: v)),
+                  onChanged: (v) => editor
+                      .updateAudioProperties(ap.copyWith(noiseReduction: v)),
                 ),
               ],
             ),
@@ -953,13 +1048,15 @@ class AudioToolsSheet extends StatelessWidget {
           _ChipRow(
             options: _voiceEffects,
             selected: _matchOption(_voiceEffects, ap.voiceEffect),
-            onSelected: (v) => editor.updateAudioProperties(ap.copyWith(voiceEffect: v)),
+            onSelected: (v) =>
+                editor.updateAudioProperties(ap.copyWith(voiceEffect: v)),
           ),
           const _SectionLabel('Equalizer preset'),
           _ChipRow(
             options: _eqPresets,
             selected: _matchOption(_eqPresets, ap.equalizerPreset),
-            onSelected: (v) => editor.updateAudioProperties(ap.copyWith(equalizerPreset: v)),
+            onSelected: (v) =>
+                editor.updateAudioProperties(ap.copyWith(equalizerPreset: v)),
           ),
         ],
       ],
@@ -968,7 +1065,8 @@ class AudioToolsSheet extends StatelessWidget {
 
   /// Matches a stored value to a chip label, ignoring case, so values saved as
   /// "Bass Boost" still highlight the "Bass boost" chip.
-  static String _matchOption(List<String> options, String stored) => options.firstWhere(
+  static String _matchOption(List<String> options, String stored) =>
+      options.firstWhere(
         (o) => o.toLowerCase() == stored.toLowerCase(),
         orElse: () => '',
       );
@@ -992,7 +1090,8 @@ class _AnimatedTextTile extends StatelessWidget {
   /// One controller shared by every tile, instead of one ticker per tile.
   final Animation<double> animation;
 
-  static const TextStyle _sample = TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold);
+  static const TextStyle _sample =
+      TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold);
 
   Widget _sampleFor(double val) {
     switch (style) {
@@ -1000,22 +1099,33 @@ class _AnimatedTextTile extends StatelessWidget {
         return Opacity(opacity: val, child: const Text('Aa', style: _sample));
       case TextAnimationStyle.typewriter:
         final int count = (val * 4).round().clamp(1, 4);
-        return Text('Text'.substring(0, count), style: _sample.copyWith(fontSize: 16));
+        return Text('Text'.substring(0, count),
+            style: _sample.copyWith(fontSize: 16));
       case TextAnimationStyle.slideUp:
-        return Transform.translate(offset: Offset(0, (1 - val) * 12), child: const Text('Aa', style: _sample));
+        return Transform.translate(
+            offset: Offset(0, (1 - val) * 12),
+            child: const Text('Aa', style: _sample));
       case TextAnimationStyle.bounce:
         return Transform.scale(
-            scale: 0.6 + 0.5 * Curves.elasticOut.transform(val), child: const Text('Aa', style: _sample));
+            scale: 0.6 + 0.5 * Curves.elasticOut.transform(val),
+            child: const Text('Aa', style: _sample));
       case TextAnimationStyle.scaleUp:
-        return Transform.scale(scale: 0.6 + 0.5 * val, child: const Text('Aa', style: _sample));
+        return Transform.scale(
+            scale: 0.6 + 0.5 * val, child: const Text('Aa', style: _sample));
       case TextAnimationStyle.rotateIn:
-        return Transform.rotate(angle: (1 - val) * math.pi / 2, child: const Text('Aa', style: _sample));
+        return Transform.rotate(
+            angle: (1 - val) * math.pi / 2,
+            child: const Text('Aa', style: _sample));
       case TextAnimationStyle.glowPulse:
       case TextAnimationStyle.neonFlicker:
         return Text('Aa',
-            style: _sample.copyWith(shadows: <Shadow>[Shadow(color: const Color(0xFF00E5FF), blurRadius: val * 12)]));
+            style: _sample.copyWith(shadows: <Shadow>[
+              Shadow(color: const Color(0xFF00E5FF), blurRadius: val * 12)
+            ]));
       default:
-        return Text('Aa', style: _sample.copyWith(color: selected ? accentToken : Colors.white70));
+        return Text('Aa',
+            style: _sample.copyWith(
+                color: selected ? accentToken : Colors.white70));
     }
   }
 
@@ -1033,7 +1143,8 @@ class _AnimatedTextTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: cardToken,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: selected ? accentToken : Colors.transparent, width: 2),
+            border: Border.all(
+                color: selected ? accentToken : Colors.transparent, width: 2),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -1080,16 +1191,27 @@ class TextAnimationSheet extends StatefulWidget {
   State<TextAnimationSheet> createState() => _TextAnimationSheetState();
 }
 
-class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTickerProviderStateMixin {
-  final TextEditingController _ctrl = TextEditingController(text: 'Sample text');
-  late final AnimationController _pulse =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
+class _TextAnimationSheetState extends State<TextAnimationSheet>
+    with SingleTickerProviderStateMixin {
+  final TextEditingController _ctrl =
+      TextEditingController(text: 'Sample text');
+  late final AnimationController _pulse = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1500))
+    ..repeat(reverse: true);
   String _selectedFont = 'Ubuntu Sans';
   TextAnimationStyle _anim = TextAnimationStyle.fadeIn;
   int _tab = 0;
   String? _syncedId;
 
-  static const List<String> _fonts = <String>['Ubuntu Sans', 'Ubuntu', 'Unbounded', 'Roboto', 'Arial', 'Montserrat', 'Inter'];
+  static const List<String> _fonts = <String>[
+    'Ubuntu Sans',
+    'Ubuntu',
+    'Unbounded',
+    'Roboto',
+    'Arial',
+    'Montserrat',
+    'Inter'
+  ];
 
   @override
   void dispose() {
@@ -1103,7 +1225,8 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
   void _syncFrom(TimelineClip? clip) {
     if (clip?.id == _syncedId) return;
     _syncedId = clip?.id;
-    if (clip != null && (clip.clipType == ClipType.text || clip.clipType == ClipType.caption)) {
+    if (clip != null &&
+        (clip.clipType == ClipType.text || clip.clipType == ClipType.caption)) {
       _selectedFont = clip.fontFamily;
       _anim = clip.textAnimationStyle;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1115,7 +1238,8 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final selectedClip =
+        context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
     _syncFrom(selectedClip);
     final bool editing = selectedClip?.clipType == ClipType.text;
     const styles = TextAnimationStyle.values;
@@ -1137,7 +1261,9 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
               if (editing) {
                 final String text = val.trim().isEmpty ? 'Text' : val;
                 editor.updateSelectedTextProperties(
-                    text: text, fontFamily: _selectedFont, textAnimationStyle: _anim);
+                    text: text,
+                    fontFamily: _selectedFont,
+                    textAnimationStyle: _anim);
               }
             },
             decoration: InputDecoration(
@@ -1146,19 +1272,25 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
               hintStyle: const TextStyle(color: mutedToken),
               filled: true,
               fillColor: cardToken,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               suffixIcon: IconButton(
                 tooltip: 'Clear text',
-                icon: const Icon(PhosphorIconsRegular.xCircle, color: mutedToken, size: 18),
+                icon: const Icon(PhosphorIconsRegular.xCircle,
+                    color: mutedToken, size: 18),
                 onPressed: () {
                   _ctrl.clear();
                   if (editing) {
                     editor.updateSelectedTextProperties(
-                        text: 'Text', fontFamily: _selectedFont, textAnimationStyle: _anim);
+                        text: 'Text',
+                        fontFamily: _selectedFont,
+                        textAnimationStyle: _anim);
                   }
                 },
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none),
             ),
           ),
         ),
@@ -1209,17 +1341,22 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
                 ),
         ),
         Padding(
-          padding: EdgeInsets.fromLTRB(_pad, 4, _pad, _pad + MediaQuery.paddingOf(context).bottom),
+          padding: EdgeInsets.fromLTRB(
+              _pad, 4, _pad, _pad + MediaQuery.paddingOf(context).bottom),
           child: _primaryBtn(
             null,
             editing ? 'Update selected text' : 'Add text clip',
             () {
-              final String text = _ctrl.text.trim().isEmpty ? 'Text' : _ctrl.text;
+              final String text =
+                  _ctrl.text.trim().isEmpty ? 'Text' : _ctrl.text;
               if (editing) {
                 editor.updateSelectedTextProperties(
-                    text: text, fontFamily: _selectedFont, textAnimationStyle: _anim);
+                    text: text,
+                    fontFamily: _selectedFont,
+                    textAnimationStyle: _anim);
               } else {
-                editor.addTextOverlay(text, fontFamily: _selectedFont, animationStyle: _anim);
+                editor.addTextOverlay(text,
+                    fontFamily: _selectedFont, animationStyle: _anim);
               }
             },
           ),
@@ -1236,7 +1373,21 @@ class StickersSheet extends StatelessWidget {
   const StickersSheet({super.key});
 
   static const List<String> _emojis = <String>[
-    '🔥', '✨', '⚡', '🎉', '❤️', '🌟', '🎬', '👏', '🚀', '💯', '💥', '⭐', '🎈', '🏆', '💎'
+    '🔥',
+    '✨',
+    '⚡',
+    '🎉',
+    '❤️',
+    '🌟',
+    '🎬',
+    '👏',
+    '🚀',
+    '💯',
+    '💥',
+    '⭐',
+    '🎈',
+    '🏆',
+    '💎'
   ];
 
   @override
@@ -1246,7 +1397,8 @@ class StickersSheet extends StatelessWidget {
       itemCount: _emojis.length,
       minTile: 64,
       itemBuilder: (context, i) => _tile(
-        onTap: () => editor.addTextOverlay(_emojis[i], fontFamily: 'Ubuntu Sans'),
+        onTap: () =>
+            editor.addTextOverlay(_emojis[i], fontFamily: 'Ubuntu Sans'),
         child: Text(_emojis[i], style: const TextStyle(fontSize: 28)),
       ),
     );
@@ -1266,7 +1418,11 @@ class ColorGradingSheet extends StatefulWidget {
 class _ColorGradingSheetState extends State<ColorGradingSheet> {
   int _param = 0;
 
-  static const List<String> _labels = <String>['Brightness', 'Contrast', 'Saturation'];
+  static const List<String> _labels = <String>[
+    'Brightness',
+    'Contrast',
+    'Saturation'
+  ];
   static const List<PhosphorIconData> _icons = <PhosphorIconData>[
     PhosphorIconsRegular.sun,
     PhosphorIconsRegular.circleHalf,
@@ -1276,8 +1432,10 @@ class _ColorGradingSheetState extends State<ColorGradingSheet> {
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-    final hasClip = context.select<EditorController, bool>((e) => e.selectedClip != null);
-    final cg = context.select<EditorController, ColorGradingSettings?>((e) => e.selectedClip?.colorGrading);
+    final hasClip =
+        context.select<EditorController, bool>((e) => e.selectedClip != null);
+    final cg = context.select<EditorController, ColorGradingSettings?>(
+        (e) => e.selectedClip?.colorGrading);
     final double b = cg?.brightness ?? 0.0;
     final double c = cg?.contrast ?? 1.0;
     final double s = cg?.saturation ?? 1.0;
@@ -1286,8 +1444,8 @@ class _ColorGradingSheetState extends State<ColorGradingSheet> {
     final bool sMod = (s - 1).abs() >= 0.005;
     final bool isDefault = !bMod && !cMod && !sMod;
 
-    void push(double nb, double nc, double ns) =>
-        editor.updateColorGrading(ColorGradingSettings(brightness: nb, contrast: nc, saturation: ns));
+    void push(double nb, double nc, double ns) => editor.updateColorGrading(
+        ColorGradingSettings(brightness: nb, contrast: nc, saturation: ns));
 
     final Widget slider = switch (_param) {
       0 => _SliderRow(
@@ -1321,9 +1479,11 @@ class _ColorGradingSheetState extends State<ColorGradingSheet> {
     };
 
     return ListView(
-      padding: EdgeInsets.only(top: 12, bottom: _pad + MediaQuery.paddingOf(context).bottom),
+      padding: EdgeInsets.only(
+          top: 12, bottom: _pad + MediaQuery.paddingOf(context).bottom),
       children: <Widget>[
-        if (!hasClip) const _EmptyHint(text: 'Select a clip to grade its color.'),
+        if (!hasClip)
+          const _EmptyHint(text: 'Select a clip to grade its color.'),
         _ParamStrip(
           labels: _labels,
           icons: _icons,
@@ -1337,7 +1497,8 @@ class _ColorGradingSheetState extends State<ColorGradingSheet> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(_pad, 16, _pad, 0),
-          child: _outlineBtn('Reset', hasClip && !isDefault ? () => push(0.0, 1.0, 1.0) : null),
+          child: _outlineBtn('Reset',
+              hasClip && !isDefault ? () => push(0.0, 1.0, 1.0) : null),
         ),
       ],
     );
@@ -1359,7 +1520,8 @@ enum CanvasRatio {
   final double value;
 }
 
-final ValueNotifier<CanvasRatio> canvasRatioNotifier = ValueNotifier<CanvasRatio>(CanvasRatio.r16x9);
+final ValueNotifier<CanvasRatio> canvasRatioNotifier =
+    ValueNotifier<CanvasRatio>(CanvasRatio.r16x9);
 
 CanvasRatio detectCanvasRatio(int width, int height) {
   if (width <= 0 || height <= 0) return CanvasRatio.r16x9;
@@ -1376,8 +1538,19 @@ CanvasRatio detectCanvasRatio(int width, int height) {
   return closest;
 }
 
+AspectRatioPreset canvasRatioToPreset(CanvasRatio ratio) {
+  return switch (ratio) {
+    CanvasRatio.r9x16 => AspectRatioPreset.nineSixteen,
+    CanvasRatio.r16x9 => AspectRatioPreset.sixteenNine,
+    CanvasRatio.r1x1 => AspectRatioPreset.oneOne,
+    CanvasRatio.r4x5 => AspectRatioPreset.fourFive,
+    CanvasRatio.r21x9 => AspectRatioPreset.sixteenNine,
+  };
+}
+
 class _RatioTile extends StatelessWidget {
-  const _RatioTile({required this.ratio, required this.selected, required this.onTap});
+  const _RatioTile(
+      {required this.ratio, required this.selected, required this.onTap});
   final CanvasRatio ratio;
   final bool selected;
   final VoidCallback onTap;
@@ -1400,7 +1573,8 @@ class _RatioTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? accentToken.withValues(alpha: 0.18) : cardToken,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: selected ? accentToken : Colors.transparent),
+            border:
+                Border.all(color: selected ? accentToken : Colors.transparent),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1410,7 +1584,8 @@ class _RatioTile extends StatelessWidget {
                 height: h,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
-                  border: Border.all(color: selected ? accentToken : Colors.white70, width: 2),
+                  border: Border.all(
+                      color: selected ? accentToken : Colors.white70, width: 2),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1436,13 +1611,17 @@ class CropSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-    final scale = context.select<EditorController, double>((e) => e.selectedClip?.scale ?? 1.0);
-    final hasClip = context.select<EditorController, bool>((e) => e.selectedClip != null);
+    final scale = context
+        .select<EditorController, double>((e) => e.selectedClip?.scale ?? 1.0);
+    final hasClip =
+        context.select<EditorController, bool>((e) => e.selectedClip != null);
 
     return ListView(
       padding: _listPad(context),
       children: <Widget>[
-        const Text('Canvas ratio', style: TextStyle(color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
+        const Text('Canvas ratio',
+            style: TextStyle(
+                color: mutedToken, fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         ValueListenableBuilder<CanvasRatio>(
           valueListenable: canvasRatioNotifier,
@@ -1458,6 +1637,7 @@ class CropSheet extends StatelessWidget {
                       onTap: () {
                         tapFeedback();
                         canvasRatioNotifier.value = r;
+                        editor.updateAspectRatio(canvasRatioToPreset(r));
                       },
                     ),
                   ),
@@ -1476,7 +1656,8 @@ class CropSheet extends StatelessWidget {
             display: '${(scale * 100).round()}%',
             minLabel: '50%',
             maxLabel: '300%',
-            onChanged: hasClip ? (v) => editor.updateTranslation(scale: v) : null,
+            onChanged:
+                hasClip ? (v) => editor.updateTranslation(scale: v) : null,
           ),
         ),
         if (!hasClip) const _EmptyHint(text: 'Select a clip to zoom it.'),
@@ -1531,12 +1712,14 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
         // Live stroke preview.
         Container(
           height: 56,
-          decoration: BoxDecoration(color: _canvasDark, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+              color: _canvasDark, borderRadius: BorderRadius.circular(12)),
           alignment: Alignment.center,
           child: Container(
             width: 140,
             height: _width,
-            decoration: BoxDecoration(color: _color, borderRadius: BorderRadius.circular(_width / 2)),
+            decoration: BoxDecoration(
+                color: _color, borderRadius: BorderRadius.circular(_width / 2)),
           ),
         ),
         const SizedBox(height: 16),
@@ -1582,10 +1765,15 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
                         decoration: BoxDecoration(
                           color: c,
                           shape: BoxShape.circle,
-                          border: Border.all(color: _color == c ? Colors.white : Colors.transparent, width: 2),
+                          border: Border.all(
+                              color: _color == c
+                                  ? Colors.white
+                                  : Colors.transparent,
+                              width: 2),
                         ),
                         child: _color == c
-                            ? const PhosphorIcon(PhosphorIconsRegular.check, size: 14, color: Colors.black)
+                            ? const PhosphorIcon(PhosphorIconsRegular.check,
+                                size: 14, color: Colors.black)
                             : null,
                       ),
                     ),
@@ -1599,7 +1787,9 @@ class _VectorDrawingSheetState extends State<VectorDrawingSheet> {
           children: <Widget>[
             Expanded(child: _outlineBtn('Clear', editor.clearActiveDrawing)),
             const SizedBox(width: 12),
-            Expanded(child: _primaryBtn(null, 'Save clip', editor.saveVectorDrawingAsClip)),
+            Expanded(
+                child: _primaryBtn(
+                    null, 'Save clip', editor.saveVectorDrawingAsClip)),
           ],
         ),
       ],
@@ -1639,14 +1829,16 @@ class _MaskSheetState extends State<MaskSheet> {
                 gradient: _thumbGradient(i + 3),
                 onTap: () {
                   setState(() => _type = type);
-                  editor.updateMaskProperties(MaskProperties(type: type, feather: _feather));
+                  editor.updateMaskProperties(
+                      MaskProperties(type: type, feather: _feather));
                 },
               );
             },
           ),
         ),
         Padding(
-          padding: EdgeInsets.fromLTRB(_pad, 0, _pad, _pad + MediaQuery.paddingOf(context).bottom),
+          padding: EdgeInsets.fromLTRB(
+              _pad, 0, _pad, _pad + MediaQuery.paddingOf(context).bottom),
           child: _SliderRow(
             label: 'Feather',
             value: _feather,
@@ -1658,7 +1850,8 @@ class _MaskSheetState extends State<MaskSheet> {
                 ? null
                 : (v) {
                     setState(() => _feather = v);
-                    editor.updateMaskProperties(MaskProperties(type: _type!, feather: v));
+                    editor.updateMaskProperties(
+                        MaskProperties(type: _type!, feather: v));
                   },
           ),
         ),
@@ -1676,13 +1869,15 @@ class CameraSettingsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final selectedClip =
+        context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
     final props = selectedClip?.cameraProperties ?? const CameraProperties();
 
     return ListView(
       padding: _listPad(context),
       children: <Widget>[
-        if (selectedClip == null) const _EmptyHint(text: 'Select a clip to change its camera.'),
+        if (selectedClip == null)
+          const _EmptyHint(text: 'Select a clip to change its camera.'),
         _Card(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
           child: _SliderRow(
@@ -1695,13 +1890,16 @@ class CameraSettingsSheet extends StatelessWidget {
             maxLabel: '200 mm',
             onChanged: selectedClip == null
                 ? null
-                : (v) => editor.updateCameraProperties(props.copyWith(focalLength: v)),
+                : (v) => editor
+                    .updateCameraProperties(props.copyWith(focalLength: v)),
           ),
         ),
         const SizedBox(height: 16),
         _outlineBtn(
           'Reset',
-          selectedClip == null ? null : () => editor.updateCameraProperties(const CameraProperties()),
+          selectedClip == null
+              ? null
+              : () => editor.updateCameraProperties(const CameraProperties()),
         ),
       ],
     );
@@ -1714,7 +1912,8 @@ class CameraTrackingPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
-    final selectedClip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final selectedClip =
+        context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
     final bool active = selectedClip?.trackingData.isEnabled == true;
 
     return ListView(
@@ -1723,11 +1922,16 @@ class CameraTrackingPanel extends StatelessWidget {
         _Card(
           child: Row(
             children: <Widget>[
-              Icon(PhosphorIconsFill.circle, size: 10, color: active ? Colors.greenAccent : Colors.white24),
+              Icon(PhosphorIconsFill.circle,
+                  size: 10,
+                  color: active ? Colors.greenAccent : Colors.white24),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(active ? 'Tracking is on' : 'Tracking is off',
-                    style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
               ),
             ],
           ),
@@ -1744,7 +1948,8 @@ class CameraTrackingPanel extends StatelessWidget {
                     rect: const Rect.fromLTWH(0.2, 0.2, 0.6, 0.6),
                   )),
         ),
-        if (selectedClip == null) const _EmptyHint(text: 'Select a clip to track a subject.'),
+        if (selectedClip == null)
+          const _EmptyHint(text: 'Select a clip to track a subject.'),
       ],
     );
   }
@@ -1761,7 +1966,9 @@ class PluginsSheet extends StatelessWidget {
     final plugins = PluginManager().activePlugins;
 
     if (plugins.isEmpty) {
-      return const Center(child: _EmptyHint(icon: PhosphorIconsRegular.plug, text: 'No active plug-ins.'));
+      return const Center(
+          child: _EmptyHint(
+              icon: PhosphorIconsRegular.plug, text: 'No active plug-ins.'));
     }
 
     return ListView.builder(
@@ -1782,7 +1989,8 @@ class PluginsSheet extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Center(
-                    child: PhosphorIcon(PhosphorIconsRegular.gridFour, color: accentToken, size: 18),
+                    child: PhosphorIcon(PhosphorIconsRegular.gridFour,
+                        color: accentToken, size: 18),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1791,9 +1999,14 @@ class PluginsSheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(p.name,
-                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
-                      Text(p.version, style: const TextStyle(color: mutedToken, fontSize: 12)),
+                      Text(p.version,
+                          style:
+                              const TextStyle(color: mutedToken, fontSize: 12)),
                     ],
                   ),
                 ),
