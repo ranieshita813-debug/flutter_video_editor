@@ -14,7 +14,6 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/element
 
 import 'package:flutter_video_editor/features/editor/widgets/adjustments_sheet.dart';
 
-import 'package:flutter_video_editor/core/services/ai_generation_service.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/gen.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/captions_style.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';

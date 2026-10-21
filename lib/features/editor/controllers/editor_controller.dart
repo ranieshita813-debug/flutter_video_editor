@@ -988,7 +988,9 @@ class EditorController extends ChangeNotifier {
 
   void toggleClipVisibility(String id) {
     final index = _project.clips.indexWhere((c) => c.id == id);
-    if (index == -1) return;
+    if (index == -1) {
+      return;
+    }
     _project.clips[index] = _project.clips[index].copyWith(
       isVisible: !_project.clips[index].isVisible,
     );
@@ -998,7 +1000,9 @@ class EditorController extends ChangeNotifier {
 
   void toggleClipLock(String id) {
     final index = _project.clips.indexWhere((c) => c.id == id);
-    if (index == -1) return;
+    if (index == -1) {
+      return;
+    }
     _project.clips[index] = _project.clips[index].copyWith(
       isLocked: !_project.clips[index].isLocked,
     );
@@ -1051,7 +1055,9 @@ class EditorController extends ChangeNotifier {
 
   void updateSelectedClipTextStyle(TextStyleProperties properties) {
     final current = selectedClip;
-    if (current == null) return;
+    if (current == null) {
+      return;
+    }
 
     _saveStateCoalesced('textstyle:${current.id}');
     if (current.clipType == ClipType.caption) {
@@ -1070,7 +1076,9 @@ class EditorController extends ChangeNotifier {
 
   void updateSelectedClipFont(String fontFamily) {
     final current = selectedClip;
-    if (current == null) return;
+    if (current == null) {
+      return;
+    }
 
     _saveState();
     final index = _project.clips.indexWhere((c) => c.id == current.id);
@@ -1092,7 +1100,9 @@ class EditorController extends ChangeNotifier {
     final current = selectedClip;
     if (current == null ||
         (current.clipType != ClipType.text &&
-            current.clipType != ClipType.caption)) return;
+            current.clipType != ClipType.caption)) {
+      return;
+    }
 
     _saveStateCoalesced('textprops:${current.id}');
     final index = _project.clips.indexWhere((c) => c.id == current.id);
@@ -1229,7 +1239,9 @@ class EditorController extends ChangeNotifier {
 
     final clip = _project.clips[index];
     final relTime = playhead - clip.start;
-    if (relTime.isNegative || relTime > clip.duration) return;
+    if (relTime.isNegative || relTime > clip.duration) {
+      return;
+    }
 
     _saveState();
     final updatedKeyframes = List<Keyframe>.from(clip.keyframes);
@@ -1351,14 +1363,21 @@ class EditorController extends ChangeNotifier {
           ));
         }
 
-        if (positionX != null)
+        if (positionX != null) {
           updateOrAddKf(KeyframeProperty.positionX, positionX);
-        if (positionY != null)
+        }
+        if (positionY != null) {
           updateOrAddKf(KeyframeProperty.positionY, positionY);
-        if (scale != null) updateOrAddKf(KeyframeProperty.scale, scale);
-        if (rotation != null)
+        }
+        if (scale != null) {
+          updateOrAddKf(KeyframeProperty.scale, scale);
+        }
+        if (rotation != null) {
           updateOrAddKf(KeyframeProperty.rotation, rotation);
-        if (opacity != null) updateOrAddKf(KeyframeProperty.opacity, opacity);
+        }
+        if (opacity != null) {
+          updateOrAddKf(KeyframeProperty.opacity, opacity);
+        }
 
         _project.clips[index] = clip.copyWith(
           positionX: positionX ?? clip.positionX,
@@ -1392,9 +1411,13 @@ class EditorController extends ChangeNotifier {
     ClipAnimation? outAnimation,
     ClipAnimation? loopAnimation,
   }) {
-    if (_selectedClipId == null) return;
+    if (_selectedClipId == null) {
+      return;
+    }
     final index = _project.clips.indexWhere((c) => c.id == _selectedClipId);
-    if (index == -1) return;
+    if (index == -1) {
+      return;
+    }
 
     _saveState();
     final current = _project.clips[index];
@@ -1450,7 +1473,9 @@ class EditorController extends ChangeNotifier {
   /// Raw setter kept for compatibility. Prefer [moveClipLayer] for UI.
   void reorderClipLayer(String clipId, int newLayerIndex) {
     final index = _project.clips.indexWhere((c) => c.id == clipId);
-    if (index == -1) return;
+    if (index == -1) {
+      return;
+    }
 
     _saveState();
     _project.clips[index] = _project.clips[index].copyWith(
@@ -1466,7 +1491,9 @@ class EditorController extends ChangeNotifier {
   }
 
   void moveClipLayer(String clipId, {required bool up, bool toEdge = false}) {
-    if (!canMoveClipLayer(clipId, up: up)) return;
+    if (!canMoveClipLayer(clipId, up: up)) {
+      return;
+    }
     _saveState();
     _track.moveClipLayer(_project.clips, clipId, up: up, toEdge: toEdge);
     _autosave();
@@ -1583,7 +1610,9 @@ class EditorController extends ChangeNotifier {
   }
 
   void saveVectorDrawingAsClip() {
-    if (_activeDrawingStrokes.isEmpty) return;
+    if (_activeDrawingStrokes.isEmpty) {
+      return;
+    }
     _saveState();
 
     final Duration start = playhead;
@@ -1608,12 +1637,16 @@ class EditorController extends ChangeNotifier {
 
   // Camera & Tracking
   void updateTrackingData(TrackingData trackingData) {
-    if (_selectedClipId == null) return;
+    if (_selectedClipId == null) {
+      return;
+    }
 
     final index = _project.clips.indexWhere(
       (TimelineClip clip) => clip.id == _selectedClipId,
     );
-    if (index == -1) return;
+    if (index == -1) {
+      return;
+    }
 
     _saveState();
     _project.clips[index] =
@@ -1627,8 +1660,12 @@ class EditorController extends ChangeNotifier {
     final current = selectedClip;
     if (current == null ||
         (current.clipType != ClipType.caption &&
-            current.clipType != ClipType.text)) return;
-    if (playhead <= current.start || playhead >= current.end) return;
+            current.clipType != ClipType.text)) {
+      return;
+    }
+    if (playhead <= current.start || playhead >= current.end) {
+      return;
+    }
 
     _saveState();
     final leftText = current.label;
@@ -1660,7 +1697,9 @@ class EditorController extends ChangeNotifier {
     final current = selectedClip;
     if (current == null ||
         (current.clipType != ClipType.caption &&
-            current.clipType != ClipType.text)) return;
+            current.clipType != ClipType.text)) {
+      return;
+    }
 
     final captions = _project.clips
         .where((c) =>
@@ -1759,8 +1798,12 @@ class EditorController extends ChangeNotifier {
       Duration mainStart = mainClips.first.start;
       Duration mainEnd = mainClips.first.end;
       for (final mc in mainClips) {
-        if (mc.start < mainStart) mainStart = mc.start;
-        if (mc.end > mainEnd) mainEnd = mc.end;
+        if (mc.start < mainStart) {
+          mainStart = mc.start;
+        }
+        if (mc.end > mainEnd) {
+          mainEnd = mc.end;
+        }
       }
 
       for (final cue in newCaptions) {
@@ -1902,8 +1945,12 @@ class EditorController extends ChangeNotifier {
   Future<String?> startExport({Function? onComplete}) async {
     // Make sure the latest edits are on disk and playback is not competing
     // with the encoder.
-    if (isPlaying) togglePlayback();
-    if (_saveTimer?.isActive ?? false) _flushSave();
+    if (isPlaying) {
+      togglePlayback();
+    }
+    if (_saveTimer?.isActive ?? false) {
+      _flushSave();
+    }
 
     _isExporting = true;
     _exportProgress = 0.0;
@@ -1948,7 +1995,9 @@ class EditorController extends ChangeNotifier {
   @override
   void dispose() {
     _playback.dispose();
-    if (_saveTimer?.isActive ?? false) _flushSave();
+    if (_saveTimer?.isActive ?? false) {
+      _flushSave();
+    }
     super.dispose();
   }
 }
