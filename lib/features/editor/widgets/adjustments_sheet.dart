@@ -228,57 +228,74 @@ class _AdjustSheetState extends State<AdjustSheet> {
     final double v = _s[_p];
     return ColoredBox(
       color: _bg,
-      child: Column(
-        children: <Widget>[
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
+      child: SingleChildScrollView(
+        child: Column(
+          children: <Widget>[
+            const SizedBox(height: 12),
+            _strip(),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
                 children: <Widget>[
-                  const SizedBox(height: 12),
-                  _strip(),
-                  const SizedBox(height: 14),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: <Widget>[
-                        Text(_p.label,
-                            style: const TextStyle(
-                                color: _text,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600)),
-                        if (v != 0)
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => _set(0),
-                            child: const Padding(
-                              padding: EdgeInsets.all(8),
-                              child: Icon(PhosphorIconsRegular.arrowUUpLeft, size: 16, color: _muted),
-                            ),
-                          ),
-                        const Spacer(),
-                        _ValueField(value: v, min: _p.min, onChanged: _set),
-                      ],
+                  Text(_p.label,
+                      style: const TextStyle(
+                          color: _text,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600)),
+                  if (v != 0)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _set(0),
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Icon(PhosphorIconsRegular.arrowUUpLeft, size: 16, color: _muted),
+                      ),
+                    ),
+                  const Spacer(),
+                  // Press and hold to preview the original.
+                  Listener(
+                    onPointerDown: (_) => widget.onChanged?.call(AdjustSettings.identity),
+                    onPointerUp: (_) => widget.onChanged?.call(_s),
+                    onPointerCancel: (_) => widget.onChanged?.call(_s),
+                    child: Semantics(
+                      button: true,
+                      label: 'Hold to compare with original',
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Icon(Icons.compare_rounded, size: 20, color: _muted),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: _PremiereSlider(
-                      value: v,
-                      min: _p.min,
-                      gradient: _p.gradient,
-                      onChanged: _set,
+                  if (!_s.isIdentity)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _resetAll,
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Text('Reset all', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ),
                     ),
-                  ),
-                  const Text('Drag the value to fine-tune · double-tap to reset',
-                      style: TextStyle(color: _muted, fontSize: 11)),
-                  const SizedBox(height: 8),
+                  const SizedBox(width: 4),
+                  _ValueField(value: v, min: _p.min, onChanged: _set),
                 ],
               ),
             ),
-          ),
-          _footer(),
-        ],
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: _PremiereSlider(
+                value: v,
+                min: _p.min,
+                gradient: _p.gradient,
+                onChanged: _set,
+              ),
+            ),
+            const Text('Drag the value to fine-tune · double-tap to reset',
+                style: TextStyle(color: _muted, fontSize: 11)),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
@@ -364,54 +381,6 @@ class _AdjustSheetState extends State<AdjustSheet> {
     );
   }
 
-  Widget _footer() => Container(
-        height: 52,
-        decoration: const BoxDecoration(
-          color: Color(0xFF0C1014),
-          border: Border(top: BorderSide(color: _line)),
-        ),
-        child: Row(
-          children: <Widget>[
-            IconButton(
-              tooltip: 'Cancel',
-              icon: const Icon(PhosphorIconsRegular.x, color: _text),
-              onPressed: _cancel,
-            ),
-            // Press and hold to preview the original.
-            Listener(
-              onPointerDown: (_) => widget.onChanged?.call(AdjustSettings.identity),
-              onPointerUp: (_) => widget.onChanged?.call(_s),
-              onPointerCancel: (_) => widget.onChanged?.call(_s),
-              child: Semantics(
-                button: true,
-                label: 'Hold to compare with original',
-                child: const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Icon(Icons.compare_rounded, size: 22, color: _muted),
-                ),
-              ),
-            ),
-            const Spacer(),
-            const Text('Adjust',
-                style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 6),
-            TextButton(
-              onPressed: _s.isIdentity ? null : _resetAll,
-              style: TextButton.styleFrom(
-                  minimumSize: const Size(48, 40), foregroundColor: _muted),
-              child: const Text('Reset', style: TextStyle(fontSize: 12)),
-            ),
-            const Spacer(),
-            const SizedBox(width: 48),
-            IconButton(
-              tooltip: 'Apply',
-              icon: Icon(PhosphorIconsRegular.check,
-                  color: _s != widget.initial ? _accent : _text, size: 26),
-              onPressed: _apply,
-            ),
-          ],
-        ),
-      );
 }
 
 /// Boxed numeric readout. Drag left/right on it to scrub, double-tap to

@@ -792,130 +792,139 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
         children: <Widget>[
           RepaintBoundary(
             key: _boundaryKey,
-            child: DecoratedBox(
-              // Flat canvas on near-black, no border or glow.
-              decoration: const BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.zero,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.zero,
-                child: LayoutBuilder(builder: (context, fc) {
-                  final double unit = fc.maxWidth / designWToken;
-                  final double designH = fc.maxHeight / unit;
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: <Widget>[
-                      VideoPlayerPreview(editor: editor, fill: _fill),
-                      _AudioClipsPreview(editor: editor),
-                      Positioned(
-                        right: 14 * unit,
-                        bottom: 14 * unit,
-                        child: IgnorePointer(
-                          child: Opacity(
-                            opacity: 0.85,
-                            child: SvgPicture.asset(
-                              'assets/logo_white.svg',
-                              height: 32 * unit,
+            child: ValueListenableBuilder<Color>(
+              key: const ValueKey('canvasColorBox'),
+              valueListenable: canvasColorNotifier,
+              builder: (_, canvasColor, __) {
+                final bool isTransparent = canvasColor == Colors.transparent;
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: isTransparent ? null : canvasColor,
+                    borderRadius: BorderRadius.zero,
+                  ),
+                  child: CustomPaint(
+                    painter: isTransparent ? const _PreviewCheckerboardPainter() : null,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.zero,
+                      child: LayoutBuilder(builder: (context, fc) {
+                        final double unit = fc.maxWidth / designWToken;
+                        final double designH = fc.maxHeight / unit;
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: <Widget>[
+                            VideoPlayerPreview(editor: editor, fill: _fill),
+                            _AudioClipsPreview(editor: editor),
+                            Positioned(
+                              right: 14 * unit,
+                              bottom: 14 * unit,
+                              child: IgnorePointer(
+                                child: Opacity(
+                                  opacity: 0.85,
+                                  child: SvgPicture.asset(
+                                    'assets/logo_white.svg',
+                                    height: 32 * unit,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      ),
-                      ValueListenableBuilder<Duration>(
-                        valueListenable: editor.playheadListenable,
-                        builder: (ctx, playhead, _) {
-                          return Consumer<EditorController>(
-                            builder: (ctx, e, _) {
-                              final dynamic tracking = e.selectedClip?.trackingData;
-                              final TrackingBox? box = _trackingBox(tracking);
+                            ValueListenableBuilder<Duration>(
+                              valueListenable: editor.playheadListenable,
+                              builder: (ctx, playhead, _) {
+                                return Consumer<EditorController>(
+                                  builder: (ctx, e, _) {
+                                    final dynamic tracking = e.selectedClip?.trackingData;
+                                    final TrackingBox? box = _trackingBox(tracking);
 
-                              final activeOverlays = e.clips.where((c) {
-                                return c.isVisible &&
-                                    c.clipType != ClipType.audio &&
-                                    (c.layerIndex > 0 ||
-                                        (c.clipType != ClipType.video &&
-                                            c.clipType != ClipType.image)) &&
-                                    playhead >= c.start &&
-                                    playhead < c.end;
-                              }).toList()
-                                ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
+                                    final activeOverlays = e.clips.where((c) {
+                                      return c.isVisible &&
+                                          c.clipType != ClipType.audio &&
+                                          (c.layerIndex > 0 ||
+                                              (c.clipType != ClipType.video &&
+                                                  c.clipType != ClipType.image)) &&
+                                          playhead >= c.start &&
+                                          playhead < c.end;
+                                    }).toList()
+                                      ..sort((a, b) => a.layerIndex.compareTo(b.layerIndex));
 
-                              return Stack(
-                                fit: StackFit.expand,
-                                children: <Widget>[
-                                  for (final clip in activeOverlays)
-                                    _OverlayClip(
-                                      key: ValueKey<String>(clip.id),
-                                      clip: clip,
-                                      unit: unit,
-                                      designH: designH,
-                                      viewScale: () => _tf.value.getMaxScaleOnAxis(),
-                                      othersOf: () => <Rect>[
-                                        for (final o in activeOverlays)
-                                          if (o.id != clip.id) _overlayRect(o)
-                                      ],
-                                      isSelected: clip.id == e.selectedClipId,
-                                      onSelect: () => e.selectClip(clip.id),
-                                      onGuides: (g) => _guides.value = g,
-                                      onPosition: (x, y) {
-                                        e.selectClip(clip.id);
-                                        e.updateTranslation(
-                                          positionX:
-                                              x.clamp(-40.0, designWToken - 24).toDouble(),
-                                          positionY: y.clamp(-40.0, designH - 24).toDouble(),
-                                        );
-                                      },
-                                      onScale: (v) {
-                                        e.selectClip(clip.id);
-                                        e.updateTranslation(scale: v);
-                                      },
-                                    ),
-                                  IgnorePointer(
-                                    child: Stack(
+                                    return Stack(
                                       fit: StackFit.expand,
                                       children: <Widget>[
-                                        if (_grid)
-                                          const Positioned.fill(
-                                              child: CustomPaint(painter: _GuidePainter())),
-                                        if (e.activeDrawingStrokes.isNotEmpty)
-                                          Positioned.fill(
-                                            child: CustomPaint(
-                                              painter: _DrawingPainter(
-                                                  strokes: e.activeDrawingStrokes,
-                                                  unit: unit),
-                                            ),
+                                        for (final clip in activeOverlays)
+                                          _OverlayClip(
+                                            key: ValueKey<String>(clip.id),
+                                            clip: clip,
+                                            unit: unit,
+                                            designH: designH,
+                                            viewScale: () => _tf.value.getMaxScaleOnAxis(),
+                                            othersOf: () => <Rect>[
+                                              for (final o in activeOverlays)
+                                                if (o.id != clip.id) _overlayRect(o)
+                                            ],
+                                            isSelected: clip.id == e.selectedClipId,
+                                            onSelect: () => e.selectClip(clip.id),
+                                            onGuides: (g) => _guides.value = g,
+                                            onPosition: (x, y) {
+                                              e.selectClip(clip.id);
+                                              e.updateTranslation(
+                                                positionX:
+                                                    x.clamp(-40.0, designWToken - 24).toDouble(),
+                                                positionY: y.clamp(-40.0, designH - 24).toDouble(),
+                                              );
+                                            },
+                                            onScale: (v) {
+                                              e.selectClip(clip.id);
+                                              e.updateTranslation(scale: v);
+                                            },
                                           ),
-                                        if (box != null)
-                                          Positioned.fill(
-                                            child: _TrackingOverlay(
-                                              box: box,
-                                              label:
-                                                  '${(tracking as dynamic)?.targetName ?? 'Target'}',
-                                            ),
+                                        IgnorePointer(
+                                          child: Stack(
+                                            fit: StackFit.expand,
+                                            children: <Widget>[
+                                              if (_grid)
+                                                const Positioned.fill(
+                                                    child: CustomPaint(painter: _GuidePainter())),
+                                              if (e.activeDrawingStrokes.isNotEmpty)
+                                                Positioned.fill(
+                                                  child: CustomPaint(
+                                                    painter: _DrawingPainter(
+                                                        strokes: e.activeDrawingStrokes,
+                                                        unit: unit),
+                                                  ),
+                                                ),
+                                              if (box != null)
+                                                Positioned.fill(
+                                                  child: _TrackingOverlay(
+                                                    box: box,
+                                                    label:
+                                                        '${(tracking as dynamic)?.targetName ?? 'Target'}',
+                                                  ),
+                                                ),
+                                            ],
                                           ),
+                                        ),
                                       ],
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
-                      ),
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: ValueListenableBuilder<_GuideState>(
-                            valueListenable: _guides,
-                            builder: (_, g, __) => g.dragging
-                                ? CustomPaint(painter: _SnapGuidePainter(g))
-                                : const SizedBox.shrink(),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }),
-              ),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                            Positioned.fill(
+                              child: IgnorePointer(
+                                child: ValueListenableBuilder<_GuideState>(
+                                  valueListenable: _guides,
+                                  builder: (_, g, __) => g.dragging
+                                      ? CustomPaint(painter: _SnapGuidePainter(g))
+                                      : const SizedBox.shrink(),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      }),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           // Outside the RepaintBoundary so its tint and magnifier are never sampled.
@@ -1008,6 +1017,30 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
       ],
     );
   }
+}
+
+class _PreviewCheckerboardPainter extends CustomPainter {
+  const _PreviewCheckerboardPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double sq = 12.0;
+    final Paint p1 = Paint()..color = const Color(0xFF1E1E1E);
+    final Paint p2 = Paint()..color = const Color(0xFF2C2C2C);
+
+    canvas.drawRect(Offset.zero & size, p1);
+
+    for (double y = 0; y < size.height; y += sq) {
+      for (double x = 0; x < size.width; x += sq) {
+        if (((x / sq).floor() + (y / sq).floor()) % 2 == 1) {
+          canvas.drawRect(Rect.fromLTWH(x, y, sq, sq), p2);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class PaneDivider extends StatelessWidget {
