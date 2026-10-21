@@ -104,6 +104,10 @@ class WhisperService {
     if (language == null || language.trim().isEmpty) return null;
     final lower = language.trim().toLowerCase();
     switch (lower) {
+      case 'auto':
+      case 'auto-detect':
+      case 'auto detect':
+        return null;
       case 'bengali':
       case 'bn':
       case 'bangla':

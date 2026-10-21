@@ -51,14 +51,19 @@ class _CaptionsEditSheetState extends State<CaptionsEditSheet> {
     setState(() => _isGenerating = true);
     tapFeedback();
     try {
-      final lang = _selectedSpeechLanguage == 'Auto-Detect' ? null : _selectedSpeechLanguage;
+      final lang = (_selectedSpeechLanguage == 'Auto-Detect' || _selectedSpeechLanguage == 'Auto') ? null : _selectedSpeechLanguage;
       await editor.generateWhisperCaptions(language: lang);
       if (!mounted) return;
       final n = editor.project.captions.length;
-      _toast('Generated $n caption${n == 1 ? '' : 's'} in $_selectedSpeechLanguage');
+      if (n > 0) {
+        _toast('Generated $n caption${n == 1 ? '' : 's'} in $_selectedSpeechLanguage');
+      } else {
+        _toast('No speech detected in audio.');
+      }
     } catch (e) {
       if (!mounted) return;
-      _toast('Auto captions failed: $e');
+      final cleanMsg = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      _toast('Auto captions failed: $cleanMsg');
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
