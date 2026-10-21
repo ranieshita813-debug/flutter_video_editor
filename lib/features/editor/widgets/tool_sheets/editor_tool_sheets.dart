@@ -1580,7 +1580,7 @@ class CropSheet extends StatelessWidget {
         ValueListenableBuilder<Color>(
           valueListenable: canvasColorNotifier,
           builder: (context, curColor, _) {
-            final bool isPreset = _bgColors.any((c) => c.$1.value == curColor.value);
+            final bool isPreset = _bgColors.any((c) => c.$1.toARGB32() == curColor.toARGB32());
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -1594,7 +1594,7 @@ class CropSheet extends StatelessWidget {
                           child: _ColorSwatchTile(
                             color: item.$1,
                             isChecker: item.$1 == Colors.transparent,
-                            selected: curColor.value == item.$1.value,
+                            selected: curColor.toARGB32() == item.$1.toARGB32(),
                             onTap: () {
                               canvasColorNotifier.value = item.$1;
                             },
@@ -1651,9 +1651,9 @@ class CropSheet extends StatelessWidget {
   }
 
   void _showColorPicker(BuildContext context, Color initial) {
-    double r = initial.red.toDouble();
-    double g = initial.green.toDouble();
-    double b = initial.blue.toDouble();
+    double r = (initial.r * 255.0).round().toDouble();
+    double g = (initial.g * 255.0).round().toDouble();
+    double b = (initial.b * 255.0).round().toDouble();
 
     showDialog<void>(
       context: context,

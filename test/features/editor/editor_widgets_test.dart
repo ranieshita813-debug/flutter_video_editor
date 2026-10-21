@@ -8,7 +8,6 @@ import 'package:flutter_video_editor/features/editor/widgets/preview.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_panel.dart';
 import 'package:flutter_video_editor/features/editor/widgets/adjustments_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
-import 'package:phosphor_icons/phosphor_icons.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

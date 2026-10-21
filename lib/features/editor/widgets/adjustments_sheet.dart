@@ -212,17 +212,6 @@ class _AdjustSheetState extends State<AdjustSheet> {
     widget.onChanged?.call(_s);
   }
 
-  void _cancel() {
-    widget.onChanged?.call(widget.initial); // revert live preview
-    widget.onClose();
-  }
-
-  void _apply() {
-    HapticFeedback.lightImpact();
-    if (_s != widget.initial) widget.onApply(_s);
-    widget.onClose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final double v = _s[_p];
