@@ -108,6 +108,12 @@ class EditorToolbar extends StatelessWidget {
       if (selectedClipId.endsWith('_adj')) {
         return [
           EditorToolbarItem(
+            id: 'split',
+            title: 'Split',
+            icon: PhosphorIconsRegular.scissors,
+            onTap: () => editor.splitSelectedClip(),
+          ),
+          EditorToolbarItem(
             id: 'adjust',
             title: 'Adjust',
             icon: PhosphorIconsRegular.sliders,
@@ -124,6 +130,12 @@ class EditorToolbar extends StatelessWidget {
       if (selectedClipId.endsWith('_ck')) {
         return [
           EditorToolbarItem(
+            id: 'split',
+            title: 'Split',
+            icon: PhosphorIconsRegular.scissors,
+            onTap: () => editor.splitSelectedClip(),
+          ),
+          EditorToolbarItem(
             id: 'chroma_key',
             title: 'Chroma Key',
             icon: PhosphorIconsRegular.eyedropper,
@@ -139,6 +151,12 @@ class EditorToolbar extends StatelessWidget {
       }
       if (selectedClipId.endsWith('_fx')) {
         return [
+          EditorToolbarItem(
+            id: 'split',
+            title: 'Split',
+            icon: PhosphorIconsRegular.scissors,
+            onTap: () => editor.splitSelectedClip(),
+          ),
           EditorToolbarItem(
             id: 'effects',
             title: 'Effects',
@@ -334,12 +352,6 @@ class EditorToolbar extends StatelessWidget {
 
       case ClipType.caption:
         return [
-          EditorToolbarItem(
-            id: 'text_to_speech',
-            title: 'Text to Speech',
-            svgPath: 'assets/icons/text_to_speech.svg',
-            onTap: () => onSelectToolSheet('text_to_speech'),
-          ),
           EditorToolbarItem(
             id: 'edit_caption',
             title: 'Edit Caption',
