@@ -757,7 +757,17 @@ class EditorController extends ChangeNotifier {
       ..removeAt(index)
       ..insertAll(index, <TimelineClip>[left, right]);
 
-    _selectedClipId = right.id;
+    final String currentId = _selectedClipId!;
+    if (currentId.endsWith('_adj')) {
+      _selectedClipId = '${right.id}_adj';
+    } else if (currentId.endsWith('_ck')) {
+      _selectedClipId = '${right.id}_ck';
+    } else if (currentId.endsWith('_fx')) {
+      _selectedClipId = '${right.id}_fx';
+    } else {
+      _selectedClipId = right.id;
+    }
+
     _autosave();
     notifyListeners();
   }
