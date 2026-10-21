@@ -39,8 +39,9 @@ class EditorToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final editor = context.read<EditorController>();
     final clip = context.select<EditorController, TimelineClip?>((e) => e.selectedClip);
+    final selectedClipId = context.select<EditorController, String?>((e) => e.selectedClipId);
 
-    final List<EditorToolbarItem> items = _getToolbarItems(context, editor, clip);
+    final List<EditorToolbarItem> items = _getToolbarItems(context, editor, clip, selectedClipId);
 
     return Container(
       height: 72,
@@ -101,7 +102,65 @@ class EditorToolbar extends StatelessWidget {
     BuildContext context,
     EditorController editor,
     TimelineClip? clip,
+    String? selectedClipId,
   ) {
+    if (selectedClipId != null) {
+      if (selectedClipId.endsWith('_adj')) {
+        return [
+          EditorToolbarItem(
+            id: 'adjust',
+            title: 'Adjust',
+            icon: PhosphorIconsRegular.sliders,
+            onTap: () => onSelectToolSheet('adjust'),
+          ),
+          EditorToolbarItem(
+            id: 'delete',
+            title: 'Delete',
+            icon: PhosphorIconsRegular.trash,
+            onTap: () => editor.removeSelectedClip(),
+          ),
+        ];
+      }
+      if (selectedClipId.endsWith('_ck')) {
+        return [
+          EditorToolbarItem(
+            id: 'chroma_key',
+            title: 'Chroma Key',
+            icon: PhosphorIconsRegular.eyedropper,
+            onTap: () => onSelectToolSheet('chroma_key'),
+          ),
+          EditorToolbarItem(
+            id: 'delete',
+            title: 'Delete',
+            icon: PhosphorIconsRegular.trash,
+            onTap: () => editor.removeSelectedClip(),
+          ),
+        ];
+      }
+      if (selectedClipId.endsWith('_fx')) {
+        return [
+          EditorToolbarItem(
+            id: 'effects',
+            title: 'Effects',
+            icon: PhosphorIconsRegular.magicWand,
+            onTap: () => onSelectToolSheet('effects'),
+          ),
+          EditorToolbarItem(
+            id: 'filters',
+            title: 'Filters',
+            icon: PhosphorIconsRegular.funnel,
+            onTap: () => onSelectToolSheet('filters'),
+          ),
+          EditorToolbarItem(
+            id: 'delete',
+            title: 'Delete',
+            icon: PhosphorIconsRegular.trash,
+            onTap: () => editor.removeSelectedClip(),
+          ),
+        ];
+      }
+    }
+
     if (clip == null) {
       // Common Global Tools (No clip selected)
       return [
