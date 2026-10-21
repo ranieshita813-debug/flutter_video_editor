@@ -3,7 +3,11 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
+import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/services/ai_generation_service.dart';
+import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/theme/editor_tokens.dart';
+import 'package:flutter_video_editor/features/export/services/export_service.dart';
 import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 
 // ───────────────────────── Models ─────────────────────────
@@ -152,7 +156,11 @@ class AiModelCatalog {
       description: 'Best prompt following and edits',
       type: AiMediaType.image,
       creditsPerUnit: 6,
-      capabilities: [AiCapability.imageInput, AiCapability.editing, AiCapability.textRendering],
+      capabilities: [
+        AiCapability.imageInput,
+        AiCapability.editing,
+        AiCapability.textRendering
+      ],
       supportsSeed: false,
       badge: 'Top quality',
     ),
@@ -163,7 +171,11 @@ class AiModelCatalog {
       description: 'Fast, versatile, strong edits',
       type: AiMediaType.image,
       creditsPerUnit: 3,
-      capabilities: [AiCapability.imageInput, AiCapability.editing, AiCapability.fast],
+      capabilities: [
+        AiCapability.imageInput,
+        AiCapability.editing,
+        AiCapability.fast
+      ],
       supportsSeed: false,
       badge: 'Popular',
     ),
@@ -192,7 +204,11 @@ class AiModelCatalog {
       description: 'Fast and cheap',
       type: AiMediaType.image,
       creditsPerUnit: 1,
-      capabilities: [AiCapability.imageInput, AiCapability.editing, AiCapability.fast],
+      capabilities: [
+        AiCapability.imageInput,
+        AiCapability.editing,
+        AiCapability.fast
+      ],
     ),
     AiModelOption(
       id: 'seedream-4',
@@ -264,6 +280,73 @@ class _Ratio {
 
 // ───────────────────────── Entry point ─────────────────────────
 
+Future<void> handleAiGeneration(
+  BuildContext context,
+  EditorController editor,
+  AiGenerationRequest request, {
+  AiGenerationService? aiService,
+  ExportService? exportService,
+}) async {
+  final String initialProjectId = editor.project.id;
+  final String generatedFilePath =
+      await (aiService ?? AiGenerationService()).generateMedia(request);
+
+  if (editor.project.id != initialProjectId) {
+    return;
+  }
+
+  final bool isVideo = request.type == AiMediaType.video;
+  double durationSec =
+      (request.durationSeconds ?? (isVideo ? 5 : 4)).toDouble();
+
+  if (isVideo) {
+    try {
+      final probe =
+          await (exportService ?? ExportService()).probe(generatedFilePath);
+      final double? probedSec = probe['durationUs'] != null
+          ? (probe['durationUs'] as num).toDouble() / 1000000.0
+          : (probe['durationMs'] != null
+              ? (probe['durationMs'] as num).toDouble() / 1000.0
+              : null);
+      if (probedSec != null && probedSec > 0) {
+        durationSec = probedSec;
+      }
+    } catch (_) {
+      // Probing failed or fallback
+    }
+  }
+
+  final Duration duration =
+      Duration(milliseconds: (durationSec * 1000).round());
+  final Duration start = editor.getEndOfExistingMediaClips();
+
+  final TimelineClip newClip = TimelineClip(
+    id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
+    label: isVideo
+        ? 'AI Video (${request.modelId})'
+        : 'AI Image (${request.modelId})',
+    start: start,
+    end: start + duration,
+    clipType: isVideo ? ClipType.video : ClipType.image,
+    sourcePath: generatedFilePath,
+  );
+
+  editor.addClip(newClip);
+  editor.selectClip(newClip.id);
+
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${isVideo ? 'AI Video' : 'AI Image'} added to timeline!',
+          style: const TextStyle(fontFamily: 'Ubuntu Sans'),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
 /// Opens the generator as a drag-resizable bottom sheet (starts at ~55% height).
 Future<void> showAiGenerateSheet(
   BuildContext context, {
@@ -323,7 +406,14 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
     _Ratio('4:3', 'Classic'),
     _Ratio('3:4', 'Portrait'),
   ];
-  static const _styles = ['None', 'Cinematic', 'Anime', '3D render', 'Photo', 'Watercolor'];
+  static const _styles = [
+    'None',
+    'Cinematic',
+    'Anime',
+    '3D render',
+    'Photo',
+    'Watercolor'
+  ];
 
   final _promptCtl = TextEditingController();
   final _negCtl = TextEditingController();
@@ -352,8 +442,12 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
 
   bool get _isVideo => _type == AiMediaType.video;
 
-  int get _credits => _model.creditsPerUnit *
-      (_isVideo ? (_duration ?? (_model.durations.isEmpty ? 5 : _model.durations.first)) : _count);
+  int get _credits =>
+      _model.creditsPerUnit *
+      (_isVideo
+          ? (_duration ??
+              (_model.durations.isEmpty ? 5 : _model.durations.first))
+          : _count);
 
   @override
   void initState() {
@@ -371,7 +465,9 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
 
   void _syncDuration() {
     if (_isVideo && _model.durations.isNotEmpty) {
-      _duration = _model.durations.contains(_duration) ? _duration : _model.durations.first;
+      _duration = _model.durations.contains(_duration)
+          ? _duration
+          : _model.durations.first;
     } else {
       _duration = null;
     }
@@ -406,7 +502,8 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) => _ModelPicker(models: _modelsOf(_type), selectedId: _model.id),
+      builder: (_) =>
+          _ModelPicker(models: _modelsOf(_type), selectedId: _model.id),
     );
     if (picked != null) _setModel(picked);
   }
@@ -425,7 +522,8 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 3)));
+      ..showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 3)));
   }
 
   Future<void> _generate() async {
@@ -442,9 +540,10 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
           type: _type,
           modelId: _model.id,
           prompt: prompt,
-          negativePrompt: _model.supportsNegativePrompt && _negCtl.text.trim().isNotEmpty
-              ? _negCtl.text.trim()
-              : null,
+          negativePrompt:
+              _model.supportsNegativePrompt && _negCtl.text.trim().isNotEmpty
+                  ? _negCtl.text.trim()
+                  : null,
           style: _style == 'None' ? null : _style,
           aspectRatio: _ratios[_ratioIndex].label,
           count: _isVideo ? 1 : _count,
@@ -457,8 +556,8 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
         ),
       );
       if (mounted) Navigator.of(context).maybePop();
-    } catch (_) {
-      _toast('Generation failed. Try again.');
+    } catch (e) {
+      _toast(e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -593,7 +692,8 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
                 _IconBtn(
                   icon: PhosphorIconsRegular.diceFive,
                   onTap: () => setState(() => _seedCtl.text =
-                      (DateTime.now().microsecondsSinceEpoch % 4294967296).toString()),
+                      (DateTime.now().microsecondsSinceEpoch % 4294967296)
+                          .toString()),
                 ),
               ],
             ),
@@ -611,13 +711,15 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: EditorTokens.text,
                 foregroundColor: EditorTokens.bg,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999)),
               ),
               onPressed: _busy ? null : _generate,
               icon: _busy
                   ? const TextShimmerWave(
                       'Generating…',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Ubuntu'),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontFamily: 'Ubuntu'),
                       baseColor: Colors.black45,
                       waveColor: Colors.black,
                     )
@@ -626,7 +728,8 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
                   ? const SizedBox.shrink()
                   : Text(
                       'Generate · $_credits credits',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Ubuntu'),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontFamily: 'Ubuntu'),
                     ),
             ),
           ),
@@ -662,7 +765,11 @@ class _AiGenerateSheetState extends State<AiGenerateSheet> {
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [_promptField(), const SizedBox(height: 4), _pills()],
+                              children: [
+                                _promptField(),
+                                const SizedBox(height: 4),
+                                _pills()
+                              ],
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -728,7 +835,8 @@ class _ModelPickerState extends State<_ModelPicker> {
 
   @override
   Widget build(BuildContext context) {
-    final providers = widget.models.map((m) => m.provider).toSet().toList()..sort();
+    final providers = widget.models.map((m) => m.provider).toSet().toList()
+      ..sort();
     final q = _search.text.trim().toLowerCase();
     final filtered = widget.models.where((m) {
       final okProvider = _provider == null || m.provider == _provider;
@@ -745,7 +853,8 @@ class _ModelPickerState extends State<_ModelPicker> {
       minChildSize: 0.4,
       maxChildSize: 0.95,
       builder: (context, controller) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: Column(
           children: [
             Container(
@@ -772,7 +881,8 @@ class _ModelPickerState extends State<_ModelPicker> {
                       color: EditorTokens.muted,
                     ),
                   ),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  prefixIconConstraints:
+                      const BoxConstraints(minWidth: 40, minHeight: 40),
                 ),
               ),
             ),
@@ -835,7 +945,8 @@ class _ModelPickerState extends State<_ModelPicker> {
 }
 
 class _ModelTile extends StatelessWidget {
-  const _ModelTile({required this.model, required this.selected, required this.onTap});
+  const _ModelTile(
+      {required this.model, required this.selected, required this.onTap});
   final AiModelOption model;
   final bool selected;
   final VoidCallback onTap;
@@ -894,7 +1005,8 @@ class _ModelTile extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        for (final c in model.capabilities) _Tag(_capabilityLabels[c]!),
+                        for (final c in model.capabilities)
+                          _Tag(_capabilityLabels[c]!),
                       ],
                     ),
                   ],
@@ -1010,7 +1122,8 @@ const _fieldStyle = TextStyle(
 
 InputDecoration _decoration(String hint) => InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: EditorTokens.muted, fontSize: 13, fontFamily: 'Ubuntu'),
+      hintStyle: const TextStyle(
+          color: EditorTokens.muted, fontSize: 13, fontFamily: 'Ubuntu'),
       filled: true,
       fillColor: EditorTokens.elevated,
       isDense: true,
@@ -1128,7 +1241,8 @@ class _TypeToggle extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                PhosphorIcon(icon, size: 16, color: on ? EditorTokens.bg : EditorTokens.text),
+                PhosphorIcon(icon,
+                    size: 16, color: on ? EditorTokens.bg : EditorTokens.text),
                 const SizedBox(width: 6),
                 Text(
                   label,
@@ -1263,7 +1377,8 @@ class _RefPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: EditorTokens.elevated,
           borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: has ? EditorTokens.text : EditorTokens.border),
+          border:
+              Border.all(color: has ? EditorTokens.text : EditorTokens.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1298,7 +1413,8 @@ class _RefPill extends StatelessWidget {
             ),
             if (has) ...[
               const SizedBox(width: 6),
-              const PhosphorIcon(PhosphorIconsRegular.x, size: 12, color: EditorTokens.muted),
+              const PhosphorIcon(PhosphorIconsRegular.x,
+                  size: 12, color: EditorTokens.muted),
             ],
           ],
         ),
@@ -1308,7 +1424,8 @@ class _RefPill extends StatelessWidget {
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.selected, required this.onTap});
+  const _Chip(
+      {required this.label, required this.selected, required this.onTap});
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -1323,7 +1440,8 @@ class _Chip extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? EditorTokens.text : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: selected ? EditorTokens.text : EditorTokens.border),
+            border: Border.all(
+                color: selected ? EditorTokens.text : EditorTokens.border),
           ),
           child: Text(
             label,
@@ -1455,7 +1573,8 @@ class _IconBtn extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: EditorTokens.border),
           ),
-          child: Center(child: PhosphorIcon(icon, size: 18, color: EditorTokens.text)),
+          child: Center(
+              child: PhosphorIcon(icon, size: 18, color: EditorTokens.text)),
         ),
       );
 }

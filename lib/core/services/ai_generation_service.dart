@@ -23,15 +23,19 @@ class AiGenerationService {
   /// Sends an [AiGenerationRequest] to the Pollinations API and returns local File path to generated media.
   Future<String> generateMedia(AiGenerationRequest request) async {
     final bool isVideo = request.type == AiMediaType.video;
-    final String endpoint = isVideo ? '$baseUrl/video/generations' : '$baseUrl/images/generations';
+    final String endpoint =
+        isVideo ? '$baseUrl/video/generations' : '$baseUrl/images/generations';
 
-    AppLogger.info('[AiGenerationService] Requesting AI ${request.type.name} generation with model ${request.modelId}');
+    AppLogger.info(
+        '[AiGenerationService] Requesting AI ${request.type.name} generation with model ${request.modelId}');
 
     final client = _httpClient ?? HttpClient();
     client.connectionTimeout = const Duration(seconds: 30);
 
     try {
-      final req = await client.postUrl(Uri.parse(endpoint)).timeout(const Duration(seconds: 30));
+      final req = await client
+          .postUrl(Uri.parse(endpoint))
+          .timeout(const Duration(seconds: 30));
       req.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
       if (apiKey.isNotEmpty) {
         req.headers.set(HttpHeaders.authorizationHeader, 'Bearer $apiKey');
@@ -40,23 +44,29 @@ class AiGenerationService {
       final payload = <String, dynamic>{
         'model': request.modelId,
         'prompt': request.prompt,
-        if (request.negativePrompt != null) 'negative_prompt': request.negativePrompt,
+        if (request.negativePrompt != null)
+          'negative_prompt': request.negativePrompt,
         if (request.style != null) 'style': request.style,
         'aspect_ratio': request.aspectRatio,
         'n': request.count,
         'guidance_scale': request.guidance,
         'steps': request.steps,
         if (request.seed != null) 'seed': request.seed,
-        if (request.durationSeconds != null) 'duration': request.durationSeconds,
+        if (request.durationSeconds != null)
+          'duration': request.durationSeconds,
         if (request.motionStrength != null) 'motion': request.motionStrength,
       };
 
       req.add(utf8.encode(jsonEncode(payload)));
       final resp = await req.close().timeout(const Duration(seconds: 60));
-      final responseBody = await resp.transform(utf8.decoder).join().timeout(const Duration(seconds: 30));
+      final responseBody = await resp
+          .transform(utf8.decoder)
+          .join()
+          .timeout(const Duration(seconds: 30));
 
       if (resp.statusCode == 200 || resp.statusCode == 201) {
-        final Map<String, dynamic> json = jsonDecode(responseBody) as Map<String, dynamic>;
+        final Map<String, dynamic> json =
+            jsonDecode(responseBody) as Map<String, dynamic>;
         String? mediaUrl;
 
         final data = json['data'];
@@ -74,15 +84,20 @@ class AiGenerationService {
         } else if (mediaUrl != null && mediaUrl.isNotEmpty) {
           return await _saveBase64Image(mediaUrl);
         } else {
-          AppLogger.error('[AiGenerationService] API succeeded but no media URL returned.');
-          throw Exception('AI generation failed: No valid media URL or image payload returned from service.');
+          AppLogger.error(
+              '[AiGenerationService] API succeeded but no media URL returned.');
+          throw Exception(
+              'AI generation failed: No valid media URL or image payload returned from service.');
         }
       } else {
-        AppLogger.error('[AiGenerationService] API error (${resp.statusCode}): $responseBody');
-        throw Exception('AI generation failed (${resp.statusCode}): $responseBody');
+        AppLogger.error(
+            '[AiGenerationService] API error (${resp.statusCode}): $responseBody');
+        throw Exception(
+            'AI generation failed (${resp.statusCode}): $responseBody');
       }
     } catch (e, st) {
-      AppLogger.error('[AiGenerationService] Exception generating AI media', error: e, stackTrace: st);
+      AppLogger.error('[AiGenerationService] Exception generating AI media',
+          error: e, stackTrace: st);
       rethrow;
     } finally {
       if (_httpClient == null) {
@@ -95,17 +110,22 @@ class AiGenerationService {
     final client = _httpClient ?? HttpClient();
     client.connectionTimeout = const Duration(seconds: 30);
     try {
-      final req = await client.getUrl(Uri.parse(url)).timeout(const Duration(seconds: 30));
+      final req = await client
+          .getUrl(Uri.parse(url))
+          .timeout(const Duration(seconds: 30));
       final resp = await req.close().timeout(const Duration(seconds: 60));
 
       if (resp.statusCode != 200 && resp.statusCode != 206) {
-        AppLogger.error('[AiGenerationService] Failed to download media from $url. Status: ${resp.statusCode}');
-        throw Exception('Failed to download generated AI media file (status ${resp.statusCode})');
+        AppLogger.error(
+            '[AiGenerationService] Failed to download media from $url. Status: ${resp.statusCode}');
+        throw Exception(
+            'Failed to download generated AI media file (status ${resp.statusCode})');
       }
 
       final tempDir = await getTemporaryDirectory();
       final ext = isVideo ? 'mp4' : 'png';
-      final file = File('${tempDir.path}/ai_gen_${DateTime.now().millisecondsSinceEpoch}.$ext');
+      final file = File(
+          '${tempDir.path}/ai_gen_${DateTime.now().millisecondsSinceEpoch}.$ext');
       final sink = file.openWrite();
       await sink.addStream(resp).timeout(const Duration(seconds: 120));
       await sink.close();
@@ -119,11 +139,13 @@ class AiGenerationService {
 
   Future<String> _saveBase64Image(String dataUrl) async {
     final commaIndex = dataUrl.indexOf(',');
-    final base64Str = commaIndex != -1 ? dataUrl.substring(commaIndex + 1) : dataUrl;
+    final base64Str =
+        commaIndex != -1 ? dataUrl.substring(commaIndex + 1) : dataUrl;
     final cleanStr = base64Str.replaceAll(RegExp(r'\s+'), '');
     final bytes = base64Decode(cleanStr);
     final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/ai_gen_${DateTime.now().millisecondsSinceEpoch}.png');
+    final file = File(
+        '${tempDir.path}/ai_gen_${DateTime.now().millisecondsSinceEpoch}.png');
     await file.writeAsBytes(bytes);
     return file.path;
   }
