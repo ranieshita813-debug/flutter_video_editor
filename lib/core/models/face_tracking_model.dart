@@ -55,10 +55,12 @@ class FaceTrack {
 
   /// Performs binary search on keyframes to find surrounding keyframes and lerps bounding rect.
   /// If the gap to the closest keyframe exceeds [maxGapMs], returns null (no face detected).
-  Rect? rectAt(int tMs, {int maxGapMs = 400}) {
+  /// Binary search between keyframes with linear interpolation (lerp)
+  /// and Exponential Moving Average (EMA) smoothing to eliminate preview jitter.
+  Rect? rectAt(int tMs, {int maxGapMs = 400, double emaAlpha = 1.0}) {
     if (frames.isEmpty) return null;
 
-    // Sort check - assume frames are ordered by timeMs
+    // Boundary gap checks
     if (tMs < frames.first.timeMs - maxGapMs) return null;
     if (tMs > frames.last.timeMs + maxGapMs) return null;
 
@@ -70,7 +72,7 @@ class FaceTrack {
       final int midTime = frames[mid].timeMs;
 
       if (midTime == tMs) {
-        return frames[mid].rect;
+        return _smoothedRect(mid, emaAlpha);
       } else if (midTime < tMs) {
         low = mid + 1;
       } else {
@@ -78,27 +80,52 @@ class FaceTrack {
       }
     }
 
-    // high is the index before tMs, low is index after tMs
-    final FaceKeyframe? prev = high >= 0 && high < frames.length ? frames[high] : null;
-    final FaceKeyframe? next = low >= 0 && low < frames.length ? frames[low] : null;
+    // high is index before tMs, low is index after tMs
+    final FaceKeyframe? prevKf = high >= 0 && high < frames.length ? frames[high] : null;
+    final FaceKeyframe? nextKf = low >= 0 && low < frames.length ? frames[low] : null;
 
-    if (prev != null && next != null) {
-      final int gap = next.timeMs - prev.timeMs;
+    if (prevKf != null && nextKf != null) {
+      final int gap = nextKf.timeMs - prevKf.timeMs;
       if (gap <= maxGapMs) {
-        final double t = (tMs - prev.timeMs) / gap.toDouble();
-        return Rect.lerp(prev.rect, next.rect, t.clamp(0.0, 1.0));
+        final double t = (tMs - prevKf.timeMs) / gap.toDouble();
+        final Rect prevSmoothed = _smoothedRect(high, emaAlpha);
+        final Rect nextSmoothed = _smoothedRect(low, emaAlpha);
+        return Rect.lerp(prevSmoothed, nextSmoothed, t.clamp(0.0, 1.0));
       } else {
-        if ((tMs - prev.timeMs).abs() <= maxGapMs) return prev.rect;
-        if ((next.timeMs - tMs).abs() <= maxGapMs) return next.rect;
+        if ((tMs - prevKf.timeMs).abs() <= maxGapMs) return _smoothedRect(high, emaAlpha);
+        if ((nextKf.timeMs - tMs).abs() <= maxGapMs) return _smoothedRect(low, emaAlpha);
         return null;
       }
-    } else if (prev != null) {
-      if ((tMs - prev.timeMs).abs() <= maxGapMs) return prev.rect;
-    } else if (next != null) {
-      if ((next.timeMs - tMs).abs() <= maxGapMs) return next.rect;
+    } else if (prevKf != null) {
+      if ((tMs - prevKf.timeMs).abs() <= maxGapMs) return _smoothedRect(high, emaAlpha);
+    } else if (nextKf != null) {
+      if ((nextKf.timeMs - tMs).abs() <= maxGapMs) return _smoothedRect(low, emaAlpha);
     }
 
     return null;
+  }
+
+  /// Calculates EMA (Exponential Moving Average) smoothed rect up to frame [targetIdx].
+  Rect _smoothedRect(int targetIdx, double alpha) {
+    if (targetIdx <= 0 || alpha >= 1.0) {
+      return frames[targetIdx].rect;
+    }
+
+    // Compute forward EMA over historical frames up to targetIdx
+    Rect current = frames.first.rect;
+    final int startIdx = (targetIdx - 5).clamp(0, frames.length - 1);
+    current = frames[startIdx].rect;
+
+    for (int i = startIdx + 1; i <= targetIdx; i++) {
+      final Rect raw = frames[i].rect;
+      current = Rect.fromLTRB(
+        current.left + alpha * (raw.left - current.left),
+        current.top + alpha * (raw.top - current.top),
+        current.right + alpha * (raw.right - current.right),
+        current.bottom + alpha * (raw.bottom - current.bottom),
+      );
+    }
+    return current;
   }
 
   Map<String, dynamic> toJson() {
@@ -194,6 +221,7 @@ class Person {
   final String id;
   final String name;
   final Uint8List? thumbnailBytes;
+  Uint8List? get thumbnail => thumbnailBytes;
   final List<FaceTrack> tracks;
   final List<PersonEffect> effects;
 
