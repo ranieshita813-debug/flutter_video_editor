@@ -291,12 +291,6 @@ class _EditorPageState extends State<EditorPage> {
                     ),
                     if (!hideTimeline) TransportBar(editor: editor),
                     if (!hideTimeline)
-                      PaneDivider(
-                        onDrag: (dy) => setState(() => _splitAdj =
-                            (_splitAdj + dy).clamp(_minAdj, _maxAdj).toDouble()),
-                        onReset: () => setState(() => _splitAdj = 0),
-                      ),
-                    if (!hideTimeline)
                       Expanded(
                         child: TimelineWidget(
                           editor: editor,

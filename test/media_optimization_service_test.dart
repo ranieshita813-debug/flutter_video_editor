@@ -57,13 +57,10 @@ void main() {
       expect(results[0].durationMs, equals(5000));
       expect(results[0].width, equals(1920));
       expect(results[0].height, equals(1080));
-      expect(results[0].waveform, isNotNull);
-      expect(results[0].waveform!.length, equals(60));
-      expect(results[0].thumbnailBytes, isNotNull);
+      expect(results[0].isOptimized, isTrue);
 
       expect(results[1].originalPath, equals('sample_audio.mp3'));
       expect(results[1].durationMs, equals(5000));
-      expect(results[1].thumbnailBytes, isNull); // Audio files skip video frame caching
 
       expect(progressUpdates.isNotEmpty, isTrue);
       expect(progressUpdates.first.currentIndex, equals(1));

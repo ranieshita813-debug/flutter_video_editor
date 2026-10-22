@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/features/export/services/export_service.dart';
 
 /// Progress information emitted during media import optimization.
@@ -20,7 +19,7 @@ class OptimizationProgress {
   final double progress; // 0.0 to 1.0
 }
 
-/// Metadata and cached assets generated during media optimization.
+/// Metadata and cached assets generated during media import.
 class OptimizedMediaItem {
   const OptimizedMediaItem({
     required this.originalPath,
@@ -41,15 +40,14 @@ class OptimizedMediaItem {
   final bool isOptimized;
 }
 
-/// Handles post-import media optimization (probing metadata, pre-generating
-/// waveform caches, and frame index caching) to ensure smooth editing playback.
+/// Handles fast metadata probing during media import.
 class MediaOptimizationService {
   MediaOptimizationService({ExportService? exportService})
       : _exportService = exportService ?? ExportService();
 
   final ExportService _exportService;
 
-  /// Optimizes a list of media file paths and reports granular progress via [onProgress].
+  /// Quickly probes basic metadata for media items without heavy background processing.
   Future<List<OptimizedMediaItem>> optimizeMedia(
     List<String> filePaths, {
     void Function(OptimizationProgress)? onProgress,
@@ -62,18 +60,14 @@ class MediaOptimizationService {
       final path = filePaths[i];
       final fileName = path.split(RegExp(r'[\\/]')).last;
 
-      void report(double fileStepProgress, String stageMessage) {
-        final overallProgress = (i + fileStepProgress) / total;
-        onProgress?.call(OptimizationProgress(
-          currentIndex: i + 1,
-          totalCount: total,
-          fileName: fileName,
-          message: stageMessage,
-          progress: overallProgress.clamp(0.0, 1.0),
-        ));
-      }
+      onProgress?.call(OptimizationProgress(
+        currentIndex: i + 1,
+        totalCount: total,
+        fileName: fileName,
+        message: 'Importing media…',
+        progress: (i + 1) / total,
+      ));
 
-      report(0.1, 'Analyzing media format…');
       int? durationMs;
       int? width;
       int? height;
@@ -82,61 +76,13 @@ class MediaOptimizationService {
         durationMs = (meta['durationMs'] as num?)?.toInt();
         width = (meta['width'] as num?)?.toInt();
         height = (meta['height'] as num?)?.toInt();
-      } catch (e) {
-        AppLogger.warning('Media probe skipped for $path: $e', tag: 'MediaOptimizationService');
-      }
-
-      report(0.4, 'Pre-calculating audio waveform…');
-      List<double>? waveform;
-      final lower = path.toLowerCase();
-      final isAudioOrVideo = lower.endsWith('.mp4') ||
-          lower.endsWith('.mov') ||
-          lower.endsWith('.m4v') ||
-          lower.endsWith('.3gp') ||
-          lower.endsWith('.mkv') ||
-          lower.endsWith('.avi') ||
-          lower.endsWith('.webm') ||
-          lower.endsWith('.mp3') ||
-          lower.endsWith('.wav') ||
-          lower.endsWith('.m4a') ||
-          lower.endsWith('.aac') ||
-          lower.endsWith('.flac') ||
-          lower.endsWith('.ogg');
-
-      if (isAudioOrVideo) {
-        try {
-          waveform = await _exportService.waveform(path, 60);
-        } catch (e) {
-          AppLogger.warning('Waveform cache generation skipped for $path: $e', tag: 'MediaOptimizationService');
-        }
-      }
-
-      report(0.7, 'Generating video frame cache…');
-      Uint8List? thumbnailBytes;
-      final isAudioOnly = lower.endsWith('.mp3') ||
-          lower.endsWith('.wav') ||
-          lower.endsWith('.m4a') ||
-          lower.endsWith('.flac') ||
-          lower.endsWith('.aac') ||
-          lower.endsWith('.ogg');
-
-      if (isAudioOrVideo && !isAudioOnly) {
-        try {
-          thumbnailBytes = await _exportService.frameAt(path, 0, maxHeight: 180, quality: 85);
-        } catch (e) {
-          AppLogger.warning('Frame cache generation skipped for $path: $e', tag: 'MediaOptimizationService');
-        }
-      }
-
-      report(1.0, 'Optimization complete');
+      } catch (_) {}
 
       results.add(OptimizedMediaItem(
         originalPath: path,
         durationMs: durationMs,
         width: width,
         height: height,
-        waveform: waveform,
-        thumbnailBytes: thumbnailBytes,
         isOptimized: true,
       ));
     }
