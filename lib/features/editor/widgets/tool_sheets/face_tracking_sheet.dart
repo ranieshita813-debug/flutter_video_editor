@@ -40,7 +40,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
+  );
 
   static const List<String> _stickerOptions = [
     '😎', '🥸', '🎭', '🤡', '🤖', '🐱', '🔥', '✨',
@@ -83,6 +83,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
       _mergeMode = false;
       _selectedForMerge.clear();
     });
+    _pulse.repeat(reverse: true);
 
     try {
       final FaceTrackingData? result =
@@ -102,7 +103,11 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
         setState(() => _selectedPersonId = result.persons.first.id);
       }
     } finally {
-      if (mounted) setState(() => _isAnalyzing = false);
+      if (mounted) {
+        _pulse.stop();
+        _pulse.reset();
+        setState(() => _isAnalyzing = false);
+      }
     }
   }
 
@@ -255,7 +260,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
           ),
           const SizedBox(height: 16),
           const Text(
-            'Face Tracking',
+            'Auto Face Detection & Tracking',
             style: TextStyle(
                 color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
           ),
@@ -289,7 +294,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                 _startTracking(editor);
               },
               icon: const PhosphorIcon(PhosphorIconsBold.scan, size: 18),
-              label: const Text('Scan faces',
+              label: const Text('Scan & Detect Faces',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
             ),
           ),
@@ -479,7 +484,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              '$count',
+              '$count Persons Found ($count জন পাওয়া গেছে)',
               style: const TextStyle(
                   color: accentToken, fontSize: 11, fontWeight: FontWeight.w800),
             ),
@@ -689,7 +694,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            person.name,
+            '${person.name} Effect',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -735,7 +740,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   Widget _buildEffectRow(
       EditorController editor, Person person, PersonEffect currentFx) {
     return SizedBox(
-      height: 80,
+      height: 88,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: _fxDefs.map((fx) {
@@ -752,6 +757,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
             child: SizedBox(
               width: 58,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 160),
@@ -775,7 +781,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     fx.label,
                     style: TextStyle(
