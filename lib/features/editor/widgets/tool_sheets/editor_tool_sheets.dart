@@ -1360,6 +1360,7 @@ enum CanvasRatio {
 }
 
 final ValueNotifier<CanvasRatio> canvasRatioNotifier = ValueNotifier<CanvasRatio>(CanvasRatio.r16x9);
+final ValueNotifier<Color> canvasColorNotifier = ValueNotifier<Color>(Colors.black);
 
 CanvasRatio detectCanvasRatio(int width, int height) {
   if (width <= 0 || height <= 0) return CanvasRatio.r16x9;
@@ -1430,8 +1431,118 @@ class _RatioTile extends StatelessWidget {
   }
 }
 
+class _ColorSwatchTile extends StatelessWidget {
+  const _ColorSwatchTile({
+    required this.color,
+    required this.selected,
+    required this.onTap,
+    this.isChecker = false,
+  });
+
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool isChecker;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        tapFeedback();
+        onTap();
+      },
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isChecker ? Colors.transparent : color,
+              border: Border.all(
+                color: selected ? accentToken : Colors.white24,
+                width: selected ? 2.5 : 1.0,
+              ),
+            ),
+            child: ClipOval(
+              child: Stack(
+                alignment: Alignment.center,
+                children: <Widget>[
+                  if (isChecker)
+                    const _CheckerboardBox(),
+                  if (selected)
+                    Icon(
+                      PhosphorIconsRegular.check,
+                      size: 16,
+                      color: (color == Colors.white || isChecker) ? Colors.black : Colors.white,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CheckerboardBox extends StatelessWidget {
+  const _CheckerboardBox();
+
+  @override
+  Widget build(BuildContext context) {
+    return const CustomPaint(
+      size: Size.infinite,
+      painter: _CheckerboardPainter(squareSize: 6.0),
+    );
+  }
+}
+
+class _CheckerboardPainter extends CustomPainter {
+  const _CheckerboardPainter({this.squareSize = 8.0});
+
+  final double squareSize;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint p1 = Paint()..color = const Color(0xFF2A2A2A);
+    final Paint p2 = Paint()..color = const Color(0xFF404040);
+
+    canvas.drawRect(Offset.zero & size, p1);
+
+    for (double y = 0; y < size.height; y += squareSize) {
+      for (double x = 0; x < size.width; x += squareSize) {
+        if (((x / squareSize).floor() + (y / squareSize).floor()) % 2 == 1) {
+          canvas.drawRect(Rect.fromLTWH(x, y, squareSize, squareSize), p2);
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CheckerboardPainter old) =>
+      old.squareSize != squareSize;
+}
+
 class CropSheet extends StatelessWidget {
   const CropSheet({super.key});
+
+  static const List<(Color, String)> _bgColors = <(Color, String)>[
+    (Colors.transparent, 'Transparent'),
+    (Colors.black, 'Black'),
+    (Color(0xFF1E1E24), 'Dark Gray'),
+    (Colors.white, 'White'),
+    (Color(0xFF00C4D6), 'Teal'),
+    (Color(0xFFEF4444), 'Red'),
+    (Color(0xFFF59E0B), 'Yellow'),
+    (Color(0xFF10B981), 'Green'),
+    (Color(0xFF3B82F6), 'Blue'),
+    (Color(0xFF8B5CF6), 'Purple'),
+    (Color(0xFFEC4899), 'Pink'),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -1465,6 +1576,61 @@ class CropSheet extends StatelessWidget {
             ],
           ),
         ),
+        const _SectionLabel('Canvas background'),
+        ValueListenableBuilder<Color>(
+          valueListenable: canvasColorNotifier,
+          builder: (context, curColor, _) {
+            final bool isPreset = _bgColors.any((c) => c.$1.toARGB32() == curColor.toARGB32());
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: <Widget>[
+                      for (final item in _bgColors)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _ColorSwatchTile(
+                            color: item.$1,
+                            isChecker: item.$1 == Colors.transparent,
+                            selected: curColor.toARGB32() == item.$1.toARGB32(),
+                            onTap: () {
+                              canvasColorNotifier.value = item.$1;
+                            },
+                          ),
+                        ),
+                      // Custom color button
+                      GestureDetector(
+                        onTap: () => _showColorPicker(context, curColor),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          margin: const EdgeInsets.only(left: 2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: !isPreset ? curColor : cardToken,
+                            border: Border.all(
+                              color: !isPreset ? accentToken : Colors.white38,
+                              width: !isPreset ? 2.5 : 1.0,
+                            ),
+                          ),
+                          child: Icon(
+                            PhosphorIconsRegular.palette,
+                            size: 18,
+                            color: !isPreset
+                                ? (curColor.computeLuminance() > 0.5 ? Colors.black : Colors.white)
+                                : Colors.white70,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
         const _SectionLabel('Clip'),
         _Card(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
@@ -1481,6 +1647,80 @@ class CropSheet extends StatelessWidget {
         ),
         if (!hasClip) const _EmptyHint(text: 'Select a clip to zoom it.'),
       ],
+    );
+  }
+
+  void _showColorPicker(BuildContext context, Color initial) {
+    double r = (initial.r * 255.0).round().toDouble();
+    double g = (initial.g * 255.0).round().toDouble();
+    double b = (initial.b * 255.0).round().toDouble();
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSt) {
+            final Color chosen = Color.fromRGBO(r.round(), g.round(), b.round(), 1.0);
+            return AlertDialog(
+              backgroundColor: surfaceToken,
+              title: const Text('Pick Canvas Color', style: TextStyle(color: Colors.white, fontSize: 16)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Container(
+                    height: 48,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: chosen,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _SliderRow(
+                    label: 'Red',
+                    value: r,
+                    min: 0,
+                    max: 255,
+                    display: r.round().toString(),
+                    onChanged: (v) => setSt(() => r = v),
+                  ),
+                  _SliderRow(
+                    label: 'Green',
+                    value: g,
+                    min: 0,
+                    max: 255,
+                    display: g.round().toString(),
+                    onChanged: (v) => setSt(() => g = v),
+                  ),
+                  _SliderRow(
+                    label: 'Blue',
+                    value: b,
+                    min: 0,
+                    max: 255,
+                    display: b.round().toString(),
+                    onChanged: (v) => setSt(() => b = v),
+                  ),
+                ],
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel', style: TextStyle(color: mutedToken)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: accentToken, foregroundColor: Colors.black),
+                  onPressed: () {
+                    canvasColorNotifier.value = chosen;
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text('Select'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }

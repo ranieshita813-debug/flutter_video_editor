@@ -20,7 +20,6 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_
 const Color playheadBlue = Color(0xFFFFFFFF);
 const Color _timelineBg = Color(0xFF0C1014);
 const Color _overlayMediaColor = Color(0xFF454545);
-const Color _emptyLaneColor = Color(0xFF141414);
 const double _clipRadius = 5;
 const int _fps = 30;
 
@@ -960,28 +959,34 @@ class _TimelineWidgetState extends State<TimelineWidget> {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => _onAdd(l.addKind),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: _emptyLaneColor,
-              borderRadius: BorderRadius.circular(_clipRadius),
+          child: CustomPaint(
+            painter: const _DashedRRectPainter(
+              color: Color(0xFF555555),
+              strokeWidth: 1.2,
+              dashWidth: 5.0,
+              dashGap: 4.0,
+              radius: _clipRadius,
             ),
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(_addIcon(l.addKind), size: 13, color: const Color(0xFF8A8A8A)),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    _addLabel(l.addKind),
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Color(0xFF8A8A8A), fontSize: 11),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              color: Colors.transparent,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(_addIcon(l.addKind), size: 13, color: const Color(0xFF8A8A8A)),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      _addLabel(l.addKind),
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Color(0xFF8A8A8A), fontSize: 11),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -1893,5 +1898,55 @@ class _ConnectionLinesPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ConnectionLinesPainter old) {
     return !listEquals(old.connections, connections);
+  }
+}
+
+class _DashedRRectPainter extends CustomPainter {
+  const _DashedRRectPainter({
+    required this.color,
+    this.strokeWidth = 1.2,
+    this.dashWidth = 5.0,
+    this.dashGap = 4.0,
+    this.radius = _clipRadius,
+  });
+
+  final Color color;
+  final double strokeWidth;
+  final double dashWidth;
+  final double dashGap;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Radius.circular(radius),
+    );
+
+    final path = Path()..addRRect(rrect);
+
+    for (final metric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final len = math.min(dashWidth, metric.length - distance);
+        final extractPath = metric.extractPath(distance, distance + len);
+        canvas.drawPath(extractPath, paint);
+        distance += dashWidth + dashGap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRRectPainter old) {
+    return old.color != color ||
+        old.strokeWidth != strokeWidth ||
+        old.dashWidth != dashWidth ||
+        old.dashGap != dashGap ||
+        old.radius != radius;
   }
 }
