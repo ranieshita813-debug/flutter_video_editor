@@ -57,7 +57,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
     Color(0xFFFF8A3D),
   ];
 
-  static final List<_FxDef> _fxDefs = [
+  static const List<_FxDef> _fxDefs = [
     _FxDef('None', PhosphorIconsRegular.prohibit, PersonEffectType.none),
     _FxDef('Blur', PhosphorIconsRegular.dropHalf, PersonEffectType.blur),
     _FxDef('Mosaic', PhosphorIconsRegular.gridFour, PersonEffectType.mosaic),
