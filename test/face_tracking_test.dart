@@ -11,15 +11,15 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/face_tr
 void main() {
   group('Face Tracking Models Unit Tests', () {
     test('FaceKeyframe serialization and lerp in FaceTrack.rectAt', () {
-      final kf1 = FaceKeyframe(timeMs: 0, rect: const Rect.fromLTWH(0.1, 0.1, 0.2, 0.2));
-      final kf2 = FaceKeyframe(timeMs: 300, rect: const Rect.fromLTWH(0.3, 0.3, 0.2, 0.2));
+      const kf1 = FaceKeyframe(timeMs: 0, rect: Rect.fromLTWH(0.1, 0.1, 0.2, 0.2));
+      const kf2 = FaceKeyframe(timeMs: 300, rect: Rect.fromLTWH(0.3, 0.3, 0.2, 0.2));
 
       final jsonMap = kf1.toJson();
       final deserialized = FaceKeyframe.fromJson(jsonMap);
       expect(deserialized.timeMs, equals(0));
       expect(deserialized.rect, equals(const Rect.fromLTWH(0.1, 0.1, 0.2, 0.2)));
 
-      final track = FaceTrack(id: 'track1', frames: [kf1, kf2]);
+      final track = FaceTrack(id: 'track1', frames: const [kf1, kf2]);
 
       // Midpoint lerp check at 150ms
       final midRect = track.rectAt(150);
@@ -30,9 +30,9 @@ void main() {
       // Gap threshold check exceeding 400ms max gap
       final gapTrack = FaceTrack(
         id: 'gapTrack',
-        frames: [
-          FaceKeyframe(timeMs: 0, rect: const Rect.fromLTWH(0.1, 0.1, 0.2, 0.2)),
-          FaceKeyframe(timeMs: 1000, rect: const Rect.fromLTWH(0.3, 0.3, 0.2, 0.2)),
+        frames: const [
+          FaceKeyframe(timeMs: 0, rect: Rect.fromLTWH(0.1, 0.1, 0.2, 0.2)),
+          FaceKeyframe(timeMs: 1000, rect: Rect.fromLTWH(0.3, 0.3, 0.2, 0.2)),
         ],
       );
       // 500ms is > 400ms from both 0ms and 1000ms
@@ -40,8 +40,8 @@ void main() {
     });
 
     test('Person.rectAt applies safety privacy margin', () {
-      final kf = FaceKeyframe(timeMs: 0, rect: const Rect.fromLTWH(0.2, 0.2, 0.4, 0.4));
-      final track = FaceTrack(id: 't1', frames: [kf]);
+      const kf = FaceKeyframe(timeMs: 0, rect: Rect.fromLTWH(0.2, 0.2, 0.4, 0.4));
+      final track = FaceTrack(id: 't1', frames: const [kf]);
       final person = Person(id: 'p1', name: 'Person 1', tracks: [track]);
 
       final rawRect = person.rectAt(0, margin: 0.0);
@@ -54,10 +54,10 @@ void main() {
     });
 
     test('FaceTrackingData serialization and deserialization', () {
-      final kf = FaceKeyframe(timeMs: 0, rect: const Rect.fromLTWH(0.1, 0.1, 0.2, 0.2));
-      final track = FaceTrack(id: 't1', frames: [kf]);
-      final effect = const PersonEffect(type: PersonEffectType.blur, intensity: 12.0);
-      final person = Person(id: 'p1', name: 'Person 1', tracks: [track], effects: [effect]);
+      const kf = FaceKeyframe(timeMs: 0, rect: Rect.fromLTWH(0.1, 0.1, 0.2, 0.2));
+      final track = FaceTrack(id: 't1', frames: const [kf]);
+      const effect = PersonEffect(type: PersonEffectType.blur, intensity: 12.0);
+      final person = Person(id: 'p1', name: 'Person 1', tracks: [track], effects: const [effect]);
       final data = FaceTrackingData(isProcessed: true, persons: [person]);
 
       final jsonMap = data.toJson();
@@ -81,9 +81,9 @@ void main() {
     });
 
     test('cosineSimilarity computes vector dot product similarity', () {
-      final vecA = [1.0, 0.0, 0.0];
-      final vecB = [1.0, 0.0, 0.0];
-      final vecC = [0.0, 1.0, 0.0];
+      const vecA = [1.0, 0.0, 0.0];
+      const vecB = [1.0, 0.0, 0.0];
+      const vecC = [0.0, 1.0, 0.0];
 
       expect(FaceTrackingService.cosineSimilarity(vecA, vecB), closeTo(1.0, 0.001));
       expect(FaceTrackingService.cosineSimilarity(vecA, vecC), closeTo(0.0, 0.001));
@@ -108,16 +108,16 @@ void main() {
       final p1 = Person(
         id: 'p1',
         name: 'Person 1',
-        tracks: [FaceTrack(id: 't1', frames: [])],
+        tracks: [FaceTrack(id: 't1', frames: const [])],
       );
       final p2 = Person(
         id: 'p2',
         name: 'Person 2',
-        tracks: [FaceTrack(id: 't2', frames: [])],
+        tracks: [FaceTrack(id: 't2', frames: const [])],
       );
       final data = FaceTrackingData(isProcessed: true, persons: [p1, p2]);
 
-      final merged = service.mergePersons(data, ['p1', 'p2']);
+      final merged = service.mergePersons(data, const ['p1', 'p2']);
       expect(merged.persons.length, equals(1));
       expect(merged.persons.first.tracks.length, equals(2));
     });
@@ -127,8 +127,8 @@ void main() {
         id: 'p1',
         name: 'Person 1',
         tracks: [
-          FaceTrack(id: 't1', frames: []),
-          FaceTrack(id: 't2', frames: []),
+          FaceTrack(id: 't1', frames: const []),
+          FaceTrack(id: 't2', frames: const []),
         ],
       );
       final data = FaceTrackingData(isProcessed: true, persons: [p1]);
