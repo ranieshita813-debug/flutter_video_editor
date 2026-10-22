@@ -10,6 +10,7 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
+import 'package:flutter_video_editor/core/models/face_tracking_model.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -614,6 +615,162 @@ class _TrackingPainter extends CustomPainter {
 }
 
 // ----------------------------------------------------------------------------
+// Face Tracking Effects Overlay
+// ----------------------------------------------------------------------------
+class _FaceTrackingEffectsOverlay extends StatelessWidget {
+  const _FaceTrackingEffectsOverlay({
+    required this.editor,
+    required this.unit,
+  });
+
+  final EditorController editor;
+  final double unit;
+
+  @override
+  Widget build(BuildContext context) {
+    final clip = editor.activeVideoClip;
+    if (clip == null) return const SizedBox.shrink();
+
+    final FaceTrackingData ftData = clip.faceTrackingData;
+    if (!ftData.isProcessed || ftData.persons.isEmpty) return const SizedBox.shrink();
+
+    final int relTimeMs = (editor.playhead - clip.start).inMilliseconds;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double canvasW = constraints.maxWidth;
+        final double canvasH = constraints.maxHeight;
+
+        final List<Widget> personWidgets = [];
+
+        for (final person in ftData.persons) {
+          final Rect? faceRect = person.rectAt(relTimeMs, margin: 0.25);
+          if (faceRect == null) continue;
+
+          final Rect scaledRect = Rect.fromLTWH(
+            faceRect.left * canvasW,
+            faceRect.top * canvasH,
+            faceRect.width * canvasW,
+            faceRect.height * canvasH,
+          );
+
+          for (final effect in person.effects) {
+            switch (effect.type) {
+              case PersonEffectType.blur:
+                personWidgets.add(
+                  Positioned.fromRect(
+                    rect: scaledRect,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(scaledRect.width * 0.2),
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(
+                          sigmaX: effect.intensity.clamp(1.0, 30.0),
+                          sigmaY: effect.intensity.clamp(1.0, 30.0),
+                        ),
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.05),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+                break;
+
+              case PersonEffectType.mosaic:
+                personWidgets.add(
+                  Positioned.fromRect(
+                    rect: scaledRect,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(scaledRect.width * 0.1),
+                      child: CustomPaint(
+                        painter: _MosaicPainter(pixelSize: effect.intensity),
+                      ),
+                    ),
+                  ),
+                );
+                break;
+
+              case PersonEffectType.text:
+                personWidgets.add(
+                  Positioned(
+                    left: scaledRect.left,
+                    top: math.max(0.0, scaledRect.top - 24),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: accentToken, width: 1),
+                      ),
+                      child: Text(
+                        effect.text,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+                break;
+
+              case PersonEffectType.sticker:
+                personWidgets.add(
+                  Positioned.fromRect(
+                    rect: scaledRect,
+                    child: Center(
+                      child: Text(
+                        effect.stickerAsset,
+                        style: TextStyle(
+                          fontSize: math.min(scaledRect.width, scaledRect.height) * 0.8,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+                break;
+
+              case PersonEffectType.none:
+                break;
+            }
+          }
+        }
+
+        return Stack(
+          fit: StackFit.expand,
+          children: personWidgets,
+        );
+      },
+    );
+  }
+}
+
+class _MosaicPainter extends CustomPainter {
+  const _MosaicPainter({this.pixelSize = 12.0});
+
+  final double pixelSize;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double step = math.max(4.0, pixelSize);
+    final Paint paint1 = Paint()..color = const Color(0x99202020);
+    final Paint paint2 = Paint()..color = const Color(0x99505050);
+
+    for (double y = 0; y < size.height; y += step) {
+      for (double x = 0; x < size.width; x += step) {
+        final bool alt = (((x / step).floor() + (y / step).floor()) % 2) == 0;
+        final Rect r = Rect.fromLTWH(x, y, math.min(step, size.width - x), math.min(step, size.height - y));
+        canvas.drawRect(r, alt ? paint1 : paint2);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MosaicPainter old) => old.pixelSize != pixelSize;
+}
+
+// ----------------------------------------------------------------------------
 // Preview: top bar + pro canvas
 // ----------------------------------------------------------------------------
 class PreviewCanvas extends StatefulWidget {
@@ -899,6 +1056,12 @@ class _PreviewCanvasState extends State<PreviewCanvas> {
                                                         '${(tracking as dynamic)?.targetName ?? 'Target'}',
                                                   ),
                                                 ),
+                                              Positioned.fill(
+                                                child: _FaceTrackingEffectsOverlay(
+                                                  editor: editor,
+                                                  unit: unit,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),

@@ -7,7 +7,9 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
+import 'package:flutter_video_editor/core/models/face_tracking_model.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
+import 'package:flutter_video_editor/core/services/face_tracking_service.dart';
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/services/caption_import_service.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
@@ -76,6 +78,109 @@ class EditorController extends ChangeNotifier {
     _selectedClipId = project.clips.isNotEmpty ? project.clips.first.id : null;
     _undoStack.clear();
     _redoStack.clear();
+    _autosave();
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Face Tracking Pipeline & Actions
+  // ---------------------------------------------------------------------------
+  final FaceTrackingService _faceTrackingService = FaceTrackingService();
+
+  Future<FaceTrackingData?> runFaceTrackingOnSelectedClip({
+    bool stepDelays = true,
+    ProgressCallback? onProgress,
+  }) async {
+    final clip = selectedClip;
+    if (clip == null) return null;
+
+    final FaceTrackingData result = await _faceTrackingService.processClip(
+      clip,
+      stepDelays: stepDelays,
+      onProgress: onProgress,
+    );
+
+    _saveState();
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index != -1) {
+      _project.clips[index] = _project.clips[index].copyWith(faceTrackingData: result);
+    }
+    _autosave();
+    notifyListeners();
+    return result;
+  }
+
+  void updatePersonEffect(String personId, PersonEffect effect) {
+    final clip = selectedClip;
+    if (clip == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index == -1) return;
+
+    final FaceTrackingData currentData = clip.faceTrackingData;
+    final List<Person> updatedPersons = currentData.persons.map((p) {
+      if (p.id == personId) {
+        return p.copyWith(effects: [effect]);
+      }
+      return p;
+    }).toList();
+
+    _saveStateCoalesced('personeffect:$personId');
+    _project.clips[index] = clip.copyWith(
+      faceTrackingData: currentData.copyWith(persons: updatedPersons),
+    );
+    _autosave();
+    notifyListeners();
+  }
+
+  void mergeSelectedPersons(List<String> personIdsToMerge) {
+    final clip = selectedClip;
+    if (clip == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index == -1) return;
+
+    _saveState();
+    final FaceTrackingData updatedData = _faceTrackingService.mergePersons(
+      clip.faceTrackingData,
+      personIdsToMerge,
+    );
+
+    _project.clips[index] = clip.copyWith(faceTrackingData: updatedData);
+    _autosave();
+    notifyListeners();
+  }
+
+  void splitPersonTrack(String personId, String trackIdToSplit) {
+    final clip = selectedClip;
+    if (clip == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index == -1) return;
+
+    _saveState();
+    final FaceTrackingData updatedData = _faceTrackingService.splitPersonTrack(
+      clip.faceTrackingData,
+      personId,
+      trackIdToSplit,
+    );
+
+    _project.clips[index] = clip.copyWith(faceTrackingData: updatedData);
+    _autosave();
+    notifyListeners();
+  }
+
+  void clearFaceTrackingOnSelectedClip() {
+    final clip = selectedClip;
+    if (clip == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] = clip.copyWith(
+      faceTrackingData: const FaceTrackingData(),
+    );
     _autosave();
     notifyListeners();
   }

@@ -19,6 +19,7 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/gen.
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/captions_style.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/face_tracking_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_style_sheet.dart';
 
 // ----------------------------------------------------------------------------
@@ -87,7 +88,7 @@ enum EditorTool {
         EditorTool.draw => const VectorDrawingSheet(),
         EditorTool.mask => const MaskSheet(),
         EditorTool.camera => const CameraSettingsSheet(),
-        EditorTool.track => const CameraTrackingPanel(),
+        EditorTool.track => const FaceTrackingSheet(),
         EditorTool.textStyle => const TextStyleSheet(),
         EditorTool.animation => const ClipAnimationSheet(),
         EditorTool.order => const OrderToolView(),
