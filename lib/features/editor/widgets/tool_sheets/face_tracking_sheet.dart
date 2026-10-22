@@ -239,13 +239,21 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet> {
                       Container(
                         width: 32,
                         height: 32,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: surfaceToken,
                           shape: BoxShape.circle,
+                          image: p.thumbnailBytes != null
+                              ? DecorationImage(
+                                  image: MemoryImage(p.thumbnailBytes!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
                         ),
-                        child: const Center(
-                          child: PhosphorIcon(PhosphorIconsRegular.user, size: 18, color: Colors.white70),
-                        ),
+                        child: p.thumbnailBytes == null
+                            ? const Center(
+                                child: PhosphorIcon(PhosphorIconsRegular.user, size: 18, color: Colors.white70),
+                              )
+                            : null,
                       ),
                       const SizedBox(height: 4),
                       Text(

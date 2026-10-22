@@ -628,13 +628,15 @@ class _FaceTrackingEffectsOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final clip = editor.activeVideoClip;
-    if (clip == null) return const SizedBox.shrink();
+    final trackingClips = editor.clips.where((c) =>
+      c.isVisible &&
+      c.faceTrackingData.isProcessed &&
+      c.faceTrackingData.persons.isNotEmpty &&
+      editor.playhead >= c.start &&
+      editor.playhead < c.end
+    );
 
-    final FaceTrackingData ftData = clip.faceTrackingData;
-    if (!ftData.isProcessed || ftData.persons.isEmpty) return const SizedBox.shrink();
-
-    final int relTimeMs = (editor.playhead - clip.start).inMilliseconds;
+    if (trackingClips.isEmpty) return const SizedBox.shrink();
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -643,8 +645,12 @@ class _FaceTrackingEffectsOverlay extends StatelessWidget {
 
         final List<Widget> personWidgets = [];
 
-        for (final person in ftData.persons) {
-          final Rect? faceRect = person.rectAt(relTimeMs, margin: 0.25);
+        for (final clip in trackingClips) {
+          final FaceTrackingData ftData = clip.faceTrackingData;
+          final int relTimeMs = (editor.playhead - clip.start).inMilliseconds;
+
+          for (final person in ftData.persons) {
+            final Rect? faceRect = person.rectAt(relTimeMs, margin: 0.25);
           if (faceRect == null) continue;
 
           final Rect scaledRect = Rect.fromLTWH(
@@ -735,6 +741,7 @@ class _FaceTrackingEffectsOverlay extends StatelessWidget {
                 break;
             }
           }
+        }
         }
 
         return Stack(

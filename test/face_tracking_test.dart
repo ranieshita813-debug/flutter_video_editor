@@ -169,8 +169,8 @@ void main() {
 
       await tester.tap(find.text('Scan & Detect Faces'));
       await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 600));
 
       expect(find.textContaining('Persons Found'), findsOneWidget);
       expect(find.text('Person 1 Effect'), findsOneWidget);
