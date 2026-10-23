@@ -6,6 +6,7 @@ import 'package:flutter_video_editor/core/models/object_tracking_model.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/face_tracking_sheet.dart';
 
 class _FxDef {
   const _FxDef(this.label, this.icon, this.type);
@@ -21,7 +22,94 @@ class ObjectTrackingSheet extends StatefulWidget {
   State<ObjectTrackingSheet> createState() => _ObjectTrackingSheetState();
 }
 
-class _ObjectTrackingSheetState extends State<ObjectTrackingSheet>
+class _ObjectTrackingSheetState extends State<ObjectTrackingSheet> {
+  int _modeIndex = 0; // 0: Object Tracking, 1: Face Tracking
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          child: Container(
+            height: 36,
+            decoration: BoxDecoration(
+              color: cardToken,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      tapFeedback();
+                      setState(() => _modeIndex = 0);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      decoration: BoxDecoration(
+                        color: _modeIndex == 0 ? accentToken : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Object Tracking',
+                        style: TextStyle(
+                          color: _modeIndex == 0 ? Colors.black : Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      tapFeedback();
+                      setState(() => _modeIndex = 1);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      decoration: BoxDecoration(
+                        color: _modeIndex == 1 ? accentToken : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Face Tracking',
+                        style: TextStyle(
+                          color: _modeIndex == 1 ? Colors.black : Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1, color: dividerToken),
+        Expanded(
+          child: _modeIndex == 0
+              ? const _ObjectTrackingBody()
+              : const FaceTrackingSheet(),
+        ),
+      ],
+    );
+  }
+}
+
+class _ObjectTrackingBody extends StatefulWidget {
+  const _ObjectTrackingBody();
+
+  @override
+  State<_ObjectTrackingBody> createState() => _ObjectTrackingBodyState();
+}
+
+class _ObjectTrackingBodyState extends State<_ObjectTrackingBody>
     with SingleTickerProviderStateMixin {
   bool _isAnalyzing = false;
   double _progress = 0.0;
