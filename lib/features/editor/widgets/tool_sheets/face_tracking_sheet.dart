@@ -37,10 +37,16 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   // Bumped when a preset text is tapped so the text field rebuilds with new text.
   int _textRevision = 0;
 
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+  }
 
   static const List<String> _stickerOptions = [
     '😎', '🥸', '🎭', '🤡', '🤖', '🐱', '🔥', '✨',
@@ -735,7 +741,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   Widget _buildEffectRow(
       EditorController editor, Person person, PersonEffect currentFx) {
     return SizedBox(
-      height: 80,
+      height: 88,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: _fxDefs.map((fx) {
