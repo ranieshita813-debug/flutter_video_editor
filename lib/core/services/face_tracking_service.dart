@@ -117,7 +117,9 @@ class MobileFaceNetEmbeddingExtractor implements FaceEmbeddingExtractor {
 
   static List<double> _normalize(List<double> vec) {
     double norm = 0.0;
-    for (final v in vec) norm += v * v;
+    for (final v in vec) {
+      norm += v * v;
+    }
     norm = math.sqrt(norm);
     if (norm == 0) return vec;
     return vec.map((v) => v / norm).toList();
@@ -445,7 +447,9 @@ class FaceTrackingService {
     }
 
     double norm = 0.0;
-    for (final v in centroid) norm += v * v;
+    for (final v in centroid) {
+      norm += v * v;
+    }
     norm = math.sqrt(norm);
     if (norm > 0) {
       for (int i = 0; i < dim; i++) {
