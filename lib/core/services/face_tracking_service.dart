@@ -9,6 +9,17 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 typedef ProgressCallback = void Function(double progress, String status);
 
 class FaceTrackingService {
+  /// Whether required face tracking model files have been downloaded online.
+  static bool _modelDownloaded = false;
+
+  /// Checks if required face tracking model files are available.
+  static bool get isModelDownloaded => _modelDownloaded;
+
+  /// Sets the model download status.
+  static void setModelDownloaded(bool downloaded) {
+    _modelDownloaded = downloaded;
+  }
+
   /// Result cache indexed by clip hash/ID to prevent redundant processing.
   static final Map<String, FaceTrackingData> _cache = {};
 

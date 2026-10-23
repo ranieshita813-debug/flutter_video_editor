@@ -1128,25 +1128,28 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
           onChanged: (i) => setState(() => _tab = i),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(_pad, 14, _pad, 0),
+          padding: const EdgeInsets.fromLTRB(_pad, 14, _pad, 8),
           child: TextField(
             controller: _ctrl,
+            minLines: 3,
+            maxLines: 5,
             style: const TextStyle(color: Colors.white, fontSize: 14),
-            textInputAction: TextInputAction.done,
             onChanged: (val) {
+              final String text = val.trim().isEmpty ? 'Text' : val;
               if (editing) {
-                final String text = val.trim().isEmpty ? 'Text' : val;
                 editor.updateSelectedTextProperties(
                     text: text, fontFamily: _selectedFont, textAnimationStyle: _anim);
+              } else {
+                editor.addTextOverlay(text, fontFamily: _selectedFont, animationStyle: _anim);
               }
             },
             decoration: InputDecoration(
               isDense: true,
-              hintText: 'Text content',
+              hintText: 'Type text here…',
               hintStyle: const TextStyle(color: mutedToken),
               filled: true,
               fillColor: cardToken,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
               suffixIcon: IconButton(
                 tooltip: 'Clear text',
                 icon: const Icon(PhosphorIconsRegular.xCircle, color: mutedToken, size: 18),
@@ -1158,7 +1161,7 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
                   }
                 },
               ),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             ),
           ),
         ),
@@ -1174,7 +1177,16 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
                     final bool selected = font == _selectedFont;
                     return _tile(
                       selected: selected,
-                      onTap: () => setState(() => _selectedFont = font),
+                      onTap: () {
+                        setState(() => _selectedFont = font);
+                        if (editing) {
+                          editor.updateSelectedTextProperties(
+                            text: _ctrl.text.trim().isEmpty ? 'Text' : _ctrl.text,
+                            fontFamily: font,
+                            textAnimationStyle: _anim,
+                          );
+                        }
+                      },
                       child: Text(
                         font,
                         maxLines: 1,
@@ -1203,26 +1215,17 @@ class _TextAnimationSheetState extends State<TextAnimationSheet> with SingleTick
                       onTap: () {
                         tapFeedback();
                         setState(() => _anim = style);
+                        if (editing) {
+                          editor.updateSelectedTextProperties(
+                            text: _ctrl.text.trim().isEmpty ? 'Text' : _ctrl.text,
+                            fontFamily: _selectedFont,
+                            textAnimationStyle: style,
+                          );
+                        }
                       },
                     );
                   },
                 ),
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(_pad, 4, _pad, _pad + MediaQuery.paddingOf(context).bottom),
-          child: _primaryBtn(
-            null,
-            editing ? 'Update selected text' : 'Add text clip',
-            () {
-              final String text = _ctrl.text.trim().isEmpty ? 'Text' : _ctrl.text;
-              if (editing) {
-                editor.updateSelectedTextProperties(
-                    text: text, fontFamily: _selectedFont, textAnimationStyle: _anim);
-              } else {
-                editor.addTextOverlay(text, fontFamily: _selectedFont, animationStyle: _anim);
-              }
-            },
-          ),
         ),
       ],
     );

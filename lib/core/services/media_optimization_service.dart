@@ -86,33 +86,14 @@ class MediaOptimizationService {
         AppLogger.warning('Media probe skipped for $path: $e', tag: 'MediaOptimizationService');
       }
 
-      report(0.4, 'Pre-calculating audio waveform…');
-      List<double>? waveform;
       final lower = path.toLowerCase();
-      final isAudioOrVideo = lower.endsWith('.mp4') ||
-          lower.endsWith('.mov') ||
-          lower.endsWith('.m4v') ||
-          lower.endsWith('.3gp') ||
-          lower.endsWith('.mkv') ||
-          lower.endsWith('.avi') ||
-          lower.endsWith('.webm') ||
-          lower.endsWith('.mp3') ||
-          lower.endsWith('.wav') ||
-          lower.endsWith('.m4a') ||
-          lower.endsWith('.aac') ||
-          lower.endsWith('.flac') ||
-          lower.endsWith('.ogg');
+      final isImage = lower.endsWith('.jpg') ||
+          lower.endsWith('.jpeg') ||
+          lower.endsWith('.png') ||
+          lower.endsWith('.webp') ||
+          lower.endsWith('.heic') ||
+          lower.endsWith('.gif');
 
-      if (isAudioOrVideo) {
-        try {
-          waveform = await _exportService.waveform(path, 60);
-        } catch (e) {
-          AppLogger.warning('Waveform cache generation skipped for $path: $e', tag: 'MediaOptimizationService');
-        }
-      }
-
-      report(0.7, 'Generating video frame cache…');
-      Uint8List? thumbnailBytes;
       final isAudioOnly = lower.endsWith('.mp3') ||
           lower.endsWith('.wav') ||
           lower.endsWith('.m4a') ||
@@ -120,7 +101,29 @@ class MediaOptimizationService {
           lower.endsWith('.aac') ||
           lower.endsWith('.ogg');
 
+      final isAudioOrVideo = !isImage &&
+          (lower.endsWith('.mp4') ||
+              lower.endsWith('.mov') ||
+              lower.endsWith('.m4v') ||
+              lower.endsWith('.3gp') ||
+              lower.endsWith('.mkv') ||
+              lower.endsWith('.avi') ||
+              lower.endsWith('.webm') ||
+              isAudioOnly);
+
+      List<double>? waveform;
+      if (isAudioOrVideo) {
+        report(0.4, 'Pre-calculating audio waveform…');
+        try {
+          waveform = await _exportService.waveform(path, 60);
+        } catch (e) {
+          AppLogger.warning('Waveform cache generation skipped for $path: $e', tag: 'MediaOptimizationService');
+        }
+      }
+
+      Uint8List? thumbnailBytes;
       if (isAudioOrVideo && !isAudioOnly) {
+        report(0.7, 'Generating video frame cache…');
         try {
           thumbnailBytes = await _exportService.frameAt(path, 0, maxHeight: 180, quality: 85);
         } catch (e) {

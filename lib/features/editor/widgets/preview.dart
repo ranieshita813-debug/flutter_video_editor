@@ -628,13 +628,19 @@ class _FaceTrackingEffectsOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final clip = editor.activeVideoClip;
+    // Face tracking operates strictly on the currently selected clip/layer
+    final clip = editor.selectedClip;
     if (clip == null) return const SizedBox.shrink();
+
+    final int playheadMs = editor.playhead.inMilliseconds;
+    if (playheadMs < clip.start.inMilliseconds || playheadMs > clip.end.inMilliseconds) {
+      return const SizedBox.shrink();
+    }
 
     final FaceTrackingData ftData = clip.faceTrackingData;
     if (!ftData.isProcessed || ftData.persons.isEmpty) return const SizedBox.shrink();
 
-    final int relTimeMs = (editor.playhead - clip.start).inMilliseconds;
+    final int relTimeMs = playheadMs - clip.start.inMilliseconds;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1229,15 +1235,15 @@ class PaneDivider extends StatelessWidget {
             alignment: Alignment.center,
             children: <Widget>[
               const Divider(
-                height: 2,
-                thickness: 2,
-                color: Color(0xFF383838),
+                height: 1,
+                thickness: 0.5,
+                color: Color(0xFF222226),
               ),
               Container(
-                width: 42,
-                height: 4,
+                width: 32,
+                height: 2.5,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF777777),
+                  color: const Color(0xFF555555),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
