@@ -81,14 +81,17 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: surfaceToken,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
-          'Download Tracking Models',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          'Download tracking models',
+          style: TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
         ),
         content: const Text(
-          'Face tracking requires downloading necessary AI model files (~2.5 MB) from online. Do you grant permission to download?',
-          style: TextStyle(color: mutedToken, fontSize: 13),
+          'Face tracking needs a one-time download of AI model files (~2.5 MB). Allow download?',
+          style: TextStyle(color: mutedToken, fontSize: 13, height: 1.4),
         ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -98,9 +101,13 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
             style: ElevatedButton.styleFrom(
               backgroundColor: accentToken,
               foregroundColor: Colors.black,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999)),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Download & Start'),
+            child: const Text('Download & start',
+                style: TextStyle(fontWeight: FontWeight.w800)),
           ),
         ],
       ),
@@ -115,7 +122,8 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Tracking cancelled. Model files are required for face tracking.'),
+              content: Text(
+                  'Tracking cancelled. Model files are required for face tracking.'),
               duration: Duration(seconds: 2),
             ),
           );
@@ -186,11 +194,17 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
 
   void _applyToAll(EditorController editor, List<Person> persons, PersonEffect fx) {
     for (final p in persons) {
-      final PersonEffect next = fx.type == PersonEffectType.text
-          ? fx.copyWith(text: p.name)
-          : fx;
+      final PersonEffect next =
+          fx.type == PersonEffectType.text ? fx.copyWith(text: p.name) : fx;
       editor.updatePersonEffect(p.id, next);
     }
+  }
+
+  void _exitMerge() {
+    setState(() {
+      _mergeMode = false;
+      _selectedForMerge.clear();
+    });
   }
 
   // ------------------------------------------------------------------
@@ -261,14 +275,14 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: cardToken,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
-                  child: PhosphorIcon(icon, size: 18, color: accentToken)),
+                  child: PhosphorIcon(icon, size: 19, color: accentToken)),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -280,6 +294,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                           color: Colors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 1),
                   Text(sub,
                       style: const TextStyle(color: mutedToken, fontSize: 11.5)),
                 ],
@@ -291,10 +306,12 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _grabber(),
+          const SizedBox(height: 18),
           Container(
             width: 84,
             height: 84,
@@ -317,7 +334,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
           ),
           const SizedBox(height: 16),
           const Text(
-            'Auto Face Detection & Tracking',
+            'Face tracking',
             style: TextStyle(
                 color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
           ),
@@ -337,7 +354,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 50,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: accentToken,
@@ -351,7 +368,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                 _startTracking(editor);
               },
               icon: const PhosphorIcon(PhosphorIconsBold.scan, size: 18),
-              label: const Text('Scan & Detect Faces',
+              label: const Text('Scan faces',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
             ),
           ),
@@ -361,7 +378,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   }
 
   Widget _buildScanning() {
-    final stages = <String>['Extracting frames', 'Detecting faces', 'Building tracks'];
+    final stages = <String>['Extracting', 'Detecting', 'Tracking'];
     int active = 0;
     if (_progress >= 0.75) {
       active = 2;
@@ -423,19 +440,18 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                   color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
               children: List.generate(stages.length, (i) {
                 final bool done = i < active;
                 final bool now = i == active;
                 return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: now
-                        ? accentToken.withValues(alpha: 0.18)
-                        : cardToken,
+                    color: now ? accentToken.withValues(alpha: 0.18) : cardToken,
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
                       color: now ? accentToken : Colors.transparent,
@@ -473,6 +489,17 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   // Main editor
   // ------------------------------------------------------------------
 
+  Widget _grabber() {
+    return Container(
+      width: 36,
+      height: 4,
+      decoration: BoxDecoration(
+        color: dividerToken,
+        borderRadius: BorderRadius.circular(2),
+      ),
+    );
+  }
+
   Widget _buildEditor(EditorController editor, FaceTrackingData tracking) {
     final List<Person> persons = tracking.persons;
 
@@ -491,100 +518,84 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
 
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: _grabber(),
+        ),
         _buildHeader(editor, persons.length),
         _buildFaceStrip(persons),
         const Divider(height: 1, color: dividerToken),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-            children: [
-              _buildPersonInfo(editor, activePerson, activeColor),
-              const SizedBox(height: 14),
-              _buildEffectRow(editor, activePerson, currentFx),
-              const SizedBox(height: 14),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                alignment: Alignment.topCenter,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: KeyedSubtree(
-                    key: ValueKey('${activePerson.id}_${currentFx.type}'),
-                    child: _buildParams(editor, activePerson, currentFx),
+          child: IgnorePointer(
+            ignoring: _mergeMode,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 160),
+              opacity: _mergeMode ? 0.35 : 1,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                children: [
+                  _buildPersonInfo(editor, activePerson, activeColor),
+                  const SizedBox(height: 14),
+                  _buildEffectRow(editor, activePerson, currentFx),
+                  const SizedBox(height: 14),
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: KeyedSubtree(
+                        key: ValueKey('${activePerson.id}_${currentFx.type}'),
+                        child: _buildParams(editor, activePerson, currentFx),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-        _buildBottomBar(editor, persons, currentFx),
+        _mergeMode
+            ? _buildMergeBar(editor)
+            : _buildBottomBar(editor, persons, currentFx),
       ],
     );
   }
 
   Widget _buildHeader(EditorController editor, int count) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
       child: Row(
         children: [
-          Text(
-            '$count Persons Found',
-            style: const TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+          Expanded(
+            child: Text(
+              _mergeMode
+                  ? 'Select faces to merge'
+                  : '$count ${count == 1 ? 'person' : 'people'} found',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800),
+            ),
           ),
-          const Spacer(),
-          if (_mergeMode) ...[
-            TextButton(
-              onPressed: () {
-                tapFeedback();
-                setState(() {
-                  _mergeMode = false;
-                  _selectedForMerge.clear();
-                });
-              },
-              style: TextButton.styleFrom(foregroundColor: mutedToken),
-              child: const Text('Cancel'),
-            ),
-            const SizedBox(width: 4),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accentToken,
-                foregroundColor: Colors.black,
-                disabledBackgroundColor: cardToken,
-                disabledForegroundColor: mutedToken,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999)),
-              ),
-              onPressed: _selectedForMerge.length >= 2
-                  ? () {
-                      tapFeedback();
-                      editor.mergeSelectedPersons(_selectedForMerge.toList());
-                      setState(() {
-                        _selectedForMerge.clear();
-                        _mergeMode = false;
-                      });
-                    }
-                  : null,
-              icon: const PhosphorIcon(PhosphorIconsRegular.gitMerge, size: 16),
-              label: Text('Merge (${_selectedForMerge.length})',
-                  style: const TextStyle(fontWeight: FontWeight.w800)),
-            ),
-            const SizedBox(width: 8),
-          ] else ...[
+          if (!_mergeMode) ...[
             if (count > 1)
               TextButton.icon(
-                style: TextButton.styleFrom(foregroundColor: Colors.white),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                ),
                 onPressed: () {
                   tapFeedback();
                   setState(() => _mergeMode = true);
                 },
                 icon: const PhosphorIcon(PhosphorIconsRegular.gitMerge, size: 16),
-                label: const Text('Merge', style: TextStyle(fontSize: 12)),
+                label: const Text('Merge',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
               ),
             IconButton(
               tooltip: 'Re-scan',
+              visualDensity: VisualDensity.compact,
               icon: const PhosphorIcon(PhosphorIconsRegular.arrowsClockwise,
                   color: mutedToken, size: 20),
               onPressed: () {
@@ -600,12 +611,12 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
 
   Widget _buildFaceStrip(List<Person> persons) {
     return SizedBox(
-      height: 96,
+      height: 98,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         scrollDirection: Axis.horizontal,
         itemCount: persons.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, idx) {
           final Person p = persons[idx];
           final Color color = _palette[idx % _palette.length];
@@ -613,6 +624,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
           final bool isMerge = _selectedForMerge.contains(p.id);
           final bool hasFx =
               p.effects.isNotEmpty && p.effects.first.type != PersonEffectType.none;
+          final bool ringOn = isMerge || (isSelected && !_mergeMode);
 
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -636,7 +648,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
               });
             },
             child: SizedBox(
-              width: 60,
+              width: 58,
               child: Column(
                 children: [
                   Stack(
@@ -644,17 +656,15 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                     children: [
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 160),
-                        width: 54,
-                        height: 54,
+                        width: 58,
+                        height: 58,
                         padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isMerge
-                                ? Colors.amber
-                                : (isSelected && !_mergeMode
-                                    ? color
-                                    : Colors.transparent),
+                            color: ringOn
+                                ? (isMerge ? Colors.amber : color)
+                                : Colors.transparent,
                             width: 2.5,
                           ),
                         ),
@@ -665,27 +675,27 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                               colors: [
-                                color.withValues(alpha: 0.45),
-                                color.withValues(alpha: 0.12),
+                                color.withValues(alpha: 0.5),
+                                color.withValues(alpha: 0.14),
                               ],
                             ),
                           ),
                           child: const Center(
                             child: PhosphorIcon(PhosphorIconsRegular.user,
-                                size: 22, color: Colors.white),
+                                size: 24, color: Colors.white),
                           ),
                         ),
                       ),
                       if (isMerge)
                         Positioned(
-                          right: -2,
-                          top: -2,
+                          right: -1,
+                          top: -1,
                           child: _badge(Colors.amber, Icons.check_rounded),
                         )
                       else if (hasFx)
                         Positioned(
-                          right: -2,
-                          top: -2,
+                          right: -1,
+                          top: -1,
                           child: _badge(color, Icons.auto_awesome),
                         ),
                     ],
@@ -696,9 +706,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: isSelected && !_mergeMode
-                          ? Colors.white
-                          : mutedToken,
+                      color: ringOn ? Colors.white : mutedToken,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -737,7 +745,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            '${person.name} Effect',
+            person.name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -762,6 +770,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                 borderRadius: BorderRadius.circular(999),
               ),
               child: const Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   PhosphorIcon(PhosphorIconsRegular.arrowsSplit,
                       size: 13, color: Colors.white),
@@ -780,12 +789,13 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
     );
   }
 
+  /// CapCut-style tool row: square tiles, label underneath.
   Widget _buildEffectRow(
       EditorController editor, Person person, PersonEffect currentFx) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
         children: _fxDefs.map((fx) {
           final bool selected = currentFx.type == fx.type;
           return Padding(
@@ -799,41 +809,46 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                     person.id, _defaultEffect(fx.type, person));
                 setState(() => _textRevision++);
               },
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? accentToken.withValues(alpha: 0.16)
-                          : cardToken,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: selected ? accentToken : Colors.transparent,
-                        width: 2,
+              child: SizedBox(
+                width: 60,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? accentToken.withValues(alpha: 0.16)
+                            : cardToken,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: selected ? accentToken : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                      child: Center(
+                        child: PhosphorIcon(
+                          fx.icon,
+                          size: 22,
+                          color: selected ? accentToken : Colors.white,
+                        ),
                       ),
                     ),
-                    child: Center(
-                      child: PhosphorIcon(
-                        fx.icon,
-                        size: 20,
-                        color: selected ? accentToken : Colors.white,
+                    const SizedBox(height: 6),
+                    Text(
+                      fx.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected ? accentToken : mutedToken,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    fx.label,
-                    style: TextStyle(
-                      color: selected ? accentToken : mutedToken,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -849,12 +864,37 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   Widget _panel({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
         color: cardToken.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
       ),
       child: child,
+    );
+  }
+
+  Widget _chip(String text, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: () {
+        tapFeedback();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: active ? accentToken.withValues(alpha: 0.18) : surfaceToken,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: active ? accentToken : Colors.transparent),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: active ? accentToken : Colors.white70,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     );
   }
 
@@ -897,6 +937,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                   ),
                   const Spacer(),
                   Container(
+                    constraints: const BoxConstraints(minWidth: 36),
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
@@ -905,27 +946,32 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                     ),
                     child: Text(
                       value.round().toString(),
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                           color: accentToken,
                           fontSize: 12,
                           fontWeight: FontWeight.w800),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: 'Reset',
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(6),
+                    icon: const Icon(Icons.restart_alt_rounded,
+                        size: 18, color: mutedToken),
+                    onPressed: () {
                       tapFeedback();
                       editor.updatePersonEffect(
                           person.id, fx.copyWith(intensity: base));
                     },
-                    child: const Icon(Icons.restart_alt_rounded,
-                        size: 18, color: mutedToken),
                   ),
                 ],
               ),
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
-                  trackHeight: 4,
+                  trackHeight: 3,
                   activeTrackColor: accentToken,
                   inactiveTrackColor: surfaceToken,
                   thumbColor: Colors.white,
@@ -941,14 +987,17 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                       person.id, fx.copyWith(intensity: val)),
                 ),
               ),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('Subtle',
-                      style: TextStyle(color: mutedToken, fontSize: 10.5)),
-                  Text('Strong',
-                      style: TextStyle(color: mutedToken, fontSize: 10.5)),
-                ],
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Subtle',
+                        style: TextStyle(color: mutedToken, fontSize: 10.5)),
+                    Text('Strong',
+                        style: TextStyle(color: mutedToken, fontSize: 10.5)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -972,42 +1021,20 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                     person.id, fx.copyWith(text: val)),
               ),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [person.name, ..._textPresets].map((t) {
-                  return GestureDetector(
-                    onTap: () {
-                      tapFeedback();
-                      editor.updatePersonEffect(
-                          person.id, fx.copyWith(text: t));
-                      setState(() => _textRevision++);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: fx.text == t
-                            ? accentToken.withValues(alpha: 0.18)
-                            : surfaceToken,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: fx.text == t
-                              ? accentToken
-                              : Colors.transparent,
-                        ),
-                      ),
-                      child: Text(
-                        t,
-                        style: TextStyle(
-                          color: fx.text == t ? accentToken : Colors.white70,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [person.name, ..._textPresets].map((t) {
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: _chip(t, fx.text == t, () {
+                        editor.updatePersonEffect(
+                            person.id, fx.copyWith(text: t));
+                        setState(() => _textRevision++);
+                      }),
+                    );
+                  }).toList(),
+                ),
               ),
             ],
           ),
@@ -1024,37 +1051,43 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: _stickerOptions.map((st) {
-                  final bool selected = fx.stickerAsset == st;
-                  return GestureDetector(
-                    onTap: () {
-                      tapFeedback();
-                      editor.updatePersonEffect(
-                          person.id, fx.copyWith(stickerAsset: st));
-                    },
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 140),
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? accentToken.withValues(alpha: 0.18)
-                            : surfaceToken,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selected ? accentToken : Colors.transparent,
-                          width: 2,
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: _stickerOptions.map((st) {
+                    final bool selected = fx.stickerAsset == st;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: GestureDetector(
+                        onTap: () {
+                          tapFeedback();
+                          editor.updatePersonEffect(
+                              person.id, fx.copyWith(stickerAsset: st));
+                        },
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 140),
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? accentToken.withValues(alpha: 0.18)
+                                : surfaceToken,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color:
+                                  selected ? accentToken : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                          child: Center(
+                            child:
+                                Text(st, style: const TextStyle(fontSize: 26)),
+                          ),
                         ),
                       ),
-                      child: Center(
-                        child: Text(st, style: const TextStyle(fontSize: 24)),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ],
           ),
@@ -1063,13 +1096,10 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   }
 
   // ------------------------------------------------------------------
-  // Bottom action bar
+  // Bottom bars
   // ------------------------------------------------------------------
 
-  Widget _buildBottomBar(
-      EditorController editor, List<Person> persons, PersonEffect fx) {
-    final bool canApplyAll = persons.length > 1 && fx.type != PersonEffectType.none;
-
+  Widget _barShell({required Widget child}) {
     return Container(
       decoration: const BoxDecoration(
         color: surfaceToken,
@@ -1079,35 +1109,96 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      disabledForegroundColor: mutedToken,
-                      side: const BorderSide(color: dividerToken),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999)),
-                    ),
-                    onPressed: canApplyAll
-                        ? () {
-                            tapFeedback();
-                            _applyToAll(editor, persons, fx);
-                          }
-                        : null,
-                    icon: const PhosphorIcon(PhosphorIconsRegular.users, size: 16),
-                    label: const Text('Apply to all faces',
-                        style: TextStyle(
-                            fontSize: 12.5, fontWeight: FontWeight.w700)),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: child,
         ),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(
+      EditorController editor, List<Person> persons, PersonEffect fx) {
+    final bool canApplyAll =
+        persons.length > 1 && fx.type != PersonEffectType.none;
+
+    return _barShell(
+      child: SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.white,
+            disabledForegroundColor: mutedToken,
+            side: const BorderSide(color: dividerToken),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999)),
+          ),
+          onPressed: canApplyAll
+              ? () {
+                  tapFeedback();
+                  _applyToAll(editor, persons, fx);
+                }
+              : null,
+          icon: const PhosphorIcon(PhosphorIconsRegular.users, size: 16),
+          label: const Text('Apply to all faces',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMergeBar(EditorController editor) {
+    final int n = _selectedForMerge.length;
+    return _barShell(
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: dividerToken),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999)),
+                ),
+                onPressed: () {
+                  tapFeedback();
+                  _exitMerge();
+                },
+                child: const Text('Cancel',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentToken,
+                  foregroundColor: Colors.black,
+                  disabledBackgroundColor: cardToken,
+                  disabledForegroundColor: mutedToken,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999)),
+                ),
+                onPressed: n >= 2
+                    ? () {
+                        tapFeedback();
+                        editor.mergeSelectedPersons(_selectedForMerge.toList());
+                        _exitMerge();
+                      }
+                    : null,
+                icon: const PhosphorIcon(PhosphorIconsRegular.gitMerge, size: 16),
+                label: Text(n >= 2 ? 'Merge $n faces' : 'Pick 2 or more',
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1147,6 +1238,7 @@ class _LabelFieldState extends State<_LabelField> {
         hintStyle: const TextStyle(color: mutedToken, fontSize: 13),
         filled: true,
         fillColor: surfaceToken,
+        isDense: true,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
