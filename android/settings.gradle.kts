@@ -23,7 +23,11 @@ pluginManagement {
 }
 
 plugins {
-    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+    val localProp = file("local.properties")
+    val hasFlutter = localProp.exists() || System.getenv("FLUTTER_ROOT") != null || System.getenv("FLUTTER_HOME") != null
+    if (hasFlutter) {
+        id("dev.flutter.flutter-plugin-loader") version "1.0.0"
+    }
     id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
