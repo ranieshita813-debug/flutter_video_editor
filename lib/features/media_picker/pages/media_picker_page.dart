@@ -636,6 +636,8 @@ class _MediaPickerPageState extends State<MediaPickerPage>
       String progressMsg = 'Optimizing media…';
       void Function(void Function())? dialogStateSetter;
 
+      if (!mounted) return;
+
       showDialog<void>(
         context: context,
         barrierDismissible: false,
