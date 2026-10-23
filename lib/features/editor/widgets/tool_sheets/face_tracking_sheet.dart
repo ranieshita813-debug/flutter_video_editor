@@ -58,11 +58,11 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   ];
 
   static final List<_FxDef> _fxDefs = [
-    _FxDef('None', PhosphorIconsRegular.prohibit, PersonEffectType.none),
-    _FxDef('Blur', PhosphorIconsRegular.dropHalf, PersonEffectType.blur),
-    _FxDef('Mosaic', PhosphorIconsRegular.gridFour, PersonEffectType.mosaic),
-    _FxDef('Text', PhosphorIconsRegular.textAa, PersonEffectType.text),
-    _FxDef('Sticker', PhosphorIconsRegular.smiley, PersonEffectType.sticker),
+    const _FxDef('None', PhosphorIconsRegular.prohibit, PersonEffectType.none),
+    const _FxDef('Blur', PhosphorIconsRegular.dropHalf, PersonEffectType.blur),
+    const _FxDef('Mosaic', PhosphorIconsRegular.gridFour, PersonEffectType.mosaic),
+    const _FxDef('Text', PhosphorIconsRegular.textAa, PersonEffectType.text),
+    const _FxDef('Sticker', PhosphorIconsRegular.smiley, PersonEffectType.sticker),
   ];
 
   @override

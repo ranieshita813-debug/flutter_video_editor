@@ -33,7 +33,7 @@ class FaceTrackingService {
 
     final int durationMs = clip.duration.inMilliseconds;
     if (durationMs <= 0) {
-      final emptyResult = const FaceTrackingData(isProcessed: true, persons: []);
+      const emptyResult = FaceTrackingData(isProcessed: true, persons: []);
       _cache[cacheKey] = emptyResult;
       return emptyResult;
     }
