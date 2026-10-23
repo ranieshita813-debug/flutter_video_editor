@@ -168,14 +168,19 @@ void main() {
       expect(find.text('Scan & Detect Faces'), findsOneWidget);
 
       await tester.tap(find.text('Scan & Detect Faces'));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
+
+      if (find.text('Download & Start').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Download & Start'));
+        await tester.pumpAndSettle();
+      }
 
       expect(find.textContaining('Persons Found'), findsOneWidget);
       expect(find.text('Person 1 Effect'), findsOneWidget);
       expect(find.text('Blur'), findsOneWidget);
       expect(find.text('Mosaic'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 1));
     });
   });
 }

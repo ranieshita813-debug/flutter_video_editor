@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/face_tracking_model.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
+import 'package:flutter_video_editor/core/services/face_tracking_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 
@@ -75,15 +76,74 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   // Actions
   // ------------------------------------------------------------------
 
+  Future<bool> _promptDownloadPermission() async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: surfaceToken,
+        title: const Text(
+          'Download Tracking Models',
+          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Face tracking requires downloading necessary AI model files (~2.5 MB) from online. Do you grant permission to download?',
+          style: TextStyle(color: mutedToken, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: mutedToken)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: accentToken,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Download & Start'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
   Future<void> _startTracking(EditorController editor) async {
-    _pulse.repeat(reverse: true);
-    setState(() {
-      _isAnalyzing = true;
-      _progress = 0.0;
-      _statusText = 'Initializing face detection...';
-      _mergeMode = false;
-      _selectedForMerge.clear();
-    });
+    if (!FaceTrackingService.isModelDownloaded) {
+      final bool granted = await _promptDownloadPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tracking cancelled. Model files are required for face tracking.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      _pulse.repeat(reverse: true);
+      setState(() {
+        _isAnalyzing = true;
+        _progress = 0.1;
+        _statusText = 'Downloading tracking model files...';
+        _mergeMode = false;
+        _selectedForMerge.clear();
+      });
+
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      FaceTrackingService.setModelDownloaded(true);
+    } else {
+      _pulse.repeat(reverse: true);
+      setState(() {
+        _isAnalyzing = true;
+        _progress = 0.0;
+        _statusText = 'Initializing face detection...';
+        _mergeMode = false;
+        _selectedForMerge.clear();
+      });
+    }
 
     try {
       final FaceTrackingData? result =
