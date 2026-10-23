@@ -8,8 +8,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_video_editor/core/logger/app_logger.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/core/models/face_tracking_model.dart';
+import 'package:flutter_video_editor/core/models/object_tracking_model.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart' hide ExportSettings;
 import 'package:flutter_video_editor/core/services/face_tracking_service.dart';
+import 'package:flutter_video_editor/core/services/object_tracking_service.dart';
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 import 'package:flutter_video_editor/core/services/caption_import_service.dart';
 import 'package:flutter_video_editor/core/services/project_storage_service.dart';
@@ -78,6 +80,109 @@ class EditorController extends ChangeNotifier {
     _selectedClipId = project.clips.isNotEmpty ? project.clips.first.id : null;
     _undoStack.clear();
     _redoStack.clear();
+    _autosave();
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Object Tracking Pipeline & Actions
+  // ---------------------------------------------------------------------------
+  final ObjectTrackingService _objectTrackingService = ObjectTrackingService();
+
+  Future<ObjectTrackingData?> runObjectTrackingOnSelectedClip({
+    bool stepDelays = true,
+    ObjectProgressCallback? onProgress,
+  }) async {
+    final clip = selectedClip;
+    if (clip == null) return null;
+
+    final ObjectTrackingData result = await _objectTrackingService.processClip(
+      clip,
+      stepDelays: stepDelays,
+      onProgress: onProgress,
+    );
+
+    _saveState();
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index != -1) {
+      _project.clips[index] = _project.clips[index].copyWith(objectTrackingData: result);
+    }
+    _autosave();
+    notifyListeners();
+    return result;
+  }
+
+  void updateObjectEffect(String objectId, ObjectEffect effect) {
+    final clip = selectedClip;
+    if (clip == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index == -1) return;
+
+    final ObjectTrackingData currentData = clip.objectTrackingData;
+    final List<TrackedObject> updatedObjects = currentData.objects.map((o) {
+      if (o.id == objectId) {
+        return o.copyWith(effects: [effect]);
+      }
+      return o;
+    }).toList();
+
+    _saveStateCoalesced('objecteffect:$objectId');
+    _project.clips[index] = clip.copyWith(
+      objectTrackingData: currentData.copyWith(objects: updatedObjects),
+    );
+    _autosave();
+    notifyListeners();
+  }
+
+  void mergeSelectedObjects(List<String> objectIdsToMerge) {
+    final clip = selectedClip;
+    if (clip == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index == -1) return;
+
+    _saveState();
+    final ObjectTrackingData updatedData = _objectTrackingService.mergeObjects(
+      clip.objectTrackingData,
+      objectIdsToMerge,
+    );
+
+    _project.clips[index] = clip.copyWith(objectTrackingData: updatedData);
+    _autosave();
+    notifyListeners();
+  }
+
+  void splitObjectTrack(String objectId, String trackIdToSplit) {
+    final clip = selectedClip;
+    if (clip == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index == -1) return;
+
+    _saveState();
+    final ObjectTrackingData updatedData = _objectTrackingService.splitObjectTrack(
+      clip.objectTrackingData,
+      objectId,
+      trackIdToSplit,
+    );
+
+    _project.clips[index] = clip.copyWith(objectTrackingData: updatedData);
+    _autosave();
+    notifyListeners();
+  }
+
+  void clearObjectTrackingOnSelectedClip() {
+    final clip = selectedClip;
+    if (clip == null) return;
+
+    final index = _project.clips.indexWhere((c) => c.id == clip.id);
+    if (index == -1) return;
+
+    _saveState();
+    _project.clips[index] = clip.copyWith(
+      objectTrackingData: const ObjectTrackingData(),
+    );
     _autosave();
     notifyListeners();
   }

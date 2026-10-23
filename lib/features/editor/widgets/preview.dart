@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'package:flutter_video_editor/core/models/face_tracking_model.dart';
+import 'package:flutter_video_editor/core/models/object_tracking_model.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/widgets/loading_wave.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
@@ -739,6 +740,103 @@ class _FaceTrackingEffectsOverlay extends StatelessWidget {
 
               case PersonEffectType.none:
                 break;
+            }
+          }
+        }
+
+        final ObjectTrackingData objData = clip.objectTrackingData;
+        if (objData.isProcessed && objData.objects.isNotEmpty) {
+          for (final object in objData.objects) {
+            final Rect? objRect = object.rectAt(relTimeMs, margin: 0.15);
+            if (objRect == null) continue;
+
+            final Rect scaledRect = Rect.fromLTWH(
+              objRect.left * canvasW,
+              objRect.top * canvasH,
+              objRect.width * canvasW,
+              objRect.height * canvasH,
+            );
+
+            for (final effect in object.effects) {
+              switch (effect.type) {
+                case ObjectEffectType.boxHighlight:
+                  personWidgets.add(
+                    Positioned.fromRect(
+                      rect: scaledRect,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: accentToken, width: 2),
+                          borderRadius: BorderRadius.circular(4),
+                          color: accentToken.withValues(alpha: 0.1),
+                        ),
+                      ),
+                    ),
+                  );
+                  break;
+                case ObjectEffectType.blur:
+                  personWidgets.add(
+                    Positioned.fromRect(
+                      rect: scaledRect,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(scaledRect.width * 0.1),
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(
+                            sigmaX: effect.intensity.clamp(1.0, 30.0),
+                            sigmaY: effect.intensity.clamp(1.0, 30.0),
+                          ),
+                          child: Container(color: Colors.black.withValues(alpha: 0.05)),
+                        ),
+                      ),
+                    ),
+                  );
+                  break;
+                case ObjectEffectType.mosaic:
+                  personWidgets.add(
+                    Positioned.fromRect(
+                      rect: scaledRect,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(scaledRect.width * 0.1),
+                        child: CustomPaint(painter: _MosaicPainter(pixelSize: effect.intensity)),
+                      ),
+                    ),
+                  );
+                  break;
+                case ObjectEffectType.text:
+                  personWidgets.add(
+                    Positioned(
+                      left: scaledRect.left,
+                      top: math.max(0.0, scaledRect.top - 24),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: accentToken, width: 1),
+                        ),
+                        child: Text(
+                          effect.text,
+                          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  );
+                  break;
+                case ObjectEffectType.sticker:
+                  personWidgets.add(
+                    Positioned.fromRect(
+                      rect: scaledRect,
+                      child: Center(
+                        child: Text(
+                          effect.stickerAsset,
+                          style: TextStyle(fontSize: math.min(scaledRect.width, scaledRect.height) * 0.8),
+                        ),
+                      ),
+                    ),
+                  );
+                  break;
+                case ObjectEffectType.none:
+                  break;
+              }
             }
           }
         }

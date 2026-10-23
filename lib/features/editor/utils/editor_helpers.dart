@@ -224,11 +224,11 @@ Future<List<double>> waveFuture(String path, int bars) =>
     });
 
 Future<List<double>> fallbackWave(String path, int bars) async {
-  const double flat = 0.4;
+  const double flat = 0.2;
   try {
     final RandomAccessFile raf = await File(path).open();
     final List<int> bytes = <int>[];
-    int remaining = 48 * 1024;
+    int remaining = 64 * 1024;
     while (remaining > 0) {
       final Uint8List b = await raf.read(math.min(remaining, 4096));
       if (b.isEmpty) break;
@@ -236,18 +236,40 @@ Future<List<double>> fallbackWave(String path, int bars) async {
       remaining -= b.length;
     }
     await raf.close();
-    if (bytes.isEmpty) return List<double>.filled(bars, flat);
-    final List<double> out = List<double>.filled(bars, flat);
-    final int per = math.max(1, bytes.length ~/ bars);
+    if (bytes.length < 2) return List<double>.filled(bars, flat);
+
+    // Convert raw PCM / audio bytes into 16-bit PCM samples and compute true RMS (Root Mean Square) per bucket
+    final List<double> rmsBuckets = List<double>.filled(bars, 0.0);
+    final int sampleCount = bytes.length ~/ 2;
+    final int samplesPerBucket = math.max(1, sampleCount ~/ bars);
+
+    double maxRms = 0.0;
     for (int i = 0; i < bars; i++) {
-      int h = 0;
-      final int end = math.min(bytes.length, (i + 1) * per);
-      for (int j = i * per; j < end; j++) {
-        h = (h * 31 + bytes[j]) & 0x7fffffff;
+      final int startSample = i * samplesPerBucket;
+      final int endSample = math.min(sampleCount, (i + 1) * samplesPerBucket);
+      if (startSample >= endSample) continue;
+
+      double sumSquare = 0.0;
+      int count = 0;
+      for (int j = startSample; j < endSample; j++) {
+        final int byteIdx = j * 2;
+        // Interpret 16-bit signed PCM sample (little endian)
+        int sample16 = bytes[byteIdx] | (bytes[byteIdx + 1] << 8);
+        if (sample16 >= 32768) sample16 -= 65536;
+        final double normalized = sample16 / 32768.0;
+        sumSquare += normalized * normalized;
+        count++;
       }
-      out[i] = 0.2 + 0.8 * ((h % 997) / 997.0);
+
+      final double rms = count > 0 ? math.sqrt(sumSquare / count) : 0.0;
+      rmsBuckets[i] = rms;
+      if (rms > maxRms) maxRms = rms;
     }
-    return out;
+
+    if (maxRms > 0) {
+      return rmsBuckets.map((v) => (v / maxRms).clamp(0.05, 1.0)).toList();
+    }
+    return rmsBuckets;
   } catch (_) {
     return List<double>.filled(bars, flat);
   }

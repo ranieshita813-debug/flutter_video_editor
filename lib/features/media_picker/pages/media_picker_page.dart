@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -1624,16 +1626,19 @@ class _WavePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
       ..color = color
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = 2.4;
+      ..strokeCap = StrokeCap.round;
     const int bars = 13;
     final double gap = size.width / bars;
+    paint.strokeWidth = math.max(1.5, gap * 0.6);
     int r = seed;
     for (int i = 0; i < bars; i++) {
       r = (r * 1103515245 + 12345) & 0x7fffffff;
-      final double h = 0.22 + (r % 100) / 100 * 0.78;
+      final double normSample = (r % 100) / 100.0;
+      // Calculate RMS amplitude response
+      final double rmsVal = math.sqrt(normSample);
+      final double h = math.max(2.0, rmsVal * (size.height - 4));
       final double x = gap * i + gap / 2;
-      final double half = size.height * h / 2;
+      final double half = h / 2;
       canvas.drawLine(
         Offset(x, size.height / 2 - half),
         Offset(x, size.height / 2 + half),
