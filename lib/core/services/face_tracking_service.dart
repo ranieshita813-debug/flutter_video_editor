@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -8,6 +9,15 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 typedef ProgressCallback = void Function(double progress, String status);
 
 class FaceTrackingService {
+  /// Result cache indexed by clip hash/ID to prevent redundant processing.
+  static final Map<String, FaceTrackingData> _cache = {};
+
+  /// Clears cached face tracking results.
+  static void clearCache() => _cache.clear();
+
+  /// Retrieves cached face tracking data for a given clip ID if present.
+  static FaceTrackingData? getCachedData(String clipId) => _cache[clipId];
+
   /// Runs the full 5-step face tracking pipeline on a given timeline clip.
   Future<FaceTrackingData> processClip(
     TimelineClip clip, {
@@ -15,13 +25,50 @@ class FaceTrackingService {
     bool stepDelays = true,
     ProgressCallback? onProgress,
   }) async {
+    final String cacheKey = '${clip.id}_${clip.duration.inMilliseconds}_$sampledFps';
+    if (_cache.containsKey(cacheKey)) {
+      onProgress?.call(1.0, 'Loaded from cache');
+      return _cache[cacheKey]!;
+    }
+
     final int durationMs = clip.duration.inMilliseconds;
     if (durationMs <= 0) {
-      return const FaceTrackingData(isProcessed: true, persons: []);
+      final emptyResult = const FaceTrackingData(isProcessed: true, persons: []);
+      _cache[cacheKey] = emptyResult;
+      return emptyResult;
     }
 
     onProgress?.call(0.1, 'Step 1/5: Frame sampling...');
     if (stepDelays) await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    onProgress?.call(0.3, 'Step 2/5: Face detection...');
+    if (stepDelays) await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    onProgress?.call(0.5, 'Step 3/5: Tracklet creation (IoU tracking)...');
+    if (stepDelays) await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    onProgress?.call(0.7, 'Step 4/5: Face embedding computation...');
+    if (stepDelays) await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    onProgress?.call(0.9, 'Step 5/5: Clustering persons (Re-ID)...');
+    if (stepDelays) await Future<void>.delayed(const Duration(milliseconds: 10));
+
+    // Offload heavy processing to background Isolate in production, or synchronously during synchronous test runs
+    final FaceTrackingData result = stepDelays
+        ? await Isolate.run(() => _processClipInternal(clip, sampledFps: sampledFps))
+        : _processClipInternal(clip, sampledFps: sampledFps);
+
+    onProgress?.call(1.0, 'Face tracking completed!');
+    _cache[cacheKey] = result;
+    return result;
+  }
+
+  /// Internal pipeline calculation executed inside Isolate.run.
+  static FaceTrackingData _processClipInternal(TimelineClip clip, {required int sampledFps}) {
+    final int durationMs = clip.duration.inMilliseconds;
+    if (durationMs <= 0) {
+      return const FaceTrackingData(isProcessed: true, persons: []);
+    }
 
     final int intervalMs = (1000 / sampledFps).round();
     final List<int> timestampsMs = [];
@@ -29,31 +76,22 @@ class FaceTrackingService {
       timestampsMs.add(t);
     }
 
-    onProgress?.call(0.3, 'Step 2/5: Face detection...');
-    if (stepDelays) await Future<void>.delayed(const Duration(milliseconds: 10));
-
-    // Simulated/on-device face detection across sampled frames
     final Map<int, List<Rect>> frameDetections = _detectFacesInFrames(clip, timestampsMs);
 
-    onProgress?.call(0.5, 'Step 3/5: Tracklet creation (IoU tracking)...');
-    if (stepDelays) await Future<void>.delayed(const Duration(milliseconds: 10));
+    final List<_RawTracklet> tracklets = _buildTrackletsIoU(
+      frameDetections,
+      maxGapMs: math.max(500, intervalMs * 2),
+      iouThreshold: 0.25,
+    );
 
-    // IoU tracking (SORT algorithm) to build face tracklets
-    final List<_RawTracklet> tracklets = _buildTrackletsIoU(frameDetections, maxGapMs: intervalMs * 2);
-
-    onProgress?.call(0.7, 'Step 4/5: Face embedding computation...');
-    if (stepDelays) await Future<void>.delayed(const Duration(milliseconds: 10));
-
-    // Compute face embeddings (simulated/feature vector) per tracklet
     final Map<String, List<double>> trackletEmbeddings = _computeTrackletEmbeddings(clip, tracklets);
 
-    onProgress?.call(0.9, 'Step 5/5: Clustering persons...');
-    if (stepDelays) await Future<void>.delayed(const Duration(milliseconds: 10));
+    final List<Person> persons = _clusterTrackletsToPersons(
+      tracklets,
+      trackletEmbeddings,
+      cosineThreshold: 0.55,
+    );
 
-    // Cosine similarity clustering (threshold 0.55) to group tracklets into unique Persons
-    final List<Person> persons = _clusterTrackletsToPersons(tracklets, trackletEmbeddings, cosineThreshold: 0.55);
-
-    onProgress?.call(1.0, 'Face tracking completed!');
     return FaceTrackingData(
       isProcessed: true,
       sampledFps: sampledFps,
@@ -71,7 +109,7 @@ class FaceTrackingService {
     return intersectionArea / unionArea;
   }
 
-  /// Calculates Cosine Similarity between two embedding vectors.
+  /// Calculates Cosine Similarity between two feature embedding vectors.
   static double cosineSimilarity(List<double> v1, List<double> v2) {
     if (v1.length != v2.length || v1.isEmpty) return 0.0;
     double dotProduct = 0.0;
@@ -108,7 +146,7 @@ class FaceTrackingService {
       name: personsToMerge.first.name,
       thumbnailBytes: primaryThumb,
       tracks: combinedTracks,
-      effects: combinedEffects.toSet().toList(), // Remove duplicates
+      effects: combinedEffects.toSet().toList(),
     );
 
     final List<Person> updatedPersons = data.persons
@@ -150,11 +188,10 @@ class FaceTrackingService {
 
   // --- Pipeline Private Helper Methods ---
 
-  Map<int, List<Rect>> _detectFacesInFrames(TimelineClip clip, List<int> timestampsMs) {
+  static Map<int, List<Rect>> _detectFacesInFrames(TimelineClip clip, List<int> timestampsMs) {
     final Map<int, List<Rect>> detections = {};
     final math.Random random = math.Random(clip.id.hashCode);
 
-    // Generate consistent face movements/positions for simulation
     final int numFaces = (random.nextInt(3) + 1); // 1-3 people in clip
     final List<Offset> faceCenters = List.generate(
       numFaces,
@@ -166,7 +203,6 @@ class FaceTrackingService {
       final double progress = tMs / math.max(1, clip.duration.inMilliseconds);
 
       for (int i = 0; i < numFaces; i++) {
-        // Face visible in most frames, occasionally missing (gap testing)
         if ((tMs ~/ 200) % 11 == i) continue; // Brief detection gap simulation
 
         final Offset center = faceCenters[i];
@@ -186,7 +222,11 @@ class FaceTrackingService {
     return detections;
   }
 
-  List<_RawTracklet> _buildTrackletsIoU(Map<int, List<Rect>> detections, {required int maxGapMs}) {
+  static List<_RawTracklet> _buildTrackletsIoU(
+    Map<int, List<Rect>> detections, {
+    required int maxGapMs,
+    double iouThreshold = 0.25,
+  }) {
     final List<_RawTracklet> activeTracklets = [];
     final List<_RawTracklet> finishedTracklets = [];
     int trackletCounter = 1;
@@ -202,7 +242,7 @@ class FaceTrackingService {
         final FaceKeyframe lastKf = tracklet.keyframes.last;
         if (tMs - lastKf.timeMs > maxGapMs) continue;
 
-        double bestIoU = 0.25; // IoU threshold for matching
+        double bestIoU = iouThreshold;
         int bestIdx = -1;
 
         for (int i = 0; i < currentBoxes.length; i++) {
@@ -220,7 +260,6 @@ class FaceTrackingService {
         }
       }
 
-      // Create new tracklets for unmatched detections
       for (int i = 0; i < currentBoxes.length; i++) {
         if (!matchedBoxIndices.contains(i)) {
           final _RawTracklet newTracklet = _RawTracklet(
@@ -231,7 +270,6 @@ class FaceTrackingService {
         }
       }
 
-      // Move stale tracklets to finished
       activeTracklets.removeWhere((tr) {
         if (tMs - tr.keyframes.last.timeMs > maxGapMs) {
           finishedTracklets.add(tr);
@@ -245,11 +283,10 @@ class FaceTrackingService {
     return finishedTracklets;
   }
 
-  Map<String, List<double>> _computeTrackletEmbeddings(TimelineClip clip, List<_RawTracklet> tracklets) {
+  static Map<String, List<double>> _computeTrackletEmbeddings(TimelineClip clip, List<_RawTracklet> tracklets) {
     final Map<String, List<double>> embeddings = {};
     for (final tr in tracklets) {
       if (tr.keyframes.isEmpty) continue;
-      // Synthesize 128-d face embedding vector based on spatial center & box proportions
       final Rect firstRect = tr.keyframes.first.rect;
       final double seed = (firstRect.left * 100 + firstRect.top * 50);
       final List<double> vec = List.generate(128, (i) => math.sin(seed + i * 0.1));
@@ -258,7 +295,7 @@ class FaceTrackingService {
     return embeddings;
   }
 
-  List<Person> _clusterTrackletsToPersons(
+  static List<Person> _clusterTrackletsToPersons(
     List<_RawTracklet> tracklets,
     Map<String, List<double>> embeddings, {
     required double cosineThreshold,
@@ -271,7 +308,6 @@ class FaceTrackingService {
 
       bool added = false;
       for (final cluster in clusters) {
-        // Calculate average similarity to cluster tracklets
         double totalSim = 0.0;
         for (final cTr in cluster) {
           final List<double>? cVec = embeddings[cTr.id];
@@ -295,7 +331,7 @@ class FaceTrackingService {
     final List<Person> persons = [];
     for (int i = 0; i < clusters.length; i++) {
       final cluster = clusters[i];
-      final List<FaceTrack> tracks = cluster.map((tr) => FaceTrack(id: tr.id, frames: tr.keyframes)).toList();
+      final List<FaceTrack> tracks = cluster.map((tr) => FaceTrack(id: tr.id, frames: FaceTrack.applyEmaSmoothing(tr.keyframes))).toList();
 
       persons.add(
         Person(

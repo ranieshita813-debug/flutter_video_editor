@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
@@ -54,11 +55,11 @@ class FaceTrack {
   final List<FaceKeyframe> frames;
 
   /// Performs binary search on keyframes to find surrounding keyframes and lerps bounding rect.
-  /// If the gap to the closest keyframe exceeds [maxGapMs], returns null (no face detected).
-  Rect? rectAt(int tMs, {int maxGapMs = 400}) {
+  /// Holds the last known bounding box during detection misses up to [maxGapMs].
+  /// Returns null if the gap to closest keyframes exceeds [maxGapMs].
+  Rect? rectAt(int tMs, {int maxGapMs = 500}) {
     if (frames.isEmpty) return null;
 
-    // Sort check - assume frames are ordered by timeMs
     if (tMs < frames.first.timeMs - maxGapMs) return null;
     if (tMs > frames.last.timeMs + maxGapMs) return null;
 
@@ -78,7 +79,6 @@ class FaceTrack {
       }
     }
 
-    // high is the index before tMs, low is index after tMs
     final FaceKeyframe? prev = high >= 0 && high < frames.length ? frames[high] : null;
     final FaceKeyframe? next = low >= 0 && low < frames.length ? frames[low] : null;
 
@@ -99,6 +99,74 @@ class FaceTrack {
     }
 
     return null;
+  }
+
+  /// Simplifies trajectory keyframes using the Ramer-Douglas-Peucker (RDP) algorithm.
+  static List<FaceKeyframe> simplifyRdp(List<FaceKeyframe> keyframes, {double epsilon = 0.01}) {
+    if (keyframes.length <= 2) return List.from(keyframes);
+
+    double maxDistance = 0.0;
+    int indexWithMaxDistance = 0;
+
+    final Offset startPoint = keyframes.first.rect.center;
+    final Offset endPoint = keyframes.last.rect.center;
+
+    for (int i = 1; i < keyframes.length - 1; i++) {
+      final Offset point = keyframes[i].rect.center;
+      final double dist = _perpendicularDistance(point, startPoint, endPoint);
+      if (dist > maxDistance) {
+        maxDistance = dist;
+        indexWithMaxDistance = i;
+      }
+    }
+
+    if (maxDistance > epsilon) {
+      final List<FaceKeyframe> leftSegment = simplifyRdp(
+        keyframes.sublist(0, indexWithMaxDistance + 1),
+        epsilon: epsilon,
+      );
+      final List<FaceKeyframe> rightSegment = simplifyRdp(
+        keyframes.sublist(indexWithMaxDistance),
+        epsilon: epsilon,
+      );
+
+      return [...leftSegment.sublist(0, leftSegment.length - 1), ...rightSegment];
+    } else {
+      return [keyframes.first, keyframes.last];
+    }
+  }
+
+  /// Smooths keyframe bounding box coordinates using Exponential Moving Average (EMA).
+  static List<FaceKeyframe> applyEmaSmoothing(List<FaceKeyframe> keyframes, {double alpha = 0.3}) {
+    if (keyframes.isEmpty) return [];
+    final List<FaceKeyframe> smoothed = [];
+
+    Rect prevRect = keyframes.first.rect;
+    smoothed.add(keyframes.first);
+
+    for (int i = 1; i < keyframes.length; i++) {
+      final Rect currRect = keyframes[i].rect;
+      final double left = alpha * currRect.left + (1.0 - alpha) * prevRect.left;
+      final double top = alpha * currRect.top + (1.0 - alpha) * prevRect.top;
+      final double width = alpha * currRect.width + (1.0 - alpha) * prevRect.width;
+      final double height = alpha * currRect.height + (1.0 - alpha) * prevRect.height;
+
+      final Rect newRect = Rect.fromLTWH(left, top, width, height);
+      smoothed.add(keyframes[i].copyWith(rect: newRect));
+      prevRect = newRect;
+    }
+
+    return smoothed;
+  }
+
+  static double _perpendicularDistance(Offset point, Offset start, Offset end) {
+    final double dx = end.dx - start.dx;
+    final double dy = end.dy - start.dy;
+    final double norm = math.sqrt(dx * dx + dy * dy);
+    if (norm == 0) {
+      return math.sqrt((point.dx - start.dx) * (point.dx - start.dx) + (point.dy - start.dy) * (point.dy - start.dy));
+    }
+    return ((dy * point.dx - dx * point.dy + end.dx * start.dy - end.dy * start.dx).abs()) / norm;
   }
 
   Map<String, dynamic> toJson() {
@@ -198,7 +266,7 @@ class Person {
   final List<PersonEffect> effects;
 
   /// Returns the face rect at [tMs], expanded by [margin] (20-30% privacy safety margin).
-  Rect? rectAt(int tMs, {int maxGapMs = 400, double margin = 0.25}) {
+  Rect? rectAt(int tMs, {int maxGapMs = 500, double margin = 0.25}) {
     for (final track in tracks) {
       final Rect? rect = track.rectAt(tMs, maxGapMs: maxGapMs);
       if (rect != null) {
@@ -214,6 +282,56 @@ class Person {
       }
     }
     return null;
+  }
+
+  /// Converts person tracks into FFmpeg filter complex expressions with spatial bounding coordinates.
+  String generateFFmpegFilterComplex({double fps = 30.0, double margin = 0.25}) {
+    if (effects.isEmpty || effects.first.type == PersonEffectType.none) return '';
+
+    final PersonEffect primaryFx = effects.first;
+    final List<String> filters = [];
+
+    for (final track in tracks) {
+      final List<FaceKeyframe> simplified = FaceTrack.simplifyRdp(track.frames, epsilon: 0.015);
+      if (simplified.isEmpty) continue;
+
+      final double startSec = simplified.first.timeMs / 1000.0;
+      final double endSec = simplified.last.timeMs / 1000.0;
+      final String enableCond = "between(t,${startSec.toStringAsFixed(2)},${endSec.toStringAsFixed(2)})";
+
+      final Rect rawRect = simplified.first.rect;
+      final double dw = rawRect.width * margin;
+      final double dh = rawRect.height * margin;
+      final Rect expRect = Rect.fromLTRB(
+        (rawRect.left - dw / 2).clamp(0.0, 1.0),
+        (rawRect.top - dh / 2).clamp(0.0, 1.0),
+        (rawRect.right + dw / 2).clamp(0.0, 1.0),
+        (rawRect.bottom + dh / 2).clamp(0.0, 1.0),
+      );
+
+      final String xExpr = "iw*${expRect.left.toStringAsFixed(3)}";
+      final String yExpr = "ih*${expRect.top.toStringAsFixed(3)}";
+      final String wExpr = "iw*${expRect.width.toStringAsFixed(3)}";
+      final String hExpr = "ih*${expRect.height.toStringAsFixed(3)}";
+
+      switch (primaryFx.type) {
+        case PersonEffectType.blur:
+        case PersonEffectType.mosaic:
+          filters.add("drawbox=x=$xExpr:y=$yExpr:w=$wExpr:h=$hExpr:color=black@0.85:t=fill:enable='$enableCond'");
+          break;
+        case PersonEffectType.text:
+          final String txt = primaryFx.text.replaceAll("'", "");
+          filters.add("drawtext=text='$txt':x=$xExpr:y=$yExpr:fontcolor=white:fontsize=24:enable='$enableCond'");
+          break;
+        case PersonEffectType.sticker:
+          filters.add("drawtext=text='${primaryFx.stickerAsset}':x=$xExpr:y=$yExpr:fontsize=36:enable='$enableCond'");
+          break;
+        case PersonEffectType.none:
+          break;
+      }
+    }
+
+    return filters.join(';');
   }
 
   Person copyWith({

@@ -40,7 +40,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
-  )..repeat(reverse: true);
+  );
 
   static const List<String> _stickerOptions = [
     '😎', '🥸', '🎭', '🤡', '🤖', '🐱', '🔥', '✨',
@@ -76,6 +76,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   // ------------------------------------------------------------------
 
   Future<void> _startTracking(EditorController editor) async {
+    _pulse.repeat(reverse: true);
     setState(() {
       _isAnalyzing = true;
       _progress = 0.0;
@@ -102,6 +103,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
         setState(() => _selectedPersonId = result.persons.first.id);
       }
     } finally {
+      _pulse.stop();
       if (mounted) setState(() => _isAnalyzing = false);
     }
   }
@@ -255,7 +257,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
           ),
           const SizedBox(height: 16),
           const Text(
-            'Face Tracking',
+            'Auto Face Detection & Tracking',
             style: TextStyle(
                 color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
           ),
@@ -289,7 +291,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                 _startTracking(editor);
               },
               icon: const PhosphorIcon(PhosphorIconsBold.scan, size: 18),
-              label: const Text('Scan faces',
+              label: const Text('Scan & Detect Faces',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
             ),
           ),
@@ -414,7 +416,6 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
   Widget _buildEditor(EditorController editor, FaceTrackingData tracking) {
     final List<Person> persons = tracking.persons;
 
-    // Keep selection valid (no setState needed, we're inside build).
     if (_selectedPersonId == null ||
         !persons.any((p) => p.id == _selectedPersonId)) {
       _selectedPersonId = persons.first.id;
@@ -466,23 +467,10 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
       child: Row(
         children: [
-          const Text(
-            'Faces',
-            style: TextStyle(
+          Text(
+            '$count Persons Found',
+            style: const TextStyle(
                 color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(
-              color: accentToken.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              '$count',
-              style: const TextStyle(
-                  color: accentToken, fontSize: 11, fontWeight: FontWeight.w800),
-            ),
           ),
           const Spacer(),
           if (_mergeMode) ...[
@@ -689,7 +677,7 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            person.name,
+            '${person.name} Effect',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -734,29 +722,30 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
 
   Widget _buildEffectRow(
       EditorController editor, Person person, PersonEffect currentFx) {
-    return SizedBox(
-      height: 80,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: _fxDefs.map((fx) {
           final bool selected = currentFx.type == fx.type;
-          return GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              tapFeedback();
-              if (selected) return;
-              editor.updatePersonEffect(
-                  person.id, _defaultEffect(fx.type, person));
-              setState(() => _textRevision++);
-            },
-            child: SizedBox(
-              width: 58,
+          return Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                tapFeedback();
+                if (selected) return;
+                editor.updatePersonEffect(
+                    person.id, _defaultEffect(fx.type, person));
+                setState(() => _textRevision++);
+              },
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 160),
-                    width: 52,
-                    height: 52,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       color: selected
                           ? accentToken.withValues(alpha: 0.16)
@@ -770,12 +759,12 @@ class _FaceTrackingSheetState extends State<FaceTrackingSheet>
                     child: Center(
                       child: PhosphorIcon(
                         fx.icon,
-                        size: 22,
+                        size: 20,
                         color: selected ? accentToken : Colors.white,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Text(
                     fx.label,
                     style: TextStyle(
