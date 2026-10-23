@@ -1,15 +1,21 @@
-import 'package:phosphor_icons/phosphor_icons.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+import 'package:flutter_video_editor/features/editor/utils/keyframe_curves.dart';
 
 // ============================================================================
 // KEYFRAMES: dark monochrome, CapCut style
+//
+// Requires (see keyframe_curves.dart):
+//  - CurveType.bounce and CurveType.random
+//  - Keyframe fields: bounceCount, bounciness, randomAmount, randomDetail,
+//    randomSeed (with copyWith)
 // ============================================================================
 const double _kfFps = 30;
 
@@ -19,6 +25,7 @@ const Color _kfLine = Color(0xFF2A2A2A);
 const Color _kfText = Color(0xFFF2F2F2);
 const Color _kfMuted = Color(0xFF8A8A8A);
 const Color _kfDim = Color(0xFF555555);
+const Color _kfBlue = Color(0xFF5B8CFF);
 
 String _kfTimecode(double s) {
   final int fps = _kfFps.toInt();
@@ -34,19 +41,9 @@ T? _kfFind<T>(Iterable<T> items, bool Function(T) test) {
   return null;
 }
 
-double _kfEval(double t, CurveType type, [double cp1x = 0.25, double cp1y = 0.1, double cp2x = 0.25, double cp2y = 1.0]) {
-  switch (type) {
-    case CurveType.linear:
-      return t;
-    case CurveType.easeIn:
-      return t * t;
-    case CurveType.easeOut:
-      return t * (2 - t);
-    case CurveType.cubicBezier:
-      return solveCubicBezierY(t, cp1x, cp1y, cp2x, cp2y);
-  }
-}
-
+// ----------------------------------------------------------------------------
+// Curve presets
+// ----------------------------------------------------------------------------
 class _CurveOption {
   const _CurveOption(
     this.label,
@@ -69,10 +66,40 @@ const List<_CurveOption> _kfOptions = <_CurveOption>[
   _CurveOption('Ease in', CurveType.easeIn, 0.42, 0.0, 1.0, 1.0),
   _CurveOption('Ease out', CurveType.easeOut, 0.0, 0.0, 0.58, 1.0),
   _CurveOption('Custom', CurveType.cubicBezier, 0.25, 0.10, 0.25, 1.00),
-  _CurveOption('Bounce', CurveType.cubicBezier, 0.34, 1.56, 0.64, 1.00),
-  _CurveOption('Fast Start', CurveType.cubicBezier, 0.05, 0.70, 0.10, 1.00),
-  _CurveOption('Slow Down', CurveType.cubicBezier, 0.90, 0.00, 0.95, 0.30),
+  _CurveOption('Overshoot', CurveType.cubicBezier, 0.34, 1.56, 0.64, 1.00),
+  _CurveOption('Bounce', CurveType.bounce),
+  _CurveOption('Random', CurveType.random),
+  _CurveOption('Fast start', CurveType.cubicBezier, 0.05, 0.70, 0.10, 1.00),
+  _CurveOption('Slow down', CurveType.cubicBezier, 0.90, 0.00, 0.95, 0.30),
 ];
+
+bool _sameCp(_CurveOption o, Keyframe k) =>
+    (o.cp1x - k.cp1x).abs() < 0.05 &&
+    (o.cp1y - k.cp1y).abs() < 0.05 &&
+    (o.cp2x - k.cp2x).abs() < 0.05 &&
+    (o.cp2y - k.cp2y).abs() < 0.05;
+
+bool _optionIsOn(_CurveOption o, Keyframe k) {
+  if (o.curveType != k.curveType) return false;
+  if (o.curveType != CurveType.cubicBezier) return true;
+  if (!_sameCp(o, k)) return false;
+  if (o.label == 'Custom') {
+    // "Custom" lights up only when no named bezier preset matches.
+    return !_kfOptions.any((p) =>
+        p.label != 'Custom' && p.curveType == CurveType.cubicBezier && _sameCp(p, k));
+  }
+  return true;
+}
+
+// Plot mapping: y range is -0.5..1.5 so overshoot and bounce stay visible.
+// 0 and 1 sit at 25% and 75% of the plot height.
+const double _plotPadX = 20;
+const double _plotPadY = 14;
+
+double _gx(Size s, double v) => _plotPadX + v.clamp(0.0, 1.0) * (s.width - _plotPadX * 2);
+double _gy(Size s, double v) =>
+    _plotPadY + (1.5 - v.clamp(-0.5, 1.5)) / 2 * (s.height - _plotPadY * 2);
+Offset _gp(Size s, double x, double y) => Offset(_gx(s, x), _gy(s, y));
 
 // ----------------------------------------------------------------------------
 // Sheet
@@ -86,7 +113,7 @@ class KeyframeSheet extends StatefulWidget {
 
 class _KeyframeSheetState extends State<KeyframeSheet> {
   Object? _selId;
-  bool _lockScroll = false; // গ্রাফের হ্যান্ডেল টানার সময় লিস্ট স্ক্রল বন্ধ
+  bool _lockScroll = false; // stop list scrolling while dragging a curve handle
 
   void _toast(String msg) => ScaffoldMessenger.maybeOf(context)
     ?..hideCurrentSnackBar()
@@ -108,6 +135,9 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
 
     final Keyframe? atHead = _kfFind(all, (k) => (secondsOf(k.time) - rel).abs() < tol);
     final Keyframe? selected = _selId == null ? null : _kfFind(all, (k) => k.id == _selId);
+    final int selIndex = selected == null ? -1 : all.indexWhere((k) => k.id == selected.id);
+    final bool hasNext = selIndex >= 0 && selIndex < all.length - 1;
+    final Keyframe? nextKf = hasNext ? all[selIndex + 1] : null;
 
     void seekTo(double s) {
       if (clip == null) return;
@@ -141,16 +171,17 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
 
     void pick(Keyframe kf, _CurveOption o) {
       tapFeedback();
-      editor.addKeyframe(kf.copyWith(
+      Keyframe updated = kf.copyWith(
         curveType: o.curveType,
         cp1x: o.cp1x,
         cp1y: o.cp1y,
         cp2x: o.cp2x,
         cp2y: o.cp2y,
-      ));
-    }
-
-    void updateCurve(Keyframe updated) {
+      );
+      if (o.curveType == CurveType.random) {
+        // New pattern on every tap.
+        updated = updated.copyWith(randomSeed: math.Random().nextInt(9999) + 1);
+      }
       editor.addKeyframe(updated);
     }
 
@@ -219,6 +250,7 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
               child: _KfTrack(
                 keys: all,
                 selectedId: selected?.id,
+                selectedIndex: selIndex,
                 total: total,
                 playhead: rel,
                 onSeek: seekTo,
@@ -232,60 +264,67 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
                 },
               ),
             ),
+            const Divider(height: 1, thickness: 0.5, color: _kfLine),
             if (all.isEmpty)
-              const _KfHint('No keyframes yet. Move the playhead and tap the diamond.'),
+              const _KfHint('No keyframes yet. Move the playhead and tap the diamond.')
+            else if (selected == null)
+              const _KfHint('Tap a diamond to edit its curve.')
+            else if (!hasNext)
+              const _KfHint('The last keyframe has no curve. Select an earlier one.'),
           ],
 
-          // ---- curve editor (when a keyframe is selected) -------------------
-          if (selected != null) ...<Widget>[
-            const SizedBox(height: 14),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Animation Curve Customization',
-                style: TextStyle(color: _kfText, fontSize: 14, fontWeight: FontWeight.w700),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: _InteractiveCurveEditor(
-                keyframe: selected,
-                onChanged: updateCurve,
-                onDragStateChanged: (dragging) {
-                  setState(() => _lockScroll = dragging);
-                },
-              ),
-            ),
+          // ---- curve section (selected keyframe that has a next one) ---------
+          if (selected != null && nextKf != null) ...<Widget>[
             const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  const Text(
+                    'Curve to next keyframe',
+                    style: TextStyle(color: _kfText, fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  _KfChip(
+                    '${secondsOf(selected.time).toStringAsFixed(1)}s to '
+                    '${secondsOf(nextKf.time).toStringAsFixed(1)}s',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
             SizedBox(
-              height: 76,
+              height: 82,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 itemCount: _kfOptions.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 10),
                 itemBuilder: (context, i) {
-                  final opt = _kfOptions[i];
-                  final bool isSel = opt.curveType == selected.curveType &&
-                      (opt.curveType != CurveType.cubicBezier ||
-                          ((opt.cp1x - selected.cp1x).abs() < 0.05 &&
-                              (opt.cp1y - selected.cp1y).abs() < 0.05 &&
-                              (opt.cp2x - selected.cp2x).abs() < 0.05 &&
-                              (opt.cp2y - selected.cp2y).abs() < 0.05));
+                  final _CurveOption opt = _kfOptions[i];
                   return SizedBox(
-                    width: 58,
+                    width: 56,
                     child: _CurveTile(
                       option: opt,
-                      on: isSel,
+                      on: _optionIsOn(opt, selected),
                       onTap: () => pick(selected, opt),
                     ),
                   );
                 },
               ),
             ),
-          ] else if (all.isNotEmpty)
-            const _KfHint('Tap a diamond to edit its curve.'),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: _CurveEditor(
+                keyframe: selected,
+                onChanged: editor.addKeyframe,
+                onDragStateChanged: (dragging) {
+                  if (_lockScroll != dragging) setState(() => _lockScroll = dragging);
+                },
+              ),
+            ),
+          ],
 
           // ---- clear ---------------------------------------------------------
           if (all.isNotEmpty) ...<Widget>[
@@ -317,18 +356,25 @@ class _KeyframeSheetState extends State<KeyframeSheet> {
 // ----------------------------------------------------------------------------
 // Small widgets
 // ----------------------------------------------------------------------------
-class _KfCard extends StatelessWidget {
-  const _KfCard({required this.child});
-  final Widget child;
+class _KfChip extends StatelessWidget {
+  const _KfChip(this.text);
+  final String text;
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(6),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: _kfCard,
           borderRadius: BorderRadius.circular(10),
         ),
-        child: child,
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: _kfMuted,
+            fontSize: 11,
+            fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+          ),
+        ),
       );
 }
 
@@ -338,7 +384,7 @@ class _KfHint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         child: Text(
           text,
           textAlign: TextAlign.center,
@@ -395,7 +441,6 @@ class _CurveTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final BorderRadius r = BorderRadius.circular(8);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -407,13 +452,11 @@ class _CurveTile extends StatelessWidget {
               duration: const Duration(milliseconds: 150),
               decoration: BoxDecoration(
                 color: _kfCard,
-                borderRadius: r,
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: on ? _kfText : Colors.transparent, width: 2),
               ),
-              padding: const EdgeInsets.all(12),
-              child: CustomPaint(
-                painter: _CurveThumbPainter(option: option, on: on),
-              ),
+              padding: const EdgeInsets.all(10),
+              child: CustomPaint(painter: _CurveThumbPainter(option: option, on: on)),
             ),
           ),
           const SizedBox(height: 5),
@@ -434,22 +477,27 @@ class _CurveTile extends StatelessWidget {
 }
 
 class _CurveThumbPainter extends CustomPainter {
-  _CurveThumbPainter({
-    required this.option,
-    required this.on,
-  });
+  _CurveThumbPainter({required this.option, required this.on});
   final _CurveOption option;
   final bool on;
 
   @override
   void paint(Canvas canvas, Size size) {
     final Path p = Path();
-    const int steps = 24;
+    const int steps = 40;
     for (int i = 0; i <= steps; i++) {
       final double t = i / steps;
+      final double v = evalKeyframeCurve(
+        t,
+        option.curveType,
+        cp1x: option.cp1x,
+        cp1y: option.cp1y,
+        cp2x: option.cp2x,
+        cp2y: option.cp2y,
+      ).clamp(-0.2, 1.2);
+      // Leave headroom so overshoot and bounce are not clipped.
       final double x = t * size.width;
-      final double val = _kfEval(t, option.curveType, option.cp1x, option.cp1y, option.cp2x, option.cp2y);
-      final double y = size.height - val.clamp(0.0, 1.0) * size.height;
+      final double y = size.height - (v * 0.8 + 0.1) * size.height;
       if (i == 0) {
         p.moveTo(x, y);
       } else {
@@ -462,6 +510,7 @@ class _CurveThumbPainter extends CustomPainter {
         ..color = on ? _kfText : _kfMuted
         ..strokeWidth = 2
         ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
         ..style = PaintingStyle.stroke,
     );
   }
@@ -477,14 +526,16 @@ class _KfTrack extends StatelessWidget {
   const _KfTrack({
     required this.keys,
     required this.selectedId,
+    required this.selectedIndex,
     required this.total,
     required this.playhead,
     required this.onSeek,
     required this.onSelect,
   });
 
-  final List<Keyframe> keys; // time অনুযায়ী সাজানো
+  final List<Keyframe> keys; // sorted by time
   final Object? selectedId;
+  final int selectedIndex;
   final double total;
   final double playhead;
   final ValueChanged<double> onSeek;
@@ -505,7 +556,7 @@ class _KfTrack extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTapUp: (d) {
           Keyframe? hit;
-          double best = 22; // সবচেয়ে কাছের ডায়মন্ড, ২২px-এর মধ্যে
+          double best = 24; // nearest diamond within 24px
           for (final Keyframe k in keys) {
             final double dist = (xOf(secondsOf(k.time)) - d.localPosition.dx).abs();
             if (dist < best) {
@@ -527,6 +578,7 @@ class _KfTrack extends StatelessWidget {
           painter: _TrackPainter(
             keys: keys,
             selectedId: selectedId,
+            selectedIndex: selectedIndex,
             total: total,
             xOf: xOf,
             playheadX: xOf(playhead.clamp(0.0, total).toDouble()),
@@ -541,6 +593,7 @@ class _TrackPainter extends CustomPainter {
   _TrackPainter({
     required this.keys,
     required this.selectedId,
+    required this.selectedIndex,
     required this.total,
     required this.xOf,
     required this.playheadX,
@@ -548,6 +601,7 @@ class _TrackPainter extends CustomPainter {
 
   final List<Keyframe> keys;
   final Object? selectedId;
+  final int selectedIndex;
   final double total;
   final double Function(double) xOf;
   final double playheadX;
@@ -596,25 +650,29 @@ class _TrackPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    final Paint seg = Paint()
-      ..color = _kfDim
-      ..strokeWidth = 2;
+    // segments: the one the curve editor controls is thicker and brighter
     for (int i = 0; i + 1 < keys.length; i++) {
+      final bool on = i == selectedIndex;
       canvas.drawLine(
         Offset(xOf(secondsOf(keys[i].time)), cy),
         Offset(xOf(secondsOf(keys[i + 1].time)), cy),
-        seg,
+        Paint()
+          ..color = on ? _kfText : _kfDim
+          ..strokeWidth = on ? 3 : 2
+          ..strokeCap = StrokeCap.round,
       );
     }
 
+    // diamonds
     for (final Keyframe k in keys) {
       final double x = xOf(secondsOf(k.time));
       final bool on = k.id == selectedId;
+      final double r = on ? 10 : 8;
       final Path p = Path()
-        ..moveTo(x, cy - 8)
-        ..lineTo(x + 8, cy)
-        ..lineTo(x, cy + 8)
-        ..lineTo(x - 8, cy)
+        ..moveTo(x, cy - r)
+        ..lineTo(x + r, cy)
+        ..lineTo(x, cy + r)
+        ..lineTo(x - r, cy)
         ..close();
       canvas.drawPath(p, Paint()..color = on ? _kfText : _kfBg);
       canvas.drawPath(
@@ -635,14 +693,26 @@ class _TrackPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _TrackPainter o) => true;
+  bool shouldRepaint(covariant _TrackPainter o) {
+    if (o.playheadX != playheadX ||
+        o.selectedId != selectedId ||
+        o.selectedIndex != selectedIndex ||
+        o.total != total ||
+        o.keys.length != keys.length) {
+      return true;
+    }
+    for (int i = 0; i < keys.length; i++) {
+      if (o.keys[i].id != keys[i].id || o.keys[i].time != keys[i].time) return true;
+    }
+    return false;
+  }
 }
 
 // ----------------------------------------------------------------------------
-// Interactive curve editor & painter
+// Curve editor: graph + controls that depend on the curve type
 // ----------------------------------------------------------------------------
-class _InteractiveCurveEditor extends StatefulWidget {
-  const _InteractiveCurveEditor({
+class _CurveEditor extends StatefulWidget {
+  const _CurveEditor({
     required this.keyframe,
     required this.onChanged,
     required this.onDragStateChanged,
@@ -653,131 +723,267 @@ class _InteractiveCurveEditor extends StatefulWidget {
   final ValueChanged<bool> onDragStateChanged;
 
   @override
-  State<_InteractiveCurveEditor> createState() => _InteractiveCurveEditorState();
+  State<_CurveEditor> createState() => _CurveEditorState();
 }
 
-class _InteractiveCurveEditorState extends State<_InteractiveCurveEditor> {
+class _CurveEditorState extends State<_CurveEditor> {
   int? _activeHandle;
+
+  void _endDrag() {
+    if (_activeHandle != null) {
+      _activeHandle = null;
+      widget.onDragStateChanged(false);
+    }
+  }
+
+  @override
+  void dispose() {
+    // Never leave the parent list locked.
+    if (_activeHandle != null) widget.onDragStateChanged(false);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final kf = widget.keyframe;
+    final Keyframe kf = widget.keyframe;
+    final bool isBezier = kf.curveType == CurveType.cubicBezier;
+
     return Column(
-      children: [
-        _KfCard(
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: _kfCard,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: SizedBox(
-            height: 180,
+            height: 150,
             width: double.infinity,
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final Size canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
-                const double pad = 24.0;
-                final double usableW = canvasSize.width - pad * 2;
-                final double usableH = canvasSize.height - pad * 2;
+                final Size size = Size(constraints.maxWidth, constraints.maxHeight);
 
-                Offset pointToOffset(double normX, double normY) {
-                  final double x = pad + normX.clamp(0.0, 1.0) * usableW;
-                  final double y = (canvasSize.height - pad) - normY.clamp(-0.5, 1.5) * usableH;
-                  return Offset(x, y);
-                }
-
-                void updateHandle(Offset localPosition) {
-                  final double normX = ((localPosition.dx - pad) / usableW).clamp(0.0, 1.0);
-                  final double normY = (((canvasSize.height - pad) - localPosition.dy) / usableH).clamp(-0.5, 1.5);
-
+                void updateHandle(Offset pos) {
+                  final double nx =
+                      ((pos.dx - _plotPadX) / (size.width - _plotPadX * 2)).clamp(0.0, 1.0);
+                  final double ny =
+                      (1.5 - (pos.dy - _plotPadY) / (size.height - _plotPadY * 2) * 2)
+                          .clamp(-0.5, 1.5);
                   if (_activeHandle == 1) {
                     widget.onChanged(kf.copyWith(
                       curveType: CurveType.cubicBezier,
-                      cp1x: normX,
-                      cp1y: normY,
+                      cp1x: nx,
+                      cp1y: ny,
                     ));
                   } else if (_activeHandle == 2) {
                     widget.onChanged(kf.copyWith(
                       curveType: CurveType.cubicBezier,
-                      cp2x: normX,
-                      cp2y: normY,
+                      cp2x: nx,
+                      cp2y: ny,
                     ));
                   }
                 }
 
                 return GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onPanStart: (details) {
-                    final p1 = pointToOffset(kf.cp1x, kf.cp1y);
-                    final p2 = pointToOffset(kf.cp2x, kf.cp2y);
-                    final pos = details.localPosition;
+                  // Handles exist only for cubic bezier curves.
+                  onPanStart: !isBezier
+                      ? null
+                      : (d) {
+                          final Offset p1 = _gp(size, kf.cp1x, kf.cp1y);
+                          final Offset p2 = _gp(size, kf.cp2x, kf.cp2y);
+                          final double d1 = (p1 - d.localPosition).distance;
+                          final double d2 = (p2 - d.localPosition).distance;
 
-                    final d1 = (p1 - pos).distance;
-                    final d2 = (p2 - pos).distance;
-
-                    if (d1 < 32 && d1 <= d2) {
-                      _activeHandle = 1;
-                    } else if (d2 < 32) {
-                      _activeHandle = 2;
-                    } else if (d1 < 60) {
-                      _activeHandle = 1;
-                    } else if (d2 < 60) {
-                      _activeHandle = 2;
-                    } else {
-                      _activeHandle = null;
-                    }
-
-                    if (_activeHandle != null) {
-                      widget.onDragStateChanged(true);
-                      updateHandle(pos);
-                    }
-                  },
-                  onPanUpdate: (details) {
-                    if (_activeHandle != null) {
-                      updateHandle(details.localPosition);
-                    }
-                  },
-                  onPanEnd: (_) {
-                    if (_activeHandle != null) {
-                      _activeHandle = null;
-                      widget.onDragStateChanged(false);
-                    }
-                  },
-                  onPanCancel: () {
-                    if (_activeHandle != null) {
-                      _activeHandle = null;
-                      widget.onDragStateChanged(false);
-                    }
-                  },
+                          if (d1 < 32 && d1 <= d2) {
+                            _activeHandle = 1;
+                          } else if (d2 < 32) {
+                            _activeHandle = 2;
+                          } else if (d1 < 60 && d1 <= d2) {
+                            _activeHandle = 1;
+                          } else if (d2 < 60) {
+                            _activeHandle = 2;
+                          } else {
+                            _activeHandle = null;
+                          }
+                          if (_activeHandle != null) {
+                            widget.onDragStateChanged(true);
+                            updateHandle(d.localPosition);
+                          }
+                        },
+                  onPanUpdate: !isBezier
+                      ? null
+                      : (d) {
+                          if (_activeHandle != null) updateHandle(d.localPosition);
+                        },
+                  onPanEnd: (_) => _endDrag(),
+                  onPanCancel: _endDrag,
                   child: CustomPaint(
-                    size: canvasSize,
-                    painter: _InteractiveCurvePainter(
-                      cp1x: kf.cp1x,
-                      cp1y: kf.cp1y,
-                      cp2x: kf.cp2x,
-                      cp2y: kf.cp2y,
-                      curveType: kf.curveType,
-                    ),
+                    size: size,
+                    painter: _CurvePainter(keyframe: kf),
                   ),
                 );
               },
             ),
           ),
         ),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'P1 (${kf.cp1x.toStringAsFixed(2)}, ${kf.cp1y.toStringAsFixed(2)})',
-                style: const TextStyle(color: _kfMuted, fontSize: 11, fontWeight: FontWeight.w600),
-              ),
-              const Text(
-                'Drag handles to customize curve',
-                style: TextStyle(color: _kfMuted, fontSize: 10, fontStyle: FontStyle.italic),
-              ),
-              Text(
-                'P2 (${kf.cp2x.toStringAsFixed(2)}, ${kf.cp2y.toStringAsFixed(2)})',
-                style: const TextStyle(color: _kfMuted, fontSize: 11, fontWeight: FontWeight.w600),
-              ),
-            ],
+        const SizedBox(height: 8),
+        if (isBezier)
+          _BezierControls(
+            keyframe: kf,
+            onReset: () => widget.onChanged(kf.copyWith(
+              curveType: CurveType.cubicBezier,
+              cp1x: 0.25,
+              cp1y: 0.10,
+              cp2x: 0.25,
+              cp2y: 1.00,
+            )),
+          )
+        else if (kf.curveType == CurveType.bounce) ...<Widget>[
+          _ParamSlider(
+            label: 'Bounces',
+            value: kf.bounceCount.toDouble(),
+            min: 1,
+            max: 6,
+            divisions: 5,
+            display: '${kf.bounceCount}',
+            onChanged: (v) => widget.onChanged(kf.copyWith(bounceCount: v.round())),
+          ),
+          _ParamSlider(
+            label: 'Bounciness',
+            value: kf.bounciness.clamp(0.2, 0.8).toDouble(),
+            min: 0.2,
+            max: 0.8,
+            display: kf.bounciness.toStringAsFixed(2),
+            onChanged: (v) => widget.onChanged(kf.copyWith(bounciness: v)),
+          ),
+        ] else if (kf.curveType == CurveType.random) ...<Widget>[
+          _ParamSlider(
+            label: 'Intensity',
+            value: kf.randomAmount.clamp(0.05, 1.0).toDouble(),
+            min: 0.05,
+            max: 1.0,
+            display: '${(kf.randomAmount * 100).round()}%',
+            onChanged: (v) => widget.onChanged(kf.copyWith(randomAmount: v)),
+          ),
+          _ParamSlider(
+            label: 'Detail',
+            value: kf.randomDetail.clamp(3, 24).toDouble(),
+            min: 3,
+            max: 24,
+            divisions: 21,
+            display: '${kf.randomDetail}',
+            onChanged: (v) => widget.onChanged(kf.copyWith(randomDetail: v.round())),
+          ),
+          const SizedBox(height: 6),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _kfText,
+              side: const BorderSide(color: _kfDim),
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              visualDensity: VisualDensity.compact,
+            ),
+            onPressed: () {
+              tapFeedback();
+              widget.onChanged(kf.copyWith(randomSeed: math.Random().nextInt(9999) + 1));
+            },
+            icon: const Icon(Icons.casino_outlined, size: 16),
+            label: const Text('Shuffle', style: TextStyle(fontSize: 12)),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _BezierControls extends StatelessWidget {
+  const _BezierControls({required this.keyframe, required this.onReset});
+  final Keyframe keyframe;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final Keyframe k = keyframe;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: <Widget>[
+        _KfChip('P1 ${k.cp1x.toStringAsFixed(2)}, ${k.cp1y.toStringAsFixed(2)}'),
+        TextButton.icon(
+          style: TextButton.styleFrom(
+            foregroundColor: _kfMuted,
+            visualDensity: VisualDensity.compact,
+          ),
+          onPressed: () {
+            tapFeedback();
+            onReset();
+          },
+          icon: const Icon(Icons.refresh, size: 14),
+          label: const Text('Reset', style: TextStyle(fontSize: 12)),
+        ),
+        _KfChip('P2 ${k.cp2x.toStringAsFixed(2)}, ${k.cp2y.toStringAsFixed(2)}'),
+      ],
+    );
+  }
+}
+
+class _ParamSlider extends StatelessWidget {
+  const _ParamSlider({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.display,
+    required this.onChanged,
+    this.divisions,
+  });
+
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final int? divisions;
+  final String display;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        SizedBox(
+          width: 82,
+          child: Text(label, style: const TextStyle(color: _kfMuted, fontSize: 12)),
+        ),
+        Expanded(
+          child: SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 3,
+              activeTrackColor: _kfText,
+              inactiveTrackColor: _kfLine,
+              thumbColor: _kfText,
+              overlayShape: SliderComponentShape.noOverlay,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+              tickMarkShape: SliderTickMarkShape.noTickMark,
+            ),
+            child: Slider(
+              value: value.clamp(min, max).toDouble(),
+              min: min,
+              max: max,
+              divisions: divisions,
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 40,
+          child: Text(
+            display,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: _kfText,
+              fontSize: 11,
+              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+            ),
           ),
         ),
       ],
@@ -785,107 +991,108 @@ class _InteractiveCurveEditorState extends State<_InteractiveCurveEditor> {
   }
 }
 
-class _InteractiveCurvePainter extends CustomPainter {
-  _InteractiveCurvePainter({
-    required this.cp1x,
-    required this.cp1y,
-    required this.cp2x,
-    required this.cp2y,
-    required this.curveType,
-  });
+class _CurvePainter extends CustomPainter {
+  _CurvePainter({required this.keyframe});
+  final Keyframe keyframe;
 
-  final double cp1x;
-  final double cp1y;
-  final double cp2x;
-  final double cp2y;
-  final CurveType curveType;
+  void _dashed(Canvas c, Offset a, Offset b, Paint p) {
+    const double dash = 4, gap = 4;
+    final double dist = (b - a).distance;
+    if (dist == 0) return;
+    final Offset dir = (b - a) / dist;
+    double d = 0;
+    while (d < dist) {
+      final double e = math.min(d + dash, dist);
+      c.drawLine(a + dir * d, a + dir * e, p);
+      d += dash + gap;
+    }
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
-    const double pad = 24.0;
-    final double usableW = w - pad * 2;
-    final double usableH = h - pad * 2;
+    final Keyframe k = keyframe;
+    final bool isBezier = k.curveType == CurveType.cubicBezier;
 
-    Offset pointToOffset(double normX, double normY) {
-      final double x = pad + normX.clamp(0.0, 1.0) * usableW;
-      final double y = (h - pad) - normY.clamp(-0.5, 1.5) * usableH;
-      return Offset(x, y);
-    }
-
-    final Paint gridPaint = Paint()
+    // grid
+    final Paint grid = Paint()
       ..color = _kfLine
       ..strokeWidth = 0.8;
-
     for (int i = 0; i <= 4; i++) {
-      final double x = pad + usableW * (i / 4);
-      final double y = pad + usableH * (i / 4);
-      canvas.drawLine(Offset(x, pad), Offset(x, h - pad), gridPaint);
-      canvas.drawLine(Offset(pad, y), Offset(w - pad, y), gridPaint);
+      final double x = _gx(size, i / 4);
+      canvas.drawLine(Offset(x, _gy(size, 1.5)), Offset(x, _gy(size, -0.5)), grid);
+    }
+    // start (0) and end (1) value lines
+    final Paint ref = Paint()
+      ..color = _kfDim
+      ..strokeWidth = 1;
+    for (final double v in <double>[0, 1]) {
+      _dashed(canvas, Offset(_gx(size, 0), _gy(size, v)), Offset(_gx(size, 1), _gy(size, v)), ref);
     }
 
-    final Offset start = pointToOffset(0.0, 0.0);
-    final Offset end = pointToOffset(1.0, 1.0);
-    final Offset p1 = pointToOffset(cp1x, cp1y);
-    final Offset p2 = pointToOffset(cp2x, cp2y);
+    final Offset start = _gp(size, 0, 0);
+    final Offset end = _gp(size, 1, 1);
+    final Offset p1 = _gp(size, k.cp1x, k.cp1y);
+    final Offset p2 = _gp(size, k.cp2x, k.cp2y);
 
-    final Paint handleLinePaint = Paint()
-      ..color = Colors.white38
-      ..strokeWidth = 1.2;
+    if (isBezier) {
+      final Paint handleLine = Paint()
+        ..color = Colors.white38
+        ..strokeWidth = 1.2;
+      canvas.drawLine(start, p1, handleLine);
+      canvas.drawLine(end, p2, handleLine);
+    }
 
-    canvas.drawLine(start, p1, handleLinePaint);
-    canvas.drawLine(end, p2, handleLinePaint);
-
-    final Path curvePath = Path();
-    const int steps = 50;
+    // curve
+    final Path path = Path();
+    const int steps = 160;
     for (int i = 0; i <= steps; i++) {
       final double t = i / steps;
-      final double val = _kfEval(t, curveType, cp1x, cp1y, cp2x, cp2y);
-      final Offset pt = pointToOffset(t, val);
+      final Offset pt = _gp(size, t, k.ease(t));
       if (i == 0) {
-        curvePath.moveTo(pt.dx, pt.dy);
+        path.moveTo(pt.dx, pt.dy);
       } else {
-        curvePath.lineTo(pt.dx, pt.dy);
+        path.lineTo(pt.dx, pt.dy);
       }
     }
-
-    final Path fill = Path.from(curvePath)
-      ..lineTo(end.dx, end.dy)
-      ..lineTo(end.dx, start.dy)
-      ..lineTo(start.dx, start.dy)
-      ..close();
-    canvas.drawPath(fill, Paint()..color = Colors.white.withValues(alpha: 0.06));
-
     canvas.drawPath(
-      curvePath,
+      path,
       Paint()
         ..color = Colors.white
         ..strokeWidth = 2.5
         ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
         ..style = PaintingStyle.stroke,
     );
 
-    // Draw handles P1 & P2
-    for (final entry in [(p1, 'P1'), (p2, 'P2')]) {
-      final pt = entry.$1;
-      canvas.drawCircle(pt, 8, Paint()..color = _kfBg);
-      canvas.drawCircle(pt, 6, Paint()..color = const Color(0xFF5B8CFF));
-      canvas.drawCircle(pt, 3, Paint()..color = Colors.white);
+    // bezier handles
+    if (isBezier) {
+      for (final Offset pt in <Offset>[p1, p2]) {
+        canvas.drawCircle(pt, 10, Paint()..color = _kfBg);
+        canvas.drawCircle(pt, 7, Paint()..color = _kfBlue);
+        canvas.drawCircle(pt, 3, Paint()..color = Colors.white);
+      }
     }
 
-    // Draw end points
-    for (final Offset o in [start, end]) {
+    // end points
+    for (final Offset o in <Offset>[start, end]) {
       canvas.drawCircle(o, 6, Paint()..color = _kfBg);
       canvas.drawCircle(o, 4.5, Paint()..color = Colors.white);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _InteractiveCurvePainter old) =>
-      old.cp1x != cp1x ||
-      old.cp1y != cp1y ||
-      old.cp2x != cp2x ||
-      old.cp2y != cp2y ||
-      old.curveType != curveType;
+  bool shouldRepaint(covariant _CurvePainter old) {
+    final Keyframe a = old.keyframe;
+    final Keyframe b = keyframe;
+    return a.curveType != b.curveType ||
+        a.cp1x != b.cp1x ||
+        a.cp1y != b.cp1y ||
+        a.cp2x != b.cp2x ||
+        a.cp2y != b.cp2y ||
+        a.bounceCount != b.bounceCount ||
+        a.bounciness != b.bounciness ||
+        a.randomAmount != b.randomAmount ||
+        a.randomDetail != b.randomDetail ||
+        a.randomSeed != b.randomSeed;
+  }
 }
