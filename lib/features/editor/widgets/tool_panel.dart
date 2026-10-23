@@ -19,7 +19,6 @@ import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/gen.
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/ai/captions_style.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/clip_animation_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
-import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/face_tracking_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/object_tracking_sheet.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/text_style_sheet.dart';
 

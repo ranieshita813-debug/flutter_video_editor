@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import 'package:flutter_video_editor/core/models/object_tracking_model.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
-import 'package:flutter_video_editor/core/services/object_tracking_service.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
 
