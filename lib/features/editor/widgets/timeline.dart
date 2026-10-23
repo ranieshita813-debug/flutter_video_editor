@@ -9,6 +9,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 import 'package:flutter_video_editor/features/editor/utils/editor_helpers.dart';
+import 'package:flutter_video_editor/features/editor/widgets/dot_waveform.dart';
 import 'package:flutter_video_editor/features/editor/widgets/tool_sheets/editor_tool_sheets.dart';
 
 // ----------------------------------------------------------------------------
@@ -1679,9 +1680,6 @@ class _WaveformLoaderState extends State<_WaveformLoader> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, c) {
-        // Bar count is bucketed (multiples of 32) and capped. Before, every
-        // pixel of zoom re-ran the waveform job and wide clips asked for
-        // thousands of bars.
         final int raw = (c.maxWidth / 4).floor();
         final int bars = ((raw / 32).ceil() * 32).clamp(32, 1200).toInt();
         if (_future == null || _path != widget.path || _bars != bars) {
@@ -1691,47 +1689,19 @@ class _WaveformLoaderState extends State<_WaveformLoader> {
         }
         return FutureBuilder<List<double>>(
           future: _future,
-          builder: (_, s) => CustomPaint(
-            painter: _WavePainter(amps: s.data ?? List<double>.filled(bars, 0.4)),
-            child: const SizedBox.expand(),
-          ),
+          builder: (_, s) {
+            final amps = s.data ?? List<double>.filled(bars, 0.4);
+            return DotsWaveform(
+              amplitudes: amps,
+              height: c.maxHeight,
+              playedColor: const Color(0xFF00C4D6),
+              unplayedColor: const Color(0xFF00C4D6).withValues(alpha: 0.5),
+            );
+          },
         );
       },
     );
   }
-}
-
-class _WavePainter extends CustomPainter {
-  _WavePainter({required this.amps});
-  final List<double> amps;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (amps.isEmpty) return;
-    final Paint p = Paint()
-      ..color = const Color(0xFF00C4D6)
-      ..strokeWidth = math.max(1.5, (size.width / amps.length) * 0.65)
-      ..strokeCap = StrokeCap.round;
-    final double gap = size.width / amps.length;
-    final double centerY = size.height / 2;
-    final double maxH = size.height - 6;
-
-    for (int i = 0; i < amps.length; i++) {
-      final double x = gap * (i + 0.5);
-      // RMS amplitude curve response
-      final double val = amps[i].clamp(0.0, 1.0);
-      final double rmsScale = math.sqrt(val);
-      final double h = math.max(2.0, rmsScale * maxH);
-      canvas.drawLine(
-        Offset(x, centerY - h / 2),
-        Offset(x, centerY + h / 2),
-        p,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _WavePainter old) => !_listEq(old.amps, amps);
 }
 
 // ----------------------------------------------------------------------------

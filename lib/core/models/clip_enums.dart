@@ -117,4 +117,6 @@ enum CurveType {
   easeIn,
   easeOut,
   cubicBezier,
+  bounce,
+  random,
 }

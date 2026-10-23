@@ -255,12 +255,6 @@ class EditorToolbar extends StatelessWidget {
           onTap: () => onSelectToolSheet('captions'),
         ),
         EditorToolbarItem(
-          id: 'track',
-          title: 'Track',
-          icon: PhosphorIconsRegular.crosshair,
-          onTap: () => onSelectToolSheet('track'),
-        ),
-        EditorToolbarItem(
           id: 'ai_generate',
           title: 'AI Generate',
           icon: PhosphorIconsFill.sparkle,
