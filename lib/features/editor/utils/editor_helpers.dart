@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
+import 'package:flutter_video_editor/features/editor/utils/keyframe_curves.dart';
 
 // ----------------------------------------------------------------------------
 // Tokens
@@ -139,19 +140,7 @@ double getInterpolatedKeyframeValue(
       if (span <= 0) return b.value;
       double t = (relativeTime - a.time).inMicroseconds / span;
 
-      switch (a.curveType) {
-        case CurveType.easeIn:
-          t = Curves.easeIn.transform(t);
-          break;
-        case CurveType.easeOut:
-          t = Curves.easeOut.transform(t);
-          break;
-        case CurveType.cubicBezier:
-          t = solveCubicBezierY(t, a.cp1x, a.cp1y, a.cp2x, a.cp2y);
-          break;
-        case CurveType.linear:
-          break;
-      }
+      t = a.ease(t);
       return a.value + (b.value - a.value) * t;
     }
   }

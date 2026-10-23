@@ -116,6 +116,8 @@ enum CurveType {
   easeIn,
   easeOut,
   cubicBezier,
+  bounce,
+  random,
 }
 
 class Keyframe {
@@ -129,6 +131,11 @@ class Keyframe {
     this.cp1y = 0.10,
     this.cp2x = 0.25,
     this.cp2y = 1.00,
+    this.bounceCount = 3,
+    this.bounciness = 0.5,
+    this.randomAmount = 0.4,
+    this.randomDetail = 10,
+    this.randomSeed = 7,
   });
 
   final String id;
@@ -140,6 +147,11 @@ class Keyframe {
   final double cp1y;
   final double cp2x;
   final double cp2y;
+  final int bounceCount;
+  final double bounciness;
+  final double randomAmount;
+  final int randomDetail;
+  final int randomSeed;
 
   Keyframe copyWith({
     String? id,
@@ -151,6 +163,11 @@ class Keyframe {
     double? cp1y,
     double? cp2x,
     double? cp2y,
+    int? bounceCount,
+    double? bounciness,
+    double? randomAmount,
+    int? randomDetail,
+    int? randomSeed,
   }) {
     return Keyframe(
       id: id ?? this.id,
@@ -162,6 +179,11 @@ class Keyframe {
       cp1y: cp1y ?? this.cp1y,
       cp2x: cp2x ?? this.cp2x,
       cp2y: cp2y ?? this.cp2y,
+      bounceCount: bounceCount ?? this.bounceCount,
+      bounciness: bounciness ?? this.bounciness,
+      randomAmount: randomAmount ?? this.randomAmount,
+      randomDetail: randomDetail ?? this.randomDetail,
+      randomSeed: randomSeed ?? this.randomSeed,
     );
   }
 
@@ -176,6 +198,11 @@ class Keyframe {
       'cp1y': cp1y,
       'cp2x': cp2x,
       'cp2y': cp2y,
+      'bounceCount': bounceCount,
+      'bounciness': bounciness,
+      'randomAmount': randomAmount,
+      'randomDetail': randomDetail,
+      'randomSeed': randomSeed,
     };
   }
 
@@ -196,6 +223,11 @@ class Keyframe {
       cp1y: (json['cp1y'] as num?)?.toDouble() ?? 0.10,
       cp2x: (json['cp2x'] as num?)?.toDouble() ?? 0.25,
       cp2y: (json['cp2y'] as num?)?.toDouble() ?? 1.00,
+      bounceCount: json['bounceCount'] as int? ?? 3,
+      bounciness: (json['bounciness'] as num?)?.toDouble() ?? 0.5,
+      randomAmount: (json['randomAmount'] as num?)?.toDouble() ?? 0.4,
+      randomDetail: json['randomDetail'] as int? ?? 10,
+      randomSeed: json['randomSeed'] as int? ?? 7,
     );
   }
 }
