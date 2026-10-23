@@ -84,6 +84,82 @@ data class WordSpec(
     val endMs: Long
 )
 
+data class FaceKeyframeSpec(
+    val timeMs: Long,
+    val left: Double,
+    val top: Double,
+    val width: Double,
+    val height: Double
+)
+
+data class FaceTrackSpec(
+    val id: String,
+    val frames: List<FaceKeyframeSpec>
+) {
+    fun rectAt(tMs: Long, maxGapMs: Long = 500L): FaceKeyframeSpec? {
+        if (frames.isEmpty()) return null
+        if (tMs < frames.first().timeMs - maxGapMs) return null
+        if (tMs > frames.last().timeMs + maxGapMs) return null
+
+        for (i in 0 until frames.size - 1) {
+            val a = frames[i]
+            val b = frames[i + 1]
+            if (tMs >= a.timeMs && tMs <= b.timeMs) {
+                val span = b.timeMs - a.timeMs
+                if (span <= 0) return a
+                val t = (tMs - a.timeMs).toDouble() / span.toDouble()
+                return FaceKeyframeSpec(
+                    timeMs = tMs,
+                    left = a.left + (b.left - a.left) * t,
+                    top = a.top + (b.top - a.top) * t,
+                    width = a.width + (b.width - a.width) * t,
+                    height = a.height + (b.height - a.height) * t
+                )
+            }
+        }
+        if (Math.abs(tMs - frames.last().timeMs) <= maxGapMs) return frames.last()
+        if (Math.abs(tMs - frames.first().timeMs) <= maxGapMs) return frames.first()
+        return null
+    }
+}
+
+data class PersonEffectSpec(
+    val type: String = "none",
+    val intensity: Double = 10.0,
+    val text: String = "Face",
+    val stickerAsset: String = "😎"
+)
+
+data class PersonSpec(
+    val id: String,
+    val name: String,
+    val tracks: List<FaceTrackSpec>,
+    val effects: List<PersonEffectSpec>
+) {
+    fun rectAt(tMs: Long, margin: Double = 0.25): FaceKeyframeSpec? {
+        for (tr in tracks) {
+            val raw = tr.rectAt(tMs)
+            if (raw != null) {
+                if (margin <= 0) return raw
+                val dw = raw.width * margin
+                val dh = raw.height * margin
+                val l = (raw.left - dw / 2.0).coerceIn(0.0, 1.0)
+                val t = (raw.top - dh / 2.0).coerceIn(0.0, 1.0)
+                val r = (raw.left + raw.width + dw / 2.0).coerceIn(0.0, 1.0)
+                val b = (raw.top + raw.height + dh / 2.0).coerceIn(0.0, 1.0)
+                return FaceKeyframeSpec(tMs, l, t, (r - l).coerceAtLeast(0.05), (b - t).coerceAtLeast(0.05))
+            }
+        }
+        return null
+    }
+}
+
+data class FaceTrackingSpec(
+    val isProcessed: Boolean = false,
+    val sampledFps: Int = 5,
+    val persons: List<PersonSpec> = emptyList()
+)
+
 data class KeyframeSpec(
     val id: String,
     val timeMs: Long,
@@ -191,7 +267,8 @@ data class ClipSpec(
     val svgPath: String? = null,
     val keyframes: List<KeyframeSpec> = emptyList(),
     val words: List<WordSpec> = emptyList(),
-    val shaderEffects: List<ShaderEffectSpec> = emptyList()
+    val shaderEffects: List<ShaderEffectSpec> = emptyList(),
+    val faceTrackingData: FaceTrackingSpec = FaceTrackingSpec()
 )
 
 data class TimelineSpec(
@@ -457,7 +534,70 @@ object TimelineParser {
                             }
                             wordList
                         },
-                        shaderEffects = shaderEffects
+                        shaderEffects = shaderEffects,
+                        faceTrackingData = run {
+                            val ftObj = clipObj.optJSONObject("faceTrackingData")
+                            if (ftObj != null) {
+                                val isProc = ftObj.optBoolean("isProcessed", false)
+                                val sampledFps = ftObj.optInt("sampledFps", 5)
+                                val personsArr = ftObj.optJSONArray("persons")
+                                val personsList = mutableListOf<PersonSpec>()
+                                if (personsArr != null) {
+                                    for (pIdx in 0 until personsArr.length()) {
+                                        val pObj = personsArr.getJSONObject(pIdx)
+                                        val pId = pObj.optString("id", "")
+                                        val pName = pObj.optString("name", "Person")
+
+                                        val tracksArr = pObj.optJSONArray("tracks")
+                                        val tracksList = mutableListOf<FaceTrackSpec>()
+                                        if (tracksArr != null) {
+                                            for (trIdx in 0 until tracksArr.length()) {
+                                                val trObj = tracksArr.getJSONObject(trIdx)
+                                                val trId = trObj.optString("id", "")
+                                                val framesArr = trObj.optJSONArray("frames")
+                                                val framesList = mutableListOf<FaceKeyframeSpec>()
+                                                if (framesArr != null) {
+                                                    for (fIdx in 0 until framesArr.length()) {
+                                                        val fObj = framesArr.getJSONObject(fIdx)
+                                                        framesList.add(
+                                                            FaceKeyframeSpec(
+                                                                timeMs = fObj.optLong("timeMs", 0L),
+                                                                left = fObj.optDouble("left", 0.0),
+                                                                top = fObj.optDouble("top", 0.0),
+                                                                width = fObj.optDouble("width", 0.0),
+                                                                height = fObj.optDouble("height", 0.0)
+                                                            )
+                                                        )
+                                                    }
+                                                }
+                                                tracksList.add(FaceTrackSpec(trId, framesList))
+                                            }
+                                        }
+
+                                        val fxArr = pObj.optJSONArray("effects")
+                                        val fxList = mutableListOf<PersonEffectSpec>()
+                                        if (fxArr != null) {
+                                            for (fxIdx in 0 until fxArr.length()) {
+                                                val fxObj = fxArr.getJSONObject(fxIdx)
+                                                fxList.add(
+                                                    PersonEffectSpec(
+                                                        type = fxObj.optString("type", "none"),
+                                                        intensity = fxObj.optDouble("intensity", 10.0),
+                                                        text = fxObj.optString("text", "Face"),
+                                                        stickerAsset = fxObj.optString("stickerAsset", "😎")
+                                                    )
+                                                )
+                                            }
+                                        }
+
+                                        personsList.add(PersonSpec(pId, pName, tracksList, fxList))
+                                    }
+                                }
+                                FaceTrackingSpec(isProc, sampledFps, personsList)
+                            } else {
+                                FaceTrackingSpec()
+                            }
+                        }
                     )
                 )
             }

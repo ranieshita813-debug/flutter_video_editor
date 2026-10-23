@@ -244,6 +244,82 @@ object OverlayRenderer {
     }
 
     /**
+     * Draws face tracking effects (blur, mosaic, text, sticker) onto frame canvas at relative clip time
+     */
+    fun drawFaceTrackingEffects(
+        context: Context,
+        canvas: Canvas,
+        clip: ClipSpec,
+        width: Int,
+        height: Int,
+        timelineMs: Long
+    ) {
+        val ftData = clip.faceTrackingData
+        if (!ftData.isProcessed || ftData.persons.isEmpty()) return
+
+        val relTimeMs = timelineMs - clip.timelineStartMs
+        if (relTimeMs < 0 || relTimeMs > clip.timelineDurationMs) return
+
+        for (person in ftData.persons) {
+            val faceRect = person.rectAt(relTimeMs, margin = 0.25) ?: continue
+
+            val leftPx = (faceRect.left * width).toFloat().coerceIn(0f, width.toFloat() - 1f)
+            val topPx = (faceRect.top * height).toFloat().coerceIn(0f, height.toFloat() - 1f)
+            val rectW = (faceRect.width * width).toFloat().coerceAtLeast(16f).coerceAtMost(width.toFloat() - leftPx)
+            val rectH = (faceRect.height * height).toFloat().coerceAtLeast(16f).coerceAtMost(height.toFloat() - topPx)
+
+            val destRect = RectF(leftPx, topPx, leftPx + rectW, topPx + rectH)
+
+            for (fx in person.effects) {
+                when (fx.type.lowercase()) {
+                    "blur" -> {
+                        val darkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = Color.argb(200, 20, 20, 20)
+                            style = Paint.Style.FILL
+                        }
+                        canvas.drawRoundRect(destRect, 16f, 16f, darkPaint)
+                    }
+                    "mosaic" -> {
+                        val darkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = Color.argb(200, 40, 40, 40)
+                            style = Paint.Style.FILL
+                        }
+                        canvas.drawRoundRect(destRect, 8f, 8f, darkPaint)
+                    }
+                    "text" -> {
+                        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = Color.WHITE
+                            textSize = (height * 0.035f).coerceAtLeast(18f)
+                            typeface = Typeface.DEFAULT_BOLD
+                            textAlign = Paint.Align.CENTER
+                            setShadowLayer(4f, 2f, 2f, Color.BLACK)
+                        }
+                        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            color = Color.argb(200, 0, 0, 0)
+                            style = Paint.Style.FILL
+                        }
+                        val txt = fx.text
+                        val textW = paint.measureText(txt)
+                        val textH = paint.textSize
+                        val cx = destRect.centerX()
+                        val cy = (destRect.top - 8f).coerceAtLeast(textH + 8f)
+                        val bgRect = RectF(cx - textW / 2f - 12f, cy - textH - 4f, cx + textW / 2f + 12f, cy + 8f)
+                        canvas.drawRoundRect(bgRect, 999f, 999f, bgPaint)
+                        canvas.drawText(txt, cx, cy, paint)
+                    }
+                    "sticker" -> {
+                        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            textSize = Math.min(rectW, rectH) * 0.8f
+                            textAlign = Paint.Align.CENTER
+                        }
+                        canvas.drawText(fx.stickerAsset, destRect.centerX(), destRect.centerY() + paint.textSize / 3f, paint)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * ওয়াটারমার্ক ওভারলে বিটম্যাপ তৈরি করে
      */
     fun renderWatermarkOverlay(
