@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_video_editor/core/models/chroma_key.dart';
 import 'package:flutter_video_editor/core/models/face_tracking_model.dart';
+import 'package:flutter_video_editor/core/models/object_tracking_model.dart';
 import 'package:flutter_video_editor/core/models/shader_clip_model.dart';
 
 enum ClipType {
@@ -1001,6 +1002,7 @@ class TimelineClip {
     this.strokes = const <DrawingStroke>[],
     this.trackingData = const TrackingData(),
     this.faceTrackingData = const FaceTrackingData(),
+    this.objectTrackingData = const ObjectTrackingData(),
     this.words = const <CaptionWord>[],
     this.waveform,
     this.thumbnails,
@@ -1048,6 +1050,7 @@ class TimelineClip {
   final List<DrawingStroke> strokes;
   final TrackingData trackingData;
   final FaceTrackingData faceTrackingData;
+  final ObjectTrackingData objectTrackingData;
   final List<CaptionWord> words;
   final List<double>? waveform;
   final List<String>? thumbnails;
@@ -1097,6 +1100,7 @@ class TimelineClip {
     List<DrawingStroke>? strokes,
     TrackingData? trackingData,
     FaceTrackingData? faceTrackingData,
+    ObjectTrackingData? objectTrackingData,
     List<CaptionWord>? words,
     List<double>? waveform,
     List<String>? thumbnails,
@@ -1144,6 +1148,7 @@ class TimelineClip {
       strokes: strokes ?? this.strokes,
       trackingData: trackingData ?? this.trackingData,
       faceTrackingData: faceTrackingData ?? this.faceTrackingData,
+      objectTrackingData: objectTrackingData ?? this.objectTrackingData,
       words: words ?? this.words,
       waveform: waveform ?? this.waveform,
       thumbnails: thumbnails ?? this.thumbnails,
@@ -1194,6 +1199,7 @@ class TimelineClip {
       'strokes': strokes.map((s) => s.toJson()).toList(),
       'trackingData': trackingData.toJson(),
       'faceTrackingData': faceTrackingData.toJson(),
+      'objectTrackingData': objectTrackingData.toJson(),
       'words': words.map((w) => w.toJson()).toList(),
       'waveform': waveform,
       'thumbnails': thumbnails,
@@ -1292,6 +1298,9 @@ class TimelineClip {
       faceTrackingData: json['faceTrackingData'] != null
           ? FaceTrackingData.fromJson(Map<String, dynamic>.from(json['faceTrackingData'] as Map))
           : const FaceTrackingData(),
+      objectTrackingData: json['objectTrackingData'] != null
+          ? ObjectTrackingData.fromJson(Map<String, dynamic>.from(json['objectTrackingData'] as Map))
+          : const ObjectTrackingData(),
       words: (json['words'] as List<dynamic>?)
               ?.map((e) => CaptionWord.fromJson(Map<String, dynamic>.from(e as Map)))
               .toList() ??

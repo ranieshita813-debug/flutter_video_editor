@@ -103,6 +103,7 @@ class ClipDto {
     this.words = const <Map<String, dynamic>>[],
     this.shaderEffects = const <Map<String, dynamic>>[],
     this.faceTrackingData = const <String, dynamic>{},
+    this.objectTrackingData = const <String, dynamic>{},
   });
 
   final String id;
@@ -147,6 +148,7 @@ class ClipDto {
   final List<Map<String, dynamic>> words;
   final List<Map<String, dynamic>> shaderEffects;
   final Map<String, dynamic> faceTrackingData;
+  final Map<String, dynamic> objectTrackingData;
 
   factory ClipDto.fromTimelineClip(TimelineClip clip) {
     return ClipDto(
@@ -192,6 +194,7 @@ class ClipDto {
       words: clip.words.map((w) => w.toJson()).toList(),
       shaderEffects: clip.shaderEffects.map((e) => e.toJson()).toList(),
       faceTrackingData: clip.faceTrackingData.toJson(),
+      objectTrackingData: clip.objectTrackingData.toJson(),
     );
   }
 
@@ -239,6 +242,7 @@ class ClipDto {
       'words': words,
       'shaderEffects': shaderEffects,
       'faceTrackingData': faceTrackingData,
+      'objectTrackingData': objectTrackingData,
     };
   }
 
@@ -301,6 +305,7 @@ class ClipDto {
               .toList() ??
           <Map<String, dynamic>>[],
       faceTrackingData: json['faceTrackingData'] as Map<String, dynamic>? ?? <String, dynamic>{},
+      objectTrackingData: json['objectTrackingData'] as Map<String, dynamic>? ?? <String, dynamic>{},
     );
   }
 }
