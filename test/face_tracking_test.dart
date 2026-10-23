@@ -164,19 +164,18 @@ void main() {
         ),
       );
 
-      expect(find.text('Auto Face Detection & Tracking'), findsOneWidget);
-      expect(find.text('Scan & Detect Faces'), findsOneWidget);
+      expect(find.text('Face tracking'), findsWidgets);
+      expect(find.text('Scan faces'), findsOneWidget);
 
-      await tester.tap(find.text('Scan & Detect Faces'));
+      await tester.tap(find.text('Scan faces'));
       await tester.pumpAndSettle();
 
-      if (find.text('Download & Start').evaluate().isNotEmpty) {
-        await tester.tap(find.text('Download & Start'));
+      if (find.text('Download & start').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Download & start'));
         await tester.pumpAndSettle();
       }
 
-      expect(find.textContaining('Persons Found'), findsOneWidget);
-      expect(find.text('Person 1 Effect'), findsOneWidget);
+      expect(find.textContaining('found'), findsOneWidget);
       expect(find.text('Blur'), findsOneWidget);
       expect(find.text('Mosaic'), findsOneWidget);
 

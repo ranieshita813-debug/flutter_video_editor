@@ -61,6 +61,26 @@ class ExportService {
     }
   }
 
+  Future<List<Uint8List?>> frameBatch(
+    String path,
+    List<int> timestampsMs, {
+    int maxHeight = 640,
+    int quality = 80,
+  }) async {
+    try {
+      final result = await _methodChannel.invokeMethod<List<dynamic>>('frameBatch', {
+        'path': path,
+        'timestampsMs': timestampsMs,
+        'maxHeight': maxHeight,
+        'quality': quality,
+      });
+      if (result != null) {
+        return result.map((e) => e is Uint8List ? e : (e is List ? Uint8List.fromList(e.cast<int>()) : null)).toList();
+      }
+    } catch (_) {}
+    return List.filled(timestampsMs.length, null);
+  }
+
   Future<List<String>> thumbnails(String path, int count, int height) async {
     try {
       final result = await _methodChannel.invokeMethod<List<dynamic>>('thumbnails', {

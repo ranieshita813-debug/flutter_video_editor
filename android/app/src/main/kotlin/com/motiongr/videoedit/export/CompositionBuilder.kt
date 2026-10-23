@@ -46,7 +46,8 @@ class DynamicTimelineOverlay(
     private val width: Int,
     private val height: Int,
     private val baseStartMs: Long,
-    private val overlayClips: List<ClipSpec>
+    private val overlayClips: List<ClipSpec>,
+    private val baseClips: List<ClipSpec> = emptyList()
 ) : BitmapOverlay() {
 
     private var cachedFrameBitmap: Bitmap? = null
@@ -70,6 +71,19 @@ class DynamicTimelineOverlay(
         }
 
         val canvas = cachedCanvas ?: Canvas(frame).also { cachedCanvas = it }
+
+        for (clip in baseClips) {
+            if (clip.isVisible && currentTimelineMs >= clip.timelineStartMs && currentTimelineMs < (clip.timelineStartMs + clip.timelineDurationMs)) {
+                OverlayRenderer.drawFaceTrackingEffects(
+                    context = context,
+                    canvas = canvas,
+                    clip = clip,
+                    width = width,
+                    height = height,
+                    timelineMs = currentTimelineMs
+                )
+            }
+        }
 
         if (activeOverlays.isNotEmpty()) {
             for (clip in activeOverlays) {
@@ -527,13 +541,14 @@ object CompositionBuilder {
                 }
             }
 
-            // Dynamic Overlay containing all active overlay clips & watermark
+            // Dynamic Overlay containing all active overlay clips, face tracking effects & watermark
             val dynamicOverlay = DynamicTimelineOverlay(
                 context = context,
                 width = width,
                 height = height,
                 baseStartMs = clip.timelineStartMs,
-                overlayClips = overlayClips
+                overlayClips = overlayClips,
+                baseClips = baseClips
             )
             videoEffects += OverlayEffect(ImmutableList.of<TextureOverlay>(dynamicOverlay))
 

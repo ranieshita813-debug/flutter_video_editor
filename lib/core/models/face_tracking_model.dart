@@ -316,8 +316,12 @@ class Person {
 
       switch (primaryFx.type) {
         case PersonEffectType.blur:
+          final double sigma = primaryFx.intensity.clamp(1.0, 30.0);
+          filters.add("[0:v]split[main][crop];[crop]crop=w=$wExpr:h=$hExpr:x=$xExpr:y=$yExpr,boxblur=luma_radius=$sigma:luma_power=2[blurred];[main][blurred]overlay=x=$xExpr:y=$yExpr:enable='$enableCond'");
+          break;
         case PersonEffectType.mosaic:
-          filters.add("drawbox=x=$xExpr:y=$yExpr:w=$wExpr:h=$hExpr:color=black@0.85:t=fill:enable='$enableCond'");
+          final double sizePx = primaryFx.intensity.clamp(4.0, 50.0);
+          filters.add("[0:v]split[main][crop];[crop]crop=w=$wExpr:h=$hExpr:x=$xExpr:y=$yExpr,scale=iw/$sizePx:-1:flags=neighbor,scale=$wExpr:$hExpr:flags=neighbor[mosaic];[main][mosaic]overlay=x=$xExpr:y=$yExpr:enable='$enableCond'");
           break;
         case PersonEffectType.text:
           final String txt = primaryFx.text.replaceAll("'", "");

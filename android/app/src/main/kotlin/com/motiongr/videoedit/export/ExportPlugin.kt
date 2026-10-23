@@ -189,6 +189,15 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
                 runAsync(result) { frameAt(path, timeMs, maxHeight, quality) }
             }
 
+            "frameBatch" -> {
+                val path = call.argument<String>("path") ?: return invalid(result, "Path missing")
+                val timesList = call.argument<List<Number>>("timestampsMs") ?: emptyList()
+                val maxHeight = call.int("maxHeight", 640).coerceIn(16, 2160)
+                val quality = call.int("quality", 80).coerceIn(10, 100)
+                val timestamps = timesList.map { it.toLong() }
+                runAsync(result) { frameBatch(path, timestamps, maxHeight, quality) }
+            }
+
             "waveform" -> {
                 val path = call.argument<String>("path") ?: return invalid(result, "Path missing")
                 val buckets = call.int("buckets", 100).coerceIn(1, 20000)
@@ -462,6 +471,40 @@ class ExportPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChanne
         } finally {
             try { retriever.release() } catch (_: Exception) {}
         }
+    }
+
+    /** Extracts multiple frames as a list of JPEG byte arrays at specific timestamps in batch. */
+    private fun frameBatch(path: String, timestampsMs: List<Long>, maxHeight: Int, quality: Int): List<ByteArray> {
+        if (timestampsMs.isEmpty()) return emptyList()
+        val retriever = MediaMetadataRetriever()
+        val results = ArrayList<ByteArray>(timestampsMs.size)
+        try {
+            retriever.source(path)
+            val option = MediaMetadataRetriever.OPTION_CLOSEST
+            for (timeMs in timestampsMs) {
+                val frame = retriever.getFrameAtTime(timeMs * 1000L, option)
+                if (frame == null) {
+                    results.add(ByteArray(0))
+                    continue
+                }
+                val bmp = if (frame.height > maxHeight) {
+                    val w = (frame.width.toFloat() * maxHeight / frame.height).roundToInt()
+                    Bitmap.createScaledBitmap(frame, max(w, 16), maxHeight, true).also { frame.recycle() }
+                } else frame
+
+                try {
+                    ByteArrayOutputStream().use { bos ->
+                        bmp.compress(Bitmap.CompressFormat.JPEG, quality, bos)
+                        results.add(bos.toByteArray())
+                    }
+                } finally {
+                    bmp.recycle()
+                }
+            }
+        } finally {
+            try { retriever.release() } catch (_: Exception) {}
+        }
+        return results
     }
 
     // ------------------------------------------------------------------------------------------
