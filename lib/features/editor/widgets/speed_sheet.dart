@@ -1,12 +1,15 @@
-import 'package:phosphor_icons/phosphor_icons.dart';
 // lib/features/editor/widgets/speed_sheet.dart
 //
-// Speed tool, CapCut x Premiere Pro hybrid (same language as AdjustSheet).
-//  - CapCut: dark compact sheet, underline tabs, preset chips/tiles,
-//    ✕ / title / ✓ footer.
-//  - Premiere: boxed numeric fields, diamond keyframes on the speed graph,
-//    triangle playhead on the ruler, hairline section bars.
-// Logic, public API and apply/discard behaviour are unchanged.
+// Speed tool: redesigned UI/UX.
+//  - Segmented Normal / Curve switch (one tool, two modes).
+//  - Result-first hero: big speed value + live "0:12.0 -> 0:06.0" readout.
+//  - Normal: one log-scale slider with snap marks, +/- nudge, preset chips.
+//  - Curve: preset chips with mini curves, larger graph, keyframe inspector
+//    (exact +/- edit and delete) and a slower/faster heat strip.
+//  - Options as scrollable toggle chips, labeled Cancel / Apply footer.
+//
+// Public API, apply/discard behaviour and live clip preview are unchanged:
+// nothing is persisted until Apply is tapped; Cancel restores the clip speed.
 
 import 'dart:math' as math;
 
@@ -18,14 +21,20 @@ import 'package:flutter_video_editor/core/models/project_model.dart';
 import 'package:flutter_video_editor/core/models/speed_settings.dart';
 import 'package:flutter_video_editor/features/editor/controllers/editor_controller.dart';
 
+// ---- Tokens -------------------------------------------------------------------
+
 const Color _sheet = Color(0xFF121214);
-const Color _card = Color(0xFF232327);
+const Color _card = Color(0xFF1C1C20);
+const Color _cardHi = Color(0xFF2E2E34);
 const Color _field = Color(0xFF18181B);
 const Color _line = Color(0xFF2C2C31);
 const Color _track = Color(0xFF45454C);
 const Color _text = Color(0xFFFFFFFF);
 const Color _muted = Color(0xFF8E8E96);
 const Color _accent = Color(0xFF2DE2E6);
+const Color _onAccent = Color(0xFF04262A);
+const Color _slow = Color(0xFF5B9DFF);
+const Color _fast = Color(0xFFFF9F43);
 
 const Map<String, List<SpeedPoint>> _curvePresets = <String, List<SpeedPoint>>{
   'Custom': <SpeedPoint>[SpeedPoint(0, 1), SpeedPoint(1, 1)],
@@ -46,6 +55,15 @@ const Map<String, List<SpeedPoint>> _curvePresets = <String, List<SpeedPoint>>{
   'Flash out': <SpeedPoint>[SpeedPoint(0, 3), SpeedPoint(1, .3)],
 };
 
+const List<double> _sliderMarks = <double>[0.25, 0.5, 1, 2, 4, 8];
+const List<double> _chipPresets = <double>[0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 8.0];
+
+const TextStyle _tabular = TextStyle(
+  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+);
+
+// ---- Helpers ------------------------------------------------------------------
+
 double _toT(double speed) => ((math.log(speed) / math.ln10) + 1) / 2;
 double _fromT(double t) => math.pow(10, t * 2 - 1).toDouble();
 
@@ -61,10 +79,22 @@ String _fmtSpeed(double v) {
   return '${s}x';
 }
 
+String _fmtMark(double v) => v == v.roundToDouble() ? '${v.toInt()}x' : '${v}x';
+
+/// Blue for slower, orange for faster, grey at 1x. Intensity follows |log speed|.
+Color _heat(double v) {
+  final double k =
+      ((math.log(v) / math.ln10).abs() / 0.8).clamp(0.0, 1.0).toDouble();
+  final double a = 0.25 + 0.75 * k;
+  if (v < 0.995) return Color.fromRGBO(91, 157, 255, a);
+  if (v > 1.005) return Color.fromRGBO(255, 159, 67, a);
+  return _track;
+}
+
 /// Bottom sheet for constant speed and speed curves.
 ///
-/// Nothing is applied to the clip until the user taps the check mark, so
-/// closing the sheet never leaves a half-edited clip or extra undo steps.
+/// Nothing is applied to the clip until the user taps Apply, so closing the
+/// sheet never leaves a half-edited clip or extra undo steps.
 ///
 /// * [initial]: current settings of the clip (so reopening restores a curve).
 ///   Falls back to the clip's constant speed.
@@ -97,7 +127,7 @@ class SpeedSheet extends StatefulWidget {
       backgroundColor: _sheet,
       barrierColor: Colors.black38,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => SpeedSheet(initial: initial, onApply: onApply),
     );
@@ -108,8 +138,6 @@ class SpeedSheet extends StatefulWidget {
 }
 
 class _SpeedSheetState extends State<SpeedSheet> {
-  static const List<double> _presets = <double>[0.25, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 8.0];
-
   late final SpeedSettings _initial;
   late final double _srcSeconds; // captured once so it can't drift
   late SpeedSettings _s;
@@ -135,9 +163,16 @@ class _SpeedSheetState extends State<SpeedSheet> {
   bool get _dirty => _s.normalized() != _initial;
   bool get _curve => _s.mode == SpeedMode.curve;
 
-  // ---- state helpers --------------------------------------------------------
+  // ---- state helpers ----------------------------------------------------------
 
-  void _update(SpeedSettings Function(SpeedSettings) f) => setState(() => _s = f(_s));
+  void _update(SpeedSettings Function(SpeedSettings) f) =>
+      setState(() => _s = f(_s));
+
+  void _setMode(SpeedMode m) {
+    if (_s.mode == m) return;
+    HapticFeedback.selectionClick();
+    _update((s) => s.copyWith(mode: m));
+  }
 
   void _setSpeed(double v) {
     _update((s) => s.copyWith(
@@ -150,32 +185,21 @@ class _SpeedSheetState extends State<SpeedSheet> {
   void _loadPreset(String name) {
     HapticFeedback.selectionClick();
     _selected = null;
-    _update((s) => s.copyWith(points: List<SpeedPoint>.of(_curvePresets[name]!), preset: name));
+    _update((s) => s.copyWith(
+        points: List<SpeedPoint>.of(_curvePresets[name]!), preset: name));
   }
 
   void _setPoints(List<SpeedPoint> p) =>
       _update((s) => s.copyWith(points: p, preset: 'Custom'));
 
-  void _addPoint() {
-    final List<SpeedPoint> pts = _s.points;
-    if (pts.length >= kMaxCurvePoints) {
-      HapticFeedback.heavyImpact();
-      return;
-    }
-    int gi = 0;
-    double gw = 0;
-    for (int i = 0; i < pts.length - 1; i++) {
-      final double w = pts[i + 1].x - pts[i].x;
-      if (w > gw) {
-        gw = w;
-        gi = i;
-      }
-    }
-    final double x = pts[gi].x + gw / 2;
+  void _nudgeKeyframe(int dir) {
+    final int? i = _selected;
+    if (i == null || i >= _s.points.length) return;
     HapticFeedback.selectionClick();
-    _selected = gi + 1;
-    _setPoints(List<SpeedPoint>.of(pts)
-      ..insert(gi + 1, SpeedPoint(x, SpeedSettings.interpolate(pts, x))));
+    final List<SpeedPoint> p = List<SpeedPoint>.of(_s.points);
+    final double v = (p[i].speed + dir * 0.1).clamp(kMinSpeed, kMaxSpeed).toDouble();
+    p[i] = SpeedPoint(p[i].x, double.parse(v.toStringAsFixed(2)));
+    _setPoints(p);
   }
 
   bool get _canDelete {
@@ -186,7 +210,8 @@ class _SpeedSheetState extends State<SpeedSheet> {
   void _deleteSelected() {
     if (!_canDelete) return;
     HapticFeedback.mediumImpact();
-    final List<SpeedPoint> p = List<SpeedPoint>.of(_s.points)..removeAt(_selected!);
+    final List<SpeedPoint> p = List<SpeedPoint>.of(_s.points)
+      ..removeAt(_selected!);
     _selected = null;
     _setPoints(p);
   }
@@ -197,7 +222,7 @@ class _SpeedSheetState extends State<SpeedSheet> {
     _update((s) => SpeedSettings.identity.copyWith(mode: s.mode));
   }
 
-  // ---- close / apply --------------------------------------------------------
+  // ---- close / apply ----------------------------------------------------------
 
   void _dismiss([SpeedSettings? result]) {
     final VoidCallback? close = widget.onClose;
@@ -235,44 +260,26 @@ class _SpeedSheetState extends State<SpeedSheet> {
     _dismiss(result);
   }
 
-  // ---- build ----------------------------------------------------------------
+  // ---- build ------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final EditorController c = context.read<EditorController>();
-    final double out = _srcSeconds * _s.durationFactor;
+    final bool embedded = widget.onClose != null;
 
     final List<Widget> content = <Widget>[
-      const SizedBox(height: 14),
-      _tabs(),
+      if (!embedded) _grabber(),
+      _header(),
+      _modeSwitch(),
+      _hero(),
+      _curve ? _curveView() : _normalView(),
+      _heatStrip(),
+      _options(),
       const SizedBox(height: 16),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: _curve ? _curveView() : _normalView(),
-      ),
-      const SizedBox(height: 14),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: _durationRow(out),
-      ),
-      const SizedBox(height: 14),
-      _sectionBar('Options'),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Column(children: <Widget>[
-          _check('Maintain pitch', _s.maintainPitch,
-              (v) => _update((s) => s.copyWith(maintainPitch: v))),
-          _check('Smooth slow motion', _s.smoothSlowMotion,
-              (v) => _update((s) => s.copyWith(smoothSlowMotion: v))),
-          _check('Reverse', _s.reverse,
-              (v) => _update((s) => s.copyWith(reverse: v))),
-        ]),
-      ),
-      const SizedBox(height: 6),
     ];
 
     // Embedded in a panel: content scrolls, footer stays pinned.
-    if (widget.onClose != null) {
+    if (embedded) {
       return Column(
         children: <Widget>[
           Expanded(
@@ -290,7 +297,8 @@ class _SpeedSheetState extends State<SpeedSheet> {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -300,200 +308,293 @@ class _SpeedSheetState extends State<SpeedSheet> {
     );
   }
 
-  Widget _footer(EditorController c) {
+  // ---- Chrome -----------------------------------------------------------------
+
+  Widget _grabber() => Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Center(
+          child: Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+                color: _track, borderRadius: BorderRadius.circular(2)),
+          ),
+        ),
+      );
+
+  Widget _header() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 12, 0),
+      child: Row(
+        children: <Widget>[
+          const Text('Speed',
+              style: TextStyle(
+                  color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
+          const Spacer(),
+          _roundBtn(Icons.restart_alt_rounded, 'Reset', 36,
+              _s.isIdentity ? null : _reset),
+        ],
+      ),
+    );
+  }
+
+  Widget _modeSwitch() {
+    Widget seg(String label, SpeedMode m) {
+      final bool on = _s.mode == m;
+      return Expanded(
+        child: Semantics(
+          button: true,
+          selected: on,
+          label: label,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _setMode(m),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: on ? _cardHi : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(label,
+                  style: TextStyle(
+                      color: on ? _text : _muted,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
-      height: 52,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(3),
+      decoration:
+          BoxDecoration(color: _card, borderRadius: BorderRadius.circular(10)),
+      child: Row(children: <Widget>[
+        seg('Normal', SpeedMode.normal),
+        seg('Curve', SpeedMode.curve),
+      ]),
+    );
+  }
+
+  Widget _footer(EditorController c) {
+    final bool dirty = _dirty;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: const BoxDecoration(
-        color: Color(0xFF0C1014),
+        color: _sheet,
         border: Border(top: BorderSide(color: _line)),
       ),
       child: Row(
         children: <Widget>[
-          IconButton(
-            tooltip: 'Close',
-            iconSize: 24,
-            icon: const Icon(PhosphorIconsRegular.x, color: _text),
-            onPressed: _close,
+          Expanded(
+            child: _bigBtn('Cancel', primary: false, onTap: _close),
           ),
-          const Spacer(),
-          const Text('Speed',
-              style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
-          const SizedBox(width: 6),
-          TextButton(
-            onPressed: _s.isIdentity ? null : _reset,
-            style: TextButton.styleFrom(
-                minimumSize: const Size(48, 40), foregroundColor: _muted),
-            child: const Text('Reset', style: TextStyle(fontSize: 12)),
-          ),
-          const Spacer(),
-          IconButton(
-            tooltip: 'Apply',
-            iconSize: 26,
-            icon: Icon(PhosphorIconsRegular.check, color: _dirty ? _accent : _text),
-            onPressed: () => _confirm(c),
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 2,
+            child: _bigBtn(
+              dirty ? 'Apply ${_fmtSpeed(_s.averageSpeed)}' : 'Done',
+              primary: dirty,
+              onTap: () => _confirm(c),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _tabs() {
-    Widget tab(String label, bool on, SpeedMode m) => Semantics(
-          button: true,
-          selected: on,
-          label: label,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _update((s) => s.copyWith(mode: m)),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(label,
-                      style: TextStyle(
-                          color: on ? _text : _muted,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    height: 2.5,
-                    width: 22,
-                    decoration: BoxDecoration(
-                      color: on ? _accent : Colors.transparent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+  Widget _bigBtn(String label,
+      {required bool primary, required VoidCallback onTap}) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: primary ? _accent : _card,
+            borderRadius: BorderRadius.circular(12),
           ),
-        );
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        tab('Normal', !_curve, SpeedMode.normal),
-        tab('Curve', _curve, SpeedMode.curve),
-      ],
+          child: Text(label,
+              style: TextStyle(
+                  color: primary ? _onAccent : _text,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600)),
+        ),
+      ),
     );
   }
 
-  // ---- Shared building blocks -----------------------------------------------
-
-  /// Premiere-style hairline section bar.
-  Widget _sectionBar(String title) => Container(
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        alignment: Alignment.centerLeft,
-        decoration: const BoxDecoration(
-          color: _card,
-          border: Border(top: BorderSide(color: _line), bottom: BorderSide(color: _line)),
+  Widget _roundBtn(IconData icon, String tip, double size, VoidCallback? f) {
+    return Semantics(
+      button: true,
+      label: tip,
+      enabled: f != null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: f,
+        child: Opacity(
+          opacity: f == null ? 0.35 : 1,
+          child: Container(
+            width: size,
+            height: size,
+            decoration:
+                const BoxDecoration(color: _card, shape: BoxShape.circle),
+            child: Icon(icon, color: _text, size: size * 0.5),
+          ),
         ),
-        child: Text(title,
-            style: const TextStyle(
-                color: _text, fontSize: 12.5, fontWeight: FontWeight.w600)),
-      );
+      ),
+    );
+  }
 
-  /// Boxed readout, like Premiere's numeric fields.
-  Widget _box(String value, {String? label, bool hot = false}) => Container(
-        height: 30,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: _field,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: hot ? _accent.withAlpha(120) : _line),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            if (label != null) ...<Widget>[
-              Text(label, style: const TextStyle(color: _muted, fontSize: 11)),
-              const SizedBox(width: 6),
-            ],
-            Text(value,
-                style: TextStyle(
-                    color: hot ? _accent : _text,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    fontFeatures: const <FontFeature>[FontFeature.tabularFigures()])),
-          ],
-        ),
-      );
-
-  Widget _stepBtn(IconData icon, String tip, VoidCallback? f) => Semantics(
+  Widget _chip(String label, bool on, VoidCallback f,
+      {Widget? leading, IconData? icon}) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Semantics(
         button: true,
-        label: tip,
-        enabled: f != null,
+        selected: on,
+        label: label,
         child: GestureDetector(
           onTap: f,
-          child: Opacity(
-            opacity: f == null ? 0.35 : 1,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                  color: _card, borderRadius: BorderRadius.circular(8)),
-              child: Icon(icon, color: _text, size: 20),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: on ? _accent.withAlpha(31) : _card,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                  color: on ? _accent.withAlpha(85) : Colors.transparent),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (icon != null) ...<Widget>[
+                  Icon(icon, size: 16, color: on ? _accent : _text),
+                  const SizedBox(width: 6),
+                ],
+                if (leading != null) ...<Widget>[
+                  leading,
+                  const SizedBox(width: 6),
+                ],
+                Text(label,
+                    style: TextStyle(
+                        color: on ? _accent : _text,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600)),
+              ],
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 
-  // ---- Normal tab -----------------------------------------------------------
+  // ---- Hero -------------------------------------------------------------------
+
+  Widget _hero() {
+    final double shown = _curve ? _s.averageSpeed : _s.speed;
+    final double out = _srcSeconds * _s.durationFactor;
+    final double delta = out - _srcSeconds;
+    final bool changed = delta.abs() > 0.05;
+    final bool hot = (shown - 1).abs() > 0.004;
+
+    final Widget number = Text(
+      _fmtSpeed(shown),
+      style: _tabular.copyWith(
+        color: hot ? _accent : _text,
+        fontSize: 44,
+        height: 1.1,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+
+    final Widget main = _curve
+        ? Column(
+            children: <Widget>[
+              const Text('AVERAGE',
+                  style: TextStyle(
+                      color: _muted, fontSize: 11, letterSpacing: 0.8)),
+              number,
+            ],
+          )
+        : Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              _roundBtn(Icons.remove_rounded, 'Slower', 40,
+                  _s.speed <= kMinSpeed ? null : () => _setSpeed(_s.speed - 0.1)),
+              const SizedBox(width: 18),
+              // Drag the value to scrub (log scale), double-tap to return to 1x.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onDoubleTap: () {
+                  HapticFeedback.selectionClick();
+                  _setSpeed(1);
+                },
+                onHorizontalDragUpdate: (d) => _setSpeed(_fromT(
+                    (_toT(_s.speed) + d.delta.dx * 0.004)
+                        .clamp(0.0, 1.0)
+                        .toDouble())),
+                child: SizedBox(width: 120, child: Center(child: number)),
+              ),
+              const SizedBox(width: 18),
+              _roundBtn(Icons.add_rounded, 'Faster', 40,
+                  _s.speed >= kMaxSpeed ? null : () => _setSpeed(_s.speed + 0.1)),
+            ],
+          );
+
+    final String tail = changed
+        ? ' · ${delta.abs().toStringAsFixed(1)}s ${delta < 0 ? 'shorter' : 'longer'}'
+        : '';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 6),
+      child: Column(
+        children: <Widget>[
+          main,
+          const SizedBox(height: 6),
+          Text.rich(
+            TextSpan(
+              style: _tabular.copyWith(color: _muted, fontSize: 12.5),
+              children: <InlineSpan>[
+                TextSpan(text: '${_fmtTime(_srcSeconds)}  →  '),
+                TextSpan(
+                  text: _fmtTime(out),
+                  style: TextStyle(color: changed ? _accent : _text),
+                ),
+                TextSpan(text: tail),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- Normal mode ------------------------------------------------------------
 
   Widget _normalView() {
-    final bool changed = (_s.speed - 1).abs() > 0.004;
     return Column(
       children: <Widget>[
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            _stepBtn(Icons.remove_rounded, 'Slower',
-                _s.speed <= kMinSpeed ? null : () => _setSpeed(_s.speed - 0.1)),
-            const SizedBox(width: 12),
-            // Drag the value to scrub (log scale), double-tap to return to 1x.
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onDoubleTap: () {
-                HapticFeedback.selectionClick();
-                _setSpeed(1);
-              },
-              onHorizontalDragUpdate: (d) =>
-                  _setSpeed(_fromT((_toT(_s.speed) + d.delta.dx * 0.004).clamp(0.0, 1.0))),
-              child: Container(
-                width: 112,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _field,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: changed ? _accent.withAlpha(120) : _line),
-                ),
-                child: Text(_fmtSpeed(_s.speed),
-                    style: TextStyle(
-                        color: changed ? _accent : _text,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()])),
-              ),
-            ),
-            const SizedBox(width: 12),
-            _stepBtn(Icons.add_rounded, 'Faster',
-                _s.speed >= kMaxSpeed ? null : () => _setSpeed(_s.speed + 0.1)),
-          ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 14, 24, 0),
+          child: _SpeedSlider(speed: _s.speed, onChanged: _setSpeed),
         ),
         const SizedBox(height: 4),
-        _Ruler(speed: _s.speed, onChanged: _setSpeed),
-        const Text('Drag the ruler or the value · double-tap value for 1x',
-            style: TextStyle(color: _muted, fontSize: 11)),
-        const SizedBox(height: 12),
         SizedBox(
           height: 34,
           child: ListView(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             children: <Widget>[
-              for (final p in _presets)
+              for (final double p in _chipPresets)
                 _chip(_fmtSpeed(p), (p - _s.speed).abs() < 0.01, () {
                   HapticFeedback.selectionClick();
                   _setSpeed(p);
@@ -505,312 +606,295 @@ class _SpeedSheetState extends State<SpeedSheet> {
     );
   }
 
-  Widget _chip(String label, bool on, VoidCallback f) => Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: Semantics(
-          button: true,
-          selected: on,
-          label: label,
-          child: GestureDetector(
-            onTap: f,
-            child: Container(
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(
-                color: on ? _accent.withAlpha(30) : _card,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: on ? _accent : Colors.transparent, width: 1.2),
-              ),
-              child: Text(label,
-                  style: TextStyle(
-                      color: on ? _accent : _text,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600)),
-            ),
-          ),
-        ),
-      );
-
-  // ---- Curve tab ------------------------------------------------------------
+  // ---- Curve mode -------------------------------------------------------------
 
   Widget _curveView() {
     final List<SpeedPoint> pts = _s.points;
-    final int? sel = _selected != null && _selected! < pts.length ? _selected : null;
+    final int? sel =
+        _selected != null && _selected! < pts.length ? _selected : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        const SizedBox(height: 6),
         SizedBox(
-          height: 72,
+          height: 34,
           child: ListView(
             scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             children: <Widget>[
-              for (final e in _curvePresets.entries) _presetTile(e.key, e.value),
+              for (final e in _curvePresets.entries)
+                _chip(
+                  e.key,
+                  _s.preset == e.key,
+                  () => _loadPreset(e.key),
+                  leading: CustomPaint(
+                    size: const Size(22, 14),
+                    painter: _MiniCurvePainter(
+                        e.value, _s.preset == e.key ? _accent : _muted),
+                  ),
+                ),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        LayoutBuilder(builder: (context, box) {
-          final Size size = Size(box.maxWidth, 176);
-          Offset toPx(SpeedPoint p) =>
-              Offset(p.x * size.width, size.height * (1 - _toT(p.speed)));
-          int? nearest(Offset o) {
-            int? best;
-            double bd = 28;
-            for (int i = 0; i < _s.points.length; i++) {
-              final double d = (toPx(_s.points[i]) - o).distance;
-              if (d < bd) {
-                bd = d;
-                best = i;
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: LayoutBuilder(builder: (context, box) {
+            final Size size = Size(box.maxWidth, 150);
+            Offset toPx(SpeedPoint p) =>
+                Offset(p.x * size.width, size.height * (1 - _toT(p.speed)));
+            int? nearest(Offset o) {
+              int? best;
+              double bd = 28;
+              for (int i = 0; i < _s.points.length; i++) {
+                final double d = (toPx(_s.points[i]) - o).distance;
+                if (d < bd) {
+                  bd = d;
+                  best = i;
+                }
               }
+              return best;
             }
-            return best;
-          }
 
-          return GestureDetector(
-            onPanStart: (d) {
-              _dragging = nearest(d.localPosition);
-              if (_dragging != null) setState(() => _selected = _dragging);
-            },
-            onPanUpdate: (d) {
-              final int? i = _dragging;
-              if (i == null || i >= _s.points.length) return;
-              final List<SpeedPoint> p = List<SpeedPoint>.of(_s.points);
-              final Offset o = d.localPosition;
-              double sp = _fromT((1 - o.dy / size.height).clamp(0.0, 1.0).toDouble());
-              if ((sp - 1).abs() < 0.06) sp = 1.0;
-              double x = p[i].x;
-              if (i != 0 && i != p.length - 1) {
-                x = (o.dx / size.width)
-                    .clamp(p[i - 1].x + 0.02, p[i + 1].x - 0.02)
-                    .toDouble();
-              }
-              p[i] = SpeedPoint(x, sp.clamp(kMinSpeed, kMaxSpeed).toDouble());
-              _setPoints(p);
-            },
-            onPanEnd: (_) => _dragging = null,
-            onPanCancel: () => _dragging = null,
-            onTapUp: (d) {
-              final int? i = nearest(d.localPosition);
-              if (i != null) {
-                setState(() => _selected = i);
-                return;
-              }
-              if (_s.points.length >= kMaxCurvePoints) {
-                HapticFeedback.heavyImpact();
-                return;
-              }
-              final double x =
-                  (d.localPosition.dx / size.width).clamp(0.03, 0.97).toDouble();
-              HapticFeedback.selectionClick();
-              final List<SpeedPoint> p = List<SpeedPoint>.of(_s.points)
-                ..add(SpeedPoint(x, SpeedSettings.interpolate(_s.points, x)))
-                ..sort((a, b) => a.x.compareTo(b.x));
-              _selected = p.indexWhere((q) => q.x == x);
-              _setPoints(p);
-            },
-            onLongPressStart: (d) {
-              final int? i = nearest(d.localPosition);
-              if (i != null) {
-                _selected = i;
-                _deleteSelected();
-              }
-            },
-            child: Semantics(
-              label: 'Speed curve editor with ${pts.length} points',
-              child: Container(
-                height: size.height,
-                decoration: BoxDecoration(
-                  color: _field,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _line),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CustomPaint(
-                    size: size,
-                    painter: _CurvePainter(pts: pts, selected: sel),
+            return GestureDetector(
+              onPanStart: (d) {
+                _dragging = nearest(d.localPosition);
+                if (_dragging != null) setState(() => _selected = _dragging);
+              },
+              onPanUpdate: (d) {
+                final int? i = _dragging;
+                if (i == null || i >= _s.points.length) return;
+                final List<SpeedPoint> p = List<SpeedPoint>.of(_s.points);
+                final Offset o = d.localPosition;
+                double sp = _fromT(
+                    (1 - o.dy / size.height).clamp(0.0, 1.0).toDouble());
+                if ((sp - 1).abs() < 0.06) sp = 1.0;
+                double x = p[i].x;
+                if (i != 0 && i != p.length - 1) {
+                  x = (o.dx / size.width)
+                      .clamp(p[i - 1].x + 0.02, p[i + 1].x - 0.02)
+                      .toDouble();
+                }
+                p[i] = SpeedPoint(x, sp.clamp(kMinSpeed, kMaxSpeed).toDouble());
+                _setPoints(p);
+              },
+              onPanEnd: (_) => _dragging = null,
+              onPanCancel: () => _dragging = null,
+              onTapUp: (d) {
+                final int? i = nearest(d.localPosition);
+                if (i != null) {
+                  setState(() => _selected = i);
+                  return;
+                }
+                if (_s.points.length >= kMaxCurvePoints) {
+                  HapticFeedback.heavyImpact();
+                  return;
+                }
+                final double x =
+                    (d.localPosition.dx / size.width).clamp(0.03, 0.97).toDouble();
+                HapticFeedback.selectionClick();
+                final List<SpeedPoint> p = List<SpeedPoint>.of(_s.points)
+                  ..add(SpeedPoint(x, SpeedSettings.interpolate(_s.points, x)))
+                  ..sort((a, b) => a.x.compareTo(b.x));
+                _selected = p.indexWhere((q) => q.x == x);
+                _setPoints(p);
+              },
+              onLongPressStart: (d) {
+                final int? i = nearest(d.localPosition);
+                if (i != null) {
+                  _selected = i;
+                  _deleteSelected();
+                }
+              },
+              child: Semantics(
+                label: 'Speed curve editor with ${pts.length} points',
+                child: Container(
+                  height: size.height,
+                  decoration: BoxDecoration(
+                    color: _field,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: CustomPaint(
+                      size: size,
+                      painter: _CurvePainter(pts: pts, selected: sel),
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            _pill(Icons.add_rounded, 'Add keyframe', pts.length < kMaxCurvePoints, _addPoint),
-            const SizedBox(width: 10),
-            _pill(Icons.remove_rounded, 'Delete', _canDelete, _deleteSelected),
-          ],
+            );
+          }),
         ),
         Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: sel != null
-              ? Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    _box('${sel + 1}/${pts.length}', label: 'Keyframe'),
-                    const SizedBox(width: 8),
-                    _box(_fmtSpeed(pts[sel].speed), label: 'Speed', hot: true),
-                    const SizedBox(width: 8),
-                    _box('${(pts[sel].x * 100).round()}%', label: 'Time'),
-                  ],
-                )
-              : const Text(
-                  'Tap the graph to add a keyframe · long-press one to delete',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: _muted, fontSize: 12),
-                ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: SizedBox(height: 40, child: _inspector(pts, sel)),
         ),
       ],
     );
   }
 
-  Widget _presetTile(String name, List<SpeedPoint> data) {
-    final bool on = _s.preset == name;
-    return Semantics(
-      button: true,
-      selected: on,
-      label: '$name curve',
-      child: GestureDetector(
-        onTap: () => _loadPreset(name),
-        child: Container(
-          width: 64,
-          margin: const EdgeInsets.only(right: 8),
-          decoration: BoxDecoration(
-            color: _card,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: on ? _accent : Colors.transparent, width: 1.5),
+  Widget _inspector(List<SpeedPoint> pts, int? sel) {
+    if (sel == null) {
+      return Row(
+        children: <Widget>[
+          const Expanded(
+            child: Text(
+              'Tap the graph to add a keyframe · long-press one to delete',
+              style: TextStyle(color: _muted, fontSize: 12),
+            ),
           ),
-          child: Column(
-            children: <Widget>[
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
-                  child: CustomPaint(
-                    size: Size.infinite,
-                    painter: _MiniCurvePainter(data, on ? _accent : _muted),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 5),
-                child: Text(name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: on ? _accent : _text,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _pill(IconData icon, String label, bool enabled, VoidCallback f) {
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: label,
-      child: GestureDetector(
-        onTap: enabled ? f : null,
-        child: Opacity(
-          opacity: enabled ? 1 : 0.4,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-            decoration:
-                BoxDecoration(color: _card, borderRadius: BorderRadius.circular(6)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: <Widget>[
-              Icon(icon, size: 16, color: _text),
-              const SizedBox(width: 4),
-              Text(label,
-                  style: const TextStyle(
-                      color: _text, fontSize: 12.5, fontWeight: FontWeight.w600)),
-            ]),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ---- Duration + options ---------------------------------------------------
-
-  Widget _durationRow(double out) {
-    final bool changed = (out - _srcSeconds).abs() > 0.05;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        _box(_fmtTime(_srcSeconds), label: 'Duration'),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 8),
-          child: Icon(Icons.arrow_forward_rounded, size: 16, color: _muted),
-        ),
-        _box(_fmtTime(out), hot: changed),
-        if (_curve) ...<Widget>[
-          const SizedBox(width: 8),
-          _box(_fmtSpeed(_s.averageSpeed), label: 'avg'),
+          _roundBtn(Icons.add_rounded, 'Add keyframe', 36,
+              pts.length < kMaxCurvePoints ? _addPoint : null),
         ],
+      );
+    }
+    return Row(
+      children: <Widget>[
+        _roundBtn(Icons.remove_rounded, 'Slower keyframe', 36,
+            () => _nudgeKeyframe(-1)),
+        SizedBox(
+          width: 72,
+          child: Text(_fmtSpeed(pts[sel].speed),
+              textAlign: TextAlign.center,
+              style: _tabular.copyWith(
+                  color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+        ),
+        _roundBtn(Icons.add_rounded, 'Faster keyframe', 36,
+            () => _nudgeKeyframe(1)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'Keyframe ${sel + 1}/${pts.length} · at ${(pts[sel].x * 100).round()}%',
+            style: const TextStyle(color: _muted, fontSize: 12),
+          ),
+        ),
+        _roundBtn(Icons.add_rounded, 'Add keyframe', 36,
+            pts.length < kMaxCurvePoints ? _addPoint : null),
+        const SizedBox(width: 8),
+        _roundBtn(Icons.delete_outline_rounded, 'Delete keyframe', 36,
+            _canDelete ? _deleteSelected : null),
       ],
     );
   }
 
-  Widget _check(String title, bool value, ValueChanged<bool> f) {
-    return Semantics(
-      checked: value,
-      label: title,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          f(!value);
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            children: <Widget>[
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 120),
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(5),
-                  color: value ? _accent : Colors.transparent,
-                  border: Border.all(color: value ? _accent : _track, width: 1.6),
-                ),
-                child: value
-                    ? const Icon(PhosphorIconsRegular.check, size: 15, color: Colors.black)
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Text(title,
-                  style: const TextStyle(
-                      color: _text, fontSize: 13.5, fontWeight: FontWeight.w500)),
+  void _addPoint() {
+    final List<SpeedPoint> pts = _s.points;
+    if (pts.length >= kMaxCurvePoints) {
+      HapticFeedback.heavyImpact();
+      return;
+    }
+    int gi = 0;
+    double gw = 0;
+    for (int i = 0; i < pts.length - 1; i++) {
+      final double w = pts[i + 1].x - pts[i].x;
+      if (w > gw) {
+        gw = w;
+        gi = i;
+      }
+    }
+    final double x = pts[gi].x + gw / 2;
+    HapticFeedback.selectionClick();
+    _selected = gi + 1;
+    _setPoints(List<SpeedPoint>.of(pts)
+      ..insert(gi + 1, SpeedPoint(x, SpeedSettings.interpolate(pts, x))));
+  }
+
+  // ---- Heat strip + options ---------------------------------------------------
+
+  Widget _heatStrip() {
+    const int n = 40;
+    final List<double> values = <double>[
+      for (int i = 0; i < n; i++)
+        _curve
+            ? SpeedSettings.interpolate(_s.points, (i + .5) / n)
+            : _s.speed,
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            children: const <Widget>[
+              Text('Result over time',
+                  style: TextStyle(color: _muted, fontSize: 11)),
+              Spacer(),
+              Text('slower', style: TextStyle(color: _slow, fontSize: 11)),
+              Text(' · ', style: TextStyle(color: _muted, fontSize: 11)),
+              Text('faster', style: TextStyle(color: _fast, fontSize: 11)),
             ],
           ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: SizedBox(
+              height: 8,
+              child: CustomPaint(painter: _StripPainter(values)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _options() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: SizedBox(
+        height: 34,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: <Widget>[
+            _chip('Keep pitch', _s.maintainPitch, () {
+              HapticFeedback.selectionClick();
+              _update((s) => s.copyWith(maintainPitch: !s.maintainPitch));
+            }, icon: Icons.music_note_rounded),
+            _chip('Smooth motion', _s.smoothSlowMotion, () {
+              HapticFeedback.selectionClick();
+              _update((s) => s.copyWith(smoothSlowMotion: !s.smoothSlowMotion));
+            }, icon: Icons.auto_awesome_rounded),
+            _chip('Reverse', _s.reverse, () {
+              HapticFeedback.selectionClick();
+              _update((s) => s.copyWith(reverse: !s.reverse));
+            }, icon: Icons.swap_horiz_rounded),
+          ],
         ),
       ),
     );
   }
 }
 
-// ---- Scrolling ruler ----------------------------------------------------------
+// ---- Log-scale slider with snap marks ------------------------------------------
 
-class _Ruler extends StatefulWidget {
-  const _Ruler({required this.speed, required this.onChanged});
+class _SpeedSlider extends StatefulWidget {
+  const _SpeedSlider({required this.speed, required this.onChanged});
   final double speed;
   final ValueChanged<double> onChanged;
 
   @override
-  State<_Ruler> createState() => _RulerState();
+  State<_SpeedSlider> createState() => _SpeedSliderState();
 }
 
-class _RulerState extends State<_Ruler> {
-  double? _raw; // unsnapped position so the 1x magnet never traps the drag
-  bool _snapped = false;
+class _SpeedSliderState extends State<_SpeedSlider> {
+  double? _snap; // mark currently snapped to, for one haptic per entry
+
+  void _at(double dx, double w) {
+    final double t = (dx / w).clamp(0.0, 1.0).toDouble();
+    double v = _fromT(t);
+    double? snap;
+    for (final double m in _sliderMarks) {
+      if ((_toT(m) - t).abs() < 0.025) {
+        v = m;
+        snap = m;
+      }
+    }
+    if (snap != null && snap != _snap) HapticFeedback.selectionClick();
+    _snap = snap;
+    widget.onChanged(v);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -826,27 +910,14 @@ class _RulerState extends State<_Ruler> {
         onDecrease: () => widget.onChanged(widget.speed - 0.1),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onHorizontalDragStart: (_) => _raw = _toT(widget.speed),
-          onHorizontalDragUpdate: (d) {
-            final double t = ((_raw ?? _toT(widget.speed)) - d.delta.dx / w * 0.5)
-                .clamp(0.0, 1.0)
-                .toDouble();
-            _raw = t;
-            double v = _fromT(t);
-            final bool near = (v - 1).abs() < 0.04;
-            if (near) {
-              v = 1.0;
-              if (!_snapped) HapticFeedback.selectionClick();
-            }
-            _snapped = near;
-            widget.onChanged(v);
-          },
-          onHorizontalDragEnd: (_) => _raw = null,
-          onHorizontalDragCancel: () => _raw = null,
+          onTapDown: (d) => _at(d.localPosition.dx, w),
+          onHorizontalDragStart: (d) => _at(d.localPosition.dx, w),
+          onHorizontalDragUpdate: (d) => _at(d.localPosition.dx, w),
+          onHorizontalDragEnd: (_) => _snap = null,
           child: SizedBox(
-            height: 58,
+            height: 44,
             width: w,
-            child: CustomPaint(painter: _RulerPainter(_toT(widget.speed))),
+            child: CustomPaint(painter: _SliderPainter(widget.speed)),
           ),
         ),
       );
@@ -854,62 +925,67 @@ class _RulerState extends State<_Ruler> {
   }
 }
 
-class _RulerPainter extends CustomPainter {
-  _RulerPainter(this.t);
-  final double t;
-  static const double _span = 0.5;
+class _SliderPainter extends CustomPainter {
+  _SliderPainter(this.speed);
+  final double speed;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double cx = size.width / 2;
-    double px(double tt) => cx + (tt - t) / _span * size.width;
-    final Paint minor = Paint()
-      ..color = _track
-      ..strokeWidth = 1.2;
-    final Paint major = Paint()
-      ..color = _muted
-      ..strokeWidth = 1.6;
+    const double cy = 13;
+    final double t = _toT(speed);
+    final double x = t * size.width;
 
-    // Labels on top, ticks below (Premiere timeline-ruler layout).
-    for (int k = 0; k <= 40; k++) {
-      final double x = px(k / 40);
-      if (x < -4 || x > size.width + 4) continue;
-      canvas.drawLine(Offset(x, 22), Offset(x, 32), minor);
-    }
-    for (final double v in <double>[0.1, 0.2, 0.5, 1, 2, 5, 10]) {
-      final double x = px(_toT(v));
-      if (x < -20 || x > size.width + 20) continue;
-      canvas.drawLine(Offset(x, 18), Offset(x, 36), major);
-      final tp = TextPainter(
-        text: TextSpan(text: '${v}x', style: const TextStyle(color: _muted, fontSize: 10.5)),
+    RRect bar(double w) => RRect.fromLTRBR(
+        0, cy - 3, w, cy + 3, const Radius.circular(3));
+
+    canvas.drawRRect(bar(size.width), Paint()..color = _line);
+    canvas.drawRRect(bar(x), Paint()..color = _accent);
+
+    for (final double m in _sliderMarks) {
+      final double mx = _toT(m) * size.width;
+      canvas.drawRect(
+          Rect.fromLTWH(mx - 1, cy - 5, 2, 10), Paint()..color = _sheet);
+      final bool on = (m - speed).abs() < 0.01;
+      final TextPainter tp = TextPainter(
+        text: TextSpan(
+            text: _fmtMark(m),
+            style: TextStyle(color: on ? _text : _muted, fontSize: 11)),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(canvas, Offset(x - tp.width / 2, 2));
+      tp.paint(canvas, Offset(mx - tp.width / 2, 24));
     }
 
-    // Playhead: line through the ticks + upward triangle thumb.
-    canvas.drawLine(
-      Offset(cx, 16),
-      Offset(cx, 40),
-      Paint()
-        ..color = _accent
-        ..strokeWidth = 2,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(cx, 40)
-        ..lineTo(cx - 7, 54)
-        ..lineTo(cx + 7, 54)
-        ..close(),
-      Paint()..color = _accent,
-    );
+    canvas.drawCircle(Offset(x, cy), 10, Paint()..color = _accent);
+    canvas.drawCircle(Offset(x, cy), 7, Paint()..color = _text);
   }
 
   @override
-  bool shouldRepaint(covariant _RulerPainter old) => old.t != t;
+  bool shouldRepaint(covariant _SliderPainter old) => old.speed != speed;
 }
 
-// ---- Curve painters -----------------------------------------------------------
+// ---- Heat strip painter --------------------------------------------------------
+
+class _StripPainter extends CustomPainter {
+  _StripPainter(this.values);
+  final List<double> values;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double gap = 1;
+    final int n = values.length;
+    final double w = (size.width - gap * (n - 1)) / n;
+    for (int i = 0; i < n; i++) {
+      final double left = i * (w + gap);
+      canvas.drawRect(Rect.fromLTWH(left, 0, w, size.height),
+          Paint()..color = _heat(values[i]));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StripPainter old) => true;
+}
+
+// ---- Curve painters ------------------------------------------------------------
 
 class _MiniCurvePainter extends CustomPainter {
   _MiniCurvePainter(this.pts, this.color);
@@ -919,17 +995,19 @@ class _MiniCurvePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Path p = Path();
-    for (int i = 0; i <= 40; i++) {
-      final double x = i / 40;
+    for (int i = 0; i <= 24; i++) {
+      final double x = i / 24;
       final Offset o = Offset(
-          x * size.width, size.height * (1 - _toT(SpeedSettings.interpolate(pts, x))));
+          x * size.width,
+          1 + (size.height - 2) *
+              (1 - _toT(SpeedSettings.interpolate(pts, x))));
       i == 0 ? p.moveTo(o.dx, o.dy) : p.lineTo(o.dx, o.dy);
     }
     canvas.drawPath(
         p,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
+          ..strokeWidth = 1.8
           ..strokeCap = StrokeCap.round
           ..color = color);
   }
@@ -957,29 +1035,33 @@ class _CurvePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint grid = Paint()
-      ..color = _track.withAlpha(90)
+      ..color = _line
       ..strokeWidth = 1;
 
-    // Vertical time grid (25 / 50 / 75 %).
     for (final double f in <double>[.25, .5, .75]) {
-      canvas.drawLine(Offset(f * size.width, 0), Offset(f * size.width, size.height), grid);
+      canvas.drawLine(
+          Offset(f * size.width, 0), Offset(f * size.width, size.height), grid);
     }
 
-    // Horizontal speed grid, with 1x emphasised.
-    for (final double v in <double>[0.1, 0.3, 1, 3, 10]) {
+    for (final double v in <double>[0.3, 1, 3]) {
       final double y = size.height * (1 - _toT(v));
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        Paint()
-          ..color = v == 1 ? Colors.white30 : _track.withAlpha(120)
-          ..strokeWidth = 1,
-      );
-      final tp = TextPainter(
-        text: TextSpan(text: '${v}x', style: const TextStyle(color: _muted, fontSize: 10)),
+      if (v == 1) {
+        // Dashed 1x baseline.
+        final Paint dash = Paint()
+          ..color = Colors.white24
+          ..strokeWidth = 1;
+        for (double x = 0; x < size.width; x += 8) {
+          canvas.drawLine(Offset(x, y), Offset(math.min(x + 4, size.width), y), dash);
+        }
+      } else {
+        canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
+      }
+      final TextPainter tp = TextPainter(
+        text: TextSpan(
+            text: _fmtMark(v), style: const TextStyle(color: _muted, fontSize: 11)),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(canvas, Offset(6, y - tp.height - 1));
+      tp.paint(canvas, Offset(8, y - tp.height - 2));
     }
 
     final Path line = Path();
@@ -987,8 +1069,8 @@ class _CurvePainter extends CustomPainter {
     const int n = 120;
     for (int i = 0; i <= n; i++) {
       final double x = i / n;
-      final Offset o = Offset(
-          x * size.width, size.height * (1 - _toT(SpeedSettings.interpolate(pts, x))));
+      final Offset o = Offset(x * size.width,
+          size.height * (1 - _toT(SpeedSettings.interpolate(pts, x))));
       if (i == 0) {
         line.moveTo(o.dx, o.dy);
         fill
@@ -1007,29 +1089,17 @@ class _CurvePainter extends CustomPainter {
         line,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.2
+          ..strokeWidth = 2.4
           ..strokeCap = StrokeCap.round
           ..strokeJoin = StrokeJoin.round
           ..color = _accent);
 
-    // Guide through the selected keyframe.
-    if (selected != null) {
-      final Offset o = _px(pts[selected!], size);
-      canvas.drawLine(
-        Offset(o.dx, 0),
-        Offset(o.dx, size.height),
-        Paint()
-          ..color = _accent.withAlpha(70)
-          ..strokeWidth = 1,
-      );
-    }
-
-    // Premiere-style diamond keyframes.
+    // Keyframes (diamonds) and the selected keyframe's value bubble.
     for (int i = 0; i < pts.length; i++) {
       final Offset o = _px(pts[i], size);
       final bool sel = i == selected;
-      final Path d = _diamond(o, sel ? 9 : 7);
-      canvas.drawPath(d, Paint()..color = sel ? _accent : _sheet);
+      final Path d = _diamond(o, sel ? 10 : 7);
+      canvas.drawPath(d, Paint()..color = sel ? _accent : _field);
       canvas.drawPath(
           d,
           Paint()
@@ -1037,6 +1107,23 @@ class _CurvePainter extends CustomPainter {
             ..strokeWidth = 2
             ..strokeJoin = StrokeJoin.round
             ..color = _accent);
+    }
+
+    if (selected != null) {
+      final Offset o = _px(pts[selected!], size);
+      final double lx = o.dx.clamp(26.0, size.width - 26).toDouble();
+      final double ly = o.dy > 38 ? o.dy - 24 : o.dy + 28;
+      final Rect r = Rect.fromCenter(center: Offset(lx, ly), width: 46, height: 20);
+      canvas.drawRRect(
+          RRect.fromRectAndRadius(r, const Radius.circular(6)),
+          Paint()..color = _cardHi);
+      final TextPainter tp = TextPainter(
+        text: TextSpan(
+            text: _fmtSpeed(pts[selected!].speed),
+            style: const TextStyle(color: _text, fontSize: 11)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(r.center.dx - tp.width / 2, r.center.dy - tp.height / 2));
     }
   }
 

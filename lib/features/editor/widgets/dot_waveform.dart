@@ -1,27 +1,25 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-/// Dot-style audio waveform for a timeline audio clip.
+/// Filled, bottom-aligned (non-mirrored) audio waveform for a timeline clip.
 ///
 /// [amplitudes] are normalized values (0.0 - 1.0), any length. They are
 /// resampled to fit the available width, so pinch-zoom only needs to change
 /// the width of this widget.
 ///
-/// [progress] (0.0 - 1.0) colors the played part. Pass null for a static clip
-/// with no playhead coloring.
-class DotsWaveform extends StatelessWidget {
-  const DotsWaveform({
+/// [progress] (0.0 - 1.0) paints the played part in solid [playedColor].
+/// Pass null for a static clip with no playhead coloring.
+class FilledAreaWaveform extends StatelessWidget {
+  const FilledAreaWaveform({
     super.key,
     required this.amplitudes,
     this.progress,
     this.height = 40,
-    this.columnSpacing = 4.0,
-    this.dotSpacing = 4.0,
-    this.dotSize = 2.4,
-    this.playedColor = const Color(0xFFFFB86B),
-    this.unplayedColor = const Color(0xFF9A6A34),
+    this.columnWidth = 2.0,
+    this.minHeight = 1.5,
+    this.playedColor = Colors.white,
+    this.unplayedColor = const Color(0x59FFFFFF), // white @ 35%
     this.onSeek,
   });
 
@@ -29,14 +27,11 @@ class DotsWaveform extends StatelessWidget {
   final double? progress;
   final double height;
 
-  /// Horizontal distance between dot columns.
-  final double columnSpacing;
+  /// Horizontal distance between sampled points. Smaller = more detail.
+  final double columnWidth;
 
-  /// Vertical distance between dots in one column.
-  final double dotSpacing;
-
-  /// Dot diameter.
-  final double dotSize;
+  /// Minimum wave height in px so silence still shows a thin baseline.
+  final double minHeight;
 
   final Color playedColor;
   final Color unplayedColor;
@@ -48,7 +43,8 @@ class DotsWaveform extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth.isFinite ? constraints.maxWidth : 300.0;
+        final width =
+            constraints.maxWidth.isFinite ? constraints.maxWidth : 300.0;
 
         void seek(Offset p) {
           if (onSeek == null || width <= 0) return;
@@ -63,12 +59,11 @@ class DotsWaveform extends StatelessWidget {
           child: RepaintBoundary(
             child: CustomPaint(
               size: Size(width, height),
-              painter: DotsWaveformPainter(
+              painter: FilledAreaWaveformPainter(
                 amplitudes: amplitudes,
                 progress: progress,
-                columnSpacing: columnSpacing,
-                dotSpacing: dotSpacing,
-                dotSize: dotSize,
+                columnWidth: columnWidth,
+                minHeight: minHeight,
                 playedColor: playedColor,
                 unplayedColor: unplayedColor,
               ),
@@ -80,22 +75,20 @@ class DotsWaveform extends StatelessWidget {
   }
 }
 
-class DotsWaveformPainter extends CustomPainter {
-  DotsWaveformPainter({
+class FilledAreaWaveformPainter extends CustomPainter {
+  FilledAreaWaveformPainter({
     required this.amplitudes,
     required this.progress,
-    required this.columnSpacing,
-    required this.dotSpacing,
-    required this.dotSize,
+    required this.columnWidth,
+    required this.minHeight,
     required this.playedColor,
     required this.unplayedColor,
   });
 
   final List<double> amplitudes;
   final double? progress;
-  final double columnSpacing;
-  final double dotSpacing;
-  final double dotSize;
+  final double columnWidth;
+  final double minHeight;
   final Color playedColor;
   final Color unplayedColor;
 
@@ -103,39 +96,53 @@ class DotsWaveformPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (amplitudes.isEmpty || size.width <= 0 || size.height <= 0) return;
 
-    final columns = math.max(1, (size.width / columnSpacing).floor());
-    final centerY = size.height / 2;
-    // Max dots above (and below) the center line, leaving a small margin.
-    final maxHalfDots =
-        math.max(1, ((size.height / 2 - dotSize) / dotSpacing).floor());
+    final path = _buildPath(size);
 
-    final playedX = progress == null ? -1.0 : progress!.clamp(0.0, 1.0) * size.width;
+    // Whole clip in the dim color.
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true
+        ..color = unplayedColor,
+    );
 
-    final played = <Offset>[];
-    final unplayed = <Offset>[];
+    // Played part: same path, clipped at the playhead, in solid color.
+    final p = progress;
+    if (p != null && p > 0) {
+      final playedX = p.clamp(0.0, 1.0) * size.width;
+      canvas.save();
+      canvas.clipRect(Rect.fromLTWH(0, 0, playedX, size.height));
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.fill
+          ..isAntiAlias = true
+          ..color = playedColor,
+      );
+      canvas.restore();
+    }
+  }
 
-    for (int c = 0; c < columns; c++) {
-      final x = (c + 0.5) * (size.width / columns);
-      final amp = _sample(c, columns);
-      final half = (amp * maxHalfDots).round().clamp(0, maxHalfDots);
-      final target = x <= playedX ? played : unplayed;
+  Path _buildPath(Size size) {
+    final columns = math.max(2, (size.width / columnWidth).floor());
+    final step = size.width / columns;
+    final usable = size.height - 1; // small top margin
 
-      // Center dot is always drawn so silence still shows a baseline.
-      target.add(Offset(x, centerY));
-      for (int k = 1; k <= half; k++) {
-        target.add(Offset(x, centerY - k * dotSpacing));
-        target.add(Offset(x, centerY + k * dotSpacing));
-      }
+    double yAt(int c) {
+      final h = math.max(minHeight, _sample(c, columns) * usable);
+      return size.height - h;
     }
 
-    final paint = Paint()
-      ..strokeCap = StrokeCap.round
-      ..strokeWidth = dotSize
-      ..isAntiAlias = true;
-
-    // One draw call per color keeps this cheap even for long clips.
-    canvas.drawPoints(ui.PointMode.points, unplayed, paint..color = unplayedColor);
-    canvas.drawPoints(ui.PointMode.points, played, paint..color = playedColor);
+    final path = Path()..moveTo(0, size.height);
+    path.lineTo(0, yAt(0));
+    for (int c = 0; c < columns; c++) {
+      path.lineTo((c + 0.5) * step, yAt(c));
+    }
+    path.lineTo(size.width, yAt(columns - 1));
+    path.lineTo(size.width, size.height);
+    path.close();
+    return path;
   }
 
   /// Resample the amplitude list to [columns] by averaging the covered bucket.
@@ -154,25 +161,24 @@ class DotsWaveformPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(DotsWaveformPainter old) =>
+  bool shouldRepaint(FilledAreaWaveformPainter old) =>
       old.progress != progress ||
       old.amplitudes != amplitudes ||
-      old.columnSpacing != columnSpacing ||
-      old.dotSpacing != dotSpacing ||
-      old.dotSize != dotSize ||
+      old.columnWidth != columnWidth ||
+      old.minHeight != minHeight ||
       old.playedColor != playedColor ||
       old.unplayedColor != unplayedColor;
 }
 
 /// Demo / usage example. Delete if you don't need it.
-class DotsWaveformDemo extends StatefulWidget {
-  const DotsWaveformDemo({super.key});
+class FilledAreaWaveformDemo extends StatefulWidget {
+  const FilledAreaWaveformDemo({super.key});
 
   @override
-  State<DotsWaveformDemo> createState() => _DotsWaveformDemoState();
+  State<FilledAreaWaveformDemo> createState() => _FilledAreaWaveformDemoState();
 }
 
-class _DotsWaveformDemoState extends State<DotsWaveformDemo> {
+class _FilledAreaWaveformDemoState extends State<FilledAreaWaveformDemo> {
   late final List<double> _amps = _fakeAmps(240);
   double _progress = 0.38;
 
@@ -197,7 +203,7 @@ class _DotsWaveformDemoState extends State<DotsWaveformDemo> {
             color: const Color(0xFF23232A),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: DotsWaveform(
+          child: FilledAreaWaveform(
             amplitudes: _amps,
             progress: _progress,
             height: 46,
