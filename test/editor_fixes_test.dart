@@ -135,18 +135,17 @@ void main() {
 
       await tester.pumpAndSettle(const Duration(seconds: 1));
 
-      final containerFinder = find.byWidgetPredicate((widget) {
-        if (widget is Container && widget.foregroundDecoration is BoxDecoration) {
-          final deco = widget.foregroundDecoration as BoxDecoration;
-          if (deco.border is Border) {
-            final border = deco.border as Border;
-            return border.top.color == const Color(0xFFFFD700);
+      final customPaintFinder = find.byWidgetPredicate((widget) {
+        if (widget is CustomPaint) {
+          final painter = widget.painter;
+          if (painter != null && painter.runtimeType.toString() == '_SelectionFramePainter') {
+            return true;
           }
         }
         return false;
       });
 
-      expect(containerFinder, findsAtLeastNWidgets(1));
+      expect(customPaintFinder, findsAtLeastNWidgets(1));
     });
 
     test('fallbackWave generates normalized audio waveform amplitudes', () async {
