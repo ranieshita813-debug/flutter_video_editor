@@ -24,10 +24,23 @@ const Color _overlayMediaColor = Color(0xFF454545);
 const double _clipRadius = 5;
 const int _fps = 30;
 
+/// Selection frame (border + trim handles share this one colour).
+const Color _selectColor = Color(0xFFFFD700);
+const double _selBorder = 3.0;
+const double _selFillet = 6.0;
+
+/// Main-track clip: light enough to stay visible when unselected.
+const Color _videoClipBg = Color(0xFF3B4852);
+const Color _videoWaveBg = Color(0xFF34444F);
+const Color _videoWaveColor = Color(0xFF2FD9EA);
+
 /// Pixels per second at zoom 1.0 (CapCut-like: 1s is roughly 48px).
 const double _basePps = 48.0;
 const double _minZoom = 0.5;
 const double _maxZoom = 12.0;
+
+/// Trim handle width. Shrinks on very short clips so the body stays tappable.
+double _handleW(double clipW) => (clipW / 3).clamp(8.0, 18.0).toDouble();
 
 /// HH:MM:SS:FF timecode, used only by the scrub preview card.
 String _tcFrames(double t) {
@@ -209,8 +222,15 @@ enum _AddKind { none, media, text, sticker, audio }
 
 class _Lane {
   const _Lane(this.h, this.kind, this.clips,
-      {this.addKind = _AddKind.none, this.name = ''});
+      {this.addKind = _AddKind.none, this.name = '', double? clipH})
+      : clipH = clipH ?? h;
+
+  /// Total lane height (includes the transition-button strip on the video lane).
   final double h;
+
+  /// Height of the clips themselves. Equals [h] on every lane except a video
+  /// lane that has transitions, where the extra space sits below the clips.
+  final double clipH;
   final _ClipKind kind;
   final List<_ClipSnapshot> clips;
   final _AddKind addKind;
@@ -269,8 +289,12 @@ class _TimelineWidgetState extends State<TimelineWidget> {
   double get _gap => 6 * _s;
   // Overlay lanes are shorter than the main clip lane.
   double get _textH => 34 * _s;
-  double get _videoH => 56 * _s;
+  // Main clip: video frames on top (2/3), audio waveform below (1/3).
+  double get _videoH => 70 * _s;
   double get _audioH => 36 * _s;
+
+  /// Strip under the main clips that holds the transition buttons.
+  double get _trH => 26 * _s;
 
   final ScrollController _sc = ScrollController();
   final ScrollController _vc = ScrollController();
@@ -536,6 +560,16 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     final bool hasSticker =
         clips.any((c) => _isOverlay(c) && _isStickerType(c.type));
 
+    // The video lane only reserves the transition strip when two main clips
+    // actually touch.
+    bool hasTransitions = false;
+    for (int i = 0; i < main.length - 1; i++) {
+      if ((main[i + 1].startSec - main[i].endSec).abs() <= _adjacentEps) {
+        hasTransitions = true;
+        break;
+      }
+    }
+
     return <_Lane>[
       ...overlayLanes,
       if (hasMain && !hasText)
@@ -544,8 +578,8 @@ class _TimelineWidgetState extends State<TimelineWidget> {
       if (hasMain && !hasSticker)
         _Lane(_textH, _ClipKind.text, const <_ClipSnapshot>[],
             addKind: _AddKind.sticker, name: 'Add sticker'),
-      _Lane(_videoH, _ClipKind.video, main,
-          addKind: _AddKind.media, name: 'Video'),
+      _Lane(_videoH + (hasTransitions ? _trH : 0), _ClipKind.video, main,
+          addKind: _AddKind.media, name: 'Video', clipH: _videoH),
       for (int i = 0; i < audioRows.length; i++)
         _Lane(_audioH, _ClipKind.audio, audioRows[i],
             name: audioRows.length > 1 ? 'Audio ${i + 1}' : 'Audio'),
@@ -749,9 +783,9 @@ class _TimelineWidgetState extends State<TimelineWidget> {
                       if (c2Index != -1) {
                         final c2 = l2.clips[c2Index];
                         final x1 = half + c1.startSec * pps;
-                        final y1 = laneTopYs[i1] + l1.h / 2;
+                        final y1 = laneTopYs[i1] + l1.clipH / 2;
                         final x2 = half + c2.startSec * pps;
-                        final y2 = laneTopYs[i2] + l2.h / 2;
+                        final y2 = laneTopYs[i2] + l2.clipH / 2;
                         connections.add(_ConnectionLine(Offset(x1, y1), Offset(x2, y2)));
                         break;
                       }
@@ -951,7 +985,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     return Positioned(
       left: half,
       top: 0,
-      bottom: 0,
+      height: l.clipH,
       width: math.max(total * pps - _clipGap, 60),
       child: Semantics(
         button: true,
@@ -995,6 +1029,61 @@ class _TimelineWidgetState extends State<TimelineWidget> {
     );
   }
 
+  /// Faint, background-less transition button. It is centred horizontally on
+  /// the cut between two touching main clips and sits in the strip BELOW the
+  /// clips, so it never covers either clip.
+  Widget _transitionButton(_Lane l, List<_ClipSnapshot> list, int i,
+      double pps, double half) {
+    final double btnW = 32 * _s;
+    final double iconS = 22 * _s;
+    final double cutCenter = half + list[i].endSec * pps - _clipGap / 2;
+    return Positioned(
+      key: ValueKey<String>('tr_${list[i].id}'),
+      left: cutCenter - btnW / 2,
+      top: l.clipH + 2 * _s,
+      width: btnW,
+      height: math.max(0.0, l.h - l.clipH - 2 * _s),
+      child: Semantics(
+        button: true,
+        label: 'Edit transition',
+        excludeSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            tapFeedback();
+            editor.selectClip(list[i].id);
+            final clip = editor.project.clips.firstWhere(
+              (c) => c.id == list[i].id,
+              orElse: () => editor.project.clips.first,
+            );
+            final initialType = TransitionType.values.firstWhere(
+              (t) => t.name.toLowerCase() == clip.transitionType.toLowerCase(),
+              orElse: () => TransitionType.none,
+            );
+            showTransitionSheet(
+              context,
+              initial: initialType,
+              initialSeconds: clip.transitionDurationMs / 1000.0,
+              onApply: (type, seconds) {
+                editor.updateTransitionForSelectedClip(
+                    type.name, (seconds * 1000).round());
+              },
+            );
+          },
+          child: Center(
+            child: Opacity(
+              opacity: 0.6,
+              child: CustomPaint(
+                size: Size(iconS, iconS),
+                painter: const _TransitionIconPainter(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _lane(_Lane l, double contentW, double pps, double half, _TimelineModel m) {
     final List<_ClipSnapshot> list = l.clips;
     final bool isVideo = l.kind == _ClipKind.video;
@@ -1012,52 +1101,11 @@ class _TimelineWidgetState extends State<TimelineWidget> {
             else
               for (int i = 0; i < list.length; i++)
                 _buildClip(l, list, i, pps, half, m, isVideo),
-            // Transitions rendered on top of all clips
+            // Transition buttons live in the strip under the main clips.
             if (isVideo)
               for (int i = 0; i < list.length - 1; i++)
                 if ((list[i + 1].startSec - list[i].endSec).abs() <= _adjacentEps)
-                  Positioned(
-                    key: ValueKey<String>('tr_${list[i].id}'),
-                    // Centred exactly on the cut between two clips.
-                    left: half + list[i].endSec * pps - 10 * _s - _clipGap / 2,
-                    top: l.h / 2 - 10 * _s,
-                    child: Semantics(
-                      button: true,
-                      label: 'Edit transition',
-                      excludeSemantics: true,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          tapFeedback();
-                          editor.selectClip(list[i].id);
-                          final clip = editor.project.clips.firstWhere(
-                            (c) => c.id == list[i].id,
-                            orElse: () => editor.project.clips.first,
-                          );
-                          final initialType = TransitionType.values.firstWhere(
-                            (t) => t.name.toLowerCase() == clip.transitionType.toLowerCase(),
-                            orElse: () => TransitionType.none,
-                          );
-                          showTransitionSheet(
-                            context,
-                            initial: initialType,
-                            initialSeconds: clip.transitionDurationMs / 1000.0,
-                            onApply: (type, seconds) {
-                              editor.updateTransitionForSelectedClip(type.name, (seconds * 1000).round());
-                            },
-                          );
-                        },
-                        child: Container(
-                          width: 20 * _s,
-                          height: 20 * _s,
-                          decoration: const BoxDecoration(
-                              color: Colors.white, shape: BoxShape.circle),
-                          child: Icon(Icons.join_inner_rounded,
-                              size: 12 * _s, color: Colors.black),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _transitionButton(l, list, i, pps, half),
           ],
         ),
       ),
@@ -1072,7 +1120,7 @@ class _TimelineWidgetState extends State<TimelineWidget> {
       key: ValueKey<String>('clip_${clip.id}'),
       left: half + clip.startSec * pps,
       top: 0,
-      bottom: 0,
+      height: l.clipH,
       width: math.max(_minClipW, clip.durSec * pps - _clipGap),
       child: RepaintBoundary(
         child: _ClipBlock(
@@ -1166,29 +1214,29 @@ class _ClipBlockState extends State<_ClipBlock> {
     }
   }
 
-  /// Selection border is a foreground decoration, so it never changes the
-  /// clip's size or shifts the content inside it. White = the selected clip,
-  /// dimmer white = a clip picked in multi-select mode.
+  /// Clip container. Only the multi-select outline is drawn here; the gold
+  /// selection frame (border + trim handles) is one shape painted by
+  /// [_SelectionFramePainter] in [_buildBody].
   Widget _frame(Widget child, {Color? color, required bool inMulti}) {
-    final Color border = widget.selected
-        ? const Color(0xFFFFD700)
-        : (inMulti ? Colors.white54 : Colors.transparent);
     final BorderRadius radius = BorderRadius.circular(_clipRadius);
+    final bool showMultiBorder = inMulti && !widget.selected;
     return Container(
       decoration: BoxDecoration(color: color, borderRadius: radius),
-      foregroundDecoration: BoxDecoration(
-        borderRadius: radius,
-        border: Border.all(color: border, width: widget.selected ? 3.0 : 1.5),
-      ),
+      foregroundDecoration: showMultiBorder
+          ? BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(color: Colors.white54, width: 1.5),
+            )
+          : null,
       clipBehavior: Clip.antiAlias,
       child: child,
     );
   }
 
-  /// Handle width shrinks on very short clips (down to 8px) so the clip body
-  /// always keeps a tappable / long-pressable middle.
+  /// Invisible drag area over a trim handle. The visible handle is painted by
+  /// [_SelectionFramePainter]; this only carries the gesture.
   Widget _trimHandle({required bool left, required double clipW}) {
-    final double hw = (clipW / 3).clamp(8.0, 20.0).toDouble();
+    final double hw = _handleW(clipW);
     return Positioned(
       left: left ? 0 : null,
       right: left ? null : 0,
@@ -1222,13 +1270,7 @@ class _ClipBlockState extends State<_ClipBlock> {
             );
           }
         },
-        child: Align(
-          alignment: left ? Alignment.centerLeft : Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 1.5),
-            child: _Handle(width: math.min(10.0, hw)),
-          ),
-        ),
+        child: const SizedBox.expand(),
       ),
     );
   }
@@ -1271,7 +1313,7 @@ class _ClipBlockState extends State<_ClipBlock> {
           icon = Icons.title_rounded;
         }
         // Selected clips leave room for the trim handles.
-        final double pad = widget.selected ? 16.0 : 8.0;
+        final double pad = widget.selected ? _handleW(clipW) + 6 : 8.0;
         final double inner = clipW - 2 * pad;
         final bool showIcon = inner >= 14;
         final bool showLabel = inner >= 12 + 5 + 30;
@@ -1315,43 +1357,70 @@ class _ClipBlockState extends State<_ClipBlock> {
           inMulti: inMulti,
         );
       case _ClipKind.video:
+        // Two parts: video frames on top (2/3), audio waveform below (1/3).
         body = _frame(
-          Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              LayoutBuilder(
-                builder: (context, c) => clip.path != null
-                    ? _Filmstrip(
-                        key: ValueKey<String>(
-                            '${clip.id}|${widget.pps.toStringAsFixed(2)}|${clip.trimInMs}'),
-                        path: clip.path!,
-                        trimInSec: clip.trimInSec,
-                        durationSec: clip.durSec,
-                        width: c.maxWidth,
-                      )
-                    : const _Stripes(),
-              ),
-              // Hidden on very short clips where it would cover the thumbnails.
-              if (clipW >= 76)
-                Positioned(
-                  left: 6,
-                  bottom: 3,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                        color: Colors.black54, borderRadius: BorderRadius.circular(3)),
-                    child: Text('${clip.durSec.toStringAsFixed(1)}s',
-                        style: const TextStyle(color: Colors.white, fontSize: 11)),
+          LayoutBuilder(
+            builder: (context, c) {
+              final double wvH = (c.maxHeight / 3).floorToDouble();
+              final double badgeBottom = wvH + 3;
+              return Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    bottom: wvH,
+                    child: clip.path != null
+                        ? _Filmstrip(
+                            key: ValueKey<String>(
+                                '${clip.id}|${widget.pps.toStringAsFixed(2)}|${clip.trimInMs}'),
+                            path: clip.path!,
+                            trimInSec: clip.trimInSec,
+                            durationSec: clip.durSec,
+                            width: c.maxWidth,
+                          )
+                        : const _Stripes(),
                   ),
-                ),
-              if (clip.locked)
-                const Positioned(
-                  right: 6,
-                  bottom: 3,
-                  child: Icon(Icons.lock_rounded, size: 11, color: Colors.white70),
-                ),
-            ],
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: wvH,
+                    child: clip.path != null
+                        ? _WaveformLoader(
+                            path: clip.path!,
+                            color: _videoWaveColor,
+                            background: _videoWaveBg,
+                          )
+                        : const ColoredBox(color: _videoWaveBg),
+                  ),
+                  // Hidden on very short clips where it would cover the thumbnails.
+                  if (clipW >= 76)
+                    Positioned(
+                      left: widget.selected ? _handleW(clipW) + 6 : 6,
+                      bottom: badgeBottom,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(3)),
+                        child: Text('${clip.durSec.toStringAsFixed(1)}s',
+                            style: const TextStyle(color: Colors.white, fontSize: 11)),
+                      ),
+                    ),
+                  if (clip.locked)
+                    Positioned(
+                      right: widget.selected ? _handleW(clipW) + 6 : 6,
+                      bottom: badgeBottom,
+                      child: const Icon(Icons.lock_rounded,
+                          size: 11, color: Colors.white70),
+                    ),
+                ],
+              );
+            },
           ),
+          color: _videoClipBg,
           inMulti: inMulti,
         );
       case _ClipKind.audio:
@@ -1364,12 +1433,24 @@ class _ClipBlockState extends State<_ClipBlock> {
         );
     }
 
-    if (widget.selected && !clip.locked && !widget.multiOn.value) {
+    if (widget.selected) {
+      final bool canTrim = !clip.locked && !widget.multiOn.value;
       body = Stack(
         children: <Widget>[
           Positioned.fill(child: body),
-          _trimHandle(left: true, clipW: clipW),
-          _trimHandle(left: false, clipW: clipW),
+          // One gold shape: border + handles + outward-rounded inner corners
+          // + black arrows. Colour of border and handles is always identical.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _SelectionFramePainter(showHandles: canTrim),
+              ),
+            ),
+          ),
+          if (canTrim) ...<Widget>[
+            _trimHandle(left: true, clipW: clipW),
+            _trimHandle(left: false, clipW: clipW),
+          ],
         ],
       );
     }
@@ -1524,18 +1605,130 @@ class _ClipBlockState extends State<_ClipBlock> {
   }
 }
 
-class _Handle extends StatelessWidget {
-  const _Handle({this.width = 10});
-  final double width;
+// ----------------------------------------------------------------------------
+// Selection frame (border + trim handles as ONE shape)
+// ----------------------------------------------------------------------------
+
+/// Paints the selection frame of a clip as a single gold shape:
+///   outer rounded rect  MINUS  inner cut-out.
+/// The cut-out starts after the handle width on both sides and after the border
+/// on top/bottom, and its corners are rounded. Rounding the cut-out corners
+/// makes the gold flow outward from the handle into the border, so the inner
+/// corners of the handle look rounded "outwards" and handle + border read as
+/// one piece. Black `⟨` / `⟩` arrows are drawn in the middle of each handle.
+class _SelectionFramePainter extends CustomPainter {
+  const _SelectionFramePainter({required this.showHandles});
+
+  /// false = plain border only (locked clip or multi-select mode).
+  final bool showHandles;
+
   @override
-  Widget build(BuildContext context) => Container(
-        width: width,
-        decoration:
-            BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
-        child: const Center(
-          child: SizedBox(width: 2, height: 8, child: ColoredBox(color: Colors.black)),
-        ),
-      );
+  void paint(Canvas canvas, Size size) {
+    final double w = size.width;
+    final double h = size.height;
+    final RRect outer = RRect.fromRectAndRadius(
+        Offset.zero & size, const Radius.circular(_clipRadius));
+
+    final double hw = showHandles ? _handleW(w) : _selBorder;
+    final Rect innerRect = Rect.fromLTRB(hw, _selBorder, w - hw, h - _selBorder);
+
+    Path frame = Path()..addRRect(outer);
+    if (innerRect.width > 0 && innerRect.height > 0) {
+      final double r = showHandles
+          ? math.min(_selFillet, math.min(innerRect.width, innerRect.height) / 2)
+          : math.max(0.0, _clipRadius - _selBorder);
+      final Path hole = Path()
+        ..addRRect(RRect.fromRectAndRadius(innerRect, Radius.circular(r)));
+      frame = Path.combine(PathOperation.difference, frame, hole);
+    }
+    canvas.drawPath(
+      frame,
+      Paint()
+        ..color = _selectColor
+        ..style = PaintingStyle.fill
+        ..isAntiAlias = true,
+    );
+
+    if (!showHandles) return;
+
+    // Thin, tall angle brackets: ⟨ on the left handle, ⟩ on the right one.
+    final Paint arrow = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final double cy = h / 2;
+    final double ah = math.min(7.5, h * 0.22); // half height
+    const double aw = 2.5; // half width
+
+    final double lx = hw / 2;
+    canvas.drawPath(
+      Path()
+        ..moveTo(lx + aw, cy - ah)
+        ..lineTo(lx - aw, cy)
+        ..lineTo(lx + aw, cy + ah),
+      arrow,
+    );
+
+    final double rx = w - hw / 2;
+    canvas.drawPath(
+      Path()
+        ..moveTo(rx - aw, cy - ah)
+        ..lineTo(rx + aw, cy)
+        ..lineTo(rx - aw, cy + ah),
+      arrow,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SelectionFramePainter old) =>
+      old.showHandles != showHandles;
+}
+
+// ----------------------------------------------------------------------------
+// Transition icon
+// ----------------------------------------------------------------------------
+
+/// Bold "join" icon: two arrows pointing at each other. White, no background;
+/// the caller applies the opacity.
+class _TransitionIconPainter extends CustomPainter {
+  const _TransitionIconPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double k = size.width / 22.0;
+    final Paint p = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6 * k
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // Left arrow  →
+    canvas.drawPath(
+      Path()
+        ..moveTo(1.5 * k, 11 * k)
+        ..lineTo(8 * k, 11 * k)
+        ..moveTo(5 * k, 7.5 * k)
+        ..lineTo(8.5 * k, 11 * k)
+        ..lineTo(5 * k, 14.5 * k),
+      p,
+    );
+    // Right arrow ←
+    canvas.drawPath(
+      Path()
+        ..moveTo(20.5 * k, 11 * k)
+        ..lineTo(14 * k, 11 * k)
+        ..moveTo(17 * k, 7.5 * k)
+        ..lineTo(13.5 * k, 11 * k)
+        ..lineTo(17 * k, 14.5 * k),
+      p,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _TransitionIconPainter old) => false;
 }
 
 // ----------------------------------------------------------------------------
@@ -1571,7 +1764,7 @@ class _FilmstripState extends State<_Filmstrip> {
   List<Future<Uint8List?>> _futures = const <Future<Uint8List?>>[];
   int _n = 1;
 
-  // One thumbnail per ~44px, matching the shorter 44px main clip.
+  // One thumbnail per ~44px.
   int _count(double w) => (w / 44).ceil().clamp(1, 24).toInt();
 
   bool get _isImage => isImagePath(widget.path);
@@ -1643,18 +1836,20 @@ class _FilmstripState extends State<_Filmstrip> {
   }
 }
 
+/// Placeholder while thumbnails load. Lighter than before so an unselected
+/// main clip stays visible on the dark timeline.
 class _FilmPainter extends CustomPainter {
   const _FilmPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF2A2A2A));
+    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF4A5963));
     final double fw = math.max(14, size.height * 0.85);
     int i = 0;
     for (double x = 0; x < size.width; x += fw) {
       canvas.drawRect(
         Rect.fromLTWH(x, 0, fw - 1, size.height),
-        Paint()..color = (i++ % 2 == 0) ? const Color(0xFF383838) : const Color(0xFF424242),
+        Paint()..color = (i++ % 2 == 0) ? const Color(0xFF55656F) : const Color(0xFF5E6F7A),
       );
     }
   }
@@ -1664,8 +1859,14 @@ class _FilmPainter extends CustomPainter {
 }
 
 class _WaveformLoader extends StatefulWidget {
-  const _WaveformLoader({required this.path});
+  const _WaveformLoader({
+    required this.path,
+    this.color = const Color(0xFF00C4D6),
+    this.background = Colors.transparent,
+  });
   final String path;
+  final Color color;
+  final Color background;
 
   @override
   State<_WaveformLoader> createState() => _WaveformLoaderState();
@@ -1687,17 +1888,20 @@ class _WaveformLoaderState extends State<_WaveformLoader> {
           _bars = bars;
           _future = waveFuture(widget.path, bars);
         }
-        return FutureBuilder<List<double>>(
-          future: _future,
-          builder: (_, s) {
-            final amps = s.data ?? List<double>.filled(bars, 0.4);
-            return DotsWaveform(
-              amplitudes: amps,
-              height: c.maxHeight,
-              playedColor: const Color(0xFF00C4D6),
-              unplayedColor: const Color(0xFF00C4D6).withValues(alpha: 0.5),
-            );
-          },
+        return ColoredBox(
+          color: widget.background,
+          child: FutureBuilder<List<double>>(
+            future: _future,
+            builder: (_, s) {
+              final amps = s.data ?? List<double>.filled(bars, 0.4);
+              return DotsWaveform(
+                amplitudes: amps,
+                height: c.maxHeight,
+                playedColor: widget.color,
+                unplayedColor: widget.color.withValues(alpha: 0.85),
+              );
+            },
+          ),
         );
       },
     );
