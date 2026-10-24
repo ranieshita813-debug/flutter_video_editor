@@ -816,8 +816,8 @@ class _SpeedSheetState extends State<SpeedSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            children: const <Widget>[
+          const Row(
+            children: <Widget>[
               Text('Result over time',
                   style: TextStyle(color: _muted, fontSize: 11)),
               Spacer(),

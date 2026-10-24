@@ -1894,7 +1894,7 @@ class _WaveformLoaderState extends State<_WaveformLoader> {
             future: _future,
             builder: (_, s) {
               final amps = s.data ?? List<double>.filled(bars, 0.4);
-              return DotsWaveform(
+              return FilledAreaWaveform(
                 amplitudes: amps,
                 height: c.maxHeight,
                 playedColor: widget.color,
